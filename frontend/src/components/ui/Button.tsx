@@ -1,11 +1,17 @@
 'use client';
 
-import { forwardRef, ButtonHTMLAttributes } from 'react';
+import { Button as HeroButton } from '@heroui/react';
+import { forwardRef, ReactNode } from 'react';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
+  disabled?: boolean;
+  className?: string;
+  children?: ReactNode;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -21,55 +27,39 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const baseStyles =
-      'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
-
-    const variants = {
-      primary:
-        'bg-neutral-900 text-white hover:bg-neutral-800 focus:ring-neutral-500',
-      secondary:
-        'bg-white text-neutral-900 border border-neutral-300 hover:bg-neutral-50 focus:ring-neutral-500',
-      ghost:
-        'bg-transparent text-neutral-700 hover:bg-neutral-100 focus:ring-neutral-500',
+    const colorMap = {
+      primary: 'primary' as const,
+      secondary: 'default' as const,
+      ghost: 'default' as const,
+      danger: 'danger' as const,
     };
 
-    const sizes = {
-      sm: 'h-9 px-3 text-sm',
-      md: 'h-11 px-4 text-base min-h-[44px]',
-      lg: 'h-12 px-6 text-lg min-h-[48px]',
+    const variantMap = {
+      primary: 'solid' as const,
+      secondary: 'bordered' as const,
+      ghost: 'light' as const,
+      danger: 'solid' as const,
+    };
+
+    const sizeMap = {
+      sm: 'sm' as const,
+      md: 'md' as const,
+      lg: 'lg' as const,
     };
 
     return (
-      <button
+      <HeroButton
         ref={ref}
-        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-        disabled={disabled || loading}
+        color={colorMap[variant]}
+        variant={variantMap[variant]}
+        size={sizeMap[size]}
+        isLoading={loading}
+        isDisabled={disabled || loading}
+        className={className}
         {...props}
       >
-        {loading && (
-          <svg
-            className="animate-spin -ml-1 mr-2 h-4 w-4"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        )}
         {children}
-      </button>
+      </HeroButton>
     );
   }
 );

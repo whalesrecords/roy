@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 
 from app.models.transaction import TransactionNormalized, SaleType
 from app.services.parsers.tunecore import TuneCoreRow
+from app.services.parsers.bandcamp import BandcampRow
 
 
 # Sales type normalization mapping
@@ -226,4 +227,139 @@ def normalize_tunecore_row(
         period_start=period_start,
         period_end=period_end,
         store_name=row.store_name,
+    )
+
+
+def normalize_bandcamp_item_type(item_type: str) -> SaleType:
+    """
+    Convert Bandcamp item type to SaleType.
+
+    Args:
+        item_type: Bandcamp item type (track, album, package, etc.)
+
+    Returns:
+        SaleType enum value
+    """
+    item_type_lower = item_type.lower().strip() if item_type else ""
+
+    if item_type_lower == "track":
+        return SaleType.DOWNLOAD
+    elif item_type_lower == "album":
+        return SaleType.DOWNLOAD
+    elif item_type_lower in ["package", "physical", "merch", "merchandise", "bundle"]:
+        return SaleType.PHYSICAL
+    else:
+        return SaleType.OTHER
+
+
+def parse_bandcamp_date(date_str: Optional[str]) -> Optional[date]:
+    """
+    Parse a Bandcamp date string into a date object.
+
+    Handles formats like:
+    - "2024-01-15"
+    - "2024-01-15 10:30:00"
+    - "Jan 15, 2024"
+    - "15/01/2024"
+    """
+    if not date_str:
+        return None
+
+    date_str = date_str.strip()
+
+    # ISO format: YYYY-MM-DD or YYYY-MM-DD HH:MM:SS
+    if re.match(r"^\d{4}-\d{2}-\d{2}", date_str):
+        return date.fromisoformat(date_str[:10])
+
+    # DD/MM/YYYY or MM/DD/YYYY
+    slash_match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", date_str)
+    if slash_match:
+        a, b, year = map(int, slash_match.groups())
+        # Assume DD/MM/YYYY (European format common in Bandcamp)
+        if a > 12:
+            return date(year, b, a)  # DD/MM/YYYY
+        elif b > 12:
+            return date(year, a, b)  # MM/DD/YYYY
+        else:
+            return date(year, b, a)  # Default to DD/MM/YYYY
+
+    # Month Day, Year (e.g., "Jan 15, 2024")
+    months = {
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    }
+
+    for month_abbr, month_num in months.items():
+        if month_abbr in date_str.lower():
+            day_match = re.search(r"(\d{1,2})", date_str)
+            year_match = re.search(r"(\d{4})", date_str)
+            if day_match and year_match:
+                return date(int(year_match.group()), month_num, int(day_match.group()))
+
+    return None
+
+
+def normalize_bandcamp_row(
+    row: BandcampRow,
+    import_id: str,
+    fallback_period_start: date,
+    fallback_period_end: date,
+) -> TransactionNormalized:
+    """
+    Transform a parsed Bandcamp row into a normalized transaction.
+
+    Args:
+        row: Parsed Bandcamp row
+        import_id: UUID of the parent import
+        fallback_period_start: Default period start if not parseable from CSV
+        fallback_period_end: Default period end if not parseable from CSV
+
+    Returns:
+        TransactionNormalized instance (not yet persisted)
+    """
+    # Try to parse dates from row (Bandcamp provides date_from and date_to)
+    parsed_date_from = parse_bandcamp_date(row.date_from)
+    parsed_date_to = parse_bandcamp_date(row.date_to)
+
+    if parsed_date_from:
+        period_start = parsed_date_from
+    else:
+        period_start = fallback_period_start
+
+    if parsed_date_to:
+        period_end = parsed_date_to
+    else:
+        period_end = fallback_period_end
+
+    # Determine track/release titles based on item type
+    track_title = None
+    release_title = None
+
+    if row.item_type == "track":
+        track_title = row.item_name
+        # Use container_name as release title for tracks
+        release_title = row.container_name
+    elif row.item_type == "album":
+        release_title = row.item_name
+    else:
+        # For packages/physical, use container_name or item_name as release_title
+        release_title = row.container_name or row.item_name
+
+    return TransactionNormalized(
+        import_id=import_id,
+        source_row_number=row.row_number,
+        artist_name=row.artist,
+        release_title=release_title,
+        track_title=track_title,
+        isrc=row.isrc,
+        upc=row.upc,
+        territory=normalize_country_code(row.region),
+        sale_type=normalize_bandcamp_item_type(row.item_type),
+        original_sale_type=row.item_type,
+        quantity=row.quantity,
+        gross_amount=row.net_amount,
+        currency=row.currency.upper() if row.currency else "EUR",
+        period_start=period_start,
+        period_end=period_end,
+        store_name="Bandcamp",
     )

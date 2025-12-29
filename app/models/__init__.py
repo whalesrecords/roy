@@ -6,6 +6,10 @@ from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.statement import Statement, StatementStatus
+from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.track_artist_link import TrackArtistLink
+from app.models.label_settings import LabelSettings
+from app.models.match_suggestion import MatchSuggestion, MatchMethod, MatchStatus
 
 __all__ = [
     # Import models
@@ -25,4 +29,15 @@ __all__ = [
     "RoyaltyLineItem",
     "Statement",
     "StatementStatus",
+    # Artwork
+    "ReleaseArtwork",
+    "TrackArtwork",
+    # Track-Artist Links
+    "TrackArtistLink",
+    # Settings
+    "LabelSettings",
+    # Matching
+    "MatchSuggestion",
+    "MatchMethod",
+    "MatchStatus",
 ]

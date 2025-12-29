@@ -3,6 +3,22 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  NavbarItem,
+  NavbarMenuToggle,
+  NavbarMenu,
+  NavbarMenuItem,
+  Button,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Avatar,
+} from '@heroui/react';
+import { useState } from 'react';
 
 const navItems = [
   { href: '/imports', label: 'Imports' },
@@ -14,44 +30,97 @@ const navItems = [
 export default function Nav() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-white border-b border-neutral-200">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {navItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-neutral-900 text-neutral-900'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-          {user && (
-            <div className="flex items-center gap-3 py-2">
-              <span className="text-xs text-neutral-500 hidden sm:inline">
-                {user.email}
-              </span>
-              <button
-                onClick={() => signOut()}
-                className="text-sm text-neutral-500 hover:text-neutral-700 px-2 py-1 rounded hover:bg-neutral-100 transition-colors"
+    <Navbar
+      maxWidth="xl"
+      isBordered
+      isMenuOpen={isMenuOpen}
+      onMenuOpenChange={setIsMenuOpen}
+      classNames={{
+        base: "bg-background",
+        wrapper: "px-4",
+      }}
+    >
+      <NavbarContent>
+        <NavbarMenuToggle
+          aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          className="sm:hidden"
+        />
+        <NavbarBrand>
+          <p className="font-bold text-inherit text-lg">Royalties</p>
+        </NavbarBrand>
+      </NavbarContent>
+
+      <NavbarContent className="hidden sm:flex gap-6" justify="center">
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <NavbarItem key={item.href} isActive={isActive}>
+              <Link
+                href={item.href}
+                className={`text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-primary'
+                    : 'text-default-600 hover:text-primary'
+                }`}
               >
+                {item.label}
+              </Link>
+            </NavbarItem>
+          );
+        })}
+      </NavbarContent>
+
+      <NavbarContent justify="end">
+        {user && (
+          <Dropdown placement="bottom-end">
+            <DropdownTrigger>
+              <Avatar
+                isBordered
+                as="button"
+                className="transition-transform"
+                color="primary"
+                name={user.email?.charAt(0).toUpperCase()}
+                size="sm"
+              />
+            </DropdownTrigger>
+            <DropdownMenu aria-label="Actions profil" variant="flat">
+              <DropdownItem key="profile" className="h-14 gap-2" textValue="Profil">
+                <p className="font-semibold">Connecté</p>
+                <p className="text-sm text-default-500">{user.email}</p>
+              </DropdownItem>
+              <DropdownItem key="settings" href="/settings">
+                Paramètres
+              </DropdownItem>
+              <DropdownItem key="logout" color="danger" onPress={() => signOut()}>
                 Déconnexion
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </nav>
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        )}
+      </NavbarContent>
+
+      {/* Mobile menu */}
+      <NavbarMenu>
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <NavbarMenuItem key={item.href}>
+              <Link
+                href={item.href}
+                className={`w-full text-lg ${
+                  isActive ? 'text-primary font-semibold' : 'text-default-600'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            </NavbarMenuItem>
+          );
+        })}
+      </NavbarMenu>
+    </Navbar>
   );
 }

@@ -25,7 +25,8 @@ from app.schemas.imports import (
 from app.models.transaction import TransactionNormalized
 from sqlalchemy import select
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
-from app.services.normalize import normalize_tunecore_row
+from app.services.parsers.bandcamp import BandcampParser
+from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row
 
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -246,6 +247,38 @@ async def create_import(
                     row_number=row.row_number,
                     error=f"Normalization error: {str(e)}",
                 ))
+
+    elif import_source == ImportSource.BANDCAMP:
+        parser = BandcampParser()
+        result = parser.parse(content)
+
+        import_record.rows_total = result.total_rows
+
+        # Collect errors
+        for err in result.errors:
+            errors.append(ImportErrorDetail(
+                row_number=err.row_number,
+                error=err.error,
+                raw_data=err.raw_data,
+            ))
+
+        # Normalize and create transactions
+        for row in result.rows:
+            try:
+                transaction = normalize_bandcamp_row(
+                    row=row,
+                    import_id=import_record.id,
+                    fallback_period_start=period_start,
+                    fallback_period_end=period_end,
+                )
+                transactions.append(transaction)
+                gross_total += transaction.gross_amount
+            except Exception as e:
+                errors.append(ImportErrorDetail(
+                    row_number=row.row_number,
+                    error=f"Normalization error: {str(e)}",
+                ))
+
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

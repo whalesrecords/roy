@@ -1,6 +1,6 @@
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'partial';
 
-export type ImportSource = 'tunecore' | 'believe' | 'cdbaby' | 'other';
+export type ImportSource = 'tunecore' | 'believe' | 'cdbaby' | 'bandcamp' | 'other';
 
 export interface ImportRecord {
   id: string;
@@ -86,6 +86,7 @@ export const SOURCES: { value: ImportSource; label: string }[] = [
   { value: 'tunecore', label: 'TuneCore' },
   { value: 'believe', label: 'Believe' },
   { value: 'cdbaby', label: 'CD Baby' },
+  { value: 'bandcamp', label: 'Bandcamp' },
   { value: 'other', label: 'Autre' },
 ];
 

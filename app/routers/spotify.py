@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.artist import Artist
+from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.services.spotify import spotify_service
 
 logger = logging.getLogger(__name__)
@@ -112,9 +113,26 @@ async def search_artist(
 @router.get("/search/album/upc/{upc}", response_model=SpotifyAlbumResult)
 async def search_album_by_upc(
     upc: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> SpotifyAlbumResult:
-    """Search for an album on Spotify by UPC barcode."""
+    """Search for an album on Spotify by UPC barcode.
+
+    First checks the database cache, then fetches from Spotify if not found.
+    """
+    # Check database cache first
+    cached = await db.execute(select(ReleaseArtwork).where(ReleaseArtwork.upc == upc))
+    cached_artwork = cached.scalar_one_or_none()
+
+    if cached_artwork and cached_artwork.image_url:
+        logger.info(f"Returning cached artwork for UPC {upc}")
+        return SpotifyAlbumResult(
+            spotify_id=cached_artwork.spotify_id,
+            name=cached_artwork.name,
+            image_url=cached_artwork.image_url,
+            image_url_small=cached_artwork.image_url_small,
+        )
+
     if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -124,6 +142,23 @@ async def search_album_by_upc(
     try:
         result = await spotify_service.search_album_by_upc(upc)
         if result:
+            # Save to database cache
+            if cached_artwork:
+                cached_artwork.spotify_id = result.get("spotify_id")
+                cached_artwork.name = result.get("name")
+                cached_artwork.image_url = result.get("image_url")
+                cached_artwork.image_url_small = result.get("image_url_small")
+            else:
+                new_artwork = ReleaseArtwork(
+                    upc=upc,
+                    spotify_id=result.get("spotify_id"),
+                    name=result.get("name"),
+                    image_url=result.get("image_url"),
+                    image_url_small=result.get("image_url_small"),
+                )
+                db.add(new_artwork)
+            await db.flush()
+            logger.info(f"Saved artwork for UPC {upc} to database")
             return SpotifyAlbumResult(**result)
         return SpotifyAlbumResult()
     except ValueError as e:
@@ -136,9 +171,27 @@ async def search_album_by_upc(
 @router.get("/search/track/isrc/{isrc}", response_model=SpotifyTrackResult)
 async def search_track_by_isrc(
     isrc: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> SpotifyTrackResult:
-    """Search for a track on Spotify by ISRC code."""
+    """Search for a track on Spotify by ISRC code.
+
+    First checks the database cache, then fetches from Spotify if not found.
+    """
+    # Check database cache first
+    cached = await db.execute(select(TrackArtwork).where(TrackArtwork.isrc == isrc))
+    cached_artwork = cached.scalar_one_or_none()
+
+    if cached_artwork and cached_artwork.image_url:
+        logger.info(f"Returning cached artwork for ISRC {isrc}")
+        return SpotifyTrackResult(
+            spotify_id=cached_artwork.spotify_id,
+            name=cached_artwork.name,
+            album_name=cached_artwork.album_name,
+            image_url=cached_artwork.image_url,
+            image_url_small=cached_artwork.image_url_small,
+        )
+
     if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -148,6 +201,25 @@ async def search_track_by_isrc(
     try:
         result = await spotify_service.search_track_by_isrc(isrc)
         if result:
+            # Save to database cache
+            if cached_artwork:
+                cached_artwork.spotify_id = result.get("spotify_id")
+                cached_artwork.name = result.get("name")
+                cached_artwork.album_name = result.get("album_name")
+                cached_artwork.image_url = result.get("image_url")
+                cached_artwork.image_url_small = result.get("image_url_small")
+            else:
+                new_artwork = TrackArtwork(
+                    isrc=isrc,
+                    spotify_id=result.get("spotify_id"),
+                    name=result.get("name"),
+                    album_name=result.get("album_name"),
+                    image_url=result.get("image_url"),
+                    image_url_small=result.get("image_url_small"),
+                )
+                db.add(new_artwork)
+            await db.flush()
+            logger.info(f"Saved artwork for ISRC {isrc} to database")
             return SpotifyTrackResult(**result)
         return SpotifyTrackResult()
     except ValueError as e:

@@ -38,6 +38,7 @@ from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.statement import Statement, StatementStatus
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+from app.models.track_artist_link import TrackArtistLink
 from app.services.fx import FXService, fx_service as default_fx_service
 
 logger = logging.getLogger(__name__)
@@ -331,6 +332,23 @@ class RoyaltyCalculator:
 
             logger.info(f"Pre-loaded {len(all_contracts)} contracts (track={len(track_contracts)}, release={len(release_contracts)}, catalog={len(catalog_contracts)})")
 
+            # PRE-LOAD track-artist links for multi-artist support
+            track_links_query = select(TrackArtistLink)
+            track_links_result = await db.execute(track_links_query)
+            all_track_links = track_links_result.scalars().all()
+
+            # Index links by ISRC
+            track_artist_links: Dict[str, List[TrackArtistLink]] = {}
+            for link in all_track_links:
+                if link.isrc not in track_artist_links:
+                    track_artist_links[link.isrc] = []
+                track_artist_links[link.isrc].append(link)
+
+            logger.info(f"Pre-loaded {len(all_track_links)} track-artist links for {len(track_artist_links)} tracks")
+
+            # Build artist cache by ID for multi-artist lookups
+            artist_cache_by_id: Dict[UUID, Artist] = {a.id: a for a in all_artists}
+
             # Track import IDs for audit
             import_ids_set: set[UUID] = set()
 
@@ -338,40 +356,7 @@ class RoyaltyCalculator:
             for tx in transactions:
                 import_ids_set.add(tx.import_id)
 
-                # Get or create artist from cache
-                if tx.artist_name not in artist_cache:
-                    # If filtering by artist_ids, skip unknown artists
-                    if artist_ids:
-                        continue
-                    artist = Artist(name=tx.artist_name)
-                    db.add(artist)
-                    await db.flush()
-                    artist_cache[tx.artist_name] = artist
-                    logger.info(f"Created new artist: {tx.artist_name} (id={artist.id})")
-                else:
-                    artist = artist_cache[tx.artist_name]
-                    # If filtering by artist_ids, skip artists not in the set
-                    if artist_id_set and artist.id not in artist_id_set:
-                        continue
-
-                # Find applicable contract from cache (priority: track > release > catalog)
-                contract = None
-                if tx.isrc:
-                    contract = track_contracts.get((artist.id, tx.isrc))
-                if contract is None and tx.upc:
-                    contract = release_contracts.get((artist.id, tx.upc))
-                if contract is None:
-                    contract = catalog_contracts.get(artist.id)
-
-                # Determine splits
-                if contract:
-                    artist_share = contract.artist_share
-                    label_share = contract.label_share
-                else:
-                    artist_share = DEFAULT_ARTIST_SHARE
-                    label_share = DEFAULT_LABEL_SHARE
-
-                # Convert to base currency
+                # Convert to base currency (done once per transaction)
                 amount_base, fx_rate = self.fx.convert(
                     tx.gross_amount,
                     tx.currency,
@@ -379,50 +364,167 @@ class RoyaltyCalculator:
                     tx.period_end,
                 )
 
-                # Calculate amounts
-                artist_amount = amount_base * artist_share
-                label_amount = amount_base * label_share
+                # Check if this track has multi-artist links
+                if tx.isrc and tx.isrc in track_artist_links:
+                    # MULTI-ARTIST MODE: Split revenue among linked artists
+                    links = track_artist_links[tx.isrc]
 
-                # Create line item
-                line_item = RoyaltyLineItem(
-                    royalty_run_id=run.id,
-                    transaction_id=tx.id,
-                    contract_id=contract.id if contract else None,
-                    artist_id=artist.id,
-                    artist_name=tx.artist_name,
-                    track_title=tx.track_title,
-                    release_title=tx.release_title,
-                    isrc=tx.isrc,
-                    upc=tx.upc,
-                    gross_amount=tx.gross_amount,
-                    original_currency=tx.currency,
-                    amount_base=amount_base,
-                    fx_rate=fx_rate,
-                    artist_share=artist_share,
-                    label_share=label_share,
-                    artist_amount=artist_amount,
-                    label_amount=label_amount,
-                )
-                db.add(line_item)
+                    for link in links:
+                        artist = artist_cache_by_id.get(link.artist_id)
+                        if not artist:
+                            continue
 
-                # Aggregate by artist
-                if artist.id not in result.artists:
-                    result.artists[artist.id] = ArtistResult(
+                        # If filtering by artist_ids, skip artists not in the set
+                        if artist_id_set and artist.id not in artist_id_set:
+                            continue
+
+                        # Calculate this artist's share of the gross
+                        artist_portion = amount_base * link.share_percent
+
+                        # Find applicable contract for THIS artist
+                        contract = None
+                        if tx.isrc:
+                            contract = track_contracts.get((artist.id, tx.isrc))
+                        if contract is None and tx.upc:
+                            contract = release_contracts.get((artist.id, tx.upc))
+                        if contract is None:
+                            contract = catalog_contracts.get(artist.id)
+
+                        # Determine splits from contract
+                        if contract:
+                            contract_artist_share = contract.artist_share
+                            contract_label_share = contract.label_share
+                        else:
+                            contract_artist_share = DEFAULT_ARTIST_SHARE
+                            contract_label_share = DEFAULT_LABEL_SHARE
+
+                        # Calculate amounts for this artist
+                        artist_amount = artist_portion * contract_artist_share
+                        label_amount = artist_portion * contract_label_share
+
+                        # Create line item for this artist
+                        line_item = RoyaltyLineItem(
+                            royalty_run_id=run.id,
+                            transaction_id=tx.id,
+                            contract_id=contract.id if contract else None,
+                            artist_id=artist.id,
+                            artist_name=artist.name,
+                            track_title=tx.track_title,
+                            release_title=tx.release_title,
+                            isrc=tx.isrc,
+                            upc=tx.upc,
+                            gross_amount=tx.gross_amount * link.share_percent,
+                            original_currency=tx.currency,
+                            amount_base=artist_portion,
+                            fx_rate=fx_rate,
+                            artist_share=contract_artist_share,
+                            label_share=contract_label_share,
+                            artist_amount=artist_amount,
+                            label_amount=label_amount,
+                        )
+                        db.add(line_item)
+
+                        # Aggregate by artist
+                        if artist.id not in result.artists:
+                            result.artists[artist.id] = ArtistResult(
+                                artist_id=artist.id,
+                                artist_name=artist.name,
+                            )
+
+                        artist_result = result.artists[artist.id]
+                        artist_result.gross += artist_portion
+                        artist_result.artist_royalties += artist_amount
+                        artist_result.label_royalties += label_amount
+                        artist_result.transaction_count += 1
+
+                        # Update totals
+                        result.total_artist_royalties += artist_amount
+                        result.total_label_royalties += label_amount
+
+                    # Add to global totals (once per transaction)
+                    result.total_transactions += 1
+                    result.total_gross += amount_base
+
+                else:
+                    # LEGACY MODE: Single artist from transaction
+                    # Get or create artist from cache
+                    if tx.artist_name not in artist_cache:
+                        # If filtering by artist_ids, skip unknown artists
+                        if artist_ids:
+                            continue
+                        artist = Artist(name=tx.artist_name)
+                        db.add(artist)
+                        await db.flush()
+                        artist_cache[tx.artist_name] = artist
+                        artist_cache_by_id[artist.id] = artist
+                        logger.info(f"Created new artist: {tx.artist_name} (id={artist.id})")
+                    else:
+                        artist = artist_cache[tx.artist_name]
+                        # If filtering by artist_ids, skip artists not in the set
+                        if artist_id_set and artist.id not in artist_id_set:
+                            continue
+
+                    # Find applicable contract from cache (priority: track > release > catalog)
+                    contract = None
+                    if tx.isrc:
+                        contract = track_contracts.get((artist.id, tx.isrc))
+                    if contract is None and tx.upc:
+                        contract = release_contracts.get((artist.id, tx.upc))
+                    if contract is None:
+                        contract = catalog_contracts.get(artist.id)
+
+                    # Determine splits
+                    if contract:
+                        artist_share = contract.artist_share
+                        label_share = contract.label_share
+                    else:
+                        artist_share = DEFAULT_ARTIST_SHARE
+                        label_share = DEFAULT_LABEL_SHARE
+
+                    # Calculate amounts
+                    artist_amount = amount_base * artist_share
+                    label_amount = amount_base * label_share
+
+                    # Create line item
+                    line_item = RoyaltyLineItem(
+                        royalty_run_id=run.id,
+                        transaction_id=tx.id,
+                        contract_id=contract.id if contract else None,
                         artist_id=artist.id,
                         artist_name=tx.artist_name,
+                        track_title=tx.track_title,
+                        release_title=tx.release_title,
+                        isrc=tx.isrc,
+                        upc=tx.upc,
+                        gross_amount=tx.gross_amount,
+                        original_currency=tx.currency,
+                        amount_base=amount_base,
+                        fx_rate=fx_rate,
+                        artist_share=artist_share,
+                        label_share=label_share,
+                        artist_amount=artist_amount,
+                        label_amount=label_amount,
                     )
+                    db.add(line_item)
 
-                artist_result = result.artists[artist.id]
-                artist_result.gross += amount_base
-                artist_result.artist_royalties += artist_amount
-                artist_result.label_royalties += label_amount
-                artist_result.transaction_count += 1
+                    # Aggregate by artist
+                    if artist.id not in result.artists:
+                        result.artists[artist.id] = ArtistResult(
+                            artist_id=artist.id,
+                            artist_name=tx.artist_name,
+                        )
 
-                # Update totals
-                result.total_transactions += 1
-                result.total_gross += amount_base
-                result.total_artist_royalties += artist_amount
-                result.total_label_royalties += label_amount
+                    artist_result = result.artists[artist.id]
+                    artist_result.gross += amount_base
+                    artist_result.artist_royalties += artist_amount
+                    artist_result.label_royalties += label_amount
+                    artist_result.transaction_count += 1
+
+                    # Update totals
+                    result.total_transactions += 1
+                    result.total_gross += amount_base
+                    result.total_artist_royalties += artist_amount
+                    result.total_label_royalties += label_amount
 
             # Flush line items
             await db.flush()

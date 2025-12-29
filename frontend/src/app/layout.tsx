@@ -18,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
-      <body className={inter.className}>
+    <html lang="fr" className="light">
+      <body className={`${inter.className} bg-gray-50 text-gray-900 min-h-screen`}>
         <HeroUIProvider>
           <AuthProvider>
             <AppShell>

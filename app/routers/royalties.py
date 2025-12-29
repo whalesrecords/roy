@@ -55,12 +55,26 @@ async def list_royalty_runs(
     )
     runs = result.scalars().all()
 
+    # Pre-load all artists for name lookup
+    artist_ids = set()
+    for run in runs:
+        for stmt in run.statements:
+            artist_ids.add(stmt.artist_id)
+
+    artist_names = {}
+    if artist_ids:
+        artists_result = await db.execute(
+            select(Artist).where(Artist.id.in_(artist_ids))
+        )
+        for artist in artists_result.scalars().all():
+            artist_names[artist.id] = artist.name
+
     responses = []
     for run in runs:
         artists = [
             ArtistRoyaltyResult(
                 artist_id=stmt.artist_id,
-                artist_name="",
+                artist_name=artist_names.get(stmt.artist_id, "Inconnu"),
                 gross=stmt.gross_revenue,
                 artist_royalties=stmt.artist_royalties,
                 recouped=stmt.recouped,
@@ -194,11 +208,21 @@ async def get_royalty_run(
             detail=f"Royalty run {run_id} not found",
         )
 
+    # Load artist names
+    artist_ids = [stmt.artist_id for stmt in run.statements]
+    artist_names = {}
+    if artist_ids:
+        artists_result = await db.execute(
+            select(Artist).where(Artist.id.in_(artist_ids))
+        )
+        for artist in artists_result.scalars().all():
+            artist_names[artist.id] = artist.name
+
     # Build artist results from statements
     artists = [
         ArtistRoyaltyResult(
             artist_id=stmt.artist_id,
-            artist_name="",  # Would need to join with artist table
+            artist_name=artist_names.get(stmt.artist_id, "Inconnu"),
             gross=stmt.gross_revenue,
             artist_royalties=stmt.artist_royalties,
             recouped=stmt.recouped,
@@ -246,11 +270,21 @@ async def lock_royalty_run(
     try:
         run = await calculator.lock_run(db, run_id)
 
+        # Load artist names
+        artist_ids = [stmt.artist_id for stmt in run.statements]
+        artist_names = {}
+        if artist_ids:
+            artists_result = await db.execute(
+                select(Artist).where(Artist.id.in_(artist_ids))
+            )
+            for artist in artists_result.scalars().all():
+                artist_names[artist.id] = artist.name
+
         # Build artist results from statements
         artists = [
             ArtistRoyaltyResult(
                 artist_id=stmt.artist_id,
-                artist_name="",
+                artist_name=artist_names.get(stmt.artist_id, "Inconnu"),
                 gross=stmt.gross_revenue,
                 artist_royalties=stmt.artist_royalties,
                 recouped=stmt.recouped,

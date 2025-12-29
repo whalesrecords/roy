@@ -29,7 +29,10 @@ async function fetchApi<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
-    throw new Error(error.detail || `Erreur ${res.status}`);
+    const message = typeof error.detail === 'string'
+      ? error.detail
+      : (error.detail?.message || error.message || `Erreur ${res.status}`);
+    throw new Error(message);
   }
 
   return res.json();
@@ -158,7 +161,7 @@ export async function updateContract(
   contractId: string,
   data: {
     scope: string;
-    scope_id?: string;
+    scope_id?: string | null;
     artist_share: number;
     label_share: number;
     start_date: string;
@@ -166,10 +169,20 @@ export async function updateContract(
     description?: string;
   }
 ): Promise<Contract> {
+  const payload = {
+    artist_id: artistId,
+    scope: data.scope,
+    scope_id: data.scope === 'catalog' ? null : data.scope_id,
+    artist_share: data.artist_share,
+    label_share: data.label_share,
+    start_date: data.start_date,
+    end_date: data.end_date || null,
+    description: data.description || null,
+  };
   return fetchApi<Contract>(`/artists/${artistId}/contracts/${contractId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -354,7 +367,10 @@ export async function analyzeImport(file: File, source: string): Promise<ImportA
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
-    throw new Error(error.detail || `Erreur ${res.status}`);
+    const message = typeof error.detail === 'string'
+      ? error.detail
+      : (error.detail?.message || error.message || `Erreur ${res.status}`);
+    throw new Error(message);
   }
 
   return res.json();
@@ -429,6 +445,16 @@ export interface AlbumRoyalty {
   streams: number;
 }
 
+export interface SourceBreakdown {
+  source: string;
+  source_label: string;
+  gross: string;
+  artist_royalties: string;
+  label_royalties: string;
+  transaction_count: number;
+  streams: number;
+}
+
 export interface ArtistRoyaltyCalculation {
   artist_id: string;
   artist_name: string;
@@ -442,6 +468,7 @@ export interface ArtistRoyaltyCalculation {
   recoupable: string;
   net_payable: string;
   albums: AlbumRoyalty[];
+  sources: SourceBreakdown[];
 }
 
 export async function calculateArtistRoyalties(
@@ -465,3 +492,173 @@ export async function updateArtistArtwork(
     body: JSON.stringify(data),
   });
 }
+
+// Track-Artist Links (Multi-artist support)
+
+export interface TrackArtistLink {
+  id: string;
+  isrc: string;
+  artist_id: string;
+  artist_name: string;
+  share_percent: string;
+  track_title?: string;
+  release_title?: string;
+}
+
+export interface CatalogTrackWithLinks {
+  isrc: string;
+  track_title: string;
+  release_title: string;
+  upc?: string;
+  total_gross: string;
+  total_streams: number;
+  original_artist_name: string;
+  linked_artists: TrackArtistLink[];
+  is_linked: boolean;
+}
+
+export interface CollaborationSuggestion {
+  isrc: string;
+  track_title: string;
+  original_artist_name: string;
+  detected_artists: {
+    name: string;
+    exists: boolean;
+    artist_id?: string;
+    artist_name: string;
+  }[];
+  suggested_equal_split: string;
+}
+
+export async function getCatalogTracks(params?: {
+  search?: string;
+  has_links?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<CatalogTrackWithLinks[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.search) queryParams.set('search', params.search);
+  if (params?.has_links !== undefined) queryParams.set('has_links', String(params.has_links));
+  if (params?.limit) queryParams.set('limit', String(params.limit));
+  if (params?.offset) queryParams.set('offset', String(params.offset));
+
+  const query = queryParams.toString();
+  return fetchApi<CatalogTrackWithLinks[]>(`/catalog/tracks${query ? `?${query}` : ''}`);
+}
+
+export async function getTrackDetails(isrc: string): Promise<CatalogTrackWithLinks> {
+  return fetchApi<CatalogTrackWithLinks>(`/catalog/tracks/${encodeURIComponent(isrc)}`);
+}
+
+export async function linkArtistsToTrack(
+  isrc: string,
+  links: { artist_id: string; share_percent: number }[]
+): Promise<TrackArtistLink[]> {
+  return fetchApi<TrackArtistLink[]>(`/catalog/tracks/${encodeURIComponent(isrc)}/artists`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(links),
+  });
+}
+
+export async function unlinkArtistFromTrack(
+  isrc: string,
+  artistId: string
+): Promise<{ success: boolean; message: string }> {
+  return fetchApi<{ success: boolean; message: string }>(
+    `/catalog/tracks/${encodeURIComponent(isrc)}/artists/${artistId}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function getCollaborationSuggestions(
+  limit: number = 50
+): Promise<CollaborationSuggestion[]> {
+  return fetchApi<CollaborationSuggestion[]>(`/catalog/tracks/suggestions/collaborations?limit=${limit}`);
+}
+
+// Label Settings
+
+export interface LabelSettings {
+  id: string;
+  label_name: string;
+  logo_url?: string;
+  logo_base64?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  siret?: string;
+  vat_number?: string;
+}
+
+export async function getLabelSettings(): Promise<LabelSettings | null> {
+  return fetchApi<LabelSettings | null>('/settings/label');
+}
+
+export async function updateLabelSettings(data: Partial<Omit<LabelSettings, 'id' | 'logo_base64'>>): Promise<LabelSettings> {
+  return fetchApi<LabelSettings>('/settings/label', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadLabelLogo(file: File): Promise<LabelSettings> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return fetchApi<LabelSettings>('/settings/label/logo', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function deleteLabelLogo(): Promise<LabelSettings> {
+  return fetchApi<LabelSettings>('/settings/label/logo', {
+    method: 'DELETE',
+  });
+}
+
+// Payments
+
+export async function getPayments(artistId: string): Promise<AdvanceEntry[]> {
+  return fetchApi<AdvanceEntry[]>(`/artists/${artistId}/payments`);
+}
+
+export async function createPayment(
+  artistId: string,
+  amount: number,
+  currency: string,
+  description?: string,
+  paymentDate?: string
+): Promise<AdvanceEntry> {
+  return fetchApi<AdvanceEntry>(`/artists/${artistId}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      artist_id: artistId,
+      amount,
+      currency,
+      description,
+      payment_date: paymentDate,
+    }),
+  });
+}
+
+export async function deletePayment(
+  artistId: string,
+  paymentId: string
+): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(
+    `/artists/${artistId}/payments/${paymentId}`,
+    { method: 'DELETE' }
+  );
+}
+
+// Re-export types from types.ts for convenience
+export type { Artist, Contract, AdvanceEntry, RoyaltyRun } from './types';

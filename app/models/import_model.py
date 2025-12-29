@@ -19,6 +19,7 @@ class ImportSource(str, Enum):
     TUNECORE = "tunecore"
     BELIEVE = "believe"
     CDBABY = "cdbaby"
+    BANDCAMP = "bandcamp"
     OTHER = "other"
 
 

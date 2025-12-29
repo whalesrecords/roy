@@ -1,7 +1,6 @@
 'use client';
 
 import { ImportRecord, SOURCES } from '@/lib/types';
-import StatusBadge from '@/components/ui/StatusBadge';
 
 interface ImportCardProps {
   import_: ImportRecord;
@@ -14,51 +13,66 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
+      day: '2-digit',
+      month: '2-digit',
       year: 'numeric',
     });
   };
 
-  const formatPeriod = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    return `${startDate.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })} - ${endDate.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}`;
+  const getStatusStyle = () => {
+    switch (import_.status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = () => {
+    switch (import_.status) {
+      case 'completed':
+        return 'Terminé';
+      case 'failed':
+        return 'Erreur';
+      case 'pending':
+        return 'En attente';
+      case 'processing':
+        return 'En cours';
+      default:
+        return import_.status;
+    }
   };
 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white rounded-xl border border-neutral-200 p-4 hover:border-neutral-300 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-500"
+      className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-neutral-900">{sourceLabel}</span>
-            <StatusBadge status={import_.status} />
-          </div>
-          <p className="text-sm text-neutral-500 truncate">{import_.filename}</p>
-          <p className="text-sm text-neutral-500 mt-1">
-            {formatPeriod(import_.period_start, import_.period_end)}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm text-neutral-500">
-            {formatDate(import_.created_at)}
-          </p>
-          <p className="text-sm text-neutral-700 mt-1">
-            {import_.success_rows.toLocaleString('fr-FR')} lignes
-          </p>
-        </div>
-      </div>
+      <span className="text-sm text-gray-500 w-20 shrink-0">
+        {formatDate(import_.created_at)}
+      </span>
 
-      {import_.error_rows > 0 && (
-        <div className="mt-3 pt-3 border-t border-neutral-100">
-          <p className="text-sm text-red-600">
-            {import_.error_rows} erreur{import_.error_rows > 1 ? 's' : ''}
-          </p>
-        </div>
-      )}
+      <span className="text-sm font-medium text-gray-900 w-32 shrink-0 truncate">
+        {sourceLabel}
+      </span>
+
+      <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusStyle()}`}>
+        {getStatusLabel()}
+      </span>
+
+      <span className="text-sm text-gray-600 ml-auto">
+        {import_.success_rows.toLocaleString('fr-FR')} lignes
+        {import_.error_rows > 0 && (
+          <span className="text-red-600 ml-2">
+            ({import_.error_rows} erreur{import_.error_rows > 1 ? 's' : ''})
+          </span>
+        )}
+      </span>
     </button>
   );
 }

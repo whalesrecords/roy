@@ -26,6 +26,7 @@ from app.schemas.royalties import (
     AdvanceCreate,
     AdvanceLedgerEntryResponse,
     AdvanceBalanceResponse,
+    PaymentCreate,
 )
 from app.models.transaction import TransactionNormalized
 
@@ -954,6 +955,150 @@ async def get_advance_balance(
     )
 
 
+# Payment endpoints
+
+@router.post("/{artist_id}/payments", response_model=AdvanceLedgerEntryResponse)
+async def create_payment(
+    artist_id: UUID,
+    data: PaymentCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> AdvanceLedgerEntryResponse:
+    """
+    Record a payment made to an artist.
+
+    Payments represent money transferred to the artist (royalties paid out).
+    This helps track what has been paid vs what is still owed.
+    """
+    from datetime import datetime as dt
+
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Create payment entry
+    effective_date = dt.combine(data.payment_date, dt.min.time()) if data.payment_date else dt.utcnow()
+
+    entry = AdvanceLedgerEntry(
+        artist_id=artist_id,
+        entry_type=LedgerEntryType.PAYMENT,
+        amount=data.amount,
+        currency=data.currency,
+        scope="catalog",
+        scope_id=None,
+        description=data.description,
+        effective_date=effective_date,
+    )
+    db.add(entry)
+    await db.flush()
+
+    return AdvanceLedgerEntryResponse(
+        id=entry.id,
+        artist_id=entry.artist_id,
+        entry_type=entry.entry_type.value,
+        amount=entry.amount,
+        currency=entry.currency,
+        scope=entry.scope,
+        scope_id=entry.scope_id,
+        royalty_run_id=entry.royalty_run_id,
+        description=entry.description,
+        reference=entry.reference,
+        effective_date=entry.effective_date,
+        created_at=entry.created_at,
+    )
+
+
+@router.get("/{artist_id}/payments", response_model=List[AdvanceLedgerEntryResponse])
+async def list_payments(
+    artist_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> List[AdvanceLedgerEntryResponse]:
+    """List all payments made to an artist."""
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    result = await db.execute(
+        select(AdvanceLedgerEntry)
+        .where(
+            AdvanceLedgerEntry.artist_id == artist_id,
+            AdvanceLedgerEntry.entry_type == LedgerEntryType.PAYMENT,
+        )
+        .order_by(AdvanceLedgerEntry.effective_date.desc())
+    )
+    entries = result.scalars().all()
+
+    return [
+        AdvanceLedgerEntryResponse(
+            id=entry.id,
+            artist_id=entry.artist_id,
+            entry_type=entry.entry_type.value,
+            amount=entry.amount,
+            currency=entry.currency,
+            scope=getattr(entry, 'scope', 'catalog') or 'catalog',
+            scope_id=getattr(entry, 'scope_id', None),
+            royalty_run_id=entry.royalty_run_id,
+            description=entry.description,
+            reference=entry.reference,
+            effective_date=entry.effective_date,
+            created_at=entry.created_at,
+        )
+        for entry in entries
+    ]
+
+
+@router.delete("/{artist_id}/payments/{payment_id}")
+async def delete_payment(
+    artist_id: UUID,
+    payment_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """Delete a payment entry."""
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Get the payment entry
+    result = await db.execute(
+        select(AdvanceLedgerEntry).where(
+            AdvanceLedgerEntry.id == payment_id,
+            AdvanceLedgerEntry.artist_id == artist_id,
+            AdvanceLedgerEntry.entry_type == LedgerEntryType.PAYMENT,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Payment {payment_id} not found",
+        )
+
+    await db.delete(entry)
+    await db.flush()
+
+    return {"success": True, "deleted_id": str(payment_id)}
+
+
 # Royalty calculation per artist
 
 from pydantic import BaseModel
@@ -975,6 +1120,17 @@ class AlbumRoyalty(BaseModel):
     streams: int
 
 
+class SourceBreakdown(BaseModel):
+    """Royalty breakdown by source (TuneCore, Bandcamp, etc.)."""
+    source: str
+    source_label: str
+    gross: str
+    artist_royalties: str
+    label_royalties: str
+    transaction_count: int
+    streams: int
+
+
 class ArtistRoyaltyCalculation(BaseModel):
     """Result of royalty calculation for an artist."""
     artist_id: str
@@ -989,6 +1145,7 @@ class ArtistRoyaltyCalculation(BaseModel):
     recoupable: str
     net_payable: str
     albums: list[AlbumRoyalty]
+    sources: list[SourceBreakdown]
 
 
 @router.post("/{artist_id}/calculate-royalties", response_model=ArtistRoyaltyCalculation)
@@ -1039,7 +1196,8 @@ async def calculate_artist_royalties(
     release_contracts = {c.scope_id: c for c in contracts if c.scope == ContractScope.RELEASE and c.scope_id}
     catalog_contract = next((c for c in contracts if c.scope == ContractScope.CATALOG), None)
 
-    # Get transactions grouped by album
+    # Get transactions grouped by album with source info
+    from app.models.import_model import Import
     tx_result = await db.execute(
         select(
             TransactionNormalized.release_title,
@@ -1047,7 +1205,9 @@ async def calculate_artist_royalties(
             TransactionNormalized.isrc,
             TransactionNormalized.gross_amount,
             TransactionNormalized.quantity,
+            Import.source,
         )
+        .join(Import, TransactionNormalized.import_id == Import.id)
         .where(
             TransactionNormalized.artist_name == artist.name,
             TransactionNormalized.period_start >= period_start,
@@ -1056,11 +1216,24 @@ async def calculate_artist_royalties(
     )
     transactions = tx_result.all()
 
-    # Aggregate by album
+    # Aggregate by album and source
     albums_data: dict = {}  # upc -> {data}
+    sources_data: dict = {}  # source -> {data}
+
+    # Source labels mapping
+    source_labels = {
+        "tunecore": "TuneCore",
+        "believe": "Believe",
+        "cdbaby": "CD Baby",
+        "bandcamp": "Bandcamp",
+        "other": "Autre",
+    }
 
     for tx in transactions:
         upc = tx.upc or "UNKNOWN"
+        source = tx.source.value.lower() if tx.source else "other"
+
+        # Initialize album data
         if upc not in albums_data:
             albums_data[upc] = {
                 "release_title": tx.release_title or "Single",
@@ -1072,10 +1245,28 @@ async def calculate_artist_royalties(
                 "streams": 0,
             }
 
+        # Initialize source data
+        if source not in sources_data:
+            sources_data[source] = {
+                "source": source,
+                "source_label": source_labels.get(source, source.capitalize()),
+                "gross": Decimal("0"),
+                "artist_royalties": Decimal("0"),
+                "label_royalties": Decimal("0"),
+                "transaction_count": 0,
+                "streams": 0,
+            }
+
         album = albums_data[upc]
+        src = sources_data[source]
+
         album["tracks"].add(tx.isrc)
         album["gross"] += tx.gross_amount or Decimal("0")
         album["streams"] += tx.quantity or 0
+
+        src["gross"] += tx.gross_amount or Decimal("0")
+        src["streams"] += tx.quantity or 0
+        src["transaction_count"] += 1
 
         # Find applicable contract (priority: track > release > catalog)
         contract = None
@@ -1097,6 +1288,8 @@ async def calculate_artist_royalties(
         amount = tx.gross_amount or Decimal("0")
         album["artist_royalties"] += amount * artist_share
         album["label_royalties"] += amount * label_share
+        src["artist_royalties"] += amount * artist_share
+        src["label_royalties"] += amount * label_share
 
     # Calculate totals
     total_gross = sum(a["gross"] for a in albums_data.values())
@@ -1124,20 +1317,42 @@ async def calculate_artist_royalties(
     recoupable = min(total_artist, advance_balance) if advance_balance > 0 else Decimal("0")
     net_payable = total_artist - recoupable
 
-    # Build album list
-    albums = [
-        AlbumRoyalty(
+    # Build album list with effective shares calculated from actual royalties
+    albums = []
+    for a in sorted(albums_data.values(), key=lambda x: x["gross"], reverse=True):
+        gross = a["gross"]
+        # Calculate effective share from actual royalties (handles mixed contracts within album)
+        if gross > 0:
+            effective_artist_share = a["artist_royalties"] / gross
+            effective_label_share = a["label_royalties"] / gross
+        else:
+            effective_artist_share = Decimal("0.5")
+            effective_label_share = Decimal("0.5")
+
+        albums.append(AlbumRoyalty(
             release_title=a["release_title"],
             upc=a["upc"],
             track_count=len(a["tracks"]),
-            gross=str(a["gross"]),
-            artist_share=str(catalog_contract.artist_share if catalog_contract else Decimal("0.5")),
-            label_share=str(catalog_contract.label_share if catalog_contract else Decimal("0.5")),
+            gross=str(gross),
+            artist_share=str(effective_artist_share),
+            label_share=str(effective_label_share),
             artist_royalties=str(a["artist_royalties"]),
             label_royalties=str(a["label_royalties"]),
             streams=a["streams"],
+        ))
+
+    # Build sources list
+    sources = [
+        SourceBreakdown(
+            source=s["source"],
+            source_label=s["source_label"],
+            gross=str(s["gross"]),
+            artist_royalties=str(s["artist_royalties"]),
+            label_royalties=str(s["label_royalties"]),
+            transaction_count=s["transaction_count"],
+            streams=s["streams"],
         )
-        for a in sorted(albums_data.values(), key=lambda x: x["gross"], reverse=True)
+        for s in sorted(sources_data.values(), key=lambda x: x["gross"], reverse=True)
     ]
 
     return ArtistRoyaltyCalculation(
@@ -1153,4 +1368,5 @@ async def calculate_artist_royalties(
         recoupable=str(recoupable),
         net_payable=str(net_payable),
         albums=albums,
+        sources=sources,
     )

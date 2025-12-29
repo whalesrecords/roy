@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, date
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import String, DateTime, Date, Numeric, Integer, Enum as SAEnum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,6 +12,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.import_model import Import
+    from app.models.artist import Artist
 
 
 class SaleType(str, Enum):
@@ -37,6 +38,22 @@ class TransactionNormalized(Base):
         ForeignKey("imports.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+
+    # Matched entity references (populated by matching system)
+    artist_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("artists.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    release_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+    track_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
     )
 
     # Source reference (original row number for debugging)
@@ -84,6 +101,10 @@ class TransactionNormalized(Base):
     import_record: Mapped["Import"] = relationship(
         "Import",
         back_populates="transactions",
+    )
+    matched_artist: Mapped[Optional["Artist"]] = relationship(
+        "Artist",
+        foreign_keys=[artist_id],
     )
 
     def __repr__(self) -> str:

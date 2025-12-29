@@ -1,9 +1,10 @@
 """
-Advance Ledger model for tracking advances and recoupments.
+Advance Ledger model for tracking advances, recoupments, and payments.
 
 LEDGER CONVENTION:
 - ADVANCE entries: positive amount (money given to artist as advance)
 - RECOUPMENT entries: positive amount (money recovered from artist royalties)
+- PAYMENT entries: positive amount (royalties paid to artist by the label)
 
 BALANCE CALCULATION:
   advance_balance = sum(advances) - sum(recoupments)
@@ -11,6 +12,11 @@ BALANCE CALCULATION:
   - balance > 0: Artist has unrecouped advance (owes money)
   - balance = 0: Artist is fully recouped
   - balance < 0: Should not happen (over-recouped)
+
+PAYMENT TRACKING:
+  Payments represent actual money transferred to the artist.
+  After a payment, the "net payable" resets for new calculations.
+  total_paid = sum(payments)
 
 RECOUPMENT RULE:
   On each royalty run:
@@ -37,8 +43,9 @@ if TYPE_CHECKING:
 
 class LedgerEntryType(str, Enum):
     """Type of ledger entry."""
-    ADVANCE = "advance"         # Money given to artist
+    ADVANCE = "advance"         # Money given to artist as advance
     RECOUPMENT = "recoupment"   # Money recovered from royalties
+    PAYMENT = "payment"         # Royalties paid to artist by label
 
 
 class AdvanceLedgerEntry(Base):

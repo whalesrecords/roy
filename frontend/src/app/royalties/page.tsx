@@ -2,10 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Card, CardBody, Spinner } from '@heroui/react';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import { RoyaltyRun, ROYALTY_STATUS_LABELS, ROYALTY_STATUS_COLORS, Artist, ImportRecord } from '@/lib/types';
+import { RoyaltyRun, ROYALTY_STATUS_LABELS, Artist, ImportRecord } from '@/lib/types';
 import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, getArtists, getImports } from '@/lib/api';
+
+const ROYALTY_STATUS_COLORS: Record<string, string> = {
+  completed: 'bg-green-100 text-green-700',
+  pending: 'bg-yellow-100 text-yellow-700',
+  processing: 'bg-blue-100 text-blue-700',
+  failed: 'bg-red-100 text-red-700',
+  locked: 'bg-gray-100 text-gray-700',
+};
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
@@ -42,9 +51,8 @@ export default function RoyaltiesPage() {
       setImports(importsData);
       setHasImports(importsData.length > 0);
 
-      // Auto-fill period from most recent import
       if (importsData.length > 0 && !periodStart && !periodEnd) {
-        const latestImport = importsData[0]; // Already sorted by date desc
+        const latestImport = importsData[0];
         if (latestImport.period_start) setPeriodStart(latestImport.period_start);
         if (latestImport.period_end) setPeriodEnd(latestImport.period_end);
       }
@@ -70,7 +78,7 @@ export default function RoyaltiesPage() {
       setSelectedRun(run);
       loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de création');
+      setError(err instanceof Error ? err.message : 'Erreur de creation');
     } finally {
       setCreating(false);
     }
@@ -98,9 +106,7 @@ export default function RoyaltiesPage() {
   };
 
   const handleDelete = async (runId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce calcul ? Cette action est irréversible.')) {
-      return;
-    }
+    if (!confirm('Supprimer ce calcul ?')) return;
     setDeleting(true);
     try {
       await deleteRoyaltyRun(runId);
@@ -124,127 +130,144 @@ export default function RoyaltiesPage() {
   const canCalculate = hasImports && artists.length > 0;
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-40">
+    <>
+      <header className="bg-background border-b border-divider sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-neutral-900">Royalties</h1>
-            <p className="text-sm text-neutral-500 mt-1">
-              Calculez et gérez les royalties par période
-            </p>
+            <h1 className="text-xl font-semibold text-foreground">Royalties</h1>
+            <p className="text-sm text-default-500 mt-0.5">Calculs par periode</p>
           </div>
           {canCalculate && (
             <Button onClick={() => setShowCreate(true)}>
-              <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Calculer
+              Nouveau calcul
             </Button>
           )}
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {error && (
-          <div className="bg-red-50 text-red-600 rounded-lg px-4 py-3 mb-4">
-            {error}
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-red-700 text-sm">{error}</p>
           </div>
         )}
 
         {/* Prerequisites check */}
         {!loading && (!hasImports || artists.length === 0) && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-            <h3 className="font-medium text-amber-800 mb-2">Avant de calculer les royalties</h3>
-            <ul className="space-y-2 text-sm text-amber-700">
-              {!hasImports && (
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <span>Importez des données de ventes</span>
-                  <Link href="/imports" className="underline font-medium">→ Imports</Link>
-                </li>
-              )}
-              {artists.length === 0 && (
-                <li className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <span>Activez des artistes avec leurs contrats</span>
-                  <Link href="/artists" className="underline font-medium">→ Artistes</Link>
-                </li>
-              )}
-            </ul>
+          <Card className="bg-amber-50 border border-amber-200">
+            <CardBody className="p-4">
+              <p className="font-medium text-amber-800 mb-3">Avant de calculer :</p>
+              <div className="space-y-2">
+                {!hasImports && (
+                  <Link href="/imports" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80">
+                    <span className="text-sm text-amber-700">1. Importer des donnees TuneCore</span>
+                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
+                {artists.length === 0 && (
+                  <Link href="/artists" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80">
+                    <span className="text-sm text-amber-700">2. Activer des artistes avec contrats</span>
+                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Stats */}
+        {!loading && runs.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-default-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{runs.length}</p>
+              <p className="text-xs text-default-500">Calculs</p>
+            </div>
+            <div className="bg-default-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{artists.length}</p>
+              <p className="text-xs text-default-500">Artistes</p>
+            </div>
+            <div className="bg-green-50 rounded-xl p-4 text-center">
+              <p className="text-xl font-bold text-green-700">
+                {formatCurrency(runs.reduce((acc, r) => acc + parseFloat(r.total_net_payable), 0).toString())}
+              </p>
+              <p className="text-xs text-green-600">Total paye</p>
+            </div>
           </div>
         )}
 
-        {/* Stats summary */}
-        {!loading && (hasImports || artists.length > 0) && (
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <div className="bg-white rounded-xl border border-neutral-200 p-4">
-              <p className="text-sm text-neutral-500">Artistes actifs</p>
-              <p className="text-2xl font-semibold text-neutral-900">{artists.length}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-neutral-200 p-4">
-              <p className="text-sm text-neutral-500">Calculs effectués</p>
-              <p className="text-2xl font-semibold text-neutral-900">{runs.length}</p>
-            </div>
-          </div>
-        )}
-
+        {/* Runs list */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-neutral-500">Chargement...</p>
+            <Spinner size="lg" />
+            <p className="text-default-500 mt-3">Chargement...</p>
           </div>
         ) : runs.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-neutral-100 flex items-center justify-center">
-              <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-neutral-900 mb-1">Aucun calcul</h3>
-            <p className="text-neutral-500">
-              {canCalculate
-                ? 'Lancez un premier calcul de royalties'
-                : 'Complétez les prérequis ci-dessus pour commencer'
-              }
-            </p>
-          </div>
+          <Card>
+            <CardBody className="py-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-default-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-1">Aucun calcul</h3>
+              <p className="text-sm text-default-500 mb-4">
+                {canCalculate ? 'Lancez votre premier calcul' : 'Completez les prerequis'}
+              </p>
+              {canCalculate && (
+                <Button onClick={() => setShowCreate(true)}>
+                  Premier calcul
+                </Button>
+              )}
+            </CardBody>
+          </Card>
         ) : (
           <div className="space-y-3">
             {runs.map((run) => (
-              <button
+              <Card
                 key={run.run_id}
+                isPressable
                 onClick={() => setSelectedRun(run)}
-                className="w-full text-left bg-white rounded-xl border border-neutral-200 p-4 hover:border-neutral-300 transition-colors"
+                shadow="sm"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-neutral-900">
-                        {formatDate(run.period_start)} - {formatDate(run.period_end)}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ROYALTY_STATUS_COLORS[run.status]}`}>
+                <CardBody className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-default-100 flex items-center justify-center">
+                        <span className="text-sm font-semibold text-default-600">
+                          {formatDate(run.period_start).split(' ')[0].toUpperCase().slice(0, 3)}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground">
+                            {formatDate(run.period_start)} - {formatDate(run.period_end)}
+                          </p>
+                          {run.is_locked && (
+                            <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          )}
+                        </div>
+                        <p className="text-sm text-default-500">
+                          {run.total_transactions.toLocaleString('fr-FR')} tx · {run.artists?.length || 0} artistes
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-green-600">
+                        {formatCurrency(run.total_net_payable, run.base_currency)}
+                      </p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${ROYALTY_STATUS_COLORS[run.status] || 'bg-default-100'}`}>
                         {ROYALTY_STATUS_LABELS[run.status]}
                       </span>
-                      {run.is_locked && (
-                        <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      )}
                     </div>
-                    <p className="text-sm text-neutral-500">
-                      {run.total_transactions.toLocaleString('fr-FR')} transactions · {run.artists?.length || 0} artistes
-                    </p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-green-600">{formatCurrency(run.total_net_payable, run.base_currency)}</p>
-                    <p className="text-sm text-neutral-500">à payer</p>
-                  </div>
-                </div>
-              </button>
+                </CardBody>
+              </Card>
             ))}
           </div>
         )}
@@ -253,23 +276,24 @@ export default function RoyaltiesPage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white px-4 py-4 sm:px-6 border-b border-neutral-100 z-10">
+          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-neutral-900">Calculer les royalties</h2>
-                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-neutral-500">
+                <h2 className="text-lg font-semibold text-foreground">Nouveau calcul</h2>
+                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-default-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             </div>
+
             <div className="p-4 sm:p-6 space-y-4">
-              {/* Quick period selection from imports - multi-select */}
+              {/* Quick period selection */}
               {imports.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Périodes importées
+                  <label className="block text-sm font-medium text-default-700 mb-2">
+                    Periodes importees
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {imports
@@ -278,120 +302,105 @@ export default function RoyaltiesPage() {
                           i.period_start === imp.period_start && i.period_end === imp.period_end
                         ) === idx
                       )
-                      .slice(0, 12)
+                      .slice(0, 6)
                       .map((imp) => (
                         <button
                           key={imp.id}
-                          type="button"
                           onClick={() => {
                             if (imp.period_start) setPeriodStart(imp.period_start);
                             if (imp.period_end) setPeriodEnd(imp.period_end);
                           }}
-                          className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                          className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
                             periodStart === imp.period_start && periodEnd === imp.period_end
-                              ? 'bg-neutral-900 text-white border-neutral-900'
-                              : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400'
+                              ? 'bg-neutral-900 text-white'
+                              : 'bg-default-100 text-default-600 hover:bg-default-200'
                           }`}
                         >
-                          {formatDate(imp.period_start)} - {formatDate(imp.period_end)}
+                          {formatDate(imp.period_start)}
                         </button>
                       ))}
                   </div>
-                  <p className="text-xs text-neutral-500 mt-2">
-                    Pour plusieurs mois, sélectionnez la période la plus large
-                  </p>
                 </div>
               )}
 
+              {/* Date inputs */}
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  type="date"
-                  label="Début de période"
-                  value={periodStart}
-                  onChange={(e) => setPeriodStart(e.target.value)}
-                />
-                <Input
-                  type="date"
-                  label="Fin de période"
-                  value={periodEnd}
-                  onChange={(e) => setPeriodEnd(e.target.value)}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-default-700 mb-1">Debut</label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-default-700 mb-1">Fin</label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
+                </div>
               </div>
 
               {/* Artist selection */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-neutral-700">
-                    Artistes à inclure
-                  </label>
+                  <label className="text-sm font-medium text-default-700">Artistes</label>
                   <button
-                    type="button"
                     onClick={() => {
                       setSelectAllArtists(!selectAllArtists);
-                      if (!selectAllArtists) {
-                        setSelectedArtistIds([]);
-                      }
+                      if (!selectAllArtists) setSelectedArtistIds([]);
                     }}
                     className="text-sm text-neutral-600 hover:text-neutral-900"
                   >
-                    {selectAllArtists ? 'Sélectionner certains' : 'Tous les artistes'}
+                    {selectAllArtists ? 'Choisir' : 'Tous'}
                   </button>
                 </div>
 
                 {selectAllArtists ? (
-                  <div className="bg-neutral-50 rounded-lg p-3">
-                    <p className="text-sm text-neutral-600">
-                      <strong>{artists.length} artiste{artists.length > 1 ? 's' : ''}</strong> seront inclus dans le calcul.
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <p className="text-sm text-blue-700">
+                      {artists.length} artiste{artists.length > 1 ? 's' : ''} inclus
                     </p>
                   </div>
                 ) : (
-                  <div className="border border-neutral-200 rounded-lg max-h-48 overflow-y-auto">
-                    {artists.length === 0 ? (
-                      <p className="p-3 text-sm text-neutral-500">Aucun artiste disponible</p>
-                    ) : (
-                      <div className="divide-y divide-neutral-100">
-                        {artists.map((artist) => (
-                          <label
-                            key={artist.id}
-                            className="flex items-center gap-3 px-3 py-2 hover:bg-neutral-50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedArtistIds.includes(artist.id)}
-                              onChange={() => toggleArtistSelection(artist.id)}
-                              className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
-                            />
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              {artist.image_url_small ? (
-                                <img
-                                  src={artist.image_url_small}
-                                  alt={artist.name}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-neutral-600">
-                                    {artist.name.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                              <span className="text-sm text-neutral-900 truncate">{artist.name}</span>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                  <div className="border border-divider rounded-lg max-h-48 overflow-y-auto">
+                    {artists.map((artist) => (
+                      <label
+                        key={artist.id}
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-default-50 cursor-pointer border-b border-divider last:border-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedArtistIds.includes(artist.id)}
+                          onChange={() => toggleArtistSelection(artist.id)}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        {artist.image_url_small ? (
+                          <Image
+                            src={artist.image_url_small}
+                            alt={artist.name}
+                            width={28}
+                            height={28}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-default-200 flex items-center justify-center text-xs font-medium text-default-600">
+                            {artist.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-sm text-foreground">{artist.name}</span>
+                      </label>
+                    ))}
                   </div>
-                )}
-
-                {!selectAllArtists && selectedArtistIds.length > 0 && (
-                  <p className="text-xs text-neutral-500 mt-2">
-                    {selectedArtistIds.length} artiste{selectedArtistIds.length > 1 ? 's' : ''} sélectionné{selectedArtistIds.length > 1 ? 's' : ''}
-                  </p>
                 )}
               </div>
             </div>
-            <div className="sticky bottom-0 bg-white p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
+
+            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
               <Button variant="secondary" onClick={() => setShowCreate(false)} className="flex-1">
                 Annuler
               </Button>
@@ -411,23 +420,25 @@ export default function RoyaltiesPage() {
       {/* Detail Modal */}
       {selectedRun && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white px-4 py-4 sm:px-6 border-b border-neutral-100 z-10">
+          <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-neutral-900">
+                  <h2 className="text-lg font-semibold text-foreground">
                     {formatDate(selectedRun.period_start)} - {formatDate(selectedRun.period_end)}
                   </h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ROYALTY_STATUS_COLORS[selectedRun.status]}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${ROYALTY_STATUS_COLORS[selectedRun.status]}`}>
                       {ROYALTY_STATUS_LABELS[selectedRun.status]}
                     </span>
                     {selectedRun.is_locked && (
-                      <span className="text-xs text-neutral-500">Verrouillé</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-default-100 text-default-600">
+                        Verrouille
+                      </span>
                     )}
                   </div>
                 </div>
-                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-neutral-500">
+                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-default-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -438,51 +449,55 @@ export default function RoyaltiesPage() {
             <div className="p-4 sm:p-6 space-y-4">
               {/* Summary */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-neutral-50 rounded-lg p-3">
-                  <p className="text-sm text-neutral-500">Brut total</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
+                <div className="bg-default-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-default-500 mb-1">Brut</p>
+                  <p className="text-lg font-bold text-foreground">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
                 </div>
-                <div className="bg-green-50 rounded-lg p-3">
-                  <p className="text-sm text-green-600">Net à payer</p>
-                  <p className="text-lg font-semibold text-green-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
+                <div className="bg-green-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-green-600 mb-1">Net a payer</p>
+                  <p className="text-lg font-bold text-green-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
                 </div>
-                <div className="bg-neutral-50 rounded-lg p-3">
-                  <p className="text-sm text-neutral-500">Part artistes</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
+                <div className="bg-default-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-default-500 mb-1">Part artistes</p>
+                  <p className="font-semibold text-foreground">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
                 </div>
-                <div className="bg-neutral-50 rounded-lg p-3">
-                  <p className="text-sm text-neutral-500">Recoupé</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
+                <div className="bg-amber-50 rounded-xl p-3 text-center">
+                  <p className="text-xs text-amber-600 mb-1">Recoupe</p>
+                  <p className="font-semibold text-amber-700">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
                 </div>
               </div>
 
-              <div className="bg-neutral-50 rounded-lg p-3">
-                <p className="text-sm text-neutral-500">Transactions traitées</p>
-                <p className="text-lg font-semibold">{selectedRun.total_transactions.toLocaleString('fr-FR')}</p>
+              <div className="bg-default-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{selectedRun.total_transactions.toLocaleString('fr-FR')}</p>
+                <p className="text-sm text-default-500">transactions traitees</p>
               </div>
 
               {/* Artists breakdown */}
               {selectedRun.artists && selectedRun.artists.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-neutral-900 mb-3">Détail par artiste</h3>
+                  <h3 className="font-medium text-foreground mb-3">Detail par artiste</h3>
                   <div className="space-y-2">
                     {selectedRun.artists.map((artist) => (
-                      <div key={artist.artist_id} className="bg-white border border-neutral-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium text-neutral-900">
-                            {artist.artist_name || 'Artiste inconnu'}
-                          </p>
-                          <p className="font-medium text-green-600">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
+                      <div key={artist.artist_id} className="bg-default-50 rounded-xl p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-default-200 flex items-center justify-center text-sm font-medium text-default-600">
+                              {(artist.artist_name || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{artist.artist_name || 'Inconnu'}</p>
+                              <p className="text-xs text-default-500">
+                                {artist.transaction_count.toLocaleString('fr-FR')} tx
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
+                            {parseFloat(artist.recouped) > 0 && (
+                              <p className="text-xs text-amber-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between text-sm text-neutral-500">
-                          <span>{artist.transaction_count.toLocaleString('fr-FR')} transactions</span>
-                          <span>Brut: {formatCurrency(artist.gross, selectedRun.base_currency)}</span>
-                        </div>
-                        {parseFloat(artist.recouped) > 0 && (
-                          <p className="text-sm text-orange-600 mt-1">
-                            Recoupé: {formatCurrency(artist.recouped, selectedRun.base_currency)}
-                          </p>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -490,21 +505,23 @@ export default function RoyaltiesPage() {
               )}
 
               {selectedRun.artists && selectedRun.artists.length === 0 && (
-                <div className="bg-amber-50 rounded-lg p-4 text-center">
-                  <p className="text-sm text-amber-700">
-                    Aucun artiste trouvé pour cette période. Vérifiez que les artistes sont bien activés avec des contrats valides.
-                  </p>
+                <div className="bg-amber-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-amber-700">Aucun artiste pour cette periode</p>
                 </div>
               )}
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 sm:p-6">
+            <div className="p-4 sm:p-6 border-t border-divider space-y-2">
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={() => setSelectedRun(null)} className="flex-1">
                   Fermer
                 </Button>
                 {selectedRun.status === 'completed' && !selectedRun.is_locked && (
-                  <Button onClick={() => handleLock(selectedRun.run_id)} loading={locking} className="flex-1">
+                  <Button
+                    onClick={() => handleLock(selectedRun.run_id)}
+                    loading={locking}
+                    className="flex-1"
+                  >
                     Verrouiller
                   </Button>
                 )}
@@ -513,7 +530,7 @@ export default function RoyaltiesPage() {
                 <button
                   onClick={() => handleDelete(selectedRun.run_id)}
                   disabled={deleting}
-                  className="w-full mt-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  className="w-full py-2 text-sm text-red-600 hover:text-red-700"
                 >
                   {deleting ? 'Suppression...' : 'Supprimer ce calcul'}
                 </button>
@@ -522,6 +539,6 @@ export default function RoyaltiesPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

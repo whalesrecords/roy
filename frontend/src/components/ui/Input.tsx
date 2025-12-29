@@ -1,28 +1,47 @@
 'use client';
 
-import { forwardRef, InputHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface InputProps {
   label?: string;
   error?: string;
+  type?: string;
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  className?: string;
+  name?: string;
+  required?: boolean;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className = '', label, error, type = 'text', ...props }, ref) => {
+  ({ className = '', label, error, type = 'text', disabled, ...props }, ref) => {
     return (
-      <div className="w-full">
+      <div className={`flex flex-col gap-1.5 ${className}`}>
         {label && (
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
+          <label className="text-sm font-medium text-gray-700">
             {label}
           </label>
         )}
         <input
           ref={ref}
           type={type}
-          className={`w-full h-11 min-h-[44px] px-3 rounded-lg border border-neutral-300 bg-white text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+          disabled={disabled}
+          className={`
+            w-full px-3 py-2
+            border rounded-lg
+            text-gray-900
+            placeholder:text-gray-400
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            disabled:bg-gray-100 disabled:cursor-not-allowed
+            ${error ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'}
+          `}
           {...props}
         />
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        {error && (
+          <span className="text-sm text-red-500">{error}</span>
+        )}
       </div>
     );
   }

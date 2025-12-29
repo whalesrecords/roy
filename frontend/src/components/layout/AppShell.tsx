@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { Spinner } from '@heroui/react';
 import Nav from './Nav';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -12,22 +13,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Show loading spinner while checking auth
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   // Don't show nav on login page
   if (isLoginPage) {
-    return <main className="min-h-screen">{children}</main>;
+    return <>{children}</>;
   }
 
   // Show nav only when authenticated
   return (
-    <>
+    <div className="min-h-screen bg-default-50">
       {user && <Nav />}
-      <main className="min-h-screen">{children}</main>
-    </>
+      <main>{children}</main>
+    </div>
   );
 }

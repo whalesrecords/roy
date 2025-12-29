@@ -208,3 +208,14 @@ class AdvanceBalanceResponse(BaseModel):
     artist_id: UUID
     balance: Decimal = Field(description="Current advance balance (positive = unrecouped)")
     currency: str
+
+
+# Payment schemas
+
+class PaymentCreate(BaseModel):
+    """Request schema for recording a payment to an artist."""
+    artist_id: UUID
+    amount: Decimal = Field(gt=0, description="Payment amount (positive)")
+    currency: str = Field(default="EUR")
+    description: Optional[str] = Field(default=None, description="Payment description/reference")
+    payment_date: Optional[date] = Field(default=None, description="Date of payment (defaults to today)")

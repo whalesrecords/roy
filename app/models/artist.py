@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.contract import Contract
     from app.models.advance_ledger import AdvanceLedgerEntry
     from app.models.statement import Statement
+    from app.models.track_artist_link import TrackArtistLink
 
 
 class Artist(Base):
@@ -61,6 +62,11 @@ class Artist(Base):
     )
     statements: Mapped[List["Statement"]] = relationship(
         "Statement",
+        back_populates="artist",
+        cascade="all, delete-orphan",
+    )
+    track_links: Mapped[List["TrackArtistLink"]] = relationship(
+        "TrackArtistLink",
         back_populates="artist",
         cascade="all, delete-orphan",
     )
