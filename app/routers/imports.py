@@ -45,11 +45,12 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
 
 def extract_period_from_filename(filename: str) -> tuple:
     """
-    Extract period from TuneCore filename.
+    Extract period from filename.
     Patterns:
     - "TuneCore_Sales_2024-01.csv"
     - "2024-01_TuneCore.csv"
     - "january_2024.csv"
+    - "1623552_626771_2025-04-01_2025-06-01.csv" (Believe UK date range)
     - Contains month/year like "2024-01" or "01-2024"
     """
     import calendar
@@ -58,8 +59,18 @@ def extract_period_from_filename(filename: str) -> tuple:
     if not filename:
         return None, None
 
+    # Pattern: Date range YYYY-MM-DD_YYYY-MM-DD (Believe UK format)
+    match = re.search(r'(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})', filename)
+    if match:
+        try:
+            start = date.fromisoformat(match.group(1))
+            end = date.fromisoformat(match.group(2))
+            return start, end
+        except ValueError:
+            pass
+
     # Pattern: YYYY-MM or YYYY_MM
-    match = re.search(r'(\d{4})[-_](\d{2})', filename)
+    match = re.search(r'(\d{4})[-_](\d{2})(?!\d)', filename)
     if match:
         year, month = int(match.group(1)), int(match.group(2))
         if 1 <= month <= 12:
@@ -127,7 +138,7 @@ async def analyze_import(
     artists_with_ampersand = []
     total_artists = 0
 
-    if import_source == ImportSource.TUNECORE:
+    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK):
         # Fast: extract period from filename
         period_start, period_end = extract_period_from_filename(file.filename or "")
 
@@ -670,38 +681,78 @@ async def get_artist_tracks(
 ) -> list[dict]:
     """
     Get tracks for an artist from imported transactions.
+    Includes collaboration tracks via track-artist links.
     """
-    from sqlalchemy import func
+    from sqlalchemy import func, or_
     from urllib.parse import unquote
+    from app.models.artist import Artist
+    from app.models.track_artist_link import TrackArtistLink
 
     decoded_name = unquote(artist_name)
+
+    # Find the artist in the database to get track-artist links
+    artist_result = await db.execute(
+        select(Artist).where(Artist.name == decoded_name)
+    )
+    artist = artist_result.scalar_one_or_none()
+
+    # Get ISRCs linked to this artist (collaborations)
+    linked_isrcs = set()
+    link_shares = {}
+    if artist:
+        links_result = await db.execute(
+            select(TrackArtistLink).where(TrackArtistLink.artist_id == artist.id)
+        )
+        artist_links = links_result.scalars().all()
+        linked_isrcs = {link.isrc for link in artist_links}
+        link_shares = {link.isrc: link.share_percent for link in artist_links}
+
+    # Query transactions where artist_name matches OR ISRC is in linked_isrcs
+    where_clause = TransactionNormalized.artist_name == decoded_name
+    if linked_isrcs:
+        where_clause = or_(
+            TransactionNormalized.artist_name == decoded_name,
+            TransactionNormalized.isrc.in_(linked_isrcs),
+        )
 
     result = await db.execute(
         select(
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
             TransactionNormalized.isrc,
+            TransactionNormalized.artist_name,
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
         )
-        .where(TransactionNormalized.artist_name == decoded_name)
+        .where(where_clause)
         .group_by(
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
             TransactionNormalized.isrc,
+            TransactionNormalized.artist_name,
         )
         .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
     rows = result.all()
 
-    return [
-        {
+    # Build response with collaboration share info
+    tracks = []
+    for row in rows:
+        gross = row.total_gross or Decimal("0")
+        is_collab = row.artist_name != decoded_name
+        share = link_shares.get(row.isrc, Decimal("1")) if is_collab else Decimal("1")
+        artist_gross = gross * share
+
+        tracks.append({
             "track_title": row.track_title,
             "release_title": row.release_title,
             "isrc": row.isrc,
-            "total_gross": str(row.total_gross or 0),
+            "total_gross": str(artist_gross),
             "total_streams": row.total_streams or 0,
             "currency": "EUR",
-        }
-        for row in rows
-    ]
+            "is_collaboration": is_collab,
+            "original_artist": row.artist_name if is_collab else None,
+            "share_percent": str(share) if is_collab else None,
+        })
+
+    return tracks

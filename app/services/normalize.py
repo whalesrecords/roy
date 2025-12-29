@@ -408,6 +408,8 @@ def parse_believe_uk_date(date_str: Optional[str]) -> Optional[date]:
 
     Handles formats like:
     - "2023-02-01" (YYYY-MM-DD)
+    - "2025/05/01" (YYYY/MM/DD)
+    - "2023-02" (YYYY-MM)
     """
     if not date_str:
         return None
@@ -417,6 +419,11 @@ def parse_believe_uk_date(date_str: Optional[str]) -> Optional[date]:
     # ISO format: YYYY-MM-DD
     if re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return date.fromisoformat(date_str)
+
+    # Slash format: YYYY/MM/DD (common in newer Believe exports)
+    if re.match(r"^\d{4}/\d{2}/\d{2}$", date_str):
+        parts = date_str.split("/")
+        return date(int(parts[0]), int(parts[1]), int(parts[2]))
 
     # Try to extract YYYY-MM and use first of month
     if re.match(r"^\d{4}-\d{2}$", date_str):

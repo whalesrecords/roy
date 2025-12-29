@@ -961,7 +961,7 @@ export default function ArtistDetailPage() {
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                               source.source === 'tunecore' ? 'bg-blue-100 text-blue-800' :
                               source.source === 'bandcamp' ? 'bg-cyan-100 text-cyan-800' :
-                              source.source === 'believe' ? 'bg-purple-100 text-purple-800' :
+                              source.source === 'believe_uk' ? 'bg-purple-100 text-purple-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
                               {source.source_label}

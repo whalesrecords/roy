@@ -1196,7 +1196,17 @@ async def calculate_artist_royalties(
     release_contracts = {c.scope_id: c for c in contracts if c.scope == ContractScope.RELEASE and c.scope_id}
     catalog_contract = next((c for c in contracts if c.scope == ContractScope.CATALOG), None)
 
+    # Get track-artist links for this artist (for collaborations)
+    from app.models.track_artist_link import TrackArtistLink
+    links_result = await db.execute(
+        select(TrackArtistLink).where(TrackArtistLink.artist_id == artist_id)
+    )
+    artist_links = links_result.scalars().all()
+    linked_isrcs = {link.isrc for link in artist_links}
+    link_shares = {link.isrc: link.share_percent for link in artist_links}
+
     # Get transactions grouped by album with source info
+    # Include transactions where artist_name matches OR ISRC is in track-artist links
     from app.models.import_model import Import
     tx_result = await db.execute(
         select(
@@ -1205,11 +1215,15 @@ async def calculate_artist_royalties(
             TransactionNormalized.isrc,
             TransactionNormalized.gross_amount,
             TransactionNormalized.quantity,
+            TransactionNormalized.artist_name,
             Import.source,
         )
         .join(Import, TransactionNormalized.import_id == Import.id)
         .where(
-            TransactionNormalized.artist_name == artist.name,
+            or_(
+                TransactionNormalized.artist_name == artist.name,
+                TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
+            ),
             TransactionNormalized.period_start >= period_start,
             TransactionNormalized.period_end <= period_end,
         )
@@ -1224,6 +1238,7 @@ async def calculate_artist_royalties(
     source_labels = {
         "tunecore": "TuneCore",
         "believe": "Believe",
+        "believe_uk": "Believe UK",
         "cdbaby": "CD Baby",
         "bandcamp": "Bandcamp",
         "other": "Autre",
@@ -1260,11 +1275,23 @@ async def calculate_artist_royalties(
         album = albums_data[upc]
         src = sources_data[source]
 
+        # Determine if this is a collaboration transaction
+        # If artist_name doesn't match but ISRC is in linked_isrcs, apply share_percent
+        base_amount = tx.gross_amount or Decimal("0")
+        collab_share = Decimal("1")  # Default: 100% if not a collab
+
+        if tx.artist_name != artist.name and tx.isrc and tx.isrc in link_shares:
+            # This is a collaboration - apply the artist's share from track-artist link
+            collab_share = link_shares[tx.isrc]
+
+        # The amount this artist gets from this transaction
+        amount = base_amount * collab_share
+
         album["tracks"].add(tx.isrc)
-        album["gross"] += tx.gross_amount or Decimal("0")
+        album["gross"] += amount
         album["streams"] += tx.quantity or 0
 
-        src["gross"] += tx.gross_amount or Decimal("0")
+        src["gross"] += amount
         src["streams"] += tx.quantity or 0
         src["transaction_count"] += 1
 
@@ -1277,15 +1304,13 @@ async def calculate_artist_royalties(
         elif catalog_contract:
             contract = catalog_contract
 
-        # Apply split
+        # Apply contract split (artist vs label)
         if contract:
             artist_share = contract.artist_share
             label_share = contract.label_share
         else:
             artist_share = Decimal("0.5")
             label_share = Decimal("0.5")
-
-        amount = tx.gross_amount or Decimal("0")
         album["artist_royalties"] += amount * artist_share
         album["label_royalties"] += amount * label_share
         src["artist_royalties"] += amount * artist_share

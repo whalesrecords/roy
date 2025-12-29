@@ -1,6 +1,6 @@
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'partial';
 
-export type ImportSource = 'tunecore' | 'believe' | 'cdbaby' | 'bandcamp' | 'other';
+export type ImportSource = 'tunecore' | 'believe_uk' | 'cdbaby' | 'bandcamp' | 'other';
 
 export interface ImportRecord {
   id: string;
@@ -84,7 +84,7 @@ export const NORMALIZED_FIELDS: { value: NormalizedField; label: string }[] = [
 
 export const SOURCES: { value: ImportSource; label: string }[] = [
   { value: 'tunecore', label: 'TuneCore' },
-  { value: 'believe', label: 'Believe' },
+  { value: 'believe_uk', label: 'Believe UK' },
   { value: 'cdbaby', label: 'CD Baby' },
   { value: 'bandcamp', label: 'Bandcamp' },
   { value: 'other', label: 'Autre' },
