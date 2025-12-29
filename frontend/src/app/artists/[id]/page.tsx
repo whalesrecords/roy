@@ -17,6 +17,7 @@ import {
   getArtistTracks,
   fetchArtistArtwork,
   updateArtistArtwork,
+  updateArtist,
   calculateArtistRoyalties,
   searchAlbumByUPC,
   searchTrackByISRC,
@@ -78,6 +79,15 @@ export default function ArtistDetailPage() {
   const [calculatingRoyalties, setCalculatingRoyalties] = useState(false);
   const [royaltyResult, setRoyaltyResult] = useState<ArtistRoyaltyCalculation | null>(null);
   const [royaltyError, setRoyaltyError] = useState<string | null>(null);
+
+  // Edit artist
+  const [showEditArtist, setShowEditArtist] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editSpotifyId, setEditSpotifyId] = useState('');
+  const [savingArtist, setSavingArtist] = useState(false);
+
+  // Expanded releases (to show tracks)
+  const [expandedReleases, setExpandedReleases] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -216,6 +226,39 @@ export default function ArtistDetailPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
     }
+  };
+
+  const handleUpdateArtist = async () => {
+    if (!editName.trim()) return;
+    setSavingArtist(true);
+    try {
+      await updateArtist(artistId, {
+        name: editName.trim(),
+        spotify_id: editSpotifyId.trim() || undefined,
+      });
+      setShowEditArtist(false);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSavingArtist(false);
+    }
+  };
+
+  const toggleReleaseExpanded = (upc: string) => {
+    setExpandedReleases(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(upc)) {
+        newSet.delete(upc);
+      } else {
+        newSet.add(upc);
+      }
+      return newSet;
+    });
+  };
+
+  const getTracksForRelease = (releaseTitle: string): CatalogTrack[] => {
+    return tracks.filter(t => t.release_title === releaseTitle);
   };
 
   const handleCalculateRoyalties = async () => {
@@ -369,10 +412,38 @@ export default function ArtistDetailPage() {
               </button>
             </div>
             <div className="flex-1">
-              <h1 className="text-xl font-semibold text-neutral-900">{artist.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold text-neutral-900">{artist.name}</h1>
+                <button
+                  onClick={() => {
+                    setEditName(artist.name);
+                    setEditSpotifyId(artist.spotify_id || '');
+                    setShowEditArtist(true);
+                  }}
+                  className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors"
+                  title="Modifier l'artiste"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
               <p className="text-sm text-neutral-500 mt-1">
                 {releases.length} release{releases.length > 1 ? 's' : ''} · {tracks.length} track{tracks.length > 1 ? 's' : ''}
               </p>
+              {artist.spotify_id && (
+                <a
+                  href={`https://open.spotify.com/artist/${artist.spotify_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                  </svg>
+                  Profil Spotify
+                </a>
+              )}
               {!artist.image_url && (
                 <button
                   onClick={handleFetchArtwork}
@@ -580,63 +651,148 @@ export default function ArtistDetailPage() {
                 const contract = getContractForRelease(release.upc);
                 const artwork = albumArtwork[release.upc];
                 const isLoadingArt = loadingArtwork[`album-${release.upc}`];
+                const isExpanded = expandedReleases.has(release.upc);
+                const releaseTracks = getTracksForRelease(release.release_title);
                 return (
-                  <div key={`${release.upc}-${index}`} className="px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      {/* Album artwork */}
-                      <div className="relative flex-shrink-0">
-                        {artwork?.image_url_small ? (
-                          <img
-                            src={artwork.image_url_small}
-                            alt={release.release_title}
-                            className="w-12 h-12 rounded-md object-cover"
-                          />
-                        ) : (
+                  <div key={`${release.upc}-${index}`}>
+                    <div className="px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        {/* Album artwork */}
+                        <div className="relative flex-shrink-0">
+                          {artwork?.image_url_small ? (
+                            <img
+                              src={artwork.image_url_small}
+                              alt={release.release_title}
+                              className="w-12 h-12 rounded-md object-cover"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => fetchAlbumArtwork(release.upc)}
+                              disabled={isLoadingArt}
+                              className="w-12 h-12 rounded-md bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+                            >
+                              {isLoadingArt ? (
+                                <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
                           <button
-                            onClick={() => fetchAlbumArtwork(release.upc)}
-                            disabled={isLoadingArt}
-                            className="w-12 h-12 rounded-md bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+                            onClick={() => toggleReleaseExpanded(release.upc)}
+                            className="text-left w-full group"
                           >
-                            {isLoadingArt ? (
-                              <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-neutral-900 truncate group-hover:text-neutral-700">{release.release_title}</p>
+                              <svg
+                                className={`w-4 h-4 text-neutral-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                               </svg>
-                            )}
+                            </div>
                           </button>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-neutral-900 truncate">{release.release_title}</p>
-                        <p className="text-xs text-neutral-400 font-mono">UPC: {release.upc}</p>
-                        <p className="text-sm text-neutral-500">
-                          {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross, release.currency)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {contract ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            {(parseFloat(contract.artist_share) * 100).toFixed(0)}%
-                          </span>
-                        ) : catalogContract ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-600">
-                            {(parseFloat(catalogContract.artist_share) * 100).toFixed(0)}% (défaut)
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setSelectedItem({ type: 'release', id: release.upc, name: release.release_title });
-                              setShowContractForm(true);
-                            }}
-                          >
-                            Définir %
-                          </Button>
-                        )}
+                          <p className="text-xs text-neutral-400 font-mono">UPC: {release.upc}</p>
+                          <p className="text-sm text-neutral-500">
+                            {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross, release.currency)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {contract ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              {(parseFloat(contract.artist_share) * 100).toFixed(0)}%
+                            </span>
+                          ) : catalogContract ? (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-600">
+                              {(parseFloat(catalogContract.artist_share) * 100).toFixed(0)}% (défaut)
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                setSelectedItem({ type: 'release', id: release.upc, name: release.release_title });
+                                setShowContractForm(true);
+                              }}
+                            >
+                              Définir %
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {/* Expanded tracks */}
+                    {isExpanded && releaseTracks.length > 0 && (
+                      <div className="bg-neutral-50 border-t border-neutral-100 px-4 py-2">
+                        <div className="ml-15 pl-3 border-l-2 border-neutral-200 space-y-2">
+                          {releaseTracks.map((track, tIdx) => {
+                            const trackContract = getContractForTrack(track.isrc);
+                            const effectiveContract = trackContract || contract || catalogContract;
+                            const tArtwork = trackArtwork[track.isrc];
+                            const isLoadingTArt = loadingArtwork[`track-${track.isrc}`];
+                            return (
+                              <div key={`${track.isrc}-${tIdx}`} className="flex items-center gap-3 py-1">
+                                {/* Track artwork */}
+                                <div className="relative flex-shrink-0">
+                                  {tArtwork?.image_url_small ? (
+                                    <img
+                                      src={tArtwork.image_url_small}
+                                      alt={track.track_title}
+                                      className="w-8 h-8 rounded object-cover"
+                                    />
+                                  ) : (
+                                    <button
+                                      onClick={() => fetchTrackArtwork(track.isrc)}
+                                      disabled={isLoadingTArt}
+                                      className="w-8 h-8 rounded bg-neutral-200 flex items-center justify-center hover:bg-neutral-300 transition-colors"
+                                    >
+                                      {isLoadingTArt ? (
+                                        <div className="w-3 h-3 border border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <svg className="w-3 h-3 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-neutral-800 truncate">{track.track_title}</p>
+                                  <p className="text-xs text-neutral-400 font-mono">ISRC: {track.isrc}</p>
+                                </div>
+                                <div className="flex items-center gap-2 text-right">
+                                  <div>
+                                    <p className="text-sm font-medium text-neutral-700">{formatCurrency(track.total_gross, track.currency)}</p>
+                                    <p className="text-xs text-neutral-400">{formatNumber(track.total_streams)} streams</p>
+                                  </div>
+                                  {trackContract ? (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                      {(parseFloat(trackContract.artist_share) * 100).toFixed(0)}%
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
+                                        setShowContractForm(true);
+                                      }}
+                                      className="text-xs text-neutral-500 hover:text-neutral-700"
+                                    >
+                                      + contrat
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1067,6 +1223,61 @@ export default function ArtistDetailPage() {
                 Annuler
               </Button>
               <Button onClick={handleUpdateArtwork} className="flex-1">
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Artist Modal */}
+      {showEditArtist && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
+            <div className="px-4 py-4 sm:px-6 border-b border-neutral-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-neutral-900">Modifier l'artiste</h2>
+                <button onClick={() => setShowEditArtist(false)} className="p-2 -mr-2 text-neutral-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <Input
+                label="Nom de l'artiste"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nom de l'artiste"
+              />
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  ID Spotify (optionnel)
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={editSpotifyId}
+                    onChange={(e) => setEditSpotifyId(e.target.value)}
+                    placeholder="Ex: 0OdUWJ0sBjDrqHygGUXeCF"
+                    className="flex-1"
+                  />
+                </div>
+                <p className="text-xs text-neutral-500 mt-1">
+                  L'ID se trouve dans l'URL du profil Spotify: open.spotify.com/artist/<strong>ID</strong>
+                </p>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
+              <Button variant="secondary" onClick={() => setShowEditArtist(false)} className="flex-1">
+                Annuler
+              </Button>
+              <Button
+                onClick={handleUpdateArtist}
+                loading={savingArtist}
+                disabled={!editName.trim()}
+                className="flex-1"
+              >
                 Enregistrer
               </Button>
             </div>
