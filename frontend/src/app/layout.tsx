@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Nav from '@/components/layout/Nav';
+import { AuthProvider } from '@/contexts/AuthContext';
+import AppShell from '@/components/layout/AppShell';
+import { HeroUIProvider } from '@heroui/react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,10 +20,13 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <Nav />
-        <main className="min-h-screen">
-          {children}
-        </main>
+        <HeroUIProvider>
+          <AuthProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </AuthProvider>
+        </HeroUIProvider>
       </body>
     </html>
   );
