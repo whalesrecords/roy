@@ -126,6 +126,7 @@ async def create_royalty_run(
             period_start=data.period_start,
             period_end=data.period_end,
             base_currency=data.base_currency,
+            artist_ids=data.artist_ids,
         )
 
         # Get the run for response
@@ -284,6 +285,52 @@ async def lock_royalty_run(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.delete("/{run_id}")
+async def delete_royalty_run(
+    run_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Delete a royalty run and all associated statements.
+
+    Warning: This action is irreversible. Locked runs cannot be deleted.
+
+    Returns:
+        Success confirmation with deleted run ID
+    """
+    # Get the run
+    result = await db.execute(
+        select(RoyaltyRun).where(RoyaltyRun.id == run_id)
+    )
+    run = result.scalar_one_or_none()
+
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Royalty run {run_id} not found",
+        )
+
+    if run.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete a locked royalty run",
+        )
+
+    # Delete statements first (cascade should handle this, but be explicit)
+    await db.execute(
+        select(Statement).where(Statement.royalty_run_id == run_id)
+    )
+    from sqlalchemy import delete
+    await db.execute(delete(Statement).where(Statement.royalty_run_id == run_id))
+
+    # Delete the run
+    await db.delete(run)
+    await db.flush()
+
+    return {"success": True, "deleted_id": str(run_id)}
 
 
 # Artists router (separate prefix)

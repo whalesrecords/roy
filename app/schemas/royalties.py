@@ -14,6 +14,7 @@ class RoyaltyRunCreate(BaseModel):
     period_start: date = Field(description="Start of the royalty period (inclusive)")
     period_end: date = Field(description="End of the royalty period (inclusive)")
     base_currency: str = Field(default="USD", description="Base currency for calculations")
+    artist_ids: Optional[List[UUID]] = Field(default=None, description="Optional list of artist IDs to include. If None, includes all artists.")
 
 
 # Response schemas
@@ -174,6 +175,11 @@ class AdvanceCreate(BaseModel):
     artist_id: UUID
     amount: Decimal = Field(gt=0, description="Advance amount (positive)")
     currency: str = Field(default="USD")
+    scope: str = Field(default="catalog", description="Advance scope: 'track', 'release', or 'catalog'")
+    scope_id: Optional[str] = Field(
+        default=None,
+        description="ISRC for track, UPC for release, null for catalog"
+    )
     description: Optional[str] = None
     reference: Optional[str] = None
 
@@ -185,6 +191,8 @@ class AdvanceLedgerEntryResponse(BaseModel):
     entry_type: str
     amount: Decimal
     currency: str
+    scope: str = Field(default="catalog")
+    scope_id: Optional[str] = None
     royalty_run_id: Optional[UUID] = None
     description: Optional[str] = None
     reference: Optional[str] = None

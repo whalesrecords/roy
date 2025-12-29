@@ -245,6 +245,7 @@ class RoyaltyCalculator:
         period_start: date,
         period_end: date,
         base_currency: str = "USD",
+        artist_ids: List[UUID] | None = None,
     ) -> CalculationResult:
         """
         Execute a royalty calculation run.
@@ -254,6 +255,7 @@ class RoyaltyCalculator:
             period_start: Start of period (inclusive)
             period_end: End of period (inclusive)
             base_currency: Currency for calculations
+            artist_ids: Optional list of artist IDs to include. If None, includes all.
 
         Returns:
             CalculationResult with all calculated data
@@ -289,11 +291,16 @@ class RoyaltyCalculator:
 
             logger.info(f"Found {len(transactions)} transactions for period")
 
-            # PRE-LOAD all artists into cache (avoid N+1)
-            artist_result = await db.execute(select(Artist))
+            # PRE-LOAD artists into cache (avoid N+1)
+            # Filter by artist_ids if provided
+            artist_query = select(Artist)
+            if artist_ids:
+                artist_query = artist_query.where(Artist.id.in_(artist_ids))
+            artist_result = await db.execute(artist_query)
             all_artists = artist_result.scalars().all()
             artist_cache: Dict[str, Artist] = {a.name: a for a in all_artists}
-            logger.info(f"Pre-loaded {len(artist_cache)} artists")
+            artist_id_set = {a.id for a in all_artists} if artist_ids else None
+            logger.info(f"Pre-loaded {len(artist_cache)} artists" + (f" (filtered to {len(artist_ids)} IDs)" if artist_ids else ""))
 
             # PRE-LOAD all contracts into cache (avoid N+1)
             # Build validity conditions
@@ -333,6 +340,9 @@ class RoyaltyCalculator:
 
                 # Get or create artist from cache
                 if tx.artist_name not in artist_cache:
+                    # If filtering by artist_ids, skip unknown artists
+                    if artist_ids:
+                        continue
                     artist = Artist(name=tx.artist_name)
                     db.add(artist)
                     await db.flush()
@@ -340,6 +350,9 @@ class RoyaltyCalculator:
                     logger.info(f"Created new artist: {tx.artist_name} (id={artist.id})")
                 else:
                     artist = artist_cache[tx.artist_name]
+                    # If filtering by artist_ids, skip artists not in the set
+                    if artist_id_set and artist.id not in artist_id_set:
+                        continue
 
                 # Find applicable contract from cache (priority: track > release > catalog)
                 contract = None

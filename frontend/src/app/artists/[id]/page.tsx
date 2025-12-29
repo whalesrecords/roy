@@ -17,8 +17,14 @@ import {
   getArtistTracks,
   fetchArtistArtwork,
   updateArtistArtwork,
+  calculateArtistRoyalties,
+  searchAlbumByUPC,
+  searchTrackByISRC,
   CatalogRelease,
-  CatalogTrack
+  CatalogTrack,
+  ArtistRoyaltyCalculation,
+  SpotifyAlbumResult,
+  SpotifyTrackResult
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -40,6 +46,11 @@ export default function ArtistDetailPage() {
   const [tracks, setTracks] = useState<CatalogTrack[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
 
+  // Album/Track artwork from Spotify
+  const [albumArtwork, setAlbumArtwork] = useState<Record<string, SpotifyAlbumResult>>({});
+  const [trackArtwork, setTrackArtwork] = useState<Record<string, SpotifyTrackResult>>({});
+  const [loadingArtwork, setLoadingArtwork] = useState<Record<string, boolean>>({});
+
   const [showContractForm, setShowContractForm] = useState(false);
   const [showAdvanceForm, setShowAdvanceForm] = useState(false);
   const [contractTab, setContractTab] = useState<ContractTab>('releases');
@@ -53,12 +64,20 @@ export default function ArtistDetailPage() {
   // Advance form
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceDescription, setAdvanceDescription] = useState('');
+  const [advanceScope, setAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
+  const [advanceScopeId, setAdvanceScopeId] = useState('');
   const [creatingAdvance, setCreatingAdvance] = useState(false);
 
   // Artwork
   const [fetchingArtwork, setFetchingArtwork] = useState(false);
   const [showEditArtwork, setShowEditArtwork] = useState(false);
   const [editImageUrl, setEditImageUrl] = useState('');
+
+  // Royalty calculation
+  const [royaltyPeriod, setRoyaltyPeriod] = useState<string>('3');
+  const [calculatingRoyalties, setCalculatingRoyalties] = useState(false);
+  const [royaltyResult, setRoyaltyResult] = useState<ArtistRoyaltyCalculation | null>(null);
+  const [royaltyError, setRoyaltyError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -149,12 +168,22 @@ export default function ArtistDetailPage() {
 
   const handleCreateAdvance = async () => {
     if (!advanceAmount) return;
+    if (advanceScope !== 'catalog' && !advanceScopeId) return;
     setCreatingAdvance(true);
     try {
-      await createAdvance(artistId, parseFloat(advanceAmount), 'EUR', advanceDescription);
+      await createAdvance(
+        artistId,
+        parseFloat(advanceAmount),
+        'EUR',
+        advanceDescription || undefined,
+        advanceScope,
+        advanceScope !== 'catalog' ? advanceScopeId : undefined
+      );
       setShowAdvanceForm(false);
       setAdvanceAmount('');
       setAdvanceDescription('');
+      setAdvanceScope('catalog');
+      setAdvanceScopeId('');
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -186,6 +215,74 @@ export default function ArtistDetailPage() {
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleCalculateRoyalties = async () => {
+    setCalculatingRoyalties(true);
+    setRoyaltyError(null);
+    setRoyaltyResult(null);
+
+    const months = parseInt(royaltyPeriod);
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - months);
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+    try {
+      const result = await calculateArtistRoyalties(
+        artistId,
+        formatDate(startDate),
+        formatDate(endDate)
+      );
+      setRoyaltyResult(result);
+    } catch (err) {
+      setRoyaltyError(err instanceof Error ? err.message : 'Erreur de calcul');
+    } finally {
+      setCalculatingRoyalties(false);
+    }
+  };
+
+  const fetchAlbumArtwork = async (upc: string) => {
+    if (albumArtwork[upc] || loadingArtwork[`album-${upc}`]) return;
+
+    setLoadingArtwork(prev => ({ ...prev, [`album-${upc}`]: true }));
+    try {
+      const result = await searchAlbumByUPC(upc);
+      if (result.image_url) {
+        setAlbumArtwork(prev => ({ ...prev, [upc]: result }));
+      }
+    } catch (err) {
+      console.error(`Error fetching album artwork for ${upc}:`, err);
+    } finally {
+      setLoadingArtwork(prev => ({ ...prev, [`album-${upc}`]: false }));
+    }
+  };
+
+  const fetchTrackArtwork = async (isrc: string) => {
+    if (trackArtwork[isrc] || loadingArtwork[`track-${isrc}`]) return;
+
+    setLoadingArtwork(prev => ({ ...prev, [`track-${isrc}`]: true }));
+    try {
+      const result = await searchTrackByISRC(isrc);
+      if (result.image_url) {
+        setTrackArtwork(prev => ({ ...prev, [isrc]: result }));
+      }
+    } catch (err) {
+      console.error(`Error fetching track artwork for ${isrc}:`, err);
+    } finally {
+      setLoadingArtwork(prev => ({ ...prev, [`track-${isrc}`]: false }));
+    }
+  };
+
+  const fetchAllArtwork = async () => {
+    // Fetch artwork for all releases (limit to first 10 to avoid rate limiting)
+    const releasesToFetch = releases.slice(0, 10);
+    for (const release of releasesToFetch) {
+      if (!albumArtwork[release.upc]) {
+        await fetchAlbumArtwork(release.upc);
+      }
     }
   };
 
@@ -311,6 +408,108 @@ export default function ArtistDetailPage() {
           </p>
         </div>
 
+        {/* Calcul Royalties */}
+        <div className="bg-white rounded-xl border border-neutral-200">
+          <div className="px-4 py-3 border-b border-neutral-100">
+            <h2 className="font-medium text-neutral-900">Calcul des royalties</h2>
+          </div>
+          <div className="p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <select
+                value={royaltyPeriod}
+                onChange={(e) => setRoyaltyPeriod(e.target.value)}
+                className="flex-1 px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              >
+                <option value="1">1 mois</option>
+                <option value="3">3 mois</option>
+                <option value="6">6 mois</option>
+                <option value="12">1 an</option>
+              </select>
+              <Button
+                onClick={handleCalculateRoyalties}
+                loading={calculatingRoyalties}
+              >
+                Calculer
+              </Button>
+            </div>
+
+            {royaltyError && (
+              <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                {royaltyError}
+              </div>
+            )}
+
+            {royaltyResult && (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-neutral-50 rounded-lg p-3">
+                    <p className="text-xs text-neutral-500">Brut total</p>
+                    <p className="text-lg font-semibold text-neutral-900">
+                      {formatCurrency(royaltyResult.total_gross, royaltyResult.currency)}
+                    </p>
+                  </div>
+                  <div className="bg-neutral-50 rounded-lg p-3">
+                    <p className="text-xs text-neutral-500">Royalties artiste</p>
+                    <p className="text-lg font-semibold text-neutral-900">
+                      {formatCurrency(royaltyResult.total_artist_royalties, royaltyResult.currency)}
+                    </p>
+                  </div>
+                  <div className="bg-neutral-50 rounded-lg p-3">
+                    <p className="text-xs text-neutral-500">Recoupable</p>
+                    <p className="text-lg font-semibold text-neutral-900">
+                      {formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}
+                    </p>
+                  </div>
+                  <div className={`rounded-lg p-3 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-green-50' : 'bg-neutral-50'}`}>
+                    <p className="text-xs text-neutral-500">Net payable</p>
+                    <p className={`text-lg font-semibold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-green-700' : 'text-neutral-900'}`}>
+                      {formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Period info */}
+                <p className="text-xs text-neutral-500 text-center">
+                  Période: {new Date(royaltyResult.period_start).toLocaleDateString('fr-FR')} - {new Date(royaltyResult.period_end).toLocaleDateString('fr-FR')}
+                </p>
+
+                {/* Albums breakdown */}
+                {royaltyResult.albums.length > 0 && (
+                  <div className="border-t border-neutral-100 pt-4">
+                    <h3 className="text-sm font-medium text-neutral-700 mb-3">Détail par album</h3>
+                    <div className="space-y-2">
+                      {royaltyResult.albums.map((album, idx) => (
+                        <div key={`${album.upc}-${idx}`} className="flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-neutral-900 text-sm truncate">{album.release_title}</p>
+                            <p className="text-xs text-neutral-400 font-mono">UPC: {album.upc}</p>
+                            <p className="text-xs text-neutral-500">
+                              {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-medium text-neutral-900">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                            <p className="text-xs text-neutral-500">
+                              {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {royaltyResult.albums.length === 0 && (
+                  <p className="text-center text-sm text-neutral-500 py-4">
+                    Aucune donnée pour cette période
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Contrat Catalogue Global */}
         <div className="bg-white rounded-xl border border-neutral-200">
           <div className="px-4 py-3 border-b border-neutral-100">
@@ -352,9 +551,22 @@ export default function ArtistDetailPage() {
 
         {/* Releases avec contrats */}
         <div className="bg-white rounded-xl border border-neutral-200">
-          <div className="px-4 py-3 border-b border-neutral-100">
-            <h2 className="font-medium text-neutral-900">Releases ({releases.length})</h2>
-            <p className="text-sm text-neutral-500">% spécifique par album/EP/single</p>
+          <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+            <div>
+              <h2 className="font-medium text-neutral-900">Releases ({releases.length})</h2>
+              <p className="text-sm text-neutral-500">% spécifique par album/EP/single</p>
+            </div>
+            {releases.length > 0 && Object.keys(albumArtwork).length < releases.length && (
+              <button
+                onClick={fetchAllArtwork}
+                className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                </svg>
+                Charger images
+              </button>
+            )}
           </div>
           {loadingCatalog ? (
             <div className="px-4 py-8 text-center">
@@ -366,9 +578,35 @@ export default function ArtistDetailPage() {
             <div className="divide-y divide-neutral-100">
               {releases.map((release, index) => {
                 const contract = getContractForRelease(release.upc);
+                const artwork = albumArtwork[release.upc];
+                const isLoadingArt = loadingArtwork[`album-${release.upc}`];
                 return (
                   <div key={`${release.upc}-${index}`} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {/* Album artwork */}
+                      <div className="relative flex-shrink-0">
+                        {artwork?.image_url_small ? (
+                          <img
+                            src={artwork.image_url_small}
+                            alt={release.release_title}
+                            className="w-12 h-12 rounded-md object-cover"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => fetchAlbumArtwork(release.upc)}
+                            disabled={isLoadingArt}
+                            className="w-12 h-12 rounded-md bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+                          >
+                            {isLoadingArt ? (
+                              <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-neutral-900 truncate">{release.release_title}</p>
                         <p className="text-xs text-neutral-400 font-mono">UPC: {release.upc}</p>
@@ -428,10 +666,36 @@ export default function ArtistDetailPage() {
                 const effectiveContract = trackContract || releaseContract || catalogContract;
                 const isSpecific = !!trackContract;
                 const isReleaseLevel = !trackContract && !!releaseContract;
+                const artwork = trackArtwork[track.isrc];
+                const isLoadingArt = loadingArtwork[`track-${track.isrc}`];
 
                 return (
                   <div key={`${track.isrc}-${index}`} className="px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {/* Track artwork */}
+                      <div className="relative flex-shrink-0">
+                        {artwork?.image_url_small ? (
+                          <img
+                            src={artwork.image_url_small}
+                            alt={track.track_title}
+                            className="w-10 h-10 rounded object-cover"
+                          />
+                        ) : (
+                          <button
+                            onClick={() => fetchTrackArtwork(track.isrc)}
+                            disabled={isLoadingArt}
+                            className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center hover:bg-neutral-200 transition-colors"
+                          >
+                            {isLoadingArt ? (
+                              <div className="w-3 h-3 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-neutral-900 truncate">{track.track_title}</p>
                         <p className="text-sm text-neutral-500 truncate">{track.release_title}</p>
@@ -473,34 +737,58 @@ export default function ArtistDetailPage() {
         {/* Advances */}
         <div className="bg-white rounded-xl border border-neutral-200">
           <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-            <h2 className="font-medium text-neutral-900">Avances</h2>
+            <div>
+              <h2 className="font-medium text-neutral-900">Avances</h2>
+              <p className="text-sm text-neutral-500">Par catalogue, album ou track</p>
+            </div>
             <Button size="sm" onClick={() => setShowAdvanceForm(true)}>Ajouter</Button>
           </div>
           {advances.length === 0 ? (
             <p className="px-4 py-6 text-center text-neutral-500">Aucune avance</p>
           ) : (
             <div className="divide-y divide-neutral-100">
-              {advances.map((entry) => (
-                <div key={entry.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-neutral-900">
-                        {entry.entry_type === 'advance' ? 'Avance' : 'Recoupement'}
+              {advances.map((entry) => {
+                const scopeLabel = entry.scope === 'catalog'
+                  ? 'Catalogue'
+                  : entry.scope === 'release'
+                    ? `Album: ${entry.scope_id}`
+                    : `Track: ${entry.scope_id}`;
+                return (
+                  <div key={entry.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-neutral-900">
+                            {entry.entry_type === 'advance' ? 'Avance' : 'Recoupement'}
+                          </p>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            entry.scope === 'catalog'
+                              ? 'bg-neutral-100 text-neutral-600'
+                              : entry.scope === 'release'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {entry.scope === 'catalog' ? 'Catalogue' : entry.scope === 'release' ? 'Album' : 'Track'}
+                          </span>
+                        </div>
+                        {entry.scope !== 'catalog' && (
+                          <p className="text-xs text-neutral-400 font-mono">{entry.scope_id}</p>
+                        )}
+                        {entry.description && (
+                          <p className="text-sm text-neutral-500">{entry.description}</p>
+                        )}
+                      </div>
+                      <p className={`font-medium ${entry.entry_type === 'advance' ? 'text-red-600' : 'text-green-600'}`}>
+                        {entry.entry_type === 'advance' ? '-' : '+'}
+                        {formatCurrency(entry.amount, entry.currency)}
                       </p>
-                      {entry.description && (
-                        <p className="text-sm text-neutral-500">{entry.description}</p>
-                      )}
                     </div>
-                    <p className={`font-medium ${entry.entry_type === 'advance' ? 'text-red-600' : 'text-green-600'}`}>
-                      {entry.entry_type === 'advance' ? '-' : '+'}
-                      {formatCurrency(entry.amount, entry.currency)}
+                    <p className="text-sm text-neutral-500 mt-1">
+                      {new Date(entry.effective_date).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
-                  <p className="text-sm text-neutral-500 mt-1">
-                    {new Date(entry.effective_date).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -590,11 +878,15 @@ export default function ArtistDetailPage() {
       {/* Advance Form Modal */}
       {showAdvanceForm && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
+          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-neutral-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-neutral-900">Nouvelle avance</h2>
-                <button onClick={() => setShowAdvanceForm(false)} className="p-2 -mr-2 text-neutral-500">
+                <button onClick={() => {
+                  setShowAdvanceForm(false);
+                  setAdvanceScope('catalog');
+                  setAdvanceScopeId('');
+                }} className="p-2 -mr-2 text-neutral-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -609,6 +901,93 @@ export default function ArtistDetailPage() {
                 onChange={(e) => setAdvanceAmount(e.target.value)}
                 placeholder="5000"
               />
+
+              {/* Scope selector */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Appliquer à
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdvanceScope('catalog');
+                      setAdvanceScopeId('');
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      advanceScope === 'catalog'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Catalogue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdvanceScope('release')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      advanceScope === 'release'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Album
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdvanceScope('track')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      advanceScope === 'track'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Track
+                  </button>
+                </div>
+              </div>
+
+              {/* Scope ID selector */}
+              {advanceScope === 'release' && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Sélectionner un album
+                  </label>
+                  <select
+                    value={advanceScopeId}
+                    onChange={(e) => setAdvanceScopeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="">-- Choisir un album --</option>
+                    {releases.map((r) => (
+                      <option key={r.upc} value={r.upc}>
+                        {r.release_title} ({r.upc})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {advanceScope === 'track' && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Sélectionner un track
+                  </label>
+                  <select
+                    value={advanceScopeId}
+                    onChange={(e) => setAdvanceScopeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="">-- Choisir un track --</option>
+                    {tracks.map((t) => (
+                      <option key={t.isrc} value={t.isrc}>
+                        {t.track_title} ({t.isrc})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <Input
                 label="Description (optionnel)"
                 value={advanceDescription}
@@ -617,10 +996,19 @@ export default function ArtistDetailPage() {
               />
             </div>
             <div className="p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
-              <Button variant="secondary" onClick={() => setShowAdvanceForm(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => {
+                setShowAdvanceForm(false);
+                setAdvanceScope('catalog');
+                setAdvanceScopeId('');
+              }} className="flex-1">
                 Annuler
               </Button>
-              <Button onClick={handleCreateAdvance} loading={creatingAdvance} disabled={!advanceAmount} className="flex-1">
+              <Button
+                onClick={handleCreateAdvance}
+                loading={creatingAdvance}
+                disabled={!advanceAmount || (advanceScope !== 'catalog' && !advanceScopeId)}
+                className="flex-1"
+              >
                 Créer
               </Button>
             </div>

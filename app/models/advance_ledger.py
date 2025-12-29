@@ -65,6 +65,17 @@ class AdvanceLedgerEntry(Base):
         index=True,
     )
 
+    # Scope: track, release, or catalog (default=catalog means applies to all)
+    scope: Mapped[str] = mapped_column(
+        String(20),
+        default="catalog",
+        nullable=False,
+    )
+    scope_id: Mapped[str] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
     # Entry type and amount
     entry_type: Mapped[str] = mapped_column(
         SAEnum(LedgerEntryType),

@@ -145,6 +145,8 @@ export interface AdvanceEntry {
   entry_type: 'advance' | 'recoupment';
   amount: string;
   currency: string;
+  scope: 'track' | 'release' | 'catalog';
+  scope_id?: string;
   royalty_run_id?: string;
   description?: string;
   reference?: string;

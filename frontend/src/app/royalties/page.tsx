@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { RoyaltyRun, ROYALTY_STATUS_LABELS, ROYALTY_STATUS_COLORS, Artist, ImportRecord } from '@/lib/types';
-import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, getArtists, getImports } from '@/lib/api';
+import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, getArtists, getImports } from '@/lib/api';
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
@@ -20,8 +20,11 @@ export default function RoyaltiesPage() {
   // Create form
   const [periodStart, setPeriodStart] = useState('');
   const [periodEnd, setPeriodEnd] = useState('');
+  const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
+  const [selectAllArtists, setSelectAllArtists] = useState(true);
   const [creating, setCreating] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -57,10 +60,13 @@ export default function RoyaltiesPage() {
     setCreating(true);
     setError(null);
     try {
-      const run = await createRoyaltyRun(periodStart, periodEnd, 'EUR');
+      const artistIds = selectAllArtists ? undefined : selectedArtistIds;
+      const run = await createRoyaltyRun(periodStart, periodEnd, 'EUR', artistIds);
       setShowCreate(false);
       setPeriodStart('');
       setPeriodEnd('');
+      setSelectedArtistIds([]);
+      setSelectAllArtists(true);
       setSelectedRun(run);
       loadData();
     } catch (err) {
@@ -68,6 +74,14 @@ export default function RoyaltiesPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const toggleArtistSelection = (artistId: string) => {
+    setSelectedArtistIds(prev =>
+      prev.includes(artistId)
+        ? prev.filter(id => id !== artistId)
+        : [...prev, artistId]
+    );
   };
 
   const handleLock = async (runId: string) => {
@@ -80,6 +94,22 @@ export default function RoyaltiesPage() {
       setError(err instanceof Error ? err.message : 'Erreur de verrouillage');
     } finally {
       setLocking(false);
+    }
+  };
+
+  const handleDelete = async (runId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce calcul ? Cette action est irréversible.')) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteRoyaltyRun(runId);
+      setSelectedRun(null);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -223,8 +253,8 @@ export default function RoyaltiesPage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
-            <div className="px-4 py-4 sm:px-6 border-b border-neutral-100">
+          <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white px-4 py-4 sm:px-6 border-b border-neutral-100 z-10">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-neutral-900">Calculer les royalties</h2>
                 <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-neutral-500">
@@ -235,18 +265,11 @@ export default function RoyaltiesPage() {
               </div>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
-              <div className="bg-neutral-50 rounded-lg p-3">
-                <p className="text-sm text-neutral-600">
-                  <strong>{artists.length} artiste{artists.length > 1 ? 's' : ''}</strong> actif{artists.length > 1 ? 's' : ''} avec contrat.
-                  Les transactions de la période seront analysées et les royalties calculées selon les contrats.
-                </p>
-              </div>
-
-              {/* Quick period selection from imports */}
+              {/* Quick period selection from imports - multi-select */}
               {imports.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">
-                    Sélectionner une période importée
+                    Périodes importées
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {imports
@@ -255,7 +278,7 @@ export default function RoyaltiesPage() {
                           i.period_start === imp.period_start && i.period_end === imp.period_end
                         ) === idx
                       )
-                      .slice(0, 6)
+                      .slice(0, 12)
                       .map((imp) => (
                         <button
                           key={imp.id}
@@ -274,6 +297,9 @@ export default function RoyaltiesPage() {
                         </button>
                       ))}
                   </div>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    Pour plusieurs mois, sélectionnez la période la plus large
+                  </p>
                 </div>
               )}
 
@@ -291,12 +317,90 @@ export default function RoyaltiesPage() {
                   onChange={(e) => setPeriodEnd(e.target.value)}
                 />
               </div>
+
+              {/* Artist selection */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-neutral-700">
+                    Artistes à inclure
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectAllArtists(!selectAllArtists);
+                      if (!selectAllArtists) {
+                        setSelectedArtistIds([]);
+                      }
+                    }}
+                    className="text-sm text-neutral-600 hover:text-neutral-900"
+                  >
+                    {selectAllArtists ? 'Sélectionner certains' : 'Tous les artistes'}
+                  </button>
+                </div>
+
+                {selectAllArtists ? (
+                  <div className="bg-neutral-50 rounded-lg p-3">
+                    <p className="text-sm text-neutral-600">
+                      <strong>{artists.length} artiste{artists.length > 1 ? 's' : ''}</strong> seront inclus dans le calcul.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-neutral-200 rounded-lg max-h-48 overflow-y-auto">
+                    {artists.length === 0 ? (
+                      <p className="p-3 text-sm text-neutral-500">Aucun artiste disponible</p>
+                    ) : (
+                      <div className="divide-y divide-neutral-100">
+                        {artists.map((artist) => (
+                          <label
+                            key={artist.id}
+                            className="flex items-center gap-3 px-3 py-2 hover:bg-neutral-50 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedArtistIds.includes(artist.id)}
+                              onChange={() => toggleArtistSelection(artist.id)}
+                              className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                            />
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {artist.image_url_small ? (
+                                <img
+                                  src={artist.image_url_small}
+                                  alt={artist.name}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center">
+                                  <span className="text-xs font-medium text-neutral-600">
+                                    {artist.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <span className="text-sm text-neutral-900 truncate">{artist.name}</span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectAllArtists && selectedArtistIds.length > 0 && (
+                  <p className="text-xs text-neutral-500 mt-2">
+                    {selectedArtistIds.length} artiste{selectedArtistIds.length > 1 ? 's' : ''} sélectionné{selectedArtistIds.length > 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
+            <div className="sticky bottom-0 bg-white p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
               <Button variant="secondary" onClick={() => setShowCreate(false)} className="flex-1">
                 Annuler
               </Button>
-              <Button onClick={handleCreate} loading={creating} disabled={!periodStart || !periodEnd} className="flex-1">
+              <Button
+                onClick={handleCreate}
+                loading={creating}
+                disabled={!periodStart || !periodEnd || (!selectAllArtists && selectedArtistIds.length === 0)}
+                className="flex-1"
+              >
                 Calculer
               </Button>
             </div>
@@ -394,14 +498,25 @@ export default function RoyaltiesPage() {
               )}
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 sm:p-6 flex gap-3">
-              <Button variant="secondary" onClick={() => setSelectedRun(null)} className="flex-1">
-                Fermer
-              </Button>
-              {selectedRun.status === 'completed' && !selectedRun.is_locked && (
-                <Button onClick={() => handleLock(selectedRun.run_id)} loading={locking} className="flex-1">
-                  Verrouiller
+            <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 sm:p-6">
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => setSelectedRun(null)} className="flex-1">
+                  Fermer
                 </Button>
+                {selectedRun.status === 'completed' && !selectedRun.is_locked && (
+                  <Button onClick={() => handleLock(selectedRun.run_id)} loading={locking} className="flex-1">
+                    Verrouiller
+                  </Button>
+                )}
+              </div>
+              {!selectedRun.is_locked && (
+                <button
+                  onClick={() => handleDelete(selectedRun.run_id)}
+                  disabled={deleting}
+                  className="w-full mt-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {deleting ? 'Suppression...' : 'Supprimer ce calcul'}
+                </button>
               )}
             </div>
           </div>

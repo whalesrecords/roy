@@ -99,6 +99,37 @@ export async function createArtist(name: string, externalId?: string): Promise<A
   });
 }
 
+export async function updateArtist(
+  artistId: string,
+  data: { name?: string; spotify_id?: string; image_url?: string; image_url_small?: string }
+): Promise<Artist> {
+  return fetchApi<Artist>(`/artists/${artistId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteArtist(artistId: string): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(`/artists/${artistId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function mergeArtists(
+  targetId: string,
+  sourceIds: string[]
+): Promise<{ success: boolean; target_id: string; merged_count: number; message: string }> {
+  return fetchApi<{ success: boolean; target_id: string; merged_count: number; message: string }>(
+    `/artists/${targetId}/merge`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_ids: sourceIds }),
+    }
+  );
+}
+
 export async function getContracts(artistId: string): Promise<Contract[]> {
   return fetchApi<Contract[]>(`/artists/${artistId}/contracts`);
 }
@@ -160,12 +191,21 @@ export async function createAdvance(
   artistId: string,
   amount: number,
   currency: string,
-  description?: string
+  description?: string,
+  scope: 'track' | 'release' | 'catalog' = 'catalog',
+  scopeId?: string
 ): Promise<AdvanceEntry> {
   return fetchApi<AdvanceEntry>(`/artists/${artistId}/advances`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ artist_id: artistId, amount, currency, description }),
+    body: JSON.stringify({
+      artist_id: artistId,
+      amount,
+      currency,
+      scope,
+      scope_id: scopeId,
+      description,
+    }),
   });
 }
 
@@ -185,18 +225,30 @@ export async function getRoyaltyRun(runId: string): Promise<RoyaltyRun> {
 export async function createRoyaltyRun(
   periodStart: string,
   periodEnd: string,
-  baseCurrency: string = 'EUR'
+  baseCurrency: string = 'EUR',
+  artistIds?: string[]
 ): Promise<RoyaltyRun> {
   return fetchApi<RoyaltyRun>('/royalty-runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ period_start: periodStart, period_end: periodEnd, base_currency: baseCurrency }),
+    body: JSON.stringify({
+      period_start: periodStart,
+      period_end: periodEnd,
+      base_currency: baseCurrency,
+      artist_ids: artistIds && artistIds.length > 0 ? artistIds : null,
+    }),
   });
 }
 
 export async function lockRoyaltyRun(runId: string): Promise<RoyaltyRun> {
   return fetchApi<RoyaltyRun>(`/royalty-runs/${runId}/lock`, {
     method: 'POST',
+  });
+}
+
+export async function deleteRoyaltyRun(runId: string): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(`/royalty-runs/${runId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -328,6 +380,46 @@ export async function searchAlbumByUPC(upc: string): Promise<SpotifyAlbumResult>
 
 export async function searchTrackByISRC(isrc: string): Promise<SpotifyTrackResult> {
   return fetchApi<SpotifyTrackResult>(`/spotify/search/track/isrc/${encodeURIComponent(isrc)}`);
+}
+
+// Artist royalty calculation
+
+export interface AlbumRoyalty {
+  release_title: string;
+  upc: string;
+  track_count: number;
+  gross: string;
+  artist_share: string;
+  label_share: string;
+  artist_royalties: string;
+  label_royalties: string;
+  streams: number;
+}
+
+export interface ArtistRoyaltyCalculation {
+  artist_id: string;
+  artist_name: string;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  total_gross: string;
+  total_artist_royalties: string;
+  total_label_royalties: string;
+  advance_balance: string;
+  recoupable: string;
+  net_payable: string;
+  albums: AlbumRoyalty[];
+}
+
+export async function calculateArtistRoyalties(
+  artistId: string,
+  periodStart: string,
+  periodEnd: string
+): Promise<ArtistRoyaltyCalculation> {
+  return fetchApi<ArtistRoyaltyCalculation>(
+    `/artists/${artistId}/calculate-royalties?period_start=${periodStart}&period_end=${periodEnd}`,
+    { method: 'POST' }
+  );
 }
 
 export async function updateArtistArtwork(
