@@ -12,6 +12,8 @@ import {
   createContract,
   getAdvances,
   createAdvance,
+  updateAdvance,
+  deleteAdvance,
   getAdvanceBalance,
   getArtistReleases,
   getArtistTracks,
@@ -88,6 +90,15 @@ export default function ArtistDetailPage() {
 
   // Expanded releases (to show tracks)
   const [expandedReleases, setExpandedReleases] = useState<Set<string>>(new Set());
+
+  // Edit advance
+  const [editingAdvance, setEditingAdvance] = useState<AdvanceEntry | null>(null);
+  const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
+  const [editAdvanceDescription, setEditAdvanceDescription] = useState('');
+  const [editAdvanceScope, setEditAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
+  const [editAdvanceScopeId, setEditAdvanceScopeId] = useState('');
+  const [savingAdvance, setSavingAdvance] = useState(false);
+  const [deletingAdvanceId, setDeletingAdvanceId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -259,6 +270,50 @@ export default function ArtistDetailPage() {
 
   const getTracksForRelease = (releaseTitle: string): CatalogTrack[] => {
     return tracks.filter(t => t.release_title === releaseTitle);
+  };
+
+  const handleEditAdvance = (advance: AdvanceEntry) => {
+    setEditingAdvance(advance);
+    setEditAdvanceAmount(advance.amount);
+    setEditAdvanceDescription(advance.description || '');
+    setEditAdvanceScope(advance.scope || 'catalog');
+    setEditAdvanceScopeId(advance.scope_id || '');
+  };
+
+  const handleUpdateAdvance = async () => {
+    if (!editingAdvance || !editAdvanceAmount) return;
+    if (editAdvanceScope !== 'catalog' && !editAdvanceScopeId) return;
+    setSavingAdvance(true);
+    try {
+      await updateAdvance(
+        artistId,
+        editingAdvance.id,
+        parseFloat(editAdvanceAmount),
+        'EUR',
+        editAdvanceDescription || undefined,
+        editAdvanceScope,
+        editAdvanceScope !== 'catalog' ? editAdvanceScopeId : undefined
+      );
+      setEditingAdvance(null);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setSavingAdvance(false);
+    }
+  };
+
+  const handleDeleteAdvance = async (advanceId: string) => {
+    if (!confirm('Supprimer cette avance ?')) return;
+    setDeletingAdvanceId(advanceId);
+    try {
+      await deleteAdvance(artistId, advanceId);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    } finally {
+      setDeletingAdvanceId(null);
+    }
   };
 
   const handleCalculateRoyalties = async () => {
@@ -904,18 +959,15 @@ export default function ArtistDetailPage() {
           ) : (
             <div className="divide-y divide-neutral-100">
               {advances.map((entry) => {
-                const scopeLabel = entry.scope === 'catalog'
-                  ? 'Catalogue'
-                  : entry.scope === 'release'
-                    ? `Album: ${entry.scope_id}`
-                    : `Track: ${entry.scope_id}`;
+                const isAdvance = entry.entry_type === 'advance';
+                const isDeleting = deletingAdvanceId === entry.id;
                 return (
                   <div key={entry.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-neutral-900">
-                            {entry.entry_type === 'advance' ? 'Avance' : 'Recoupement'}
+                            {isAdvance ? 'Avance' : 'Recoupement'}
                           </p>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             entry.scope === 'catalog'
@@ -933,15 +985,44 @@ export default function ArtistDetailPage() {
                         {entry.description && (
                           <p className="text-sm text-neutral-500">{entry.description}</p>
                         )}
+                        <p className="text-xs text-neutral-400 mt-1">
+                          {new Date(entry.effective_date).toLocaleDateString('fr-FR')}
+                        </p>
                       </div>
-                      <p className={`font-medium ${entry.entry_type === 'advance' ? 'text-red-600' : 'text-green-600'}`}>
-                        {entry.entry_type === 'advance' ? '-' : '+'}
-                        {formatCurrency(entry.amount, entry.currency)}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className={`font-medium ${isAdvance ? 'text-red-600' : 'text-green-600'}`}>
+                          {isAdvance ? '-' : '+'}
+                          {formatCurrency(entry.amount, entry.currency)}
+                        </p>
+                        {isAdvance && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditAdvance(entry)}
+                              className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+                              title="Modifier"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAdvance(entry.id)}
+                              disabled={isDeleting}
+                              className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Supprimer"
+                            >
+                              {isDeleting ? (
+                                <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-neutral-500 mt-1">
-                      {new Date(entry.effective_date).toLocaleDateString('fr-FR')}
-                    </p>
                   </div>
                 );
               })}
@@ -1276,6 +1357,139 @@ export default function ArtistDetailPage() {
                 onClick={handleUpdateArtist}
                 loading={savingArtist}
                 disabled={!editName.trim()}
+                className="flex-1"
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Advance Modal */}
+      {editingAdvance && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-4 py-4 sm:px-6 border-b border-neutral-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-neutral-900">Modifier l'avance</h2>
+                <button onClick={() => setEditingAdvance(null)} className="p-2 -mr-2 text-neutral-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <Input
+                type="number"
+                label="Montant (EUR)"
+                value={editAdvanceAmount}
+                onChange={(e) => setEditAdvanceAmount(e.target.value)}
+                placeholder="5000"
+              />
+
+              {/* Scope selector */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  Appliquer à
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditAdvanceScope('catalog');
+                      setEditAdvanceScopeId('');
+                    }}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      editAdvanceScope === 'catalog'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Catalogue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditAdvanceScope('release')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      editAdvanceScope === 'release'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Album
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditAdvanceScope('track')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                      editAdvanceScope === 'track'
+                        ? 'bg-neutral-900 text-white'
+                        : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                    }`}
+                  >
+                    Track
+                  </button>
+                </div>
+              </div>
+
+              {/* Scope ID selector */}
+              {editAdvanceScope === 'release' && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Sélectionner un album
+                  </label>
+                  <select
+                    value={editAdvanceScopeId}
+                    onChange={(e) => setEditAdvanceScopeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="">-- Choisir un album --</option>
+                    {releases.map((r) => (
+                      <option key={r.upc} value={r.upc}>
+                        {r.release_title} ({r.upc})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {editAdvanceScope === 'track' && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Sélectionner un track
+                  </label>
+                  <select
+                    value={editAdvanceScopeId}
+                    onChange={(e) => setEditAdvanceScopeId(e.target.value)}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  >
+                    <option value="">-- Choisir un track --</option>
+                    {tracks.map((t) => (
+                      <option key={t.isrc} value={t.isrc}>
+                        {t.track_title} ({t.isrc})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <Input
+                label="Description (optionnel)"
+                value={editAdvanceDescription}
+                onChange={(e) => setEditAdvanceDescription(e.target.value)}
+                placeholder="Avance album 2025"
+              />
+            </div>
+            <div className="p-4 sm:p-6 border-t border-neutral-100 flex gap-3">
+              <Button variant="secondary" onClick={() => setEditingAdvance(null)} className="flex-1">
+                Annuler
+              </Button>
+              <Button
+                onClick={handleUpdateAdvance}
+                loading={savingAdvance}
+                disabled={!editAdvanceAmount || (editAdvanceScope !== 'catalog' && !editAdvanceScopeId)}
                 className="flex-1"
               >
                 Enregistrer

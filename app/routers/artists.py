@@ -766,6 +766,145 @@ async def list_advance_entries(
     ]
 
 
+@router.put("/{artist_id}/advances/{advance_id}", response_model=AdvanceLedgerEntryResponse)
+async def update_advance(
+    artist_id: UUID,
+    advance_id: UUID,
+    data: AdvanceCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> AdvanceLedgerEntryResponse:
+    """
+    Update an existing advance entry.
+
+    Only advances can be updated (not recoupments).
+    """
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Get the advance entry
+    result = await db.execute(
+        select(AdvanceLedgerEntry).where(
+            AdvanceLedgerEntry.id == advance_id,
+            AdvanceLedgerEntry.artist_id == artist_id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Advance {advance_id} not found",
+        )
+
+    # Only allow updating advances, not recoupments
+    if entry.entry_type != LedgerEntryType.ADVANCE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only advances can be updated, not recoupments",
+        )
+
+    # Validate scope
+    scope = data.scope.lower() if data.scope else "catalog"
+    if scope not in ("track", "release", "catalog"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid scope: {scope}. Must be 'track', 'release', or 'catalog'",
+        )
+
+    # Validate scope_id
+    if scope == "catalog" and data.scope_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="scope_id must be null for catalog scope",
+        )
+    if scope in ("track", "release") and data.scope_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"scope_id is required for {scope} scope",
+        )
+
+    # Update the entry
+    entry.amount = data.amount
+    entry.currency = data.currency
+    entry.scope = scope
+    entry.scope_id = data.scope_id
+    entry.description = data.description
+    entry.reference = data.reference
+    await db.flush()
+
+    return AdvanceLedgerEntryResponse(
+        id=entry.id,
+        artist_id=entry.artist_id,
+        entry_type=entry.entry_type.value,
+        amount=entry.amount,
+        currency=entry.currency,
+        scope=entry.scope,
+        scope_id=entry.scope_id,
+        royalty_run_id=entry.royalty_run_id,
+        description=entry.description,
+        reference=entry.reference,
+        effective_date=entry.effective_date,
+        created_at=entry.created_at,
+    )
+
+
+@router.delete("/{artist_id}/advances/{advance_id}")
+async def delete_advance(
+    artist_id: UUID,
+    advance_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Delete an advance entry.
+
+    Only advances can be deleted (not recoupments).
+    Warning: This will affect the artist's advance balance.
+    """
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Get the advance entry
+    result = await db.execute(
+        select(AdvanceLedgerEntry).where(
+            AdvanceLedgerEntry.id == advance_id,
+            AdvanceLedgerEntry.artist_id == artist_id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Advance {advance_id} not found",
+        )
+
+    # Only allow deleting advances, not recoupments
+    if entry.entry_type != LedgerEntryType.ADVANCE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only advances can be deleted, not recoupments",
+        )
+
+    await db.delete(entry)
+    await db.flush()
+
+    return {"success": True, "deleted_id": str(advance_id)}
+
+
 @router.get("/{artist_id}/advance-balance", response_model=AdvanceBalanceResponse)
 async def get_advance_balance(
     artist_id: UUID,

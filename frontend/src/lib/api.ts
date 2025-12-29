@@ -213,6 +213,39 @@ export async function getAdvanceBalance(artistId: string): Promise<{ balance: st
   return fetchApi<{ balance: string; currency: string }>(`/artists/${artistId}/advance-balance`);
 }
 
+export async function updateAdvance(
+  artistId: string,
+  advanceId: string,
+  amount: number,
+  currency: string,
+  description?: string,
+  scope: 'track' | 'release' | 'catalog' = 'catalog',
+  scopeId?: string
+): Promise<AdvanceEntry> {
+  return fetchApi<AdvanceEntry>(`/artists/${artistId}/advances/${advanceId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      artist_id: artistId,
+      amount,
+      currency,
+      scope,
+      scope_id: scopeId,
+      description,
+    }),
+  });
+}
+
+export async function deleteAdvance(
+  artistId: string,
+  advanceId: string
+): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(
+    `/artists/${artistId}/advances/${advanceId}`,
+    { method: 'DELETE' }
+  );
+}
+
 // Royalties
 export async function getRoyaltyRuns(): Promise<RoyaltyRun[]> {
   return fetchApi<RoyaltyRun[]>('/royalty-runs');
