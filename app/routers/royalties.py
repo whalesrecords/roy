@@ -42,6 +42,56 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
     return x_admin_token
 
 
+@router.get("", response_model=list[RoyaltyRunResponse])
+async def list_royalty_runs(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[RoyaltyRunResponse]:
+    """List all royalty runs, ordered by creation date descending."""
+    result = await db.execute(
+        select(RoyaltyRun)
+        .options(selectinload(RoyaltyRun.statements))
+        .order_by(RoyaltyRun.created_at.desc())
+    )
+    runs = result.scalars().all()
+
+    responses = []
+    for run in runs:
+        artists = [
+            ArtistRoyaltyResult(
+                artist_id=stmt.artist_id,
+                artist_name="",
+                gross=stmt.gross_revenue,
+                artist_royalties=stmt.artist_royalties,
+                recouped=stmt.recouped,
+                net_payable=stmt.net_payable,
+                transaction_count=stmt.transaction_count,
+            )
+            for stmt in run.statements
+        ]
+        responses.append(RoyaltyRunResponse(
+            run_id=run.id,
+            period_start=run.period_start,
+            period_end=run.period_end,
+            base_currency=run.base_currency,
+            status=run.status.value,
+            is_locked=run.is_locked,
+            total_transactions=run.total_transactions,
+            total_gross=run.total_gross,
+            total_artist_royalties=run.total_artist_royalties,
+            total_label_royalties=run.total_label_royalties,
+            total_recouped=run.total_recouped,
+            total_net_payable=run.total_net_payable,
+            artists=artists,
+            import_ids=run.import_ids or [],
+            created_at=run.created_at,
+            completed_at=run.completed_at,
+            locked_at=run.locked_at,
+        ))
+
+    return responses
+
+
 @router.post("", response_model=RoyaltyRunResponse)
 async def create_royalty_run(
     data: RoyaltyRunCreate,

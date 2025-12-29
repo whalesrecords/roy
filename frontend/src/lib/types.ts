@@ -22,6 +22,20 @@ export interface ImportError {
   message: string;
 }
 
+export interface CreateImportResponse {
+  import_id: string;
+  status: string;
+  rows_parsed: number;
+  rows_inserted: number;
+  gross_total: string;
+  errors_count: number;
+  sample_errors: Array<{
+    row_number: number;
+    error: string;
+    raw_data?: Record<string, unknown>;
+  }>;
+}
+
 export interface PreviewRow {
   [key: string]: string;
 }
@@ -89,4 +103,87 @@ export const STATUS_COLORS: Record<ImportStatus, string> = {
   completed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
   partial: 'bg-yellow-100 text-yellow-700',
+};
+
+// Artists
+export interface Artist {
+  id: string;
+  name: string;
+  external_id?: string;
+  created_at: string;
+}
+
+export interface Contract {
+  id: string;
+  artist_id: string;
+  scope: 'track' | 'release' | 'catalog';
+  scope_id?: string;
+  artist_share: string;
+  label_share: string;
+  start_date: string;
+  end_date?: string;
+  description?: string;
+  created_at: string;
+}
+
+export interface AdvanceEntry {
+  id: string;
+  artist_id: string;
+  entry_type: 'advance' | 'recoupment';
+  amount: string;
+  currency: string;
+  royalty_run_id?: string;
+  description?: string;
+  reference?: string;
+  effective_date: string;
+  created_at: string;
+}
+
+// Royalties
+export type RoyaltyRunStatus = 'draft' | 'processing' | 'completed' | 'locked' | 'failed';
+
+export interface RoyaltyRun {
+  run_id: string;
+  period_start: string;
+  period_end: string;
+  base_currency: string;
+  status: RoyaltyRunStatus;
+  is_locked: boolean;
+  total_transactions: number;
+  total_gross: string;
+  total_artist_royalties: string;
+  total_label_royalties: string;
+  total_recouped: string;
+  total_net_payable: string;
+  artists: ArtistRoyaltyResult[];
+  import_ids: string[];
+  created_at: string;
+  completed_at?: string;
+  locked_at?: string;
+}
+
+export interface ArtistRoyaltyResult {
+  artist_id: string;
+  artist_name: string;
+  gross: string;
+  artist_royalties: string;
+  recouped: string;
+  net_payable: string;
+  transaction_count: number;
+}
+
+export const ROYALTY_STATUS_LABELS: Record<RoyaltyRunStatus, string> = {
+  draft: 'Brouillon',
+  processing: 'En cours',
+  completed: 'Terminé',
+  locked: 'Verrouillé',
+  failed: 'Échoué',
+};
+
+export const ROYALTY_STATUS_COLORS: Record<RoyaltyRunStatus, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  processing: 'bg-blue-100 text-blue-700',
+  completed: 'bg-green-100 text-green-700',
+  locked: 'bg-purple-100 text-purple-700',
+  failed: 'bg-red-100 text-red-700',
 };

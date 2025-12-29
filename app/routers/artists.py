@@ -174,12 +174,15 @@ async def create_contract(
             detail=f"scope_id is required for {scope.value} scope",
         )
 
-    # Validate shares sum to 1
-    if data.artist_share + data.label_share != Decimal("1"):
+    # Validate shares sum to 1 (with tolerance for floating point)
+    total = data.artist_share + data.label_share
+    if abs(total - Decimal("1")) > Decimal("0.001"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="artist_share + label_share must equal 1.0",
+            detail=f"artist_share + label_share must equal 1.0 (got {total})",
         )
+    # Normalize to exactly 1.0
+    data.label_share = Decimal("1") - data.artist_share
 
     contract = Contract(
         artist_id=artist_id,

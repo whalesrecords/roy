@@ -41,6 +41,122 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
     return x_admin_token
 
 
+def extract_period_from_filename(filename: str) -> tuple[date | None, date | None]:
+    """
+    Extract period from TuneCore filename.
+    Patterns:
+    - "TuneCore_Sales_2024-01.csv"
+    - "2024-01_TuneCore.csv"
+    - "january_2024.csv"
+    - Contains month/year like "2024-01" or "01-2024"
+    """
+    import calendar
+    import re
+
+    if not filename:
+        return None, None
+
+    # Pattern: YYYY-MM or YYYY_MM
+    match = re.search(r'(\d{4})[-_](\d{2})', filename)
+    if match:
+        year, month = int(match.group(1)), int(match.group(2))
+        if 1 <= month <= 12:
+            start = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = date(year, month, last_day)
+            return start, end
+
+    # Pattern: MM-YYYY or MM_YYYY
+    match = re.search(r'(\d{2})[-_](\d{4})', filename)
+    if match:
+        month, year = int(match.group(1)), int(match.group(2))
+        if 1 <= month <= 12:
+            start = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = date(year, month, last_day)
+            return start, end
+
+    # Pattern: month name + year (january_2024, jan2024, etc.)
+    months = {
+        "january": 1, "february": 2, "march": 3, "april": 4,
+        "may": 5, "june": 6, "july": 7, "august": 8,
+        "september": 9, "october": 10, "november": 11, "december": 12,
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    }
+
+    filename_lower = filename.lower()
+    for month_name, month_num in months.items():
+        if month_name in filename_lower:
+            year_match = re.search(r'(\d{4})', filename)
+            if year_match:
+                year = int(year_match.group(1))
+                start = date(year, month_num, 1)
+                last_day = calendar.monthrange(year, month_num)[1]
+                end = date(year, month_num, last_day)
+                return start, end
+
+    return None, None
+
+
+@router.post("/analyze")
+async def analyze_import(
+    source: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Analyze a CSV file before importing.
+    Returns detected period, artists with "&", and duplicate check.
+    Fast: extracts period from filename first.
+    """
+    # Validate source
+    try:
+        import_source = ImportSource(source.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported source: {source}",
+        )
+
+    period_start = None
+    period_end = None
+    artists_with_ampersand = []
+    total_artists = 0
+
+    if import_source == ImportSource.TUNECORE:
+        # Fast: extract period from filename
+        period_start, period_end = extract_period_from_filename(file.filename or "")
+
+    # Check for duplicates (same source, filename, and period)
+    duplicate = None
+    if period_start and period_end:
+        existing = await db.execute(
+            select(Import)
+            .where(Import.source == import_source)
+            .where(Import.filename == file.filename)
+            .where(Import.period_start == period_start)
+            .where(Import.period_end == period_end)
+        )
+        dup_record = existing.scalar_one_or_none()
+        if dup_record:
+            duplicate = {
+                "id": str(dup_record.id),
+                "created_at": dup_record.created_at.isoformat(),
+                "status": dup_record.status.value,
+                "rows_inserted": dup_record.rows_inserted,
+            }
+
+    return {
+        "period_start": period_start.isoformat() if period_start else None,
+        "period_end": period_end.isoformat() if period_end else None,
+        "artists_with_ampersand": artists_with_ampersand,
+        "total_artists": total_artists,
+        "duplicate": duplicate,
+    }
+
+
 @router.post("", response_model=ImportResponse)
 async def create_import(
     source: Annotated[str, Form()],
@@ -336,3 +452,122 @@ async def get_mapping(
             detail="Mapping not found",
         )
     return {"mappings": mappings}
+
+
+@router.get("/catalog/artists")
+async def get_catalog_artists(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get unique artists from imported transactions with their catalog stats.
+    """
+    from sqlalchemy import func, distinct
+
+    result = await db.execute(
+        select(
+            TransactionNormalized.artist_name,
+            func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
+            func.count(distinct(TransactionNormalized.upc)).label('release_count'),
+            func.sum(TransactionNormalized.gross_amount).label('total_gross'),
+            func.sum(TransactionNormalized.quantity).label('total_streams'),
+        )
+        .group_by(TransactionNormalized.artist_name)
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
+    )
+    rows = result.all()
+
+    return [
+        {
+            "artist_name": row.artist_name,
+            "track_count": row.track_count or 0,
+            "release_count": row.release_count or 0,
+            "total_gross": str(row.total_gross or 0),
+            "total_streams": row.total_streams or 0,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/catalog/artists/{artist_name}/releases")
+async def get_artist_releases(
+    artist_name: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get releases (albums) for an artist from imported transactions.
+    """
+    from sqlalchemy import func, distinct
+    from urllib.parse import unquote
+
+    decoded_name = unquote(artist_name)
+
+    result = await db.execute(
+        select(
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+            func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
+            func.sum(TransactionNormalized.gross_amount).label('total_gross'),
+            func.sum(TransactionNormalized.quantity).label('total_streams'),
+        )
+        .where(TransactionNormalized.artist_name == decoded_name)
+        .group_by(TransactionNormalized.release_title, TransactionNormalized.upc)
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
+    )
+    rows = result.all()
+
+    return [
+        {
+            "release_title": row.release_title or "Single",
+            "upc": row.upc,
+            "track_count": row.track_count or 0,
+            "total_gross": str(row.total_gross or 0),
+            "total_streams": row.total_streams or 0,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/catalog/artists/{artist_name}/tracks")
+async def get_artist_tracks(
+    artist_name: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get tracks for an artist from imported transactions.
+    """
+    from sqlalchemy import func
+    from urllib.parse import unquote
+
+    decoded_name = unquote(artist_name)
+
+    result = await db.execute(
+        select(
+            TransactionNormalized.track_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.isrc,
+            func.sum(TransactionNormalized.gross_amount).label('total_gross'),
+            func.sum(TransactionNormalized.quantity).label('total_streams'),
+        )
+        .where(TransactionNormalized.artist_name == decoded_name)
+        .group_by(
+            TransactionNormalized.track_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.isrc,
+        )
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
+    )
+    rows = result.all()
+
+    return [
+        {
+            "track_title": row.track_title,
+            "release_title": row.release_title,
+            "isrc": row.isrc,
+            "total_gross": str(row.total_gross or 0),
+            "total_streams": row.total_streams or 0,
+        }
+        for row in rows
+    ]
