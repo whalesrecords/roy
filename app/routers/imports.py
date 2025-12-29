@@ -41,7 +41,7 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
     return x_admin_token
 
 
-def extract_period_from_filename(filename: str) -> tuple[date | None, date | None]:
+def extract_period_from_filename(filename: str) -> tuple:
     """
     Extract period from TuneCore filename.
     Patterns:
@@ -139,7 +139,7 @@ async def analyze_import(
             .where(Import.period_start == period_start)
             .where(Import.period_end == period_end)
         )
-        dup_record = existing.scalar_one_or_none()
+        dup_record = existing.scalars().first()
         if dup_record:
             duplicate = {
                 "id": str(dup_record.id),
@@ -452,6 +452,49 @@ async def get_mapping(
             detail="Mapping not found",
         )
     return {"mappings": mappings}
+
+
+@router.delete("/{import_id}")
+async def delete_import(
+    import_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Delete an import and all its associated transactions.
+    """
+    from uuid import UUID
+
+    try:
+        uuid_id = UUID(import_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid import ID format",
+        )
+
+    # Get import record
+    result = await db.execute(select(Import).where(Import.id == uuid_id))
+    import_record = result.scalar_one_or_none()
+
+    if not import_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Import not found",
+        )
+
+    # Delete associated transactions first
+    await db.execute(
+        TransactionNormalized.__table__.delete().where(
+            TransactionNormalized.import_id == uuid_id
+        )
+    )
+
+    # Delete the import
+    await db.delete(import_record)
+    await db.commit()
+
+    return {"success": True, "deleted_id": import_id}
 
 
 @router.get("/catalog/artists")

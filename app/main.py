@@ -13,6 +13,7 @@ from app.core.database import engine, Base
 from app.routers import imports
 from app.routers.royalties import router as royalties_router, artists_router as royalties_artists_router
 from app.routers.artists import router as artists_router
+from app.routers.spotify import router as spotify_router
 
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ app.include_router(imports.router)
 app.include_router(royalties_router)
 app.include_router(artists_router)
 app.include_router(royalties_artists_router)
+app.include_router(spotify_router)
 
 
 @app.get("/health")

@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { RoyaltyRun, ROYALTY_STATUS_LABELS, ROYALTY_STATUS_COLORS, Artist } from '@/lib/types';
+import { RoyaltyRun, ROYALTY_STATUS_LABELS, ROYALTY_STATUS_COLORS, Artist, ImportRecord } from '@/lib/types';
 import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, getArtists, getImports } from '@/lib/api';
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [imports, setImports] = useState<ImportRecord[]>([]);
   const [hasImports, setHasImports] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,15 @@ export default function RoyaltiesPage() {
       ]);
       setRuns(runsData);
       setArtists(artistsData);
+      setImports(importsData);
       setHasImports(importsData.length > 0);
+
+      // Auto-fill period from most recent import
+      if (importsData.length > 0 && !periodStart && !periodEnd) {
+        const latestImport = importsData[0]; // Already sorted by date desc
+        if (latestImport.period_start) setPeriodStart(latestImport.period_start);
+        if (latestImport.period_end) setPeriodEnd(latestImport.period_end);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -232,6 +241,42 @@ export default function RoyaltiesPage() {
                   Les transactions de la période seront analysées et les royalties calculées selon les contrats.
                 </p>
               </div>
+
+              {/* Quick period selection from imports */}
+              {imports.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Sélectionner une période importée
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {imports
+                      .filter((imp, idx, arr) =>
+                        arr.findIndex(i =>
+                          i.period_start === imp.period_start && i.period_end === imp.period_end
+                        ) === idx
+                      )
+                      .slice(0, 6)
+                      .map((imp) => (
+                        <button
+                          key={imp.id}
+                          type="button"
+                          onClick={() => {
+                            if (imp.period_start) setPeriodStart(imp.period_start);
+                            if (imp.period_end) setPeriodEnd(imp.period_end);
+                          }}
+                          className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                            periodStart === imp.period_start && periodEnd === imp.period_end
+                              ? 'bg-neutral-900 text-white border-neutral-900'
+                              : 'bg-white text-neutral-700 border-neutral-200 hover:border-neutral-400'
+                          }`}
+                        >
+                          {formatDate(imp.period_start)} - {formatDate(imp.period_end)}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   type="date"

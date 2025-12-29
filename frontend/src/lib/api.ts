@@ -39,6 +39,12 @@ export async function getImports(): Promise<ImportRecord[]> {
   return fetchApi<ImportRecord[]>('/imports');
 }
 
+export async function deleteImport(importId: string): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(`/imports/${importId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function createImport(
   file: File,
   source: ImportSource,
@@ -234,4 +240,41 @@ export async function analyzeImport(file: File, source: string): Promise<ImportA
   }
 
   return res.json();
+}
+
+// Spotify API
+
+export interface SpotifyStatus {
+  configured: boolean;
+  message: string;
+}
+
+export async function getSpotifyStatus(): Promise<SpotifyStatus> {
+  return fetchApi<SpotifyStatus>('/spotify/status');
+}
+
+export interface SpotifySearchResult {
+  spotify_id?: string;
+  name?: string;
+  image_url?: string;
+  image_url_small?: string;
+  popularity?: number;
+  genres?: string[];
+}
+
+export async function fetchArtistArtwork(artistId: string): Promise<SpotifySearchResult> {
+  return fetchApi<SpotifySearchResult>(`/spotify/artists/${artistId}/fetch-artwork`, {
+    method: 'POST',
+  });
+}
+
+export async function updateArtistArtwork(
+  artistId: string,
+  data: { image_url?: string; image_url_small?: string; spotify_id?: string }
+): Promise<{ success: boolean }> {
+  return fetchApi<{ success: boolean }>(`/spotify/artists/${artistId}/artwork`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
 }

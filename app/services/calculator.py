@@ -317,9 +317,11 @@ class RoyaltyCalculator:
 
                 # Determine splits
                 if contract:
+                    logger.info(f"Found contract for {tx.artist_name}: {contract.scope.value} @ {contract.artist_share*100}%")
                     artist_share = contract.artist_share
                     label_share = contract.label_share
                 else:
+                    logger.warning(f"No contract found for {tx.artist_name} (artist_id={artist.id}), using default 50/50 split")
                     artist_share = DEFAULT_ARTIST_SHARE
                     label_share = DEFAULT_LABEL_SHARE
 
@@ -448,6 +450,8 @@ class RoyaltyCalculator:
             logger.info(
                 f"Royalty run completed: {result.total_transactions} transactions, "
                 f"{len(result.artists)} artists, "
+                f"total_gross={result.total_gross}, "
+                f"total_artist_royalties={result.total_artist_royalties}, "
                 f"total_net_payable={result.total_net_payable}"
             )
 

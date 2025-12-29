@@ -124,6 +124,9 @@ class ArtistResponse(BaseModel):
     id: UUID
     name: str
     external_id: Optional[str] = None
+    spotify_id: Optional[str] = None
+    image_url: Optional[str] = None
+    image_url_small: Optional[str] = None
     created_at: datetime
 
     class Config:

@@ -7,7 +7,7 @@ import EmptyState from '@/components/imports/EmptyState';
 import ImportErrors from '@/components/imports/ImportErrors';
 import UploadFlow from '@/components/imports/UploadFlow';
 import { ImportRecord } from '@/lib/types';
-import { getImports } from '@/lib/api';
+import { getImports, deleteImport } from '@/lib/api';
 
 export default function ImportsPage() {
   const [imports, setImports] = useState<ImportRecord[]>([]);
@@ -15,6 +15,7 @@ export default function ImportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedImport, setSelectedImport] = useState<ImportRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadImports();
@@ -34,6 +35,21 @@ export default function ImportsPage() {
   const handleUploadComplete = () => {
     setShowUpload(false);
     loadImports();
+  };
+
+  const handleDelete = async (importId: string) => {
+    if (!confirm('Supprimer cet import et toutes ses transactions ?')) return;
+
+    setDeleting(true);
+    try {
+      await deleteImport(importId);
+      setSelectedImport(null);
+      loadImports();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -137,13 +153,20 @@ export default function ImportsPage() {
               )}
             </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 sm:p-6">
+            <div className="sticky bottom-0 bg-white border-t border-neutral-100 p-4 sm:p-6 flex gap-3">
               <Button
                 variant="secondary"
                 onClick={() => setSelectedImport(null)}
-                className="w-full"
+                className="flex-1"
               >
                 Fermer
+              </Button>
+              <Button
+                onClick={() => handleDelete(selectedImport.id)}
+                disabled={deleting}
+                className="flex-1 !bg-red-600 hover:!bg-red-700"
+              >
+                {deleting ? 'Suppression...' : 'Supprimer'}
               </Button>
             </div>
           </div>

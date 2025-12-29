@@ -30,6 +30,11 @@ class Artist(Base):
     # Optional external identifiers
     external_id: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)
 
+    # Spotify integration
+    spotify_id: Mapped[str] = mapped_column(String(100), nullable=True)
+    image_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    image_url_small: Mapped[str] = mapped_column(String(500), nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

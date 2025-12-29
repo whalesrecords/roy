@@ -73,6 +73,9 @@ async def create_artist(
         id=artist.id,
         name=artist.name,
         external_id=artist.external_id,
+        spotify_id=artist.spotify_id,
+        image_url=artist.image_url,
+        image_url_small=artist.image_url_small,
         created_at=artist.created_at,
     )
 
@@ -93,6 +96,9 @@ async def list_artists(
             id=artist.id,
             name=artist.name,
             external_id=artist.external_id,
+            spotify_id=artist.spotify_id,
+            image_url=artist.image_url,
+            image_url_small=artist.image_url_small,
             created_at=artist.created_at,
         )
         for artist in artists
@@ -121,6 +127,9 @@ async def get_artist(
         id=artist.id,
         name=artist.name,
         external_id=artist.external_id,
+        spotify_id=artist.spotify_id,
+        image_url=artist.image_url,
+        image_url_small=artist.image_url_small,
         created_at=artist.created_at,
     )
 

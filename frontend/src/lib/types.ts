@@ -110,7 +110,20 @@ export interface Artist {
   id: string;
   name: string;
   external_id?: string;
+  spotify_id?: string;
+  image_url?: string;
+  image_url_small?: string;
   created_at: string;
+}
+
+// Spotify
+export interface SpotifySearchResult {
+  spotify_id?: string;
+  name?: string;
+  image_url?: string;
+  image_url_small?: string;
+  popularity?: number;
+  genres?: string[];
 }
 
 export interface Contract {
