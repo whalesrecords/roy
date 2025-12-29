@@ -155,7 +155,7 @@ export async function getRoyaltyRun(runId: string): Promise<RoyaltyRun> {
 export async function createRoyaltyRun(
   periodStart: string,
   periodEnd: string,
-  baseCurrency: string = 'USD'
+  baseCurrency: string = 'EUR'
 ): Promise<RoyaltyRun> {
   return fetchApi<RoyaltyRun>('/royalty-runs', {
     method: 'POST',
@@ -177,6 +177,7 @@ export interface CatalogArtist {
   release_count: number;
   total_gross: string;
   total_streams: number;
+  currency: string;
 }
 
 export interface CatalogRelease {
@@ -185,6 +186,7 @@ export interface CatalogRelease {
   track_count: number;
   total_gross: string;
   total_streams: number;
+  currency: string;
 }
 
 export interface CatalogTrack {
@@ -193,6 +195,7 @@ export interface CatalogTrack {
   isrc: string;
   total_gross: string;
   total_streams: number;
+  currency: string;
 }
 
 export async function getCatalogArtists(): Promise<CatalogArtist[]> {

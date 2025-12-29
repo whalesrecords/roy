@@ -36,8 +36,8 @@ export default function CatalogArtistPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+  const formatCurrency = (value: string, currency: string = 'EUR') => {
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
@@ -118,7 +118,7 @@ export default function CatalogArtistPage() {
                     </p>
                   </div>
                   <div className="text-right ml-4">
-                    <p className="font-medium text-neutral-900">{formatCurrency(release.total_gross)}</p>
+                    <p className="font-medium text-neutral-900">{formatCurrency(release.total_gross, release.currency)}</p>
                     <p className="text-sm text-neutral-500">{formatNumber(release.total_streams)} streams</p>
                   </div>
                 </div>
@@ -145,7 +145,7 @@ export default function CatalogArtistPage() {
                     )}
                   </div>
                   <div className="text-right ml-4">
-                    <p className="font-medium text-neutral-900">{formatCurrency(track.total_gross)}</p>
+                    <p className="font-medium text-neutral-900">{formatCurrency(track.total_gross, track.currency)}</p>
                     <p className="text-sm text-neutral-500">{formatNumber(track.total_streams)} streams</p>
                   </div>
                 </div>

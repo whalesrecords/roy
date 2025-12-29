@@ -57,7 +57,7 @@ export default function RoyaltiesPage() {
     setCreating(true);
     setError(null);
     try {
-      const run = await createRoyaltyRun(periodStart, periodEnd);
+      const run = await createRoyaltyRun(periodStart, periodEnd, 'EUR');
       setShowCreate(false);
       setPeriodStart('');
       setPeriodEnd('');
@@ -83,8 +83,8 @@ export default function RoyaltiesPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+  const formatCurrency = (value: string, currency: string = 'EUR') => {
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const formatDate = (date: string) => {
@@ -210,7 +210,7 @@ export default function RoyaltiesPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-green-600">{formatCurrency(run.total_net_payable)}</p>
+                    <p className="font-medium text-green-600">{formatCurrency(run.total_net_payable, run.base_currency)}</p>
                     <p className="text-sm text-neutral-500">à payer</p>
                   </div>
                 </div>
@@ -336,19 +336,19 @@ export default function RoyaltiesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-neutral-50 rounded-lg p-3">
                   <p className="text-sm text-neutral-500">Brut total</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_gross)}</p>
+                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3">
                   <p className="text-sm text-green-600">Net à payer</p>
-                  <p className="text-lg font-semibold text-green-700">{formatCurrency(selectedRun.total_net_payable)}</p>
+                  <p className="text-lg font-semibold text-green-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
                 </div>
                 <div className="bg-neutral-50 rounded-lg p-3">
                   <p className="text-sm text-neutral-500">Part artistes</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_artist_royalties)}</p>
+                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
                 </div>
                 <div className="bg-neutral-50 rounded-lg p-3">
                   <p className="text-sm text-neutral-500">Recoupé</p>
-                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_recouped)}</p>
+                  <p className="text-lg font-semibold">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
                 </div>
               </div>
 
@@ -368,15 +368,15 @@ export default function RoyaltiesPage() {
                           <p className="font-medium text-neutral-900">
                             {artist.artist_name || 'Artiste inconnu'}
                           </p>
-                          <p className="font-medium text-green-600">{formatCurrency(artist.net_payable)}</p>
+                          <p className="font-medium text-green-600">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
                         </div>
                         <div className="flex items-center justify-between text-sm text-neutral-500">
                           <span>{artist.transaction_count.toLocaleString('fr-FR')} transactions</span>
-                          <span>Brut: {formatCurrency(artist.gross)}</span>
+                          <span>Brut: {formatCurrency(artist.gross, selectedRun.base_currency)}</span>
                         </div>
                         {parseFloat(artist.recouped) > 0 && (
                           <p className="text-sm text-orange-600 mt-1">
-                            Recoupé: {formatCurrency(artist.recouped)}
+                            Recoupé: {formatCurrency(artist.recouped, selectedRun.base_currency)}
                           </p>
                         )}
                       </div>

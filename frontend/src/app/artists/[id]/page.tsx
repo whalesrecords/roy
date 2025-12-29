@@ -31,6 +31,7 @@ export default function ArtistDetailPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [advances, setAdvances] = useState<AdvanceEntry[]>([]);
   const [balance, setBalance] = useState<string>('0');
+  const [balanceCurrency, setBalanceCurrency] = useState<string>('EUR');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +76,7 @@ export default function ArtistDetailPage() {
       setContracts(contractsData);
       setAdvances(advancesData);
       setBalance(balanceData.balance);
+      setBalanceCurrency(balanceData.currency || 'EUR');
 
       // Load catalog data for the artist
       if (artistData.name) {
@@ -149,7 +151,7 @@ export default function ArtistDetailPage() {
     if (!advanceAmount) return;
     setCreatingAdvance(true);
     try {
-      await createAdvance(artistId, parseFloat(advanceAmount), 'USD', advanceDescription);
+      await createAdvance(artistId, parseFloat(advanceAmount), 'EUR', advanceDescription);
       setShowAdvanceForm(false);
       setAdvanceAmount('');
       setAdvanceDescription('');
@@ -199,9 +201,9 @@ export default function ArtistDetailPage() {
     return contracts.find(c => c.scope === 'catalog');
   };
 
-  const formatCurrency = (value: string | number) => {
+  const formatCurrency = (value: string | number, currency: string = 'EUR') => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+    return num.toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
@@ -305,7 +307,7 @@ export default function ArtistDetailPage() {
         <div className="bg-white rounded-xl border border-neutral-200 p-4">
           <p className="text-sm text-neutral-500 mb-1">Solde avance</p>
           <p className="text-2xl font-semibold text-neutral-900">
-            {formatCurrency(balance)}
+            {formatCurrency(balance, balanceCurrency)}
           </p>
         </div>
 
@@ -371,7 +373,7 @@ export default function ArtistDetailPage() {
                         <p className="font-medium text-neutral-900 truncate">{release.release_title}</p>
                         <p className="text-xs text-neutral-400 font-mono">UPC: {release.upc}</p>
                         <p className="text-sm text-neutral-500">
-                          {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross)}
+                          {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross, release.currency)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -491,7 +493,7 @@ export default function ArtistDetailPage() {
                     </div>
                     <p className={`font-medium ${entry.entry_type === 'advance' ? 'text-red-600' : 'text-green-600'}`}>
                       {entry.entry_type === 'advance' ? '-' : '+'}
-                      {formatCurrency(entry.amount)}
+                      {formatCurrency(entry.amount, entry.currency)}
                     </p>
                   </div>
                   <p className="text-sm text-neutral-500 mt-1">
@@ -602,7 +604,7 @@ export default function ArtistDetailPage() {
             <div className="p-4 sm:p-6 space-y-4">
               <Input
                 type="number"
-                label="Montant (USD)"
+                label="Montant (EUR)"
                 value={advanceAmount}
                 onChange={(e) => setAdvanceAmount(e.target.value)}
                 placeholder="5000"

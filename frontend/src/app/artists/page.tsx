@@ -81,8 +81,8 @@ export default function ArtistsPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+  const formatCurrency = (value: string, currency: string = 'EUR') => {
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
@@ -152,7 +152,7 @@ export default function ArtistsPage() {
                         {catalogArtist.release_count} release{catalogArtist.release_count > 1 ? 's' : ''} · {catalogArtist.track_count} track{catalogArtist.track_count > 1 ? 's' : ''}
                       </p>
                       <p className="text-sm text-neutral-500">
-                        {formatCurrency(catalogArtist.total_gross)} · {formatNumber(catalogArtist.total_streams)} streams
+                        {formatCurrency(catalogArtist.total_gross, catalogArtist.currency)} · {formatNumber(catalogArtist.total_streams)} streams
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -227,7 +227,7 @@ export default function ArtistsPage() {
                               {release.release_title}
                             </p>
                             <p className="text-xs text-neutral-500">
-                              {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross)}
+                              {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross, release.currency)}
                             </p>
                           </div>
                         </div>

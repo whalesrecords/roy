@@ -514,6 +514,8 @@ async def get_catalog_artists(
             func.count(distinct(TransactionNormalized.upc)).label('release_count'),
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
+            # Get the most common currency for this artist
+            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .group_by(TransactionNormalized.artist_name)
         .order_by(func.sum(TransactionNormalized.gross_amount).desc())
@@ -527,6 +529,7 @@ async def get_catalog_artists(
             "release_count": row.release_count or 0,
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
+            "currency": row.currency or "EUR",
         }
         for row in rows
     ]
@@ -553,6 +556,7 @@ async def get_artist_releases(
             func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
+            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .where(TransactionNormalized.artist_name == decoded_name)
         .group_by(TransactionNormalized.release_title, TransactionNormalized.upc)
@@ -567,6 +571,7 @@ async def get_artist_releases(
             "track_count": row.track_count or 0,
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
+            "currency": row.currency or "EUR",
         }
         for row in rows
     ]
@@ -593,6 +598,7 @@ async def get_artist_tracks(
             TransactionNormalized.isrc,
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
+            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .where(TransactionNormalized.artist_name == decoded_name)
         .group_by(
@@ -609,6 +615,7 @@ async def get_artist_tracks(
             "track_title": row.track_title,
             "release_title": row.release_title,
             "isrc": row.isrc,
+            "currency": row.currency or "EUR",
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
         }

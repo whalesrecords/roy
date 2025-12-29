@@ -24,8 +24,8 @@ export default function CatalogPage() {
     }
   };
 
-  const formatCurrency = (value: string) => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency: 'USD' });
+  const formatCurrency = (value: string, currency: string = 'EUR') => {
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
@@ -79,7 +79,7 @@ export default function CatalogPage() {
                     </p>
                   </div>
                   <div className="text-right ml-4">
-                    <p className="font-medium text-neutral-900">{formatCurrency(artist.total_gross)}</p>
+                    <p className="font-medium text-neutral-900">{formatCurrency(artist.total_gross, artist.currency)}</p>
                     <p className="text-sm text-neutral-500">{formatNumber(artist.total_streams)} streams</p>
                   </div>
                 </div>
