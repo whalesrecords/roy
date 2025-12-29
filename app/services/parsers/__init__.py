@@ -1,6 +1,6 @@
 from app.services.parsers.tunecore import TuneCoreParser, TuneCoreRow, ParseError, TuneCoreParseResult
 from app.services.parsers.bandcamp import BandcampParser, BandcampRow, BandcampParseResult
-from app.services.parsers.believe import BelieveParser, BelieveRow, BelieveParseResult
+from app.services.parsers.believe_uk import BelieveUKParser, BelieveUKRow, BelieveUKParseResult
 
 __all__ = [
     "TuneCoreParser",
@@ -10,7 +10,7 @@ __all__ = [
     "BandcampParser",
     "BandcampRow",
     "BandcampParseResult",
-    "BelieveParser",
-    "BelieveRow",
-    "BelieveParseResult",
+    "BelieveUKParser",
+    "BelieveUKRow",
+    "BelieveUKParseResult",
 ]

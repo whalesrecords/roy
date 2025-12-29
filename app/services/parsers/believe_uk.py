@@ -1,10 +1,10 @@
 """
-Believe CSV Parser
+Believe UK CSV Parser
 
-Parses Believe music sales reports. Handles French-language column headers.
+Parses Believe UK music sales reports. Handles French-language column headers.
 Returns raw parsed data for normalization.
 
-Believe CSV format:
+Believe UK CSV format:
 - Delimiter: semicolon (;)
 - Decimal separator: comma (,)
 - Encoding: UTF-8 with BOM
@@ -19,8 +19,8 @@ from typing import Dict, Iterator, List, Optional, Union
 
 
 @dataclass
-class BelieveRow:
-    """Raw parsed row from Believe CSV."""
+class BelieveUKRow:
+    """Raw parsed row from Believe UK CSV."""
     row_number: int
     artist: str
     release_title: str
@@ -51,9 +51,9 @@ class ParseError:
 
 
 @dataclass
-class BelieveParseResult:
-    """Result of parsing a Believe CSV."""
-    rows: List[BelieveRow] = field(default_factory=list)
+class BelieveUKParseResult:
+    """Result of parsing a Believe UK CSV."""
+    rows: List[BelieveUKRow] = field(default_factory=list)
     errors: List[ParseError] = field(default_factory=list)
     total_rows: int = 0
 
@@ -189,8 +189,8 @@ def _parse_int(value: str) -> int:
         raise ValueError(f"Cannot parse integer: {value}")
 
 
-class BelieveParser:
-    """Parser for Believe CSV files."""
+class BelieveUKParser:
+    """Parser for Believe UK CSV files."""
 
     def __init__(self):
         self._column_indices: Dict[str, Optional[int]] = {}
@@ -206,7 +206,7 @@ class BelieveParser:
         if missing:
             raise ValueError(f"Missing required columns: {missing}. Available columns: {headers}")
 
-    def _parse_row(self, row: List[str], row_number: int) -> BelieveRow:
+    def _parse_row(self, row: List[str], row_number: int) -> BelieveUKRow:
         """Parse a single CSV row into a BelieveRow."""
         artist = _get_value(row, self._column_indices.get("artist"))
         if not artist:
@@ -224,7 +224,7 @@ class BelieveParser:
         revenue_rate_str = _get_value(row, self._column_indices.get("revenue_rate"))
         revenue_rate = _parse_decimal_french(revenue_rate_str) if revenue_rate_str else None
 
-        return BelieveRow(
+        return BelieveUKRow(
             row_number=row_number,
             artist=artist,
             release_title=_get_value(row, self._column_indices.get("release_title")),
@@ -246,7 +246,7 @@ class BelieveParser:
             revenue_rate=revenue_rate,
         )
 
-    def parse(self, content: Union[str, bytes]) -> BelieveParseResult:
+    def parse(self, content: Union[str, bytes]) -> BelieveUKParseResult:
         """
         Parse Believe CSV content.
 
@@ -254,7 +254,7 @@ class BelieveParser:
             content: CSV file content as string or bytes
 
         Returns:
-            BelieveParseResult with parsed rows and errors
+            BelieveUKParseResult with parsed rows and errors
         """
         if isinstance(content, bytes):
             # Try UTF-8 with BOM first, then latin-1 as fallback
@@ -266,7 +266,7 @@ class BelieveParser:
                 except UnicodeDecodeError:
                     content = content.decode("latin-1")
 
-        result = BelieveParseResult()
+        result = BelieveUKParseResult()
 
         # Believe uses semicolon as delimiter
         reader = csv.reader(io.StringIO(content), delimiter=";")
@@ -308,12 +308,12 @@ class BelieveParser:
 
         return result
 
-    def parse_iter(self, content: Union[str, bytes]) -> Iterator[Union[BelieveRow, ParseError]]:
+    def parse_iter(self, content: Union[str, bytes]) -> Iterator[Union[BelieveUKRow, ParseError]]:
         """
-        Parse Believe CSV content as an iterator (memory efficient for large files).
+        Parse Believe UK CSV content as an iterator (memory efficient for large files).
 
         Yields:
-            BelieveRow or ParseError for each row
+            BelieveUKRow or ParseError for each row
         """
         if isinstance(content, bytes):
             try:

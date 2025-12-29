@@ -394,6 +394,7 @@ async def get_collaboration_suggestions(
         r'\s+&\s+',
         r'\s+[xX]\s+',
         r'\s+vs\.?\s+',
+        r',\s*',  # Comma-separated artists (e.g., "Lissom, Julien Marchal, Lowswimmer")
     ]
 
     for track in tracks:

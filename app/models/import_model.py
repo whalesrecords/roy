@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 class ImportSource(str, Enum):
     """Supported import sources."""
     TUNECORE = "tunecore"
-    BELIEVE = "believe"
+    BELIEVE_UK = "believe_uk"
     CDBABY = "cdbaby"
     BANDCAMP = "bandcamp"
     OTHER = "other"

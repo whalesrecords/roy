@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 from app.models.transaction import TransactionNormalized, SaleType
 from app.services.parsers.tunecore import TuneCoreRow
 from app.services.parsers.bandcamp import BandcampRow
-from app.services.parsers.believe import BelieveRow
+from app.services.parsers.believe_uk import BelieveUKRow
 
 
 # Sales type normalization mapping
@@ -368,12 +368,12 @@ def normalize_bandcamp_row(
     )
 
 
-def normalize_believe_sale_type(sale_type: str) -> SaleType:
+def normalize_believe_uk_sale_type(sale_type: str) -> SaleType:
     """
-    Convert Believe sale type to SaleType enum.
+    Convert Believe UK sale type to SaleType enum.
 
     Args:
-        sale_type: Believe sale type (Stream, Creation, PLATFORM PROMOTION, etc.)
+        sale_type: Believe UK sale type (Stream, Creation, PLATFORM PROMOTION, etc.)
 
     Returns:
         SaleType enum value
@@ -402,9 +402,9 @@ def normalize_believe_sale_type(sale_type: str) -> SaleType:
     return SaleType.OTHER
 
 
-def parse_believe_date(date_str: Optional[str]) -> Optional[date]:
+def parse_believe_uk_date(date_str: Optional[str]) -> Optional[date]:
     """
-    Parse a Believe date string into a date object.
+    Parse a Believe UK date string into a date object.
 
     Handles formats like:
     - "2023-02-01" (YYYY-MM-DD)
@@ -426,17 +426,17 @@ def parse_believe_date(date_str: Optional[str]) -> Optional[date]:
     return None
 
 
-def normalize_believe_row(
-    row: BelieveRow,
+def normalize_believe_uk_row(
+    row: BelieveUKRow,
     import_id: str,
     fallback_period_start: date,
     fallback_period_end: date,
 ) -> TransactionNormalized:
     """
-    Transform a parsed Believe row into a normalized transaction.
+    Transform a parsed Believe UK row into a normalized transaction.
 
     Args:
-        row: Parsed Believe row
+        row: Parsed Believe UK row
         import_id: UUID of the parent import
         fallback_period_start: Default period start if not parseable from CSV
         fallback_period_end: Default period end if not parseable from CSV
@@ -444,9 +444,9 @@ def normalize_believe_row(
     Returns:
         TransactionNormalized instance (not yet persisted)
     """
-    # Parse dates from row (Believe provides reporting_month and sales_month)
-    parsed_reporting = parse_believe_date(row.reporting_month)
-    parsed_sales = parse_believe_date(row.sales_month)
+    # Parse dates from row (Believe UK provides reporting_month and sales_month)
+    parsed_reporting = parse_believe_uk_date(row.reporting_month)
+    parsed_sales = parse_believe_uk_date(row.sales_month)
 
     # Use sales_month for period if available, else reporting_month, else fallback
     if parsed_sales:
@@ -480,7 +480,7 @@ def normalize_believe_row(
         isrc=clean_isrc,
         upc=row.upc,
         territory=normalize_country_code(row.country),
-        sale_type=normalize_believe_sale_type(row.sale_type),
+        sale_type=normalize_believe_uk_sale_type(row.sale_type),
         original_sale_type=row.sale_type,
         quantity=row.quantity,
         gross_amount=row.net_revenue,  # Use net revenue (after Believe's cut)

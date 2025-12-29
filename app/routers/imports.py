@@ -26,8 +26,8 @@ from app.models.transaction import TransactionNormalized
 from sqlalchemy import select
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
-from app.services.parsers.believe import BelieveParser
-from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row, normalize_believe_row
+from app.services.parsers.believe_uk import BelieveUKParser
+from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row, normalize_believe_uk_row
 
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -280,8 +280,8 @@ async def create_import(
                     error=f"Normalization error: {str(e)}",
                 ))
 
-    elif import_source == ImportSource.BELIEVE:
-        parser = BelieveParser()
+    elif import_source == ImportSource.BELIEVE_UK:
+        parser = BelieveUKParser()
         result = parser.parse(content)
 
         import_record.rows_total = result.total_rows
@@ -297,7 +297,7 @@ async def create_import(
         # Normalize and create transactions
         for row in result.rows:
             try:
-                transaction = normalize_believe_row(
+                transaction = normalize_believe_uk_row(
                     row=row,
                     import_id=import_record.id,
                     fallback_period_start=period_start,
