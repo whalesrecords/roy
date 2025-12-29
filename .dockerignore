@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv
+venv/
+ENV/
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Misc
+.env
+.env.local
+*.log
+.DS_Store
+
+# Frontend (built separately)
+frontend/
