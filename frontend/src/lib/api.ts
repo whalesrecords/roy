@@ -122,6 +122,36 @@ export async function createContract(
   });
 }
 
+export async function updateContract(
+  artistId: string,
+  contractId: string,
+  data: {
+    scope: string;
+    scope_id?: string;
+    artist_share: number;
+    label_share: number;
+    start_date: string;
+    end_date?: string;
+    description?: string;
+  }
+): Promise<Contract> {
+  return fetchApi<Contract>(`/artists/${artistId}/contracts/${contractId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteContract(
+  artistId: string,
+  contractId: string
+): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(
+    `/artists/${artistId}/contracts/${contractId}`,
+    { method: 'DELETE' }
+  );
+}
+
 export async function getAdvances(artistId: string): Promise<AdvanceEntry[]> {
   return fetchApi<AdvanceEntry[]>(`/artists/${artistId}/advances`);
 }
@@ -269,6 +299,35 @@ export async function fetchArtistArtwork(artistId: string): Promise<SpotifySearc
   return fetchApi<SpotifySearchResult>(`/spotify/artists/${artistId}/fetch-artwork`, {
     method: 'POST',
   });
+}
+
+export interface SpotifyAlbumResult {
+  spotify_id?: string;
+  name?: string;
+  image_url?: string;
+  image_url_small?: string;
+  release_date?: string;
+  total_tracks?: number;
+  artists?: string[];
+}
+
+export interface SpotifyTrackResult {
+  spotify_id?: string;
+  name?: string;
+  album_name?: string;
+  image_url?: string;
+  image_url_small?: string;
+  artists?: string[];
+  duration_ms?: number;
+  popularity?: number;
+}
+
+export async function searchAlbumByUPC(upc: string): Promise<SpotifyAlbumResult> {
+  return fetchApi<SpotifyAlbumResult>(`/spotify/search/album/upc/${encodeURIComponent(upc)}`);
+}
+
+export async function searchTrackByISRC(isrc: string): Promise<SpotifyTrackResult> {
+  return fetchApi<SpotifyTrackResult>(`/spotify/search/track/isrc/${encodeURIComponent(isrc)}`);
 }
 
 export async function updateArtistArtwork(

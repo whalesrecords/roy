@@ -289,39 +289,72 @@ class RoyaltyCalculator:
 
             logger.info(f"Found {len(transactions)} transactions for period")
 
+            # PRE-LOAD all artists into cache (avoid N+1)
+            artist_result = await db.execute(select(Artist))
+            all_artists = artist_result.scalars().all()
+            artist_cache: Dict[str, Artist] = {a.name: a for a in all_artists}
+            logger.info(f"Pre-loaded {len(artist_cache)} artists")
+
+            # PRE-LOAD all contracts into cache (avoid N+1)
+            # Build validity conditions
+            validity_condition = and_(
+                Contract.start_date <= period_end,
+                or_(
+                    Contract.end_date.is_(None),
+                    Contract.end_date >= period_start,
+                ),
+            )
+            contract_result = await db.execute(
+                select(Contract).where(validity_condition)
+            )
+            all_contracts = contract_result.scalars().all()
+
+            # Index contracts for fast lookup
+            track_contracts: Dict[tuple, Contract] = {}  # (artist_id, isrc) -> contract
+            release_contracts: Dict[tuple, Contract] = {}  # (artist_id, upc) -> contract
+            catalog_contracts: Dict[UUID, Contract] = {}  # artist_id -> contract
+
+            for c in all_contracts:
+                if c.scope == ContractScope.TRACK and c.scope_id:
+                    track_contracts[(c.artist_id, c.scope_id)] = c
+                elif c.scope == ContractScope.RELEASE and c.scope_id:
+                    release_contracts[(c.artist_id, c.scope_id)] = c
+                elif c.scope == ContractScope.CATALOG:
+                    catalog_contracts[c.artist_id] = c
+
+            logger.info(f"Pre-loaded {len(all_contracts)} contracts (track={len(track_contracts)}, release={len(release_contracts)}, catalog={len(catalog_contracts)})")
+
             # Track import IDs for audit
             import_ids_set: set[UUID] = set()
 
-            # Process each transaction
-            artist_cache: Dict[str, Artist] = {}
-
+            # Process each transaction - NO MORE DB QUERIES IN LOOP!
             for tx in transactions:
                 import_ids_set.add(tx.import_id)
 
-                # Get or create artist
+                # Get or create artist from cache
                 if tx.artist_name not in artist_cache:
-                    artist = await self.get_or_create_artist(db, tx.artist_name)
+                    artist = Artist(name=tx.artist_name)
+                    db.add(artist)
+                    await db.flush()
                     artist_cache[tx.artist_name] = artist
+                    logger.info(f"Created new artist: {tx.artist_name} (id={artist.id})")
                 else:
                     artist = artist_cache[tx.artist_name]
 
-                # Find applicable contract
-                contract = await self.find_applicable_contract(
-                    db,
-                    artist.id,
-                    tx.isrc,
-                    tx.upc,
-                    tx.period_start,
-                    tx.period_end,
-                )
+                # Find applicable contract from cache (priority: track > release > catalog)
+                contract = None
+                if tx.isrc:
+                    contract = track_contracts.get((artist.id, tx.isrc))
+                if contract is None and tx.upc:
+                    contract = release_contracts.get((artist.id, tx.upc))
+                if contract is None:
+                    contract = catalog_contracts.get(artist.id)
 
                 # Determine splits
                 if contract:
-                    logger.info(f"Found contract for {tx.artist_name}: {contract.scope.value} @ {contract.artist_share*100}%")
                     artist_share = contract.artist_share
                     label_share = contract.label_share
                 else:
-                    logger.warning(f"No contract found for {tx.artist_name} (artist_id={artist.id}), using default 50/50 split")
                     artist_share = DEFAULT_ARTIST_SHARE
                     label_share = DEFAULT_LABEL_SHARE
 
@@ -381,10 +414,45 @@ class RoyaltyCalculator:
             # Flush line items
             await db.flush()
 
+            # PRE-LOAD advance balances for all artists in result (avoid N queries)
+            artist_ids = list(result.artists.keys())
+            advance_balances: Dict[UUID, Decimal] = {}
+            if artist_ids:
+                # Get sum of advances per artist
+                advances_result = await db.execute(
+                    select(
+                        AdvanceLedgerEntry.artist_id,
+                        func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0).label('total')
+                    ).where(
+                        AdvanceLedgerEntry.artist_id.in_(artist_ids),
+                        AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
+                    ).group_by(AdvanceLedgerEntry.artist_id)
+                )
+                for row in advances_result:
+                    advance_balances[row.artist_id] = Decimal(str(row.total))
+
+                # Subtract recoupments
+                recoup_result = await db.execute(
+                    select(
+                        AdvanceLedgerEntry.artist_id,
+                        func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0).label('total')
+                    ).where(
+                        AdvanceLedgerEntry.artist_id.in_(artist_ids),
+                        AdvanceLedgerEntry.entry_type == LedgerEntryType.RECOUPMENT,
+                    ).group_by(AdvanceLedgerEntry.artist_id)
+                )
+                for row in recoup_result:
+                    if row.artist_id in advance_balances:
+                        advance_balances[row.artist_id] -= Decimal(str(row.total))
+                    else:
+                        advance_balances[row.artist_id] = -Decimal(str(row.total))
+
+            logger.info(f"Pre-loaded advance balances for {len(advance_balances)} artists")
+
             # Handle recoupment for each artist
             for artist_id, artist_result in result.artists.items():
-                # Get current advance balance
-                advance_balance = await self.get_advance_balance(db, artist_id)
+                # Get advance balance from cache
+                advance_balance = advance_balances.get(artist_id, Decimal("0"))
                 artist_result.advance_balance_before = advance_balance
 
                 # Calculate recoupment

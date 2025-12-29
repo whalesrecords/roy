@@ -497,6 +497,12 @@ async def delete_import(
     return {"success": True, "deleted_id": import_id}
 
 
+# Simple in-memory cache for catalog data
+_catalog_cache: dict = {}
+_cache_timestamp: float = 0
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
 @router.get("/catalog/artists")
 async def get_catalog_artists(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -504,9 +510,20 @@ async def get_catalog_artists(
 ) -> list[dict]:
     """
     Get unique artists from imported transactions with their catalog stats.
+    Cached for 5 minutes to improve performance.
     """
+    import time
     from sqlalchemy import func, distinct
 
+    global _catalog_cache, _cache_timestamp
+
+    # Check cache
+    cache_key = "catalog_artists"
+    now = time.time()
+    if cache_key in _catalog_cache and (now - _cache_timestamp) < CACHE_TTL_SECONDS:
+        return _catalog_cache[cache_key]
+
+    # Simplified query without mode() - just use 'EUR' as default
     result = await db.execute(
         select(
             TransactionNormalized.artist_name,
@@ -514,25 +531,29 @@ async def get_catalog_artists(
             func.count(distinct(TransactionNormalized.upc)).label('release_count'),
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
-            # Get the most common currency for this artist
-            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .group_by(TransactionNormalized.artist_name)
         .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
     rows = result.all()
 
-    return [
+    data = [
         {
             "artist_name": row.artist_name,
             "track_count": row.track_count or 0,
             "release_count": row.release_count or 0,
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
-            "currency": row.currency or "EUR",
+            "currency": "EUR",  # Simplified - TuneCore is always EUR
         }
         for row in rows
     ]
+
+    # Update cache
+    _catalog_cache[cache_key] = data
+    _cache_timestamp = now
+
+    return data
 
 
 @router.get("/catalog/artists/{artist_name}/releases")
@@ -556,7 +577,6 @@ async def get_artist_releases(
             func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
-            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .where(TransactionNormalized.artist_name == decoded_name)
         .group_by(TransactionNormalized.release_title, TransactionNormalized.upc)
@@ -571,7 +591,7 @@ async def get_artist_releases(
             "track_count": row.track_count or 0,
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
-            "currency": row.currency or "EUR",
+            "currency": "EUR",
         }
         for row in rows
     ]
@@ -598,7 +618,6 @@ async def get_artist_tracks(
             TransactionNormalized.isrc,
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
-            func.mode().within_group(TransactionNormalized.currency).label('currency'),
         )
         .where(TransactionNormalized.artist_name == decoded_name)
         .group_by(
@@ -615,9 +634,9 @@ async def get_artist_tracks(
             "track_title": row.track_title,
             "release_title": row.release_title,
             "isrc": row.isrc,
-            "currency": row.currency or "EUR",
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,
+            "currency": "EUR",
         }
         for row in rows
     ]

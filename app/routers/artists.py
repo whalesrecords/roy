@@ -261,6 +261,123 @@ async def list_contracts(
     ]
 
 
+@router.put("/{artist_id}/contracts/{contract_id}", response_model=ContractResponse)
+async def update_contract(
+    artist_id: UUID,
+    contract_id: UUID,
+    data: ContractCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ContractResponse:
+    """
+    Update an existing contract.
+
+    Note: Changing a contract may affect past royalty calculations.
+    Consider creating a new contract with a new start_date instead.
+    """
+    # Verify contract exists and belongs to artist
+    result = await db.execute(
+        select(Contract).where(
+            Contract.id == contract_id,
+            Contract.artist_id == artist_id,
+        )
+    )
+    contract = result.scalar_one_or_none()
+
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract {contract_id} not found for artist {artist_id}",
+        )
+
+    # Validate scope
+    try:
+        scope = ContractScope(data.scope.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid scope: {data.scope}. Must be 'track', 'release', or 'catalog'",
+        )
+
+    # Validate scope_id
+    if scope == ContractScope.CATALOG and data.scope_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="scope_id must be null for catalog scope",
+        )
+    if scope in (ContractScope.TRACK, ContractScope.RELEASE) and data.scope_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"scope_id is required for {scope.value} scope",
+        )
+
+    # Validate shares sum to 1
+    total = data.artist_share + data.label_share
+    if abs(total - Decimal("1")) > Decimal("0.001"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"artist_share + label_share must equal 1.0 (got {total})",
+        )
+
+    # Update contract
+    contract.scope = scope
+    contract.scope_id = data.scope_id
+    contract.artist_share = data.artist_share
+    contract.label_share = Decimal("1") - data.artist_share
+    contract.start_date = data.start_date
+    contract.end_date = data.end_date
+    contract.description = data.description
+
+    await db.flush()
+
+    return ContractResponse(
+        id=contract.id,
+        artist_id=contract.artist_id,
+        scope=contract.scope.value,
+        scope_id=contract.scope_id,
+        artist_share=contract.artist_share,
+        label_share=contract.label_share,
+        start_date=contract.start_date,
+        end_date=contract.end_date,
+        description=contract.description,
+        created_at=contract.created_at,
+    )
+
+
+@router.delete("/{artist_id}/contracts/{contract_id}")
+async def delete_contract(
+    artist_id: UUID,
+    contract_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Delete a contract.
+
+    Warning: This may affect royalty calculations for periods
+    where this contract was applicable.
+    """
+    # Verify contract exists and belongs to artist
+    result = await db.execute(
+        select(Contract).where(
+            Contract.id == contract_id,
+            Contract.artist_id == artist_id,
+        )
+    )
+    contract = result.scalar_one_or_none()
+
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contract {contract_id} not found for artist {artist_id}",
+        )
+
+    await db.delete(contract)
+    await db.flush()
+
+    return {"success": True, "deleted_id": str(contract_id)}
+
+
 # Advance endpoints
 
 @router.post("/{artist_id}/advances", response_model=AdvanceLedgerEntryResponse)
