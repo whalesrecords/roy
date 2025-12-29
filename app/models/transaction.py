@@ -90,6 +90,10 @@ class TransactionNormalized(Base):
     # Store/platform info
     store_name: Mapped[str] = mapped_column(String(100), nullable=True)
 
+    # Physical product info (for Bandcamp packages: CD, Vinyl, etc.)
+    sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Stock Keeping Unit
+    physical_format: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # "Compact Disc (CD)", "Vinyl LP", etc.
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

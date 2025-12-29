@@ -12,6 +12,7 @@ from typing import Optional, Tuple
 from app.models.transaction import TransactionNormalized, SaleType
 from app.services.parsers.tunecore import TuneCoreRow
 from app.services.parsers.bandcamp import BandcampRow
+from app.services.parsers.believe import BelieveRow
 
 
 # Sales type normalization mapping
@@ -362,4 +363,129 @@ def normalize_bandcamp_row(
         period_start=period_start,
         period_end=period_end,
         store_name="Bandcamp",
+        sku=row.sku,
+        physical_format=row.package,  # "Compact Disc (CD)", "Vinyl LP", etc.
+    )
+
+
+def normalize_believe_sale_type(sale_type: str) -> SaleType:
+    """
+    Convert Believe sale type to SaleType enum.
+
+    Args:
+        sale_type: Believe sale type (Stream, Creation, PLATFORM PROMOTION, etc.)
+
+    Returns:
+        SaleType enum value
+    """
+    if not sale_type:
+        return SaleType.OTHER
+
+    sale_type_lower = sale_type.lower().strip()
+
+    # Streams
+    if sale_type_lower in ["stream", "streaming"]:
+        return SaleType.STREAM
+
+    # Downloads
+    if sale_type_lower in ["download", "téléchargement", "telechargement"]:
+        return SaleType.DOWNLOAD
+
+    # Social media usage (Creation = sync to video on FB/Instagram)
+    if sale_type_lower in ["creation", "création"]:
+        return SaleType.STREAM  # Count as stream equivalent
+
+    # Platform promotions (negative revenue from playlist placements)
+    if "platform promotion" in sale_type_lower or "promotion" in sale_type_lower:
+        return SaleType.STREAM  # Still streaming activity
+
+    return SaleType.OTHER
+
+
+def parse_believe_date(date_str: Optional[str]) -> Optional[date]:
+    """
+    Parse a Believe date string into a date object.
+
+    Handles formats like:
+    - "2023-02-01" (YYYY-MM-DD)
+    """
+    if not date_str:
+        return None
+
+    date_str = date_str.strip()
+
+    # ISO format: YYYY-MM-DD
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+        return date.fromisoformat(date_str)
+
+    # Try to extract YYYY-MM and use first of month
+    if re.match(r"^\d{4}-\d{2}$", date_str):
+        year, month = map(int, date_str.split("-"))
+        return date(year, month, 1)
+
+    return None
+
+
+def normalize_believe_row(
+    row: BelieveRow,
+    import_id: str,
+    fallback_period_start: date,
+    fallback_period_end: date,
+) -> TransactionNormalized:
+    """
+    Transform a parsed Believe row into a normalized transaction.
+
+    Args:
+        row: Parsed Believe row
+        import_id: UUID of the parent import
+        fallback_period_start: Default period start if not parseable from CSV
+        fallback_period_end: Default period end if not parseable from CSV
+
+    Returns:
+        TransactionNormalized instance (not yet persisted)
+    """
+    # Parse dates from row (Believe provides reporting_month and sales_month)
+    parsed_reporting = parse_believe_date(row.reporting_month)
+    parsed_sales = parse_believe_date(row.sales_month)
+
+    # Use sales_month for period if available, else reporting_month, else fallback
+    if parsed_sales:
+        period_start = parsed_sales
+        # End of month
+        import calendar
+        last_day = calendar.monthrange(parsed_sales.year, parsed_sales.month)[1]
+        period_end = date(parsed_sales.year, parsed_sales.month, last_day)
+    elif parsed_reporting:
+        period_start = parsed_reporting
+        import calendar
+        last_day = calendar.monthrange(parsed_reporting.year, parsed_reporting.month)[1]
+        period_end = date(parsed_reporting.year, parsed_reporting.month, last_day)
+    else:
+        period_start, period_end = fallback_period_start, fallback_period_end
+
+    # Clean ISRC - Believe uses format with dashes (FR-59R-18-86383) but standard is 12 chars without
+    clean_isrc = None
+    if row.isrc:
+        clean_isrc = row.isrc.replace("-", "").strip()
+        # Ensure it's at most 12 characters
+        if len(clean_isrc) > 12:
+            clean_isrc = clean_isrc[:12]
+
+    return TransactionNormalized(
+        import_id=import_id,
+        source_row_number=row.row_number,
+        artist_name=row.artist,
+        release_title=row.release_title or None,
+        track_title=row.track_title or None,
+        isrc=clean_isrc,
+        upc=row.upc,
+        territory=normalize_country_code(row.country),
+        sale_type=normalize_believe_sale_type(row.sale_type),
+        original_sale_type=row.sale_type,
+        quantity=row.quantity,
+        gross_amount=row.net_revenue,  # Use net revenue (after Believe's cut)
+        currency=row.currency.upper() if row.currency else "EUR",
+        period_start=period_start,
+        period_end=period_end,
+        store_name=row.platform,  # Spotify, YouTube UGC, Amazon Premium, etc.
     )

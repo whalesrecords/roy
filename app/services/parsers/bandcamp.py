@@ -44,6 +44,7 @@ class BandcampRow:
     date_to: Optional[str]
     sku: Optional[str] = None
     cat_no: Optional[str] = None
+    package: Optional[str] = None  # Physical format: "Compact Disc (CD)", "Vinyl LP", etc.
 
 
 @dataclass
@@ -85,6 +86,7 @@ COLUMN_MAPPINGS = {
     "date_to": ["transaction date to", "date to", "date_to"],
     "sku": ["sku", "sku code", "product code", "variant"],
     "cat_no": ["cat no.", "cat no", "catalog number", "catalogue number"],
+    "package": ["package", "package type", "format", "physical format"],
 }
 
 
@@ -217,6 +219,7 @@ class BandcampParser:
             date_to=_get_value(row, self._column_indices.get("date_to")) or None,
             sku=_get_value(row, self._column_indices.get("sku")) or None,
             cat_no=_get_value(row, self._column_indices.get("cat_no")) or None,
+            package=_get_value(row, self._column_indices.get("package")) or None,
         )
 
     def parse(self, content: Union[str, bytes]) -> BandcampParseResult:
