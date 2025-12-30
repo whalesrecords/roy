@@ -138,6 +138,7 @@ export default function ArtistDetailPage() {
   const [royaltyResult, setRoyaltyResult] = useState<ArtistRoyaltyCalculation | null>(null);
   const [royaltyError, setRoyaltyError] = useState<string | null>(null);
   const [markingAsPaid, setMarkingAsPaid] = useState(false);
+  const [paidQuarters, setPaidQuarters] = useState<{ quarter: string; amount: number; date: string }[]>([]);
 
   // Edit artist
   const [showEditArtist, setShowEditArtist] = useState(false);
@@ -487,6 +488,7 @@ export default function ArtistDetailPage() {
     setCalculatingRoyalties(true);
     setRoyaltyError(null);
     setRoyaltyResult(null);
+    setPaidQuarters([]);
 
     try {
       const result = await calculateArtistRoyalties(
@@ -495,6 +497,23 @@ export default function ArtistDetailPage() {
         period.end
       );
       setRoyaltyResult(result);
+
+      // If this is a year period, find paid quarters within this year
+      if (period.type === 'year') {
+        const year = period.value.replace('year-', '');
+        const quarterPatterns = [`Q1 ${year}`, `Q2 ${year}`, `Q3 ${year}`, `Q4 ${year}`];
+
+        const paid = payments.filter(p => {
+          const desc = p.description || '';
+          return quarterPatterns.some(q => desc.includes(q));
+        }).map(p => ({
+          quarter: (p.description || '').replace('Paiement ', ''),
+          amount: parseFloat(p.amount),
+          date: p.effective_date,
+        }));
+
+        setPaidQuarters(paid);
+      }
     } catch (err) {
       setRoyaltyError(err instanceof Error ? err.message : 'Erreur de calcul');
     } finally {
@@ -503,7 +522,12 @@ export default function ArtistDetailPage() {
   };
 
   const handleMarkAsPaid = async () => {
-    if (!royaltyResult || parseFloat(royaltyResult.net_payable) <= 0) return;
+    if (!royaltyResult) return;
+
+    const paidTotal = paidQuarters.reduce((sum, pq) => sum + pq.amount, 0);
+    const remaining = parseFloat(royaltyResult.net_payable) - paidTotal;
+
+    if (remaining <= 0) return;
 
     const period = PERIODS.find(p => p.value === selectedPeriod);
     if (!period) return;
@@ -513,7 +537,7 @@ export default function ArtistDetailPage() {
       // Create payment entry with period description
       await createPayment(
         artistId,
-        parseFloat(royaltyResult.net_payable),
+        remaining, // Use remaining amount after paid quarters
         'EUR',
         `Paiement ${period.label.split(' (')[0]}`, // "Q3 2024" or "2024"
         new Date().toISOString().split('T')[0]
@@ -692,6 +716,32 @@ export default function ArtistDetailPage() {
             <value style="font-size: 24px;">${formatCurrency(royaltyResult.net_payable)}</value>
           </div>
         </div>
+
+        ${paidQuarters.length > 0 ? `
+        <h2>Previously Paid Quarters</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Quarter</th>
+              <th>Payment Date</th>
+              <th class="right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${paidQuarters.map(pq => `
+              <tr>
+                <td>${pq.quarter}</td>
+                <td>${formatDate(new Date(pq.date))}</td>
+                <td class="right" style="color: #b45309;">-${formatCurrency(pq.amount.toString())}</td>
+              </tr>
+            `).join('')}
+            <tr style="font-weight: bold; background: #dcfce7;">
+              <td colspan="2">Remaining Balance</td>
+              <td class="right" style="color: #15803d; font-size: 18px;">${formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString())}</td>
+            </tr>
+          </tbody>
+        </table>
+        ` : ''}
 
         ${royaltyResult.sources && royaltyResult.sources.length > 0 ? `
         <h2>Revenue by Source</h2>
@@ -1018,6 +1068,25 @@ export default function ArtistDetailPage() {
                   </div>
                 </div>
 
+                {/* Paid quarters (for year view) */}
+                {paidQuarters.length > 0 && (
+                  <div className="bg-amber-50 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-700">Trimestres deja payes cette annee</p>
+                    {paidQuarters.map((pq, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-amber-800">{pq.quarter} (paye le {new Date(pq.date).toLocaleDateString('fr-FR')})</span>
+                        <span className="font-medium text-amber-900">-{formatCurrency(pq.amount.toString(), royaltyResult.currency)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t border-amber-200 pt-2 flex justify-between">
+                      <span className="text-sm font-medium text-amber-800">Reste a payer</span>
+                      <span className="text-lg font-bold text-green-700">
+                        {formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString(), royaltyResult.currency)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Period info */}
                 <p className="text-xs text-default-500 text-center">
                   Période: {new Date(royaltyResult.period_start).toLocaleDateString('fr-FR')} - {new Date(royaltyResult.period_end).toLocaleDateString('fr-FR')}
@@ -1114,23 +1183,30 @@ export default function ArtistDetailPage() {
                 )}
 
                 {/* Mark as paid button */}
-                {royaltyResult.albums.length > 0 && parseFloat(royaltyResult.net_payable) > 0 && (
-                  <div className="pt-4 border-t border-divider">
-                    <Button
-                      onClick={handleMarkAsPaid}
-                      loading={markingAsPaid}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Marquer comme paye ({formatCurrency(royaltyResult.net_payable, royaltyResult.currency)})
-                    </Button>
-                    <p className="text-xs text-default-500 text-center mt-2">
-                      Cree un versement et enregistre le paiement
-                    </p>
-                  </div>
-                )}
+                {(() => {
+                  const paidTotal = paidQuarters.reduce((sum, pq) => sum + pq.amount, 0);
+                  const remaining = parseFloat(royaltyResult.net_payable) - paidTotal;
+                  if (royaltyResult.albums.length > 0 && remaining > 0) {
+                    return (
+                      <div className="pt-4 border-t border-divider">
+                        <Button
+                          onClick={handleMarkAsPaid}
+                          loading={markingAsPaid}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Marquer comme paye ({formatCurrency(remaining.toString(), royaltyResult.currency)})
+                        </Button>
+                        <p className="text-xs text-default-500 text-center mt-2">
+                          Cree un versement et enregistre le paiement
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>
