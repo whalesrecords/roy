@@ -25,6 +25,21 @@ async def lifespan(app: FastAPI):
     # Create tables on startup (for development)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Create performance indexes if they don't exist
+    async with engine.begin() as conn:
+        from sqlalchemy import text
+        indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_tx_artist_name ON transactions_normalized(artist_name)",
+            "CREATE INDEX IF NOT EXISTS idx_tx_period ON transactions_normalized(period_start, period_end)",
+            "CREATE INDEX IF NOT EXISTS idx_tx_isrc ON transactions_normalized(isrc) WHERE isrc IS NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_tx_upc ON transactions_normalized(upc) WHERE upc IS NOT NULL",
+            "CREATE INDEX IF NOT EXISTS idx_tx_artist_period ON transactions_normalized(artist_name, period_start, period_end)",
+            "CREATE INDEX IF NOT EXISTS idx_tx_import_id ON transactions_normalized(import_id)",
+        ]
+        for idx_sql in indexes:
+            await conn.execute(text(idx_sql))
+
     yield
     # Cleanup on shutdown
     await engine.dispose()
