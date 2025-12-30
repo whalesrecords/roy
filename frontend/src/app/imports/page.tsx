@@ -126,8 +126,9 @@ export default function ImportsPage() {
         onClose={() => setSelectedImport(null)}
         size="lg"
         scrollBehavior="inside"
+        backdrop="opaque"
       >
-        <ModalContent>
+        <ModalContent className="bg-white dark:bg-gray-900">
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
