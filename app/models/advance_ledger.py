@@ -66,6 +66,9 @@ class ExpenseCategory(str, Enum):
     PR = "pr"
     DISTRIBUTION = "distribution"
     ARTWORK = "artwork"
+    CD = "cd"
+    VINYL = "vinyl"
+    GOODIES = "goodies"
     OTHER = "other"
 
 

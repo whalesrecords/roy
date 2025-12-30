@@ -158,6 +158,9 @@ export type ExpenseCategory =
   | 'pr'
   | 'distribution'
   | 'artwork'
+  | 'cd'
+  | 'vinyl'
+  | 'goodies'
   | 'other';
 
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
@@ -177,6 +180,9 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'pr', label: 'PR / Relations presse' },
   { value: 'distribution', label: 'Distribution' },
   { value: 'artwork', label: 'Artwork' },
+  { value: 'cd', label: 'CD' },
+  { value: 'vinyl', label: 'Vinyles' },
+  { value: 'goodies', label: 'Goodies / Merch' },
   { value: 'other', label: 'Autre' },
 ];
 

@@ -182,7 +182,7 @@ class AdvanceCreate(BaseModel):
     )
     category: Optional[str] = Field(
         default=None,
-        description="Expense category: mastering, mixing, recording, photos, video, advertising, groover, submithub, google_ads, instagram, tiktok, facebook, spotify_ads, pr, distribution, artwork, other"
+        description="Expense category: mastering, mixing, recording, photos, video, advertising, groover, submithub, google_ads, instagram, tiktok, facebook, spotify_ads, pr, distribution, artwork, cd, vinyl, goodies, other"
     )
     description: Optional[str] = None
     reference: Optional[str] = None

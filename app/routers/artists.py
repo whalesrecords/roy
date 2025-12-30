@@ -1956,6 +1956,9 @@ CATEGORY_LABELS = {
     "pr": "PR / Relations presse",
     "distribution": "Distribution",
     "artwork": "Artwork",
+    "cd": "CD",
+    "vinyl": "Vinyles",
+    "goodies": "Goodies / Merch",
     "other": "Autre",
     None: "Non catégorisé",
 }
