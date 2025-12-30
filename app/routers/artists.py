@@ -1430,25 +1430,113 @@ async def calculate_artist_royalties(
         else:  # catalog scope
             catalog_balance += amount
 
-    # Apply scoped advances to each album
+    # For cumulative recoupment: get ALL historical revenues up to period_end
+    # This allows advances to be recouped over time across multiple periods
+    cumulative_revenues_by_upc: dict[str, Decimal] = {}
+    cumulative_revenues_by_isrc: dict[str, Decimal] = {}
+    historical_revenues_before_period: dict[str, Decimal] = {}  # For showing "already recouped"
+
+    # Get all relevant UPCs and ISRCs that have advances
+    upc_with_advances = set(release_advances.keys())
+    isrc_with_advances = set(track_advances.keys())
+
+    # Only query if there are scoped advances
+    if upc_with_advances or isrc_with_advances:
+        # Query cumulative revenues from beginning of time until period_end
+        cumulative_query = (
+            select(
+                TransactionNormalized.upc,
+                TransactionNormalized.isrc,
+                func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+            )
+            .join(Import, TransactionNormalized.import_id == Import.id)
+            .where(
+                or_(
+                    TransactionNormalized.artist_name == artist.name,
+                    TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
+                ),
+                TransactionNormalized.period_end <= period_end,
+            )
+            .group_by(TransactionNormalized.upc, TransactionNormalized.isrc)
+        )
+        cumulative_result = await db.execute(cumulative_query)
+
+        for row in cumulative_result.all():
+            if row.upc and row.upc in upc_with_advances:
+                cumulative_revenues_by_upc[row.upc] = cumulative_revenues_by_upc.get(row.upc, Decimal("0")) + (row.total_gross or Decimal("0"))
+            if row.isrc and row.isrc in isrc_with_advances:
+                cumulative_revenues_by_isrc[row.isrc] = cumulative_revenues_by_isrc.get(row.isrc, Decimal("0")) + (row.total_gross or Decimal("0"))
+
+        # Query revenues BEFORE this period (to show what was already recouped)
+        if period_start:
+            historical_query = (
+                select(
+                    TransactionNormalized.upc,
+                    TransactionNormalized.isrc,
+                    func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+                )
+                .join(Import, TransactionNormalized.import_id == Import.id)
+                .where(
+                    or_(
+                        TransactionNormalized.artist_name == artist.name,
+                        TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
+                    ),
+                    TransactionNormalized.period_end < period_start,
+                )
+                .group_by(TransactionNormalized.upc, TransactionNormalized.isrc)
+            )
+            historical_result = await db.execute(historical_query)
+
+            for row in historical_result.all():
+                key = f"{row.upc}_{row.isrc}"
+                historical_revenues_before_period[key] = row.total_gross or Decimal("0")
+
+    # Apply scoped advances to each album with CUMULATIVE recoupment
     total_scoped_recoupable = Decimal("0")
 
     for upc, album in albums_data.items():
         album_advance_balance = Decimal("0")
+        album_cumulative_revenues = Decimal("0")
+        album_historical_revenues = Decimal("0")
 
         # Add release-level advance for this album
         if upc in release_advances:
             album_advance_balance += release_advances[upc]
+            album_cumulative_revenues += cumulative_revenues_by_upc.get(upc, Decimal("0"))
 
         # Add track-level advances for tracks in this album
         for isrc in album["tracks"]:
             if isrc and isrc in track_advances:
                 album_advance_balance += track_advances[isrc]
+                album_cumulative_revenues += cumulative_revenues_by_isrc.get(isrc, Decimal("0"))
+                key = f"{upc}_{isrc}"
+                album_historical_revenues += historical_revenues_before_period.get(key, Decimal("0"))
 
-        # Calculate recoupable for this album
+        # Calculate recoupable for this album using CUMULATIVE logic
+        # already_recouped = min(historical_revenues * artist_share, advance_balance)
+        # remaining_advance = advance_balance - already_recouped
+        # recoupable_this_period = min(this_period_artist_royalties, remaining_advance)
         album_recoupable = Decimal("0")
         if album_advance_balance > 0:
-            album_recoupable = min(album["artist_royalties"], album_advance_balance)
+            # Apply artist share to cumulative revenues for recoupment calculation
+            artist_share = Decimal("0.5")  # Default
+            contract = None
+            if upc in release_contracts:
+                contract = release_contracts[upc]
+            elif catalog_contract:
+                contract = catalog_contract
+            if contract:
+                artist_share = contract.artist_share
+
+            # What was already recouped before this period
+            already_recouped = min(album_historical_revenues * artist_share, album_advance_balance)
+            remaining_advance = album_advance_balance - already_recouped
+
+            # What can be recouped this period
+            album_recoupable = min(album["artist_royalties"], remaining_advance)
+            if album_recoupable < 0:
+                album_recoupable = Decimal("0")
+
             total_scoped_recoupable += album_recoupable
 
         # Store advance info in album data
