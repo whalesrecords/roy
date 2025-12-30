@@ -45,6 +45,7 @@ class BandcampRow:
     sku: Optional[str] = None
     cat_no: Optional[str] = None
     package: Optional[str] = None  # Physical format: "Compact Disc (CD)", "Vinyl LP", etc.
+    item_url: Optional[str] = None  # Bandcamp page URL for artwork lookup
 
 
 @dataclass
@@ -89,6 +90,7 @@ COLUMN_MAPPINGS = {
     "sku": ["sku", "sku code", "product code", "variant"],
     "cat_no": ["cat no.", "cat no", "catalog number", "catalogue number", "cat_no"],
     "package": ["package", "package type", "format", "physical format"],
+    "item_url": ["item url", "item_url", "url", "bandcamp url", "page url"],
 }
 
 
@@ -222,6 +224,7 @@ class BandcampParser:
             sku=_get_value(row, self._column_indices.get("sku")) or None,
             cat_no=_get_value(row, self._column_indices.get("cat_no")) or None,
             package=_get_value(row, self._column_indices.get("package")) or None,
+            item_url=_get_value(row, self._column_indices.get("item_url")) or None,
         )
 
     def parse(self, content: Union[str, bytes]) -> BandcampParseResult:

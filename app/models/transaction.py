@@ -93,6 +93,7 @@ class TransactionNormalized(Base):
     # Physical product info (for Bandcamp packages: CD, Vinyl, etc.)
     sku: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # Stock Keeping Unit
     physical_format: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # "Compact Disc (CD)", "Vinyl LP", etc.
+    item_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Bandcamp page URL for artwork
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

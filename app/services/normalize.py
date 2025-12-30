@@ -386,6 +386,7 @@ def normalize_bandcamp_row(
         store_name="Bandcamp",
         sku=row.sku,
         physical_format=row.package,  # "Compact Disc (CD)", "Vinyl LP", etc.
+        item_url=row.item_url,  # Bandcamp page URL for artwork lookup
     )
 
 
