@@ -461,6 +461,9 @@ export interface AlbumRoyalty {
   artist_royalties: string;
   label_royalties: string;
   streams: number;
+  advance_balance: string;  // Scoped advances for this album
+  recoupable: string;       // Amount deducted from this album
+  net_payable: string;      // Net after scoped advance deduction
 }
 
 export interface SourceBreakdown {

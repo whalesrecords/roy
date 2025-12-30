@@ -1199,6 +1199,9 @@ class AlbumRoyalty(BaseModel):
     artist_royalties: str
     label_royalties: str
     streams: int
+    advance_balance: str = "0"  # Scoped advances for this album
+    recoupable: str = "0"       # Amount deducted from this album
+    net_payable: str = "0"      # Net after scoped advance deduction
 
 
 class SourceBreakdown(BaseModel):
@@ -1403,25 +1406,65 @@ async def calculate_artist_royalties(
     total_artist = sum(a["artist_royalties"] for a in albums_data.values())
     total_label = sum(a["label_royalties"] for a in albums_data.values())
 
-    # Get advance balance
-    advance_result = await db.execute(
-        select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
+    # Get all advances and recoupments with scope info
+    advances_result = await db.execute(
+        select(AdvanceLedgerEntry).where(
             AdvanceLedgerEntry.artist_id == artist_id,
-            AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
         )
     )
-    total_advances = Decimal(str(advance_result.scalar()))
+    all_entries = advances_result.scalars().all()
 
-    recoup_result = await db.execute(
-        select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
-            AdvanceLedgerEntry.artist_id == artist_id,
-            AdvanceLedgerEntry.entry_type == LedgerEntryType.RECOUPMENT,
-        )
-    )
-    total_recouped = Decimal(str(recoup_result.scalar()))
+    # Group advances and recoupments by scope
+    # Structure: {scope: {scope_id: balance}}
+    release_advances: dict[str, Decimal] = {}  # UPC -> balance
+    track_advances: dict[str, Decimal] = {}    # ISRC -> balance
+    catalog_balance = Decimal("0")
 
-    advance_balance = total_advances - total_recouped
-    recoupable = min(total_artist, advance_balance) if advance_balance > 0 else Decimal("0")
+    for entry in all_entries:
+        amount = entry.amount if entry.entry_type == LedgerEntryType.ADVANCE else -entry.amount
+
+        if entry.scope == "release" and entry.scope_id:
+            release_advances[entry.scope_id] = release_advances.get(entry.scope_id, Decimal("0")) + amount
+        elif entry.scope == "track" and entry.scope_id:
+            track_advances[entry.scope_id] = track_advances.get(entry.scope_id, Decimal("0")) + amount
+        else:  # catalog scope
+            catalog_balance += amount
+
+    # Apply scoped advances to each album
+    total_scoped_recoupable = Decimal("0")
+
+    for upc, album in albums_data.items():
+        album_advance_balance = Decimal("0")
+
+        # Add release-level advance for this album
+        if upc in release_advances:
+            album_advance_balance += release_advances[upc]
+
+        # Add track-level advances for tracks in this album
+        for isrc in album["tracks"]:
+            if isrc and isrc in track_advances:
+                album_advance_balance += track_advances[isrc]
+
+        # Calculate recoupable for this album
+        album_recoupable = Decimal("0")
+        if album_advance_balance > 0:
+            album_recoupable = min(album["artist_royalties"], album_advance_balance)
+            total_scoped_recoupable += album_recoupable
+
+        # Store advance info in album data
+        album["advance_balance"] = album_advance_balance
+        album["recoupable"] = album_recoupable
+        album["net_payable"] = album["artist_royalties"] - album_recoupable
+
+    # Apply catalog advances to remaining royalties after scoped deductions
+    remaining_artist_royalties = total_artist - total_scoped_recoupable
+    catalog_recoupable = Decimal("0")
+    if catalog_balance > 0:
+        catalog_recoupable = min(remaining_artist_royalties, catalog_balance)
+
+    # Total advance balance (all scopes)
+    advance_balance = catalog_balance + sum(release_advances.values()) + sum(track_advances.values())
+    recoupable = total_scoped_recoupable + catalog_recoupable
     net_payable = total_artist - recoupable
 
     # Build album list with effective shares calculated from actual royalties
@@ -1446,6 +1489,9 @@ async def calculate_artist_royalties(
             artist_royalties=str(a["artist_royalties"]),
             label_royalties=str(a["label_royalties"]),
             streams=a["streams"],
+            advance_balance=str(a.get("advance_balance", Decimal("0"))),
+            recoupable=str(a.get("recoupable", Decimal("0"))),
+            net_payable=str(a.get("net_payable", a["artist_royalties"])),
         ))
 
     # Build sources list

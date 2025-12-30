@@ -1127,23 +1127,42 @@ export default function ArtistDetailPage() {
                   <div className="border-t border-divider pt-4">
                     <h3 className="text-sm font-medium text-default-700 mb-3">Détail par album</h3>
                     <div className="space-y-2">
-                      {royaltyResult.albums.map((album, idx) => (
-                        <div key={`${album.upc}-${idx}`} className="flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-foreground text-sm truncate">{album.release_title}</p>
-                            <p className="text-xs text-default-400 font-mono">UPC: {album.upc}</p>
-                            <p className="text-xs text-default-500">
-                              {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
-                            </p>
+                      {royaltyResult.albums.map((album, idx) => {
+                        const hasAdvance = parseFloat(album.advance_balance || '0') > 0;
+                        const advanceBalance = parseFloat(album.advance_balance || '0');
+                        const recoupable = parseFloat(album.recoupable || '0');
+                        const netPayable = parseFloat(album.net_payable || album.artist_royalties);
+
+                        return (
+                          <div key={`${album.upc}-${idx}`} className="flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-foreground text-sm truncate">{album.release_title}</p>
+                              <p className="text-xs text-default-400 font-mono">UPC: {album.upc}</p>
+                              <p className="text-xs text-default-500">
+                                {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
+                              </p>
+                              {hasAdvance && (
+                                <p className="text-xs text-warning-600 mt-1">
+                                  Avance: {formatCurrency(advanceBalance, royaltyResult.currency)} → Déduit: {formatCurrency(recoupable, royaltyResult.currency)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              {hasAdvance ? (
+                                <>
+                                  <p className="text-sm font-medium text-foreground">{formatCurrency(netPayable, royaltyResult.currency)}</p>
+                                  <p className="text-xs text-default-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                                </>
+                              ) : (
+                                <p className="text-sm font-medium text-foreground">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                              )}
+                              <p className="text-xs text-default-500">
+                                {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-medium text-foreground">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
-                            <p className="text-xs text-default-500">
-                              {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
