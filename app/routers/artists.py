@@ -464,6 +464,7 @@ async def resolve_collaboration(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
     shares: List[Decimal] = None,
+    delete_after: bool = True,
 ) -> dict:
     """
     Resolve a collaboration artist into individual track-artist links.
@@ -473,11 +474,13 @@ async def resolve_collaboration(
     2. Create the individual artists if they don't exist
     3. Find all tracks (ISRCs) associated with the collaboration name
     4. Create TrackArtistLink entries for each track linking to each individual artist
+    5. Delete the collaboration artist (if delete_after=True)
 
     Args:
         collab_id: The UUID of the collaboration artist
         shares: Optional list of share percentages for each artist (must sum to 1.0)
                 If not provided, shares are split equally.
+        delete_after: If True (default), delete the collaboration artist after resolving.
     """
     import re
     from app.models.track_artist_link import TrackArtistLink
@@ -586,9 +589,16 @@ async def resolve_collaboration(
 
     await db.flush()
 
+    # Delete collaboration artist if requested
+    deleted = False
+    if delete_after:
+        await db.delete(collab)
+        await db.flush()
+        deleted = True
+
     return {
         "success": True,
-        "collaboration": {"id": str(collab.id), "name": collab.name},
+        "collaboration": {"id": str(collab.id), "name": collab.name, "deleted": deleted},
         "individual_artists": [
             {"id": str(a.id), "name": a.name, "share": str(s)}
             for a, s in zip(individual_artists, shares)
@@ -596,6 +606,124 @@ async def resolve_collaboration(
         "tracks_found": len(tracks),
         "links_created": links_created,
         "links_skipped": links_skipped,
+    }
+
+
+@router.post("/collaborations/resolve-all")
+async def resolve_all_collaborations(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    delete_after: bool = True,
+) -> dict:
+    """
+    Resolve ALL collaboration artists at once.
+
+    Detects all artists with '&' or 'x' in their name, creates track-artist links
+    for the individual artists, and optionally deletes the collaboration artists.
+    """
+    import re
+    from app.models.track_artist_link import TrackArtistLink
+
+    # Get all artists
+    result = await db.execute(select(Artist).order_by(Artist.name))
+    all_artists = result.scalars().all()
+
+    # Build name -> artist map
+    artist_map = {a.name.lower(): a for a in all_artists}
+
+    resolved = []
+    errors = []
+
+    for artist in all_artists:
+        name = artist.name
+        # Check for collaboration patterns
+        if ' & ' not in name and ' x ' not in name.lower():
+            continue
+
+        # Split by & or x
+        parts = re.split(r'\s+[&xX]\s+', name)
+        parts = [p.strip() for p in parts if p.strip()]
+
+        if len(parts) <= 1:
+            continue
+
+        # Equal shares
+        share_value = Decimal("1") / Decimal(str(len(parts)))
+
+        # Create or find individual artists
+        individual_artists = []
+        for part in parts:
+            existing = artist_map.get(part.lower())
+            if not existing:
+                existing = Artist(name=part)
+                db.add(existing)
+                await db.flush()
+                artist_map[part.lower()] = existing
+            individual_artists.append(existing)
+
+        # Find all ISRCs for this collaboration
+        isrc_result = await db.execute(
+            select(
+                TransactionNormalized.isrc,
+                TransactionNormalized.track_title,
+                TransactionNormalized.release_title,
+                TransactionNormalized.upc,
+            )
+            .where(
+                TransactionNormalized.artist_name == name,
+                TransactionNormalized.isrc.isnot(None),
+            )
+            .distinct()
+        )
+        tracks = isrc_result.all()
+
+        if not tracks:
+            errors.append({"name": name, "error": "No tracks with ISRC found"})
+            continue
+
+        # Create track-artist links
+        links_created = 0
+        for track in tracks:
+            for ind_artist, share in zip(individual_artists, [share_value] * len(individual_artists)):
+                existing_link = await db.execute(
+                    select(TrackArtistLink).where(
+                        TrackArtistLink.isrc == track.isrc,
+                        TrackArtistLink.artist_id == ind_artist.id,
+                    )
+                )
+                if existing_link.scalar_one_or_none():
+                    continue
+
+                link = TrackArtistLink(
+                    isrc=track.isrc,
+                    artist_id=ind_artist.id,
+                    share_percent=share,
+                    track_title=track.track_title,
+                    release_title=track.release_title,
+                    upc=track.upc,
+                )
+                db.add(link)
+                links_created += 1
+
+        # Delete collaboration artist
+        if delete_after:
+            await db.delete(artist)
+
+        resolved.append({
+            "name": name,
+            "individual_artists": [a.name for a in individual_artists],
+            "tracks_found": len(tracks),
+            "links_created": links_created,
+            "deleted": delete_after,
+        })
+
+    await db.flush()
+
+    return {
+        "success": True,
+        "resolved_count": len(resolved),
+        "resolved": resolved,
+        "errors": errors,
     }
 
 

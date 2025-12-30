@@ -128,15 +128,17 @@ export default function Nav() {
       </NavbarContent>
 
       {/* Mobile menu */}
-      <NavbarMenu className="bg-white dark:bg-gray-900 pt-4">
+      <NavbarMenu className="pt-6 pb-6 bg-background/95 backdrop-blur-md">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <NavbarMenuItem key={item.href}>
               <Link
                 href={item.href}
-                className={`w-full text-lg block py-3 ${
-                  isActive ? 'text-primary font-semibold' : 'text-default-600'
+                className={`w-full text-lg block py-4 px-2 rounded-lg transition-colors ${
+                  isActive
+                    ? 'text-primary font-semibold bg-primary/10'
+                    : 'text-foreground hover:bg-default-100'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -149,24 +151,31 @@ export default function Nav() {
           <NavbarMenuItem>
             <Link
               href="/settings"
-              className="w-full text-lg block py-3 text-default-600"
+              className="w-full text-lg block py-4 px-2 text-foreground hover:bg-default-100 rounded-lg transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Paramètres
             </Link>
           </NavbarMenuItem>
           {user && (
-            <NavbarMenuItem>
-              <button
-                onClick={() => {
-                  signOut();
-                  setIsMenuOpen(false);
-                }}
-                className="w-full text-lg block py-3 text-danger text-left"
-              >
-                Déconnexion
-              </button>
-            </NavbarMenuItem>
+            <>
+              <NavbarMenuItem>
+                <div className="px-2 py-2 text-sm text-default-500">
+                  {user.email}
+                </div>
+              </NavbarMenuItem>
+              <NavbarMenuItem>
+                <button
+                  onClick={() => {
+                    signOut();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full text-lg block py-4 px-2 text-danger text-left hover:bg-danger/10 rounded-lg transition-colors"
+                >
+                  Déconnexion
+                </button>
+              </NavbarMenuItem>
+            </>
           )}
         </div>
       </NavbarMenu>
