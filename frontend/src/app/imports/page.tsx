@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Button,
   Spinner,
@@ -20,6 +20,17 @@ import UploadFlow from '@/components/imports/UploadFlow';
 import { ImportRecord } from '@/lib/types';
 import { getImports, deleteImport } from '@/lib/api';
 
+// Source labels mapping
+const sourceLabels: Record<string, string> = {
+  tunecore: 'TuneCore',
+  believe: 'Believe',
+  believe_uk: 'Believe UK',
+  believe_fr: 'Believe FR',
+  cdbaby: 'CD Baby',
+  bandcamp: 'Bandcamp',
+  other: 'Autre',
+};
+
 export default function ImportsPage() {
   const [imports, setImports] = useState<ImportRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +38,72 @@ export default function ImportsPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [selectedImport, setSelectedImport] = useState<ImportRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadImports();
   }, []);
+
+  // Group imports by source and year
+  const groupedImports = useMemo(() => {
+    const groups: Record<string, Record<string, ImportRecord[]>> = {};
+
+    for (const imp of imports) {
+      const source = imp.source;
+      const year = new Date(imp.period_start).getFullYear().toString();
+
+      if (!groups[source]) {
+        groups[source] = {};
+      }
+      if (!groups[source][year]) {
+        groups[source][year] = [];
+      }
+      groups[source][year].push(imp);
+    }
+
+    // Sort imports within each group by date (newest first)
+    for (const source of Object.keys(groups)) {
+      for (const year of Object.keys(groups[source])) {
+        groups[source][year].sort((a, b) =>
+          new Date(b.period_start).getTime() - new Date(a.period_start).getTime()
+        );
+      }
+    }
+
+    return groups;
+  }, [imports]);
+
+  // Get sorted sources
+  const sortedSources = useMemo(() => {
+    return Object.keys(groupedImports).sort((a, b) =>
+      (sourceLabels[a] || a).localeCompare(sourceLabels[b] || b)
+    );
+  }, [groupedImports]);
+
+  const toggleSource = (source: string) => {
+    setExpandedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(source)) {
+        next.delete(source);
+      } else {
+        next.add(source);
+      }
+      return next;
+    });
+  };
+
+  const toggleYear = (sourceYear: string) => {
+    setExpandedYears(prev => {
+      const next = new Set(prev);
+      if (next.has(sourceYear)) {
+        next.delete(sourceYear);
+      } else {
+        next.add(sourceYear);
+      }
+      return next;
+    });
+  };
 
   const loadImports = async () => {
     try {
@@ -100,16 +173,90 @@ export default function ImportsPage() {
         ) : imports.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="space-y-1.5">
-            {[...imports]
-              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-              .map((imp) => (
-                <ImportCard
-                  key={imp.id}
-                  import_={imp}
-                  onClick={() => setSelectedImport(imp)}
-                />
-              ))}
+          <div className="space-y-2">
+            {sortedSources.map((source) => {
+              const sourceData = groupedImports[source];
+              const years = Object.keys(sourceData).sort((a, b) => parseInt(b) - parseInt(a));
+              const isSourceExpanded = expandedSources.has(source);
+              const totalImports = years.reduce((sum, y) => sum + sourceData[y].length, 0);
+
+              return (
+                <div key={source} className="border border-divider rounded-lg overflow-hidden">
+                  {/* Source folder header */}
+                  <button
+                    onClick={() => toggleSource(source)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-default-50 hover:bg-default-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className={`w-5 h-5 text-default-400 transition-transform ${isSourceExpanded ? 'rotate-90' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                      <span className="font-medium text-foreground">{sourceLabels[source] || source}</span>
+                    </div>
+                    <span className="text-sm text-default-500">{totalImports} import{totalImports > 1 ? 's' : ''}</span>
+                  </button>
+
+                  {/* Years */}
+                  {isSourceExpanded && (
+                    <div className="border-t border-divider">
+                      {years.map((year) => {
+                        const yearImports = sourceData[year];
+                        const yearKey = `${source}-${year}`;
+                        const isYearExpanded = expandedYears.has(yearKey);
+
+                        return (
+                          <div key={year}>
+                            {/* Year folder header */}
+                            <button
+                              onClick={() => toggleYear(yearKey)}
+                              className="w-full flex items-center justify-between px-4 py-2.5 pl-10 hover:bg-default-50 transition-colors border-b border-divider last:border-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <svg
+                                  className={`w-4 h-4 text-default-400 transition-transform ${isYearExpanded ? 'rotate-90' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-sm font-medium text-foreground">{year}</span>
+                              </div>
+                              <span className="text-xs text-default-500">{yearImports.length} fichier{yearImports.length > 1 ? 's' : ''}</span>
+                            </button>
+
+                            {/* Individual imports */}
+                            {isYearExpanded && (
+                              <div className="bg-white dark:bg-gray-900 border-b border-divider last:border-0">
+                                {yearImports.map((imp) => (
+                                  <div key={imp.id} className="pl-16 pr-4">
+                                    <ImportCard
+                                      import_={imp}
+                                      onClick={() => setSelectedImport(imp)}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
