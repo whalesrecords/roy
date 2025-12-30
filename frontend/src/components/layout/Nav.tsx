@@ -18,7 +18,8 @@ import {
   DropdownItem,
   Avatar,
 } from '@heroui/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getLabelSettings, LabelSettings } from '@/lib/api';
 
 const navItems = [
   { href: '/imports', label: 'Imports' },
@@ -31,6 +32,11 @@ export default function Nav() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
+
+  useEffect(() => {
+    getLabelSettings().then(setLabelSettings).catch(() => {});
+  }, []);
 
   return (
     <Navbar
@@ -49,7 +55,18 @@ export default function Nav() {
           className="sm:hidden"
         />
         <NavbarBrand>
-          <p className="font-bold text-inherit text-lg">Royalties</p>
+          <Link href="/" className="flex items-center gap-1">
+            {labelSettings?.logo_base64 ? (
+              <img
+                src={labelSettings.logo_base64}
+                alt="W"
+                className="h-6 w-6 object-contain"
+              />
+            ) : (
+              <span className="font-bold text-lg">W</span>
+            )}
+            <span className="font-bold text-inherit text-lg">.Royalties</span>
+          </Link>
         </NavbarBrand>
       </NavbarContent>
 
