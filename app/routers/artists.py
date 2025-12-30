@@ -458,6 +458,147 @@ async def create_individual_artists(
     }
 
 
+@router.post("/collaborations/{collab_id}/resolve")
+async def resolve_collaboration(
+    collab_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    shares: List[Decimal] = None,
+) -> dict:
+    """
+    Resolve a collaboration artist into individual track-artist links.
+
+    This will:
+    1. Split the collaboration name into individual artists
+    2. Create the individual artists if they don't exist
+    3. Find all tracks (ISRCs) associated with the collaboration name
+    4. Create TrackArtistLink entries for each track linking to each individual artist
+
+    Args:
+        collab_id: The UUID of the collaboration artist
+        shares: Optional list of share percentages for each artist (must sum to 1.0)
+                If not provided, shares are split equally.
+    """
+    import re
+    from app.models.track_artist_link import TrackArtistLink
+
+    # Get the collaboration artist
+    result = await db.execute(select(Artist).where(Artist.id == collab_id))
+    collab = result.scalar_one_or_none()
+
+    if not collab:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {collab_id} not found",
+        )
+
+    # Split the collaboration name
+    parts = re.split(r'\s+[&xX]\s+', collab.name)
+    parts = [p.strip() for p in parts if p.strip()]
+
+    if len(parts) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{collab.name}' doesn't appear to be a collaboration (no '&' or 'x' found)",
+        )
+
+    # Validate or create shares
+    if shares:
+        if len(shares) != len(parts):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Expected {len(parts)} shares but got {len(shares)}",
+            )
+        total = sum(shares)
+        if abs(total - Decimal("1")) > Decimal("0.001"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Shares must sum to 1.0 (got {total})",
+            )
+    else:
+        # Equal shares for each artist
+        share_value = Decimal("1") / Decimal(str(len(parts)))
+        shares = [share_value] * len(parts)
+
+    # Create or find individual artists
+    individual_artists = []
+    for part in parts:
+        result = await db.execute(
+            select(Artist).where(func.lower(Artist.name) == part.lower())
+        )
+        artist = result.scalars().first()
+
+        if not artist:
+            artist = Artist(name=part)
+            db.add(artist)
+            await db.flush()
+
+        individual_artists.append(artist)
+
+    # Find all ISRCs associated with this collaboration name
+    isrc_result = await db.execute(
+        select(
+            TransactionNormalized.isrc,
+            TransactionNormalized.track_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+        )
+        .where(
+            TransactionNormalized.artist_name == collab.name,
+            TransactionNormalized.isrc.isnot(None),
+        )
+        .distinct()
+    )
+    tracks = isrc_result.all()
+
+    if not tracks:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No tracks found with ISRC for collaboration '{collab.name}'",
+        )
+
+    # Create track-artist links
+    links_created = 0
+    links_skipped = 0
+    for track in tracks:
+        for artist, share in zip(individual_artists, shares):
+            # Check if link already exists
+            existing = await db.execute(
+                select(TrackArtistLink).where(
+                    TrackArtistLink.isrc == track.isrc,
+                    TrackArtistLink.artist_id == artist.id,
+                )
+            )
+            if existing.scalar_one_or_none():
+                links_skipped += 1
+                continue
+
+            link = TrackArtistLink(
+                isrc=track.isrc,
+                artist_id=artist.id,
+                share_percent=share,
+                track_title=track.track_title,
+                release_title=track.release_title,
+                upc=track.upc,
+            )
+            db.add(link)
+            links_created += 1
+
+    await db.flush()
+
+    return {
+        "success": True,
+        "collaboration": {"id": str(collab.id), "name": collab.name},
+        "individual_artists": [
+            {"id": str(a.id), "name": a.name, "share": str(s)}
+            for a, s in zip(individual_artists, shares)
+        ],
+        "tracks_found": len(tracks),
+        "links_created": links_created,
+        "links_skipped": links_skipped,
+    }
+
+
 @router.delete("/{artist_id}")
 async def delete_artist(
     artist_id: UUID,
@@ -1407,26 +1548,56 @@ async def calculate_artist_royalties(
     total_label = sum(a["label_royalties"] for a in albums_data.values())
 
     # Get all advances and recoupments with scope info
+    # Include both artist-specific advances AND shared advances (artist_id = NULL)
     advances_result = await db.execute(
         select(AdvanceLedgerEntry).where(
             AdvanceLedgerEntry.artist_id == artist_id,
         )
     )
-    all_entries = advances_result.scalars().all()
+    artist_entries = advances_result.scalars().all()
+
+    # Get shared advances (artist_id = NULL) for tracks/releases this artist has
+    all_isrcs = set()
+    all_upcs = set()
+    for album in albums_data.values():
+        all_upcs.add(album["upc"])
+        all_isrcs.update(album["tracks"])
+    all_isrcs.discard(None)
+
+    shared_advances_result = await db.execute(
+        select(AdvanceLedgerEntry).where(
+            AdvanceLedgerEntry.artist_id.is_(None),
+            or_(
+                and_(AdvanceLedgerEntry.scope == "track", AdvanceLedgerEntry.scope_id.in_(all_isrcs)) if all_isrcs else False,
+                and_(AdvanceLedgerEntry.scope == "release", AdvanceLedgerEntry.scope_id.in_(all_upcs)) if all_upcs else False,
+            )
+        )
+    )
+    shared_entries = shared_advances_result.scalars().all()
+
+    # Combine all entries
+    all_entries = list(artist_entries) + list(shared_entries)
 
     # Group advances and recoupments by scope
     # Structure: {scope: {scope_id: balance}}
     release_advances: dict[str, Decimal] = {}  # UPC -> balance
     track_advances: dict[str, Decimal] = {}    # ISRC -> balance
+    shared_release_advances: dict[str, Decimal] = {}  # Shared UPC -> balance (for display)
+    shared_track_advances: dict[str, Decimal] = {}    # Shared ISRC -> balance (for display)
     catalog_balance = Decimal("0")
 
     for entry in all_entries:
         amount = entry.amount if entry.entry_type == LedgerEntryType.ADVANCE else -entry.amount
+        is_shared = entry.artist_id is None
 
         if entry.scope == "release" and entry.scope_id:
             release_advances[entry.scope_id] = release_advances.get(entry.scope_id, Decimal("0")) + amount
+            if is_shared:
+                shared_release_advances[entry.scope_id] = shared_release_advances.get(entry.scope_id, Decimal("0")) + amount
         elif entry.scope == "track" and entry.scope_id:
             track_advances[entry.scope_id] = track_advances.get(entry.scope_id, Decimal("0")) + amount
+            if is_shared:
+                shared_track_advances[entry.scope_id] = shared_track_advances.get(entry.scope_id, Decimal("0")) + amount
         else:  # catalog scope
             catalog_balance += amount
 

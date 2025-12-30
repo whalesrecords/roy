@@ -64,11 +64,11 @@ class AdvanceLedgerEntry(Base):
         default=uuid.uuid4,
     )
 
-    # Artist relationship
+    # Artist relationship (nullable for track/release-level advances shared by all collaborators)
     artist_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("artists.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,  # NULL = advance on track/release itself, shared by all artists
         index=True,
     )
 

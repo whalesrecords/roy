@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
         # Add missing columns
         migrations = [
             "ALTER TABLE transactions_normalized ADD COLUMN IF NOT EXISTS item_url VARCHAR(500)",
+            "ALTER TABLE advance_ledger ALTER COLUMN artist_id DROP NOT NULL",
         ]
         for sql in migrations:
             try:
