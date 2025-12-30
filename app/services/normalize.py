@@ -134,6 +134,26 @@ def parse_sales_period(period_str: str) -> Tuple[date, date]:
     raise ValueError(f"Cannot parse sales period: {period_str}")
 
 
+def normalize_isrc(isrc: Optional[str]) -> Optional[str]:
+    """
+    Normalize ISRC code by removing dashes and validating format.
+
+    Standard ISRC is 12 alphanumeric characters.
+    Some sources include dashes (e.g., FR-9W1-17-07497) which need to be stripped.
+    """
+    if not isrc:
+        return None
+
+    # Remove dashes and whitespace
+    cleaned = isrc.replace("-", "").replace(" ", "").strip()
+
+    # ISRC should be 12 characters
+    if len(cleaned) > 12:
+        cleaned = cleaned[:12]  # Truncate if still too long
+
+    return cleaned if cleaned else None
+
+
 def normalize_country_code(country: Optional[str]) -> Optional[str]:
     """
     Normalize country to ISO 3166-1 alpha-2 code.
@@ -353,7 +373,7 @@ def normalize_bandcamp_row(
         artist_name=row.artist,
         release_title=release_title,
         track_title=track_title,
-        isrc=row.isrc,
+        isrc=normalize_isrc(row.isrc),
         upc=row.upc,
         territory=normalize_country_code(row.region),
         sale_type=normalize_bandcamp_item_type(row.item_type),
