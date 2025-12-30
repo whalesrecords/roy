@@ -746,7 +746,7 @@ async def get_artist_releases(
 
     return [
         {
-            "release_title": row.release_title or "Single",
+            "release_title": row.release_title or "(Sans album)",
             "upc": row.upc,
             "track_count": row.track_count or 0,
             "total_gross": str(row.total_gross or 0),

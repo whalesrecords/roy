@@ -1477,7 +1477,7 @@ async def calculate_artist_royalties(
         # Initialize album data
         if upc not in albums_data:
             albums_data[upc] = {
-                "release_title": tx.release_title or "Single",
+                "release_title": tx.release_title or "(Sans album)",
                 "upc": upc,
                 "tracks": set(),
                 "gross": Decimal("0"),
