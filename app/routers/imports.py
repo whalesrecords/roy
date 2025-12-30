@@ -685,11 +685,37 @@ async def get_artist_releases(
 ) -> list[dict]:
     """
     Get releases (albums) for an artist from imported transactions.
+    Includes collaboration releases via track-artist links.
     """
-    from sqlalchemy import func, distinct
+    from sqlalchemy import func, distinct, or_
     from urllib.parse import unquote
+    from app.models.artist import Artist
+    from app.models.track_artist_link import TrackArtistLink
 
     decoded_name = unquote(artist_name)
+
+    # Find the artist in the database to get track-artist links
+    artist_result = await db.execute(
+        select(Artist).where(Artist.name == decoded_name)
+    )
+    artist = artist_result.scalar_one_or_none()
+
+    # Get ISRCs linked to this artist (collaborations)
+    linked_isrcs = set()
+    if artist:
+        links_result = await db.execute(
+            select(TrackArtistLink).where(TrackArtistLink.artist_id == artist.id)
+        )
+        artist_links = links_result.scalars().all()
+        linked_isrcs = {link.isrc for link in artist_links}
+
+    # Query transactions where artist_name matches OR ISRC is in linked_isrcs
+    where_clause = TransactionNormalized.artist_name == decoded_name
+    if linked_isrcs:
+        where_clause = or_(
+            TransactionNormalized.artist_name == decoded_name,
+            TransactionNormalized.isrc.in_(linked_isrcs),
+        )
 
     result = await db.execute(
         select(
@@ -699,7 +725,7 @@ async def get_artist_releases(
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
         )
-        .where(TransactionNormalized.artist_name == decoded_name)
+        .where(where_clause)
         .group_by(TransactionNormalized.release_title, TransactionNormalized.upc)
         .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
