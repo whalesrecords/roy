@@ -27,7 +27,8 @@ from sqlalchemy import select
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
 from app.services.parsers.believe_uk import BelieveUKParser
-from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row, normalize_believe_uk_row
+from app.services.parsers.believe_fr import BelieveFRParser
+from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row, normalize_believe_uk_row, normalize_believe_fr_row
 
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -68,6 +69,19 @@ def extract_period_from_filename(filename: str) -> tuple:
             return start, end
         except ValueError:
             pass
+
+    # Pattern: YYYY-Q# (Quarter format, e.g., 2025-Q3)
+    match = re.search(r'(\d{4})-Q([1-4])', filename, re.IGNORECASE)
+    if match:
+        year = int(match.group(1))
+        quarter = int(match.group(2))
+        # Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec
+        start_month = (quarter - 1) * 3 + 1
+        end_month = quarter * 3
+        start = date(year, start_month, 1)
+        last_day = calendar.monthrange(year, end_month)[1]
+        end = date(year, end_month, last_day)
+        return start, end
 
     # Pattern: YYYY-MM or YYYY_MM
     match = re.search(r'(\d{4})[-_](\d{2})(?!\d)', filename)
@@ -138,7 +152,7 @@ async def analyze_import(
     artists_with_ampersand = []
     total_artists = 0
 
-    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK):
+    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR):
         # Fast: extract period from filename
         period_start, period_end = extract_period_from_filename(file.filename or "")
 
@@ -309,6 +323,37 @@ async def create_import(
         for row in result.rows:
             try:
                 transaction = normalize_believe_uk_row(
+                    row=row,
+                    import_id=import_record.id,
+                    fallback_period_start=period_start,
+                    fallback_period_end=period_end,
+                )
+                transactions.append(transaction)
+                gross_total += transaction.gross_amount
+            except Exception as e:
+                errors.append(ImportErrorDetail(
+                    row_number=row.row_number,
+                    error=f"Normalization error: {str(e)}",
+                ))
+
+    elif import_source == ImportSource.BELIEVE_FR:
+        parser = BelieveFRParser()
+        result = parser.parse(content)
+
+        import_record.rows_total = result.total_rows
+
+        # Collect errors
+        for err in result.errors:
+            errors.append(ImportErrorDetail(
+                row_number=err.row_number,
+                error=err.error,
+                raw_data=err.raw_data,
+            ))
+
+        # Normalize and create transactions
+        for row in result.rows:
+            try:
+                transaction = normalize_believe_fr_row(
                     row=row,
                     import_id=import_record.id,
                     fallback_period_start=period_start,

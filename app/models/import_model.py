@@ -18,6 +18,7 @@ class ImportSource(str, Enum):
     """Supported import sources."""
     TUNECORE = "tunecore"
     BELIEVE_UK = "believe_uk"
+    BELIEVE_FR = "believe_fr"
     CDBABY = "cdbaby"
     BANDCAMP = "bandcamp"
     OTHER = "other"

@@ -90,6 +90,24 @@ export async function getArtists(): Promise<Artist[]> {
   return fetchApi<Artist[]>('/artists');
 }
 
+export interface ArtistSummary {
+  id: string;
+  name: string;
+  external_id?: string;
+  spotify_id?: string;
+  image_url?: string;
+  image_url_small?: string;
+  created_at: string;
+  total_gross: string;
+  total_streams: number;
+  transaction_count: number;
+  has_collaborations: boolean;
+}
+
+export async function getArtistsSummary(): Promise<ArtistSummary[]> {
+  return fetchApi<ArtistSummary[]>('/artists/summary');
+}
+
 export async function getArtist(artistId: string): Promise<Artist> {
   return fetchApi<Artist>(`/artists/${artistId}`);
 }

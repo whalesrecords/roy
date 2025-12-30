@@ -107,6 +107,87 @@ async def list_artists(
     ]
 
 
+@router.get("/summary", response_model=List[dict])
+async def list_artists_with_summary(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> List[dict]:
+    """
+    List all artists with aggregated revenue including collaborations.
+    Revenue includes direct transactions + collaboration shares via track-artist links.
+    """
+    from sqlalchemy import or_
+    from app.models.track_artist_link import TrackArtistLink
+
+    # Get all artists
+    result = await db.execute(select(Artist).order_by(Artist.name))
+    artists = result.scalars().all()
+
+    summary = []
+    for artist in artists:
+        # Get track-artist links for this artist
+        links_result = await db.execute(
+            select(TrackArtistLink).where(TrackArtistLink.artist_id == artist.id)
+        )
+        artist_links = links_result.scalars().all()
+        linked_isrcs = {link.isrc for link in artist_links}
+        link_shares = {link.isrc: link.share_percent for link in artist_links}
+
+        # Build query for transactions
+        if linked_isrcs:
+            where_clause = or_(
+                TransactionNormalized.artist_name == artist.name,
+                TransactionNormalized.isrc.in_(linked_isrcs),
+            )
+        else:
+            where_clause = TransactionNormalized.artist_name == artist.name
+
+        # Get aggregated data
+        tx_result = await db.execute(
+            select(
+                func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+                func.sum(TransactionNormalized.quantity).label("total_streams"),
+                func.count().label("transaction_count"),
+            ).where(where_clause)
+        )
+        row = tx_result.first()
+
+        # Calculate collaboration-adjusted gross
+        total_gross = Decimal("0")
+        if row and row.total_gross:
+            # Get detailed transactions to apply shares correctly
+            detail_result = await db.execute(
+                select(
+                    TransactionNormalized.artist_name,
+                    TransactionNormalized.isrc,
+                    TransactionNormalized.gross_amount,
+                ).where(where_clause)
+            )
+            for tx in detail_result.all():
+                if tx.artist_name == artist.name:
+                    total_gross += tx.gross_amount or Decimal("0")
+                elif tx.isrc and tx.isrc in link_shares:
+                    total_gross += (tx.gross_amount or Decimal("0")) * link_shares[tx.isrc]
+
+        summary.append({
+            "id": str(artist.id),
+            "name": artist.name,
+            "external_id": artist.external_id,
+            "spotify_id": artist.spotify_id,
+            "image_url": artist.image_url,
+            "image_url_small": artist.image_url_small,
+            "created_at": artist.created_at.isoformat() if artist.created_at else None,
+            "total_gross": str(total_gross),
+            "total_streams": row.total_streams if row else 0,
+            "transaction_count": row.transaction_count if row else 0,
+            "has_collaborations": len(linked_isrcs) > 0,
+        })
+
+    # Sort by total_gross descending
+    summary.sort(key=lambda x: Decimal(x["total_gross"]), reverse=True)
+    return summary
+
+
 @router.get("/{artist_id}", response_model=ArtistResponse)
 async def get_artist(
     artist_id: UUID,
@@ -1239,6 +1320,7 @@ async def calculate_artist_royalties(
         "tunecore": "TuneCore",
         "believe": "Believe",
         "believe_uk": "Believe UK",
+        "believe_fr": "Believe FR",
         "cdbaby": "CD Baby",
         "bandcamp": "Bandcamp",
         "other": "Autre",

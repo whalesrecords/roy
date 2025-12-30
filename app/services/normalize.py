@@ -13,6 +13,7 @@ from app.models.transaction import TransactionNormalized, SaleType
 from app.services.parsers.tunecore import TuneCoreRow
 from app.services.parsers.bandcamp import BandcampRow
 from app.services.parsers.believe_uk import BelieveUKRow
+from app.services.parsers.believe_fr import BelieveFRRow
 
 
 # Sales type normalization mapping
@@ -495,4 +496,112 @@ def normalize_believe_uk_row(
         period_start=period_start,
         period_end=period_end,
         store_name=row.platform,  # Spotify, YouTube UGC, Amazon Premium, etc.
+    )
+
+
+def parse_believe_fr_date(date_str: Optional[str]) -> Optional[date]:
+    """
+    Parse a Believe FR date string into a date object.
+
+    Handles formats like:
+    - "01/09/2025" (DD/MM/YYYY)
+    """
+    if not date_str:
+        return None
+
+    date_str = date_str.strip()
+
+    # DD/MM/YYYY format
+    if re.match(r"^\d{2}/\d{2}/\d{4}$", date_str):
+        parts = date_str.split("/")
+        return date(int(parts[2]), int(parts[1]), int(parts[0]))
+
+    return None
+
+
+def normalize_believe_fr_sale_type(exploitation_type: str) -> SaleType:
+    """
+    Convert Believe FR exploitation type to SaleType enum.
+
+    Args:
+        exploitation_type: Believe FR exploitation type (Phono, etc.)
+
+    Returns:
+        SaleType enum value
+    """
+    if not exploitation_type:
+        return SaleType.OTHER
+
+    exploitation_lower = exploitation_type.lower().strip()
+
+    # Neighboring rights / Phono are typically from radio/streaming royalties
+    if exploitation_lower in ["phono", "neighboring rights"]:
+        return SaleType.STREAM
+
+    return SaleType.OTHER
+
+
+def normalize_believe_fr_row(
+    row: BelieveFRRow,
+    import_id: str,
+    fallback_period_start: date,
+    fallback_period_end: date,
+) -> TransactionNormalized:
+    """
+    Transform a parsed Believe FR row into a normalized transaction.
+
+    Args:
+        row: Parsed Believe FR row
+        import_id: UUID of the parent import
+        fallback_period_start: Default period start if not parseable from CSV
+        fallback_period_end: Default period end if not parseable from CSV
+
+    Returns:
+        TransactionNormalized instance (not yet persisted)
+    """
+    import calendar
+
+    # Parse dates from row
+    parsed_reporting = parse_believe_fr_date(row.reporting_date)
+    parsed_operation = parse_believe_fr_date(row.operation_date)
+
+    # Use operation_date for period if available, else reporting_date, else fallback
+    if parsed_operation:
+        period_start = parsed_operation
+        last_day = calendar.monthrange(parsed_operation.year, parsed_operation.month)[1]
+        period_end = date(parsed_operation.year, parsed_operation.month, last_day)
+    elif parsed_reporting:
+        period_start = parsed_reporting
+        last_day = calendar.monthrange(parsed_reporting.year, parsed_reporting.month)[1]
+        period_end = date(parsed_reporting.year, parsed_reporting.month, last_day)
+    else:
+        period_start, period_end = fallback_period_start, fallback_period_end
+
+    # Clean ISRC if present
+    clean_isrc = None
+    if row.isrc:
+        clean_isrc = row.isrc.replace("-", "").strip()
+        if len(clean_isrc) > 12:
+            clean_isrc = clean_isrc[:12]
+
+    # Use track_artist for artist name
+    artist_name = row.track_artist or row.product_artist
+
+    return TransactionNormalized(
+        import_id=import_id,
+        source_row_number=row.row_number,
+        artist_name=artist_name,
+        release_title=row.product_title or None,
+        track_title=row.track_title or None,
+        isrc=clean_isrc,
+        upc=row.upc,
+        territory=normalize_country_code(row.country),
+        sale_type=normalize_believe_fr_sale_type(row.exploitation_type),
+        original_sale_type=row.exploitation_type,
+        quantity=row.net_sales,
+        gross_amount=row.amount,  # Use final amount after rate
+        currency=row.currency.upper() if row.currency else "EUR",
+        period_start=period_start,
+        period_end=period_end,
+        store_name=row.shop,  # GVL (DE), Audiogest (PT), etc.
     )

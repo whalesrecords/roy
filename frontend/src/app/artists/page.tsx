@@ -19,7 +19,7 @@ import {
   Tooltip,
 } from '@heroui/react';
 import { Artist } from '@/lib/types';
-import { getArtists, createArtist, getCatalogArtists, CatalogArtist, getArtistReleases, CatalogRelease, getCollaborationSuggestions, CollaborationSuggestion } from '@/lib/api';
+import { getArtists, createArtist, getCatalogArtists, CatalogArtist, getArtistReleases, CatalogRelease, getCollaborationSuggestions, CollaborationSuggestion, getArtistsSummary, ArtistSummary } from '@/lib/api';
 
 // Patterns to detect collaboration artist names
 const COLLAB_PATTERNS = [
@@ -45,6 +45,7 @@ function splitCollabArtists(artistName: string): string[] {
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [artistsSummary, setArtistsSummary] = useState<ArtistSummary[]>([]);
   const [catalogArtists, setCatalogArtists] = useState<CatalogArtist[]>([]);
   const [collabSuggestions, setCollabSuggestions] = useState<CollaborationSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,12 +67,14 @@ export default function ArtistsPage() {
 
   const loadData = async () => {
     try {
-      const [artistsData, catalogData, suggestionsData] = await Promise.all([
+      const [artistsData, summaryData, catalogData, suggestionsData] = await Promise.all([
         getArtists(),
+        getArtistsSummary(),
         getCatalogArtists(),
         getCollaborationSuggestions(100),
       ]);
       setArtists(artistsData);
+      setArtistsSummary(summaryData);
       setCatalogArtists(catalogData);
       setCollabSuggestions(suggestionsData);
     } catch (err) {
@@ -264,12 +267,12 @@ export default function ArtistsPage() {
               <Card className="border border-gray-200">
                 <CardBody className="p-4 text-center">
                   <p className="text-3xl font-bold text-gray-900">{soloArtists.length}</p>
-                  <p className="text-sm text-gray-500">Artistes</p>
+                  <p className="text-sm text-gray-500">Dans catalogue</p>
                 </CardBody>
               </Card>
               <Card className="border border-gray-200">
                 <CardBody className="p-4 text-center">
-                  <p className="text-3xl font-bold text-gray-900">{activeArtists.length}</p>
+                  <p className="text-3xl font-bold text-gray-900">{artistsSummary.length}</p>
                   <p className="text-sm text-gray-500">Actifs</p>
                 </CardBody>
               </Card>
@@ -287,43 +290,48 @@ export default function ArtistsPage() {
               </Card>
             </div>
 
-            {/* Active Artists Section */}
-            {activeArtists.length > 0 && (
+            {/* Active Artists Section - Using summary with collaboration revenue */}
+            {artistsSummary.length > 0 && (
               <Card className="border border-gray-200">
                 <CardHeader className="px-6 py-4 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-semibold text-gray-900">Artistes actifs</h2>
-                    <span className="text-sm text-gray-500">({activeArtists.length})</span>
+                    <span className="text-sm text-gray-500">({artistsSummary.length})</span>
                   </div>
                 </CardHeader>
                 <CardBody className="p-0">
                   <div className="divide-y divide-gray-100">
-                    {activeArtists.map((catalogArtist) => {
-                      const activeArtist = getActiveArtist(catalogArtist);
+                    {artistsSummary.map((summary) => {
+                      const catalogArtist = catalogArtists.find(ca => ca.artist_name.toLowerCase() === summary.name.toLowerCase());
                       return (
-                        <div key={catalogArtist.artist_name} className="p-5 hover:bg-gray-50 transition-colors">
+                        <div key={summary.id} className="p-5 hover:bg-gray-50 transition-colors">
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
-                              <ArtistAvatar artist={activeArtist} name={catalogArtist.artist_name} />
+                              <ArtistAvatar artist={summary as Artist} name={summary.name} />
                               <div>
-                                <p className="font-semibold text-gray-900">{catalogArtist.artist_name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-semibold text-gray-900">{summary.name}</p>
+                                  {summary.has_collaborations && (
+                                    <Chip size="sm" className="bg-blue-100 text-blue-700">
+                                      + collabs
+                                    </Chip>
+                                  )}
+                                </div>
                                 <p className="text-sm text-gray-500">
-                                  {catalogArtist.release_count} releases · {catalogArtist.track_count} tracks
+                                  {catalogArtist ? `${catalogArtist.release_count} releases · ${catalogArtist.track_count} tracks` : `${summary.transaction_count} transactions`}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
-                                <p className="font-semibold text-gray-900">{formatCurrency(catalogArtist.total_gross, catalogArtist.currency)}</p>
-                                <p className="text-sm text-gray-500">{formatNumber(catalogArtist.total_streams)} streams</p>
+                                <p className="font-semibold text-gray-900">{formatCurrency(summary.total_gross, 'EUR')}</p>
+                                <p className="text-sm text-gray-500">{formatNumber(summary.total_streams)} streams</p>
                               </div>
-                              {activeArtist && (
-                                <Link href={`/artists/${activeArtist.id}`}>
-                                  <Button size="sm" variant="bordered">
-                                    Contrats
-                                  </Button>
-                                </Link>
-                              )}
+                              <Link href={`/artists/${summary.id}`}>
+                                <Button size="sm" variant="bordered">
+                                  Contrats
+                                </Button>
+                              </Link>
                             </div>
                           </div>
                         </div>
