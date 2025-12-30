@@ -275,6 +275,100 @@ async def fetch_artist_artwork(
         )
 
 
+class SpotifyUrlRequest(BaseModel):
+    """Request to fetch artist from Spotify URL."""
+    spotify_url: str
+
+
+def extract_spotify_id(url: str) -> Optional[str]:
+    """Extract Spotify ID from a Spotify URL or return the ID if already an ID."""
+    import re
+
+    # If it's already just an ID (22 chars alphanumeric)
+    if re.match(r'^[a-zA-Z0-9]{22}$', url.strip()):
+        return url.strip()
+
+    # Handle various Spotify URL formats:
+    # https://open.spotify.com/artist/XXXXX
+    # https://open.spotify.com/artist/XXXXX?si=...
+    # spotify:artist:XXXXX
+    patterns = [
+        r'open\.spotify\.com/artist/([a-zA-Z0-9]+)',
+        r'spotify:artist:([a-zA-Z0-9]+)',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+
+    return None
+
+
+@router.post("/artists/{artist_id}/fetch-from-url", response_model=SpotifySearchResult)
+async def fetch_artist_from_url(
+    artist_id: UUID,
+    request: SpotifyUrlRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> SpotifySearchResult:
+    """
+    Fetch artwork for an artist using a Spotify URL.
+
+    Accepts:
+    - Full Spotify URL: https://open.spotify.com/artist/XXXXX
+    - Spotify URI: spotify:artist:XXXXX
+    - Just the Spotify ID: XXXXX
+
+    This allows manually selecting the correct artist when auto-detection fails.
+    """
+    if not settings.SPOTIFY_CLIENT_ID or not settings.SPOTIFY_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Spotify API not configured",
+        )
+
+    # Extract Spotify ID from URL
+    spotify_id = extract_spotify_id(request.spotify_url)
+    if not spotify_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not extract Spotify ID from URL. Use format: https://open.spotify.com/artist/XXXXX",
+        )
+
+    # Get artist from database
+    result = await db.execute(select(Artist).where(Artist.id == artist_id))
+    artist = result.scalar_one_or_none()
+
+    if not artist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artist not found",
+        )
+
+    try:
+        # Fetch from Spotify by ID
+        spotify_result = await spotify_service.get_artist(spotify_id)
+        if spotify_result:
+            artist.spotify_id = spotify_result.get("spotify_id")
+            artist.image_url = spotify_result.get("image_url")
+            artist.image_url_small = spotify_result.get("image_url_small")
+            await db.flush()
+
+            return SpotifySearchResult(**spotify_result)
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist not found on Spotify with ID: {spotify_id}",
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
+
+
 @router.put("/artists/{artist_id}/artwork")
 async def update_artist_artwork(
     artist_id: UUID,

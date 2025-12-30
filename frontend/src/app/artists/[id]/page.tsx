@@ -23,6 +23,7 @@ import {
   getArtistReleases,
   getArtistTracks,
   fetchArtistArtwork,
+  fetchArtistFromSpotifyUrl,
   updateArtistArtwork,
   updateArtist,
   calculateArtistRoyalties,
@@ -132,6 +133,7 @@ export default function ArtistDetailPage() {
   const [fetchingArtwork, setFetchingArtwork] = useState(false);
   const [showEditArtwork, setShowEditArtwork] = useState(false);
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [spotifyProfileUrl, setSpotifyProfileUrl] = useState('');
 
   // Royalty calculation
   const [selectedPeriod, setSelectedPeriod] = useState<string>(PERIODS[1]?.value || PERIODS[0]?.value || ''); // Default to first quarter
@@ -345,7 +347,16 @@ export default function ArtistDetailPage() {
   const handleFetchArtwork = async () => {
     setFetchingArtwork(true);
     try {
-      await fetchArtistArtwork(artistId);
+      if (spotifyProfileUrl.trim()) {
+        // Use URL/ID provided by user
+        const result = await fetchArtistFromSpotifyUrl(artistId, spotifyProfileUrl.trim());
+        if (result.image_url) {
+          setEditImageUrl(result.image_url);
+        }
+      } else {
+        // Search by artist name
+        await fetchArtistArtwork(artistId);
+      }
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur Spotify');
@@ -2085,7 +2096,11 @@ export default function ArtistDetailPage() {
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Photo de l'artiste</h2>
-                <button onClick={() => setShowEditArtwork(false)} className="p-2 -mr-2 text-default-500">
+                <button onClick={() => {
+                  setShowEditArtwork(false);
+                  setSpotifyProfileUrl('');
+                  setEditImageUrl('');
+                }} className="p-2 -mr-2 text-default-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2098,34 +2113,57 @@ export default function ArtistDetailPage() {
                   <img src={editImageUrl} alt="Preview" className="w-32 h-32 rounded-full object-cover" />
                 </div>
               )}
+
+              <div className="bg-default-50 rounded-lg p-3 space-y-3">
+                <p className="text-sm text-default-600">
+                  Collez l'URL du profil Spotify de l'artiste pour récupérer la bonne image:
+                </p>
+                <Input
+                  label="URL profil Spotify"
+                  value={spotifyProfileUrl}
+                  onChange={(e) => setSpotifyProfileUrl(e.target.value)}
+                  placeholder="https://open.spotify.com/artist/..."
+                />
+                <button
+                  onClick={handleFetchArtwork}
+                  disabled={fetchingArtwork}
+                  className="w-full py-2 text-sm text-green-600 hover:text-green-700 border border-green-200 rounded-lg inline-flex items-center justify-center gap-2"
+                >
+                  {fetchingArtwork ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                      Recherche...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                      </svg>
+                      {spotifyProfileUrl.trim() ? 'Récupérer depuis ce profil' : 'Chercher par nom'}
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-divider"></div>
+                <span className="flex-shrink mx-3 text-xs text-default-400">ou</span>
+                <div className="flex-grow border-t border-divider"></div>
+              </div>
+
               <Input
-                label="URL de l'image"
+                label="URL directe de l'image"
                 value={editImageUrl}
                 onChange={(e) => setEditImageUrl(e.target.value)}
-                placeholder="https://..."
+                placeholder="https://i.scdn.co/image/..."
               />
-              <button
-                onClick={handleFetchArtwork}
-                disabled={fetchingArtwork}
-                className="w-full py-2 text-sm text-green-600 hover:text-green-700 border border-green-200 rounded-lg inline-flex items-center justify-center gap-2"
-              >
-                {fetchingArtwork ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                    Recherche...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-                    </svg>
-                    Chercher sur Spotify
-                  </>
-                )}
-              </button>
             </div>
             <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
-              <Button variant="secondary" onClick={() => setShowEditArtwork(false)} className="flex-1">
+              <Button variant="secondary" onClick={() => {
+                setShowEditArtwork(false);
+                setSpotifyProfileUrl('');
+                setEditImageUrl('');
+              }} className="flex-1">
                 Annuler
               </Button>
               <Button onClick={handleUpdateArtwork} className="flex-1">

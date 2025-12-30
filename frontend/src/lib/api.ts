@@ -424,6 +424,14 @@ export async function fetchArtistArtwork(artistId: string): Promise<SpotifySearc
   });
 }
 
+export async function fetchArtistFromSpotifyUrl(artistId: string, spotifyUrl: string): Promise<SpotifySearchResult> {
+  return fetchApi<SpotifySearchResult>(`/spotify/artists/${artistId}/fetch-from-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spotify_url: spotifyUrl }),
+  });
+}
+
 export interface SpotifyAlbumResult {
   spotify_id?: string;
   name?: string;
