@@ -8,10 +8,8 @@ import {
   NavbarBrand,
   NavbarContent,
   NavbarItem,
-  NavbarMenuToggle,
   NavbarMenu,
   NavbarMenuItem,
-  Button,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
@@ -49,11 +47,7 @@ export default function Nav() {
         wrapper: "px-4",
       }}
     >
-      <NavbarContent>
-        <NavbarMenuToggle
-          aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          className="sm:hidden"
-        />
+      <NavbarContent justify="start">
         <NavbarBrand>
           <Link href="/" className="flex items-center gap-1">
             {labelSettings?.logo_base64 ? (
@@ -90,14 +84,14 @@ export default function Nav() {
         })}
       </NavbarContent>
 
-      <NavbarContent justify="end">
+      <NavbarContent justify="end" className="gap-2">
         {user && (
           <Dropdown placement="bottom-end">
             <DropdownTrigger>
               <Avatar
                 isBordered
                 as="button"
-                className="transition-transform"
+                className="transition-transform hidden sm:flex"
                 color="primary"
                 name={user.email?.charAt(0).toUpperCase()}
                 size="sm"
@@ -117,6 +111,20 @@ export default function Nav() {
             </DropdownMenu>
           </Dropdown>
         )}
+        {/* Hamburger menu for mobile */}
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="sm:hidden p-2 rounded-lg hover:bg-default-100 transition-colors"
+          aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+        >
+          <svg className="w-6 h-6 text-default-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {isMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
       </NavbarContent>
 
       {/* Mobile menu */}
@@ -127,7 +135,7 @@ export default function Nav() {
             <NavbarMenuItem key={item.href}>
               <Link
                 href={item.href}
-                className={`w-full text-lg block py-2 ${
+                className={`w-full text-lg block py-3 ${
                   isActive ? 'text-primary font-semibold' : 'text-default-600'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
@@ -137,6 +145,30 @@ export default function Nav() {
             </NavbarMenuItem>
           );
         })}
+        <div className="border-t border-divider mt-4 pt-4">
+          <NavbarMenuItem>
+            <Link
+              href="/settings"
+              className="w-full text-lg block py-3 text-default-600"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Paramètres
+            </Link>
+          </NavbarMenuItem>
+          {user && (
+            <NavbarMenuItem>
+              <button
+                onClick={() => {
+                  signOut();
+                  setIsMenuOpen(false);
+                }}
+                className="w-full text-lg block py-3 text-danger text-left"
+              >
+                Déconnexion
+              </button>
+            </NavbarMenuItem>
+          )}
+        </div>
       </NavbarMenu>
     </Navbar>
   );
