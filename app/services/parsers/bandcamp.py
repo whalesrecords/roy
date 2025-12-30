@@ -71,8 +71,10 @@ COLUMN_MAPPINGS = {
     "container_name": ["container name", "container_name", "album", "release"],
     "quantity": ["quantity", "qty", "units", "# units"],
     "net_amount": [
-        "net revenue", "net_revenue", "net amount", "net_amount",
-        "item total", "item_total", "your share", "subtotal", "amount", "net"
+        "sub total", "sub_total", "subtotal",  # Prefer sub total (raw data export)
+        "item total", "item_total",  # Then item total
+        "net revenue", "net_revenue", "net amount", "net_amount",  # Then net amount
+        "your share", "amount", "net", "item price"
     ],
     "gross_amount": ["gross revenue", "gross_revenue", "gross amount", "gross"],
     "currency": ["currency", "currency code", "cur"],
@@ -85,7 +87,7 @@ COLUMN_MAPPINGS = {
     ],
     "date_to": ["transaction date to", "date to", "date_to"],
     "sku": ["sku", "sku code", "product code", "variant"],
-    "cat_no": ["cat no.", "cat no", "catalog number", "catalogue number"],
+    "cat_no": ["cat no.", "cat no", "catalog number", "catalogue number", "cat_no"],
     "package": ["package", "package type", "format", "physical format"],
 }
 
