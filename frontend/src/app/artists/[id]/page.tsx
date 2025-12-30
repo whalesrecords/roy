@@ -591,8 +591,11 @@ export default function ArtistDetailPage() {
 
     // Albums detail
     lines.push('DÉTAIL PAR ALBUM');
-    lines.push('Album;UPC;Tracks;Streams;Brut;Part artiste;Royalties artiste;Royalties label');
+    lines.push('Album;UPC;Tracks;Streams;Brut;Part artiste;Royalties artiste;Avance album;Recoupé;Net album');
     for (const album of royaltyResult.albums) {
+      const advanceBalance = parseFloat(album.advance_balance || '0');
+      const recoupable = parseFloat(album.recoupable || '0');
+      const netPayable = parseFloat(album.net_payable || album.artist_royalties);
       lines.push([
         album.release_title,
         album.upc,
@@ -601,7 +604,9 @@ export default function ArtistDetailPage() {
         `${album.gross} ${royaltyResult.currency}`,
         `${(parseFloat(album.artist_share) * 100).toFixed(0)}%`,
         `${album.artist_royalties} ${royaltyResult.currency}`,
-        `${album.label_royalties} ${royaltyResult.currency}`,
+        advanceBalance > 0 ? `${advanceBalance.toFixed(2)} ${royaltyResult.currency}` : '-',
+        recoupable > 0 ? `${recoupable.toFixed(2)} ${royaltyResult.currency}` : '-',
+        `${netPayable.toFixed(2)} ${royaltyResult.currency}`,
       ].join(';'));
     }
 
@@ -779,10 +784,17 @@ export default function ArtistDetailPage() {
               <th class="right">Gross</th>
               <th class="right">Share</th>
               <th class="right">Royalties</th>
+              <th class="right">Advance</th>
+              <th class="right">Net</th>
             </tr>
           </thead>
           <tbody>
-            ${royaltyResult.albums.map(album => `
+            ${royaltyResult.albums.map(album => {
+              const advanceBalance = parseFloat(album.advance_balance || '0');
+              const recoupable = parseFloat(album.recoupable || '0');
+              const netPayable = parseFloat(album.net_payable || album.artist_royalties);
+              const hasAdvance = advanceBalance > 0;
+              return `
               <tr>
                 <td>
                   <div>${album.release_title}</div>
@@ -792,9 +804,11 @@ export default function ArtistDetailPage() {
                 <td class="right">${formatNumber(album.streams)}</td>
                 <td class="right">${formatCurrency(album.gross)}</td>
                 <td class="right">${(parseFloat(album.artist_share) * 100).toFixed(0)}%</td>
-                <td class="right">${formatCurrency(album.artist_royalties)}</td>
+                <td class="right">${hasAdvance ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
+                <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
+                <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${formatCurrency(netPayable.toString())}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
 
