@@ -1501,8 +1501,13 @@ class ArtistRoyaltyCalculation(BaseModel):
     total_gross: str
     total_artist_royalties: str
     total_label_royalties: str
-    advance_balance: str
-    recoupable: str
+    # Advance tracking - clear breakdown
+    total_advances: str  # Total advances given to artist
+    total_recouped_before: str  # Already recouped in previous periods
+    recoupable: str  # Amount recouped THIS period
+    remaining_advance: str  # What's left to recoup after this period
+    # Legacy field for backwards compatibility
+    advance_balance: str  # = total_advances - total_recouped_before (current balance before this period)
     net_payable: str
     albums: list[AlbumRoyalty]
     sources: list[SourceBreakdown]
@@ -1713,6 +1718,15 @@ async def calculate_artist_royalties(
     # Combine all entries
     all_entries = list(artist_entries) + list(shared_entries)
 
+    # Calculate total advances (just the ADVANCE entries, not recoupments)
+    sum_total_advances = Decimal("0")
+    sum_ledger_recoupments = Decimal("0")
+    for entry in all_entries:
+        if entry.entry_type == LedgerEntryType.ADVANCE:
+            sum_total_advances += entry.amount
+        elif entry.entry_type == LedgerEntryType.RECOUPMENT:
+            sum_ledger_recoupments += entry.amount
+
     # Group advances and recoupments by scope
     # Structure: {scope: {scope_id: balance}}
     release_advances: dict[str, Decimal] = {}  # UPC -> balance
@@ -1856,10 +1870,18 @@ async def calculate_artist_royalties(
     if catalog_balance > 0:
         catalog_recoupable = min(remaining_artist_royalties, catalog_balance)
 
-    # Total advance balance (all scopes)
+    # Total advance balance (all scopes) - this is the current balance BEFORE this period's recoupment
     advance_balance = catalog_balance + sum(release_advances.values()) + sum(track_advances.values())
     recoupable = total_scoped_recoupable + catalog_recoupable
     net_payable = total_artist - recoupable
+
+    # Calculate clear advance breakdown for display:
+    # - total_advances: sum of all advance entries ever given
+    # - total_recouped_before: what was already recouped (from ledger recoupment entries)
+    # - recoupable: what is recouped THIS period (calculated above)
+    # - remaining_advance: what's left after this period
+    total_recouped_before = sum_ledger_recoupments  # Recoupments already recorded in ledger
+    remaining_advance = max(Decimal("0"), sum_total_advances - total_recouped_before - recoupable)
 
     # Build album list with effective shares calculated from actual royalties
     albums = []
@@ -1911,8 +1933,13 @@ async def calculate_artist_royalties(
         total_gross=str(total_gross),
         total_artist_royalties=str(total_artist),
         total_label_royalties=str(total_label),
-        advance_balance=str(advance_balance),
+        # Clear advance breakdown
+        total_advances=str(sum_total_advances),
+        total_recouped_before=str(total_recouped_before),
         recoupable=str(recoupable),
+        remaining_advance=str(remaining_advance),
+        # Legacy
+        advance_balance=str(advance_balance),
         net_payable=str(net_payable),
         albums=albums,
         sources=sources,

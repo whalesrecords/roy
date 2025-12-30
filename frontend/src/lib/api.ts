@@ -497,8 +497,12 @@ export interface ArtistRoyaltyCalculation {
   total_gross: string;
   total_artist_royalties: string;
   total_label_royalties: string;
-  advance_balance: string;
-  recoupable: string;
+  // Clear advance breakdown
+  total_advances: string;  // Total advances given
+  total_recouped_before: string;  // Already recouped in previous periods
+  recoupable: string;  // Recouped this period
+  remaining_advance: string;  // What's left after this period
+  advance_balance: string;  // Legacy: current balance before this period
   net_payable: string;
   albums: AlbumRoyalty[];
   sources: SourceBreakdown[];

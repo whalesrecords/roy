@@ -1085,18 +1085,43 @@ export default function ArtistDetailPage() {
                       {formatCurrency(royaltyResult.total_artist_royalties, royaltyResult.currency)}
                     </p>
                   </div>
-                  <div className="bg-default-50 rounded-lg p-3">
-                    <p className="text-xs text-default-500">Recoupable</p>
-                    <p className="text-lg font-semibold text-foreground">
-                      {formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}
-                    </p>
+                </div>
+
+                {/* Advance breakdown - only show if there are advances */}
+                {parseFloat(royaltyResult.total_advances || '0') > 0 && (
+                  <div className="bg-amber-50 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-amber-800">Détail des avances</p>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-amber-700">Avances totales</span>
+                        <span className="font-medium text-amber-900">{formatCurrency(royaltyResult.total_advances, royaltyResult.currency)}</span>
+                      </div>
+                      {parseFloat(royaltyResult.total_recouped_before || '0') > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-amber-700">Déjà recoupé (périodes précédentes)</span>
+                          <span className="font-medium text-green-700">-{formatCurrency(royaltyResult.total_recouped_before, royaltyResult.currency)}</span>
+                        </div>
+                      )}
+                      {parseFloat(royaltyResult.recoupable || '0') > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-amber-700">Recoupé cette période</span>
+                          <span className="font-medium text-green-700">-{formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-amber-200 pt-1 mt-1">
+                        <span className="font-medium text-amber-800">Reste à recouper</span>
+                        <span className="font-bold text-amber-900">{formatCurrency(royaltyResult.remaining_advance, royaltyResult.currency)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`rounded-lg p-3 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-green-50' : 'bg-default-50'}`}>
-                    <p className="text-xs text-default-500">Net payable</p>
-                    <p className={`text-lg font-semibold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-green-700' : 'text-foreground'}`}>
-                      {formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}
-                    </p>
-                  </div>
+                )}
+
+                {/* Net payable */}
+                <div className={`rounded-lg p-4 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-green-50' : 'bg-default-50'}`}>
+                  <p className="text-xs text-default-500 mb-1">Net payable à l'artiste</p>
+                  <p className={`text-2xl font-bold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-green-700' : 'text-foreground'}`}>
+                    {formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}
+                  </p>
                 </div>
 
                 {/* Paid quarters (for year view) */}
