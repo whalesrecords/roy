@@ -39,6 +39,55 @@ import {
 
 type ContractTab = 'releases' | 'tracks';
 
+// Period type for quarter/year selection
+interface Period {
+  label: string;
+  value: string;
+  start: string;
+  end: string;
+  type: 'quarter' | 'year';
+}
+
+// Generate available periods (quarters and years)
+function generatePeriods(): Period[] {
+  const periods: Period[] = [];
+  const currentYear = new Date().getFullYear();
+  const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
+
+  // 5 years back
+  for (let year = currentYear; year >= currentYear - 4; year--) {
+    // Full year option
+    periods.push({
+      label: `${year} (annee)`,
+      value: `year-${year}`,
+      start: `${year}-01-01`,
+      end: `${year}-12-31`,
+      type: 'year',
+    });
+
+    // Quarters for this year
+    const maxQuarter = year === currentYear ? currentQuarter : 4;
+    for (let q = maxQuarter; q >= 1; q--) {
+      const startMonth = (q - 1) * 3 + 1;
+      const endMonth = q * 3;
+      const lastDay = new Date(year, endMonth, 0).getDate();
+      const monthNames = ['Jan-Mar', 'Avr-Jun', 'Jul-Sep', 'Oct-Dec'];
+
+      periods.push({
+        label: `Q${q} ${year} (${monthNames[q - 1]})`,
+        value: `Q${q}-${year}`,
+        start: `${year}-${String(startMonth).padStart(2, '0')}-01`,
+        end: `${year}-${String(endMonth).padStart(2, '0')}-${lastDay}`,
+        type: 'quarter',
+      });
+    }
+  }
+
+  return periods;
+}
+
+const PERIODS = generatePeriods();
+
 export default function ArtistDetailPage() {
   const params = useParams();
   const artistId = params.id as string;
@@ -84,10 +133,11 @@ export default function ArtistDetailPage() {
   const [editImageUrl, setEditImageUrl] = useState('');
 
   // Royalty calculation
-  const [royaltyPeriod, setRoyaltyPeriod] = useState<string>('3');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(PERIODS[1]?.value || PERIODS[0]?.value || ''); // Default to first quarter
   const [calculatingRoyalties, setCalculatingRoyalties] = useState(false);
   const [royaltyResult, setRoyaltyResult] = useState<ArtistRoyaltyCalculation | null>(null);
   const [royaltyError, setRoyaltyError] = useState<string | null>(null);
+  const [markingAsPaid, setMarkingAsPaid] = useState(false);
 
   // Edit artist
   const [showEditArtist, setShowEditArtist] = useState(false);
@@ -431,28 +481,50 @@ export default function ArtistDetailPage() {
   };
 
   const handleCalculateRoyalties = async () => {
+    const period = PERIODS.find(p => p.value === selectedPeriod);
+    if (!period) return;
+
     setCalculatingRoyalties(true);
     setRoyaltyError(null);
     setRoyaltyResult(null);
 
-    const months = parseInt(royaltyPeriod);
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - months);
-
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
-
     try {
       const result = await calculateArtistRoyalties(
         artistId,
-        formatDate(startDate),
-        formatDate(endDate)
+        period.start,
+        period.end
       );
       setRoyaltyResult(result);
     } catch (err) {
       setRoyaltyError(err instanceof Error ? err.message : 'Erreur de calcul');
     } finally {
       setCalculatingRoyalties(false);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!royaltyResult || parseFloat(royaltyResult.net_payable) <= 0) return;
+
+    const period = PERIODS.find(p => p.value === selectedPeriod);
+    if (!period) return;
+
+    setMarkingAsPaid(true);
+    try {
+      // Create payment entry with period description
+      await createPayment(
+        artistId,
+        parseFloat(royaltyResult.net_payable),
+        'EUR',
+        `Paiement ${period.label.split(' (')[0]}`, // "Q3 2024" or "2024"
+        new Date().toISOString().split('T')[0]
+      );
+      // Reload data to show the new payment
+      await loadData();
+      setRoyaltyResult(null); // Clear result after payment
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors du paiement');
+    } finally {
+      setMarkingAsPaid(false);
     }
   };
 
@@ -892,14 +964,15 @@ export default function ArtistDetailPage() {
           <div className="p-4">
             <div className="flex items-center gap-3 mb-4">
               <select
-                value={royaltyPeriod}
-                onChange={(e) => setRoyaltyPeriod(e.target.value)}
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
                 className="flex-1 px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
               >
-                <option value="1">1 mois</option>
-                <option value="3">3 mois</option>
-                <option value="6">6 mois</option>
-                <option value="12">1 an</option>
+                {PERIODS.map((period) => (
+                  <option key={period.value} value={period.value}>
+                    {period.label}
+                  </option>
+                ))}
               </select>
               <Button
                 onClick={handleCalculateRoyalties}
@@ -1037,6 +1110,25 @@ export default function ArtistDetailPage() {
                       </svg>
                       PDF
                     </Button>
+                  </div>
+                )}
+
+                {/* Mark as paid button */}
+                {royaltyResult.albums.length > 0 && parseFloat(royaltyResult.net_payable) > 0 && (
+                  <div className="pt-4 border-t border-divider">
+                    <Button
+                      onClick={handleMarkAsPaid}
+                      loading={markingAsPaid}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Marquer comme paye ({formatCurrency(royaltyResult.net_payable, royaltyResult.currency)})
+                    </Button>
+                    <p className="text-xs text-default-500 text-center mt-2">
+                      Cree un versement et enregistre le paiement
+                    </p>
                   </div>
                 )}
               </div>
