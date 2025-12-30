@@ -283,6 +283,7 @@ def parse_bandcamp_date(date_str: Optional[str]) -> Optional[date]:
     - "2024-01-15 10:30:00"
     - "Jan 15, 2024"
     - "15/01/2024"
+    - "1/2/17 4:58am" (Bandcamp raw data format: M/D/YY H:MMam/pm)
     """
     if not date_str:
         return None
@@ -293,7 +294,18 @@ def parse_bandcamp_date(date_str: Optional[str]) -> Optional[date]:
     if re.match(r"^\d{4}-\d{2}-\d{2}", date_str):
         return date.fromisoformat(date_str[:10])
 
-    # DD/MM/YYYY or MM/DD/YYYY
+    # Bandcamp raw data format: M/D/YY H:MMam/pm (e.g., "1/2/17 4:58am")
+    raw_match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2})\s+\d{1,2}:\d{2}(?:am|pm)?", date_str, re.IGNORECASE)
+    if raw_match:
+        month, day, year_short = map(int, raw_match.groups())
+        # Convert 2-digit year to 4-digit (17 -> 2017, 24 -> 2024)
+        year = 2000 + year_short if year_short < 50 else 1900 + year_short
+        try:
+            return date(year, month, day)
+        except ValueError:
+            pass
+
+    # DD/MM/YYYY or MM/DD/YYYY (4-digit year)
     slash_match = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", date_str)
     if slash_match:
         a, b, year = map(int, slash_match.groups())
