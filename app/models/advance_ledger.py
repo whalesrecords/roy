@@ -48,6 +48,27 @@ class LedgerEntryType(str, Enum):
     PAYMENT = "payment"         # Royalties paid to artist by label
 
 
+class ExpenseCategory(str, Enum):
+    """Category of expense/advance."""
+    MASTERING = "mastering"
+    MIXING = "mixing"
+    RECORDING = "recording"
+    PHOTOS = "photos"
+    VIDEO = "video"
+    ADVERTISING = "advertising"
+    GROOVER = "groover"
+    SUBMITHUB = "submithub"
+    GOOGLE_ADS = "google_ads"
+    INSTAGRAM = "instagram"
+    TIKTOK = "tiktok"
+    FACEBOOK = "facebook"
+    SPOTIFY_ADS = "spotify_ads"
+    PR = "pr"
+    DISTRIBUTION = "distribution"
+    ARTWORK = "artwork"
+    OTHER = "other"
+
+
 class AdvanceLedgerEntry(Base):
     """
     Ledger entry for tracking advances and recoupments.
@@ -99,6 +120,13 @@ class AdvanceLedgerEntry(Base):
     royalty_run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("royalty_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Expense category (for advances)
+    category: Mapped[str] = mapped_column(
+        String(50),
         nullable=True,
         index=True,
     )

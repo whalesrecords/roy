@@ -224,7 +224,8 @@ export async function createAdvance(
   currency: string,
   description?: string,
   scope: 'track' | 'release' | 'catalog' = 'catalog',
-  scopeId?: string
+  scopeId?: string,
+  category?: string
 ): Promise<AdvanceEntry> {
   return fetchApi<AdvanceEntry>(`/artists/${artistId}/advances`, {
     method: 'POST',
@@ -235,6 +236,7 @@ export async function createAdvance(
       currency,
       scope,
       scope_id: scopeId,
+      category,
       description,
     }),
   });
@@ -251,7 +253,8 @@ export async function updateAdvance(
   currency: string,
   description?: string,
   scope: 'track' | 'release' | 'catalog' = 'catalog',
-  scopeId?: string
+  scopeId?: string,
+  category?: string
 ): Promise<AdvanceEntry> {
   return fetchApi<AdvanceEntry>(`/artists/${artistId}/advances/${advanceId}`, {
     method: 'PUT',
@@ -262,6 +265,7 @@ export async function updateAdvance(
       currency,
       scope,
       scope_id: scopeId,
+      category,
       description,
     }),
   });

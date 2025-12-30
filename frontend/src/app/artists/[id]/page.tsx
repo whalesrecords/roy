@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Artist, Contract, AdvanceEntry } from '@/lib/types';
+import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory } from '@/lib/types';
 import {
   getArtist,
   getContracts,
@@ -125,6 +125,7 @@ export default function ArtistDetailPage() {
   const [advanceDescription, setAdvanceDescription] = useState('');
   const [advanceScope, setAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
   const [advanceScopeId, setAdvanceScopeId] = useState('');
+  const [advanceCategory, setAdvanceCategory] = useState<ExpenseCategory | ''>('');
   const [creatingAdvance, setCreatingAdvance] = useState(false);
 
   // Artwork
@@ -155,6 +156,7 @@ export default function ArtistDetailPage() {
   const [editAdvanceDescription, setEditAdvanceDescription] = useState('');
   const [editAdvanceScope, setEditAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
   const [editAdvanceScopeId, setEditAdvanceScopeId] = useState('');
+  const [editAdvanceCategory, setEditAdvanceCategory] = useState<ExpenseCategory | ''>('');
   const [savingAdvance, setSavingAdvance] = useState(false);
   const [deletingAdvanceId, setDeletingAdvanceId] = useState<string | null>(null);
 
@@ -287,13 +289,15 @@ export default function ArtistDetailPage() {
         'EUR',
         advanceDescription || undefined,
         advanceScope,
-        advanceScope !== 'catalog' ? advanceScopeId : undefined
+        advanceScope !== 'catalog' ? advanceScopeId : undefined,
+        advanceCategory || undefined
       );
       setShowAdvanceForm(false);
       setAdvanceAmount('');
       setAdvanceDescription('');
       setAdvanceScope('catalog');
       setAdvanceScopeId('');
+      setAdvanceCategory('');
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -403,6 +407,7 @@ export default function ArtistDetailPage() {
     setEditAdvanceDescription(advance.description || '');
     setEditAdvanceScope(advance.scope || 'catalog');
     setEditAdvanceScopeId(advance.scope_id || '');
+    setEditAdvanceCategory(advance.category || '');
   };
 
   const handleUpdateAdvance = async () => {
@@ -417,7 +422,8 @@ export default function ArtistDetailPage() {
         'EUR',
         editAdvanceDescription || undefined,
         editAdvanceScope,
-        editAdvanceScope !== 'catalog' ? editAdvanceScopeId : undefined
+        editAdvanceScope !== 'catalog' ? editAdvanceScopeId : undefined,
+        editAdvanceCategory || undefined
       );
       setEditingAdvance(null);
       loadData();
@@ -1664,6 +1670,11 @@ export default function ArtistDetailPage() {
                           }`}>
                             {entry.scope === 'catalog' ? 'Catalogue' : entry.scope === 'release' ? 'Album' : 'Track'}
                           </span>
+                          {entry.category && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                              {EXPENSE_CATEGORIES.find(c => c.value === entry.category)?.label || entry.category}
+                            </span>
+                          )}
                         </div>
                         {entry.scope !== 'catalog' && (
                           <p className="text-xs text-default-400 font-mono">{entry.scope_id}</p>
@@ -1965,6 +1976,25 @@ export default function ArtistDetailPage() {
                 </div>
               )}
 
+              {/* Category selector */}
+              <div>
+                <label className="block text-sm font-medium text-default-700 mb-2">
+                  Catégorie
+                </label>
+                <select
+                  value={advanceCategory}
+                  onChange={(e) => setAdvanceCategory(e.target.value as ExpenseCategory | '')}
+                  className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-background"
+                >
+                  <option value="">-- Choisir une catégorie --</option>
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <Input
                 label="Description (optionnel)"
                 value={advanceDescription}
@@ -1977,6 +2007,7 @@ export default function ArtistDetailPage() {
                 setShowAdvanceForm(false);
                 setAdvanceScope('catalog');
                 setAdvanceScopeId('');
+                setAdvanceCategory('');
               }} className="flex-1">
                 Annuler
               </Button>
@@ -2268,6 +2299,25 @@ export default function ArtistDetailPage() {
                   </select>
                 </div>
               )}
+
+              {/* Category selector */}
+              <div>
+                <label className="block text-sm font-medium text-default-700 mb-2">
+                  Catégorie
+                </label>
+                <select
+                  value={editAdvanceCategory}
+                  onChange={(e) => setEditAdvanceCategory(e.target.value as ExpenseCategory | '')}
+                  className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-background"
+                >
+                  <option value="">-- Choisir une catégorie --</option>
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <Input
                 label="Description (optionnel)"

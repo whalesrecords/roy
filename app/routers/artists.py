@@ -1052,6 +1052,7 @@ async def create_advance(
         currency=data.currency,
         scope=scope,
         scope_id=data.scope_id,
+        category=data.category,
         description=data.description,
         reference=data.reference,
     )
@@ -1066,6 +1067,7 @@ async def create_advance(
         currency=entry.currency,
         scope=entry.scope,
         scope_id=entry.scope_id,
+        category=entry.category,
         royalty_run_id=entry.royalty_run_id,
         description=entry.description,
         reference=entry.reference,
@@ -1107,6 +1109,7 @@ async def list_advance_entries(
             currency=entry.currency,
             scope=getattr(entry, 'scope', 'catalog') or 'catalog',
             scope_id=getattr(entry, 'scope_id', None),
+            category=getattr(entry, 'category', None),
             royalty_run_id=entry.royalty_run_id,
             description=entry.description,
             reference=entry.reference,
@@ -1186,6 +1189,7 @@ async def update_advance(
     entry.currency = data.currency
     entry.scope = scope
     entry.scope_id = data.scope_id
+    entry.category = data.category
     entry.description = data.description
     entry.reference = data.reference
     await db.flush()
@@ -1198,6 +1202,7 @@ async def update_advance(
         currency=entry.currency,
         scope=entry.scope,
         scope_id=entry.scope_id,
+        category=entry.category,
         royalty_run_id=entry.royalty_run_id,
         description=entry.description,
         reference=entry.reference,
@@ -1356,6 +1361,7 @@ async def create_payment(
         currency=entry.currency,
         scope=entry.scope,
         scope_id=entry.scope_id,
+        category=getattr(entry, 'category', None),
         royalty_run_id=entry.royalty_run_id,
         description=entry.description,
         reference=entry.reference,
@@ -1400,6 +1406,7 @@ async def list_payments(
             currency=entry.currency,
             scope=getattr(entry, 'scope', 'catalog') or 'catalog',
             scope_id=getattr(entry, 'scope_id', None),
+            category=getattr(entry, 'category', None),
             royalty_run_id=entry.royalty_run_id,
             description=entry.description,
             reference=entry.reference,
@@ -1909,4 +1916,178 @@ async def calculate_artist_royalties(
         net_payable=str(net_payable),
         albums=albums,
         sources=sources,
+    )
+
+
+# Expense report endpoints
+
+class CategoryExpense(PydanticBaseModel):
+    """Expense breakdown by category."""
+    category: str
+    category_label: str
+    total_amount: str
+    count: int
+    currency: str
+
+
+class ExpenseReport(PydanticBaseModel):
+    """Expense report with category breakdown."""
+    total_expenses: str
+    currency: str
+    by_category: List[CategoryExpense]
+    entries: List[AdvanceLedgerEntryResponse]
+
+
+# Category labels for display
+CATEGORY_LABELS = {
+    "mastering": "Mastering",
+    "mixing": "Mixage",
+    "recording": "Enregistrement",
+    "photos": "Photos",
+    "video": "Vidéo",
+    "advertising": "Publicité",
+    "groover": "Groover",
+    "submithub": "SubmitHub",
+    "google_ads": "Google Ads",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "facebook": "Facebook",
+    "spotify_ads": "Spotify Ads",
+    "pr": "PR / Relations presse",
+    "distribution": "Distribution",
+    "artwork": "Artwork",
+    "other": "Autre",
+    None: "Non catégorisé",
+}
+
+
+@router.get("/expenses/report", response_model=ExpenseReport)
+async def get_expense_report(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: UUID = None,
+    scope: str = None,
+    scope_id: str = None,
+    category: str = None,
+) -> ExpenseReport:
+    """
+    Get expense report with category breakdown.
+
+    Optional filters:
+    - artist_id: Filter by artist
+    - scope: Filter by scope ('track', 'release', 'catalog')
+    - scope_id: Filter by scope_id (ISRC for track, UPC for release)
+    - category: Filter by category
+
+    Returns all ADVANCE entries (not recoupments or payments) grouped by category.
+    """
+    from sqlalchemy import and_
+
+    # Build query conditions
+    conditions = [AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE]
+
+    if artist_id:
+        conditions.append(AdvanceLedgerEntry.artist_id == artist_id)
+    if scope:
+        conditions.append(AdvanceLedgerEntry.scope == scope.lower())
+    if scope_id:
+        conditions.append(AdvanceLedgerEntry.scope_id == scope_id)
+    if category:
+        conditions.append(AdvanceLedgerEntry.category == category.lower())
+
+    # Get all matching entries
+    result = await db.execute(
+        select(AdvanceLedgerEntry)
+        .where(and_(*conditions))
+        .order_by(AdvanceLedgerEntry.effective_date.desc())
+    )
+    entries = result.scalars().all()
+
+    # Aggregate by category
+    category_totals: dict = {}
+    total_expenses = Decimal("0")
+
+    for entry in entries:
+        cat = entry.category or None
+        if cat not in category_totals:
+            category_totals[cat] = {"amount": Decimal("0"), "count": 0}
+        category_totals[cat]["amount"] += entry.amount
+        category_totals[cat]["count"] += 1
+        total_expenses += entry.amount
+
+    # Build category breakdown
+    by_category = [
+        CategoryExpense(
+            category=cat or "uncategorized",
+            category_label=CATEGORY_LABELS.get(cat, cat.capitalize() if cat else "Non catégorisé"),
+            total_amount=str(data["amount"]),
+            count=data["count"],
+            currency="EUR",
+        )
+        for cat, data in sorted(category_totals.items(), key=lambda x: x[1]["amount"], reverse=True)
+    ]
+
+    # Build entry responses
+    entry_responses = [
+        AdvanceLedgerEntryResponse(
+            id=entry.id,
+            artist_id=entry.artist_id,
+            entry_type=entry.entry_type.value,
+            amount=entry.amount,
+            currency=entry.currency,
+            scope=getattr(entry, 'scope', 'catalog') or 'catalog',
+            scope_id=getattr(entry, 'scope_id', None),
+            category=getattr(entry, 'category', None),
+            royalty_run_id=entry.royalty_run_id,
+            description=entry.description,
+            reference=entry.reference,
+            effective_date=entry.effective_date,
+            created_at=entry.created_at,
+        )
+        for entry in entries
+    ]
+
+    return ExpenseReport(
+        total_expenses=str(total_expenses),
+        currency="EUR",
+        by_category=by_category,
+        entries=entry_responses,
+    )
+
+
+@router.get("/{artist_id}/expenses/report", response_model=ExpenseReport)
+async def get_artist_expense_report(
+    artist_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    scope: str = None,
+    scope_id: str = None,
+    category: str = None,
+) -> ExpenseReport:
+    """
+    Get expense report for a specific artist.
+
+    Optional filters:
+    - scope: Filter by scope ('track', 'release', 'catalog')
+    - scope_id: Filter by scope_id (ISRC for track, UPC for release)
+    - category: Filter by category
+    """
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Delegate to the general expense report with artist filter
+    return await get_expense_report(
+        db=db,
+        _token=_token,
+        artist_id=artist_id,
+        scope=scope,
+        scope_id=scope_id,
+        category=category,
     )

@@ -174,11 +174,15 @@ class AdvanceCreate(BaseModel):
     """Request schema for creating an advance entry."""
     artist_id: UUID
     amount: Decimal = Field(gt=0, description="Advance amount (positive)")
-    currency: str = Field(default="USD")
+    currency: str = Field(default="EUR")
     scope: str = Field(default="catalog", description="Advance scope: 'track', 'release', or 'catalog'")
     scope_id: Optional[str] = Field(
         default=None,
         description="ISRC for track, UPC for release, null for catalog"
+    )
+    category: Optional[str] = Field(
+        default=None,
+        description="Expense category: mastering, mixing, recording, photos, video, advertising, groover, submithub, google_ads, instagram, tiktok, facebook, spotify_ads, pr, distribution, artwork, other"
     )
     description: Optional[str] = None
     reference: Optional[str] = None
@@ -187,12 +191,13 @@ class AdvanceCreate(BaseModel):
 class AdvanceLedgerEntryResponse(BaseModel):
     """Response schema for an advance ledger entry."""
     id: UUID
-    artist_id: UUID
+    artist_id: Optional[UUID] = None
     entry_type: str
     amount: Decimal
     currency: str
     scope: str = Field(default="catalog")
     scope_id: Optional[str] = None
+    category: Optional[str] = None
     royalty_run_id: Optional[UUID] = None
     description: Optional[str] = None
     reference: Optional[str] = None

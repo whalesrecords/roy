@@ -141,6 +141,45 @@ export interface Contract {
   created_at: string;
 }
 
+export type ExpenseCategory =
+  | 'mastering'
+  | 'mixing'
+  | 'recording'
+  | 'photos'
+  | 'video'
+  | 'advertising'
+  | 'groover'
+  | 'submithub'
+  | 'google_ads'
+  | 'instagram'
+  | 'tiktok'
+  | 'facebook'
+  | 'spotify_ads'
+  | 'pr'
+  | 'distribution'
+  | 'artwork'
+  | 'other';
+
+export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
+  { value: 'mastering', label: 'Mastering' },
+  { value: 'mixing', label: 'Mixage' },
+  { value: 'recording', label: 'Enregistrement' },
+  { value: 'photos', label: 'Photos' },
+  { value: 'video', label: 'Vidéo' },
+  { value: 'advertising', label: 'Publicité' },
+  { value: 'groover', label: 'Groover' },
+  { value: 'submithub', label: 'SubmitHub' },
+  { value: 'google_ads', label: 'Google Ads' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'spotify_ads', label: 'Spotify Ads' },
+  { value: 'pr', label: 'PR / Relations presse' },
+  { value: 'distribution', label: 'Distribution' },
+  { value: 'artwork', label: 'Artwork' },
+  { value: 'other', label: 'Autre' },
+];
+
 export interface AdvanceEntry {
   id: string;
   artist_id: string;
@@ -149,6 +188,7 @@ export interface AdvanceEntry {
   currency: string;
   scope: 'track' | 'release' | 'catalog';
   scope_id?: string;
+  category?: ExpenseCategory;
   royalty_run_id?: string;
   description?: string;
   reference?: string;

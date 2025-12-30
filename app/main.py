@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
         migrations = [
             "ALTER TABLE transactions_normalized ADD COLUMN IF NOT EXISTS item_url VARCHAR(500)",
             "ALTER TABLE advance_ledger ALTER COLUMN artist_id DROP NOT NULL",
+            "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS category VARCHAR(50)",
         ]
         for sql in migrations:
             try:
