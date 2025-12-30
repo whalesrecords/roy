@@ -52,6 +52,7 @@ def extract_period_from_filename(filename: str) -> tuple:
     - "2024-01_TuneCore.csv"
     - "january_2024.csv"
     - "1623552_626771_2025-04-01_2025-06-01.csv" (Believe UK date range)
+    - "20170101-20251230_bandcamp_raw_data_xxx.csv" (Bandcamp raw data)
     - Contains month/year like "2024-01" or "01-2024"
     """
     import calendar
@@ -59,6 +60,18 @@ def extract_period_from_filename(filename: str) -> tuple:
 
     if not filename:
         return None, None
+
+    # Pattern: Date range YYYYMMDD-YYYYMMDD (Bandcamp raw data format)
+    match = re.search(r'(\d{8})-(\d{8})', filename)
+    if match:
+        try:
+            start_str = match.group(1)
+            end_str = match.group(2)
+            start = date(int(start_str[:4]), int(start_str[4:6]), int(start_str[6:8]))
+            end = date(int(end_str[:4]), int(end_str[4:6]), int(end_str[6:8]))
+            return start, end
+        except ValueError:
+            pass
 
     # Pattern: Date range YYYY-MM-DD_YYYY-MM-DD (Believe UK format)
     match = re.search(r'(\d{4}-\d{2}-\d{2})_(\d{4}-\d{2}-\d{2})', filename)
@@ -152,7 +165,7 @@ async def analyze_import(
     artists_with_ampersand = []
     total_artists = 0
 
-    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR):
+    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP):
         # Fast: extract period from filename
         period_start, period_end = extract_period_from_filename(file.filename or "")
 

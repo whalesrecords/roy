@@ -45,13 +45,19 @@ export default function ImportsPage() {
     loadImports();
   }, []);
 
-  // Group imports by source and year
+  // Group imports by source and year (use end year for multi-year imports)
   const groupedImports = useMemo(() => {
     const groups: Record<string, Record<string, ImportRecord[]>> = {};
 
     for (const imp of imports) {
       const source = imp.source;
-      const year = new Date(imp.period_start).getFullYear().toString();
+      const startYear = new Date(imp.period_start).getFullYear();
+      const endYear = new Date(imp.period_end).getFullYear();
+      // Use end year for grouping (more relevant for recent imports)
+      // For multi-year spans, show as "2017-2025"
+      const year = startYear === endYear
+        ? startYear.toString()
+        : `${startYear}-${endYear}`;
 
       if (!groups[source]) {
         groups[source] = {};
@@ -176,7 +182,14 @@ export default function ImportsPage() {
           <div className="space-y-2">
             {sortedSources.map((source) => {
               const sourceData = groupedImports[source];
-              const years = Object.keys(sourceData).sort((a, b) => parseInt(b) - parseInt(a));
+              // Sort years descending (for multi-year like "2017-2025", use end year)
+              const years = Object.keys(sourceData).sort((a, b) => {
+                const getEndYear = (y: string) => {
+                  const parts = y.split('-');
+                  return parseInt(parts[parts.length - 1]);
+                };
+                return getEndYear(b) - getEndYear(a);
+              });
               const isSourceExpanded = expandedSources.has(source);
               const totalImports = years.reduce((sum, y) => sum + sourceData[y].length, 0);
 
