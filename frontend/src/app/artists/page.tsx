@@ -142,8 +142,8 @@ export default function ArtistsPage() {
     return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
-  const formatNumber = (value: number) => {
-    return value.toLocaleString('fr-FR');
+  const formatNumber = (value: number | null | undefined) => {
+    return (value ?? 0).toLocaleString('fr-FR');
   };
 
   // Separate collaborations, active, and inactive artists
