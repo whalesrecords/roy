@@ -120,14 +120,14 @@ export default function Nav() {
       </NavbarContent>
 
       {/* Mobile menu */}
-      <NavbarMenu>
+      <NavbarMenu className="bg-white dark:bg-gray-900 pt-4">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <NavbarMenuItem key={item.href}>
               <Link
                 href={item.href}
-                className={`w-full text-lg ${
+                className={`w-full text-lg block py-2 ${
                   isActive ? 'text-primary font-semibold' : 'text-default-600'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
