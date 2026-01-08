@@ -21,6 +21,7 @@ class ImportSource(str, Enum):
     BELIEVE_FR = "believe_fr"
     CDBABY = "cdbaby"
     BANDCAMP = "bandcamp"
+    SQUARESPACE = "squarespace"
     OTHER = "other"
 
 

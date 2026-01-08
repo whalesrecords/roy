@@ -72,10 +72,12 @@ COLUMN_MAPPINGS = {
     "container_name": ["container name", "container_name", "album", "release"],
     "quantity": ["quantity", "qty", "units", "# units"],
     "net_amount": [
-        "sub total", "sub_total", "subtotal",  # Prefer sub total (raw data export)
+        "net amount", "net_amount",  # Prefer net amount (amount after Bandcamp fees)
+        "net revenue", "net_revenue",  # Then net revenue
+        "your share", "amount you received",  # Then your share
+        "sub total", "sub_total", "subtotal",  # Then sub total
         "item total", "item_total",  # Then item total
-        "net revenue", "net_revenue", "net amount", "net_amount",  # Then net amount
-        "your share", "amount", "net", "item price"
+        "amount", "net", "item price"
     ],
     "gross_amount": ["gross revenue", "gross_revenue", "gross amount", "gross"],
     "currency": ["currency", "currency code", "cur"],

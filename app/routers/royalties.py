@@ -324,13 +324,18 @@ async def lock_royalty_run(
 @router.delete("/{run_id}")
 async def delete_royalty_run(
     run_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    _token: Annotated[str, Depends(verify_admin_token)],
+    force: bool = False,
+    db: AsyncSession = Depends(get_db),
+    _token: str = Depends(verify_admin_token),
 ) -> dict:
     """
     Delete a royalty run and all associated statements.
 
-    Warning: This action is irreversible. Locked runs cannot be deleted.
+    Args:
+        run_id: The ID of the royalty run to delete
+        force: If True, allows deletion of locked runs
+
+    Warning: This action is irreversible.
 
     Returns:
         Success confirmation with deleted run ID
@@ -347,10 +352,10 @@ async def delete_royalty_run(
             detail=f"Royalty run {run_id} not found",
         )
 
-    if run.is_locked:
+    if run.is_locked and not force:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete a locked royalty run",
+            detail="Cannot delete a locked royalty run. Use force=true to override.",
         )
 
     # Delete statements first (cascade should handle this, but be explicit)

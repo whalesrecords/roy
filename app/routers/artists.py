@@ -10,7 +10,7 @@ from typing import Annotated, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -18,6 +18,7 @@ from app.core.database import get_db
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+from pydantic import BaseModel as PydanticBaseModel
 from app.schemas.royalties import (
     ArtistCreate,
     ArtistResponse,
@@ -74,6 +75,7 @@ async def create_artist(
     return ArtistResponse(
         id=artist.id,
         name=artist.name,
+        category=artist.category or "signed",
         external_id=artist.external_id,
         spotify_id=artist.spotify_id,
         image_url=artist.image_url,
@@ -97,6 +99,7 @@ async def list_artists(
         ArtistResponse(
             id=artist.id,
             name=artist.name,
+            category=artist.category or "signed",
             external_id=artist.external_id,
             spotify_id=artist.spotify_id,
             image_url=artist.image_url,
@@ -105,6 +108,144 @@ async def list_artists(
         )
         for artist in artists
     ]
+
+
+class SimilarArtistGroup(PydanticBaseModel):
+    """Group of similar artists (same name, different case)."""
+    canonical_name: str
+    artists: List[ArtistResponse]
+
+
+@router.get("/duplicates", response_model=List[SimilarArtistGroup])
+async def find_duplicate_artists(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> List[SimilarArtistGroup]:
+    """
+    Find artists with similar names (same name, different capitalization).
+    Returns groups of artists that might be duplicates.
+    """
+    result = await db.execute(select(Artist).order_by(Artist.name))
+    artists = result.scalars().all()
+
+    # Group by lowercase name
+    groups: dict[str, list] = {}
+    for artist in artists:
+        key = artist.name.lower().strip()
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(artist)
+
+    # Return only groups with more than 1 artist
+    duplicates = []
+    for canonical, artist_list in groups.items():
+        if len(artist_list) > 1:
+            duplicates.append(SimilarArtistGroup(
+                canonical_name=canonical,
+                artists=[
+                    ArtistResponse(
+                        id=a.id,
+                        name=a.name,
+                        category=a.category or "signed",
+                        external_id=a.external_id,
+                        spotify_id=a.spotify_id,
+                        image_url=a.image_url,
+                        image_url_small=a.image_url_small,
+                        created_at=a.created_at,
+                    )
+                    for a in artist_list
+                ]
+            ))
+
+    return duplicates
+
+
+@router.post("/merge")
+async def merge_artists(
+    source_id: UUID,
+    target_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Merge source artist into target artist.
+    - Transfers all track-artist links from source to target
+    - Transfers all advances from source to target
+    - Transfers all contracts from source to target
+    - Updates all transactions artist_name to target name
+    - Deletes the source artist
+    """
+    from app.models.track_artist_link import TrackArtistLink
+
+    # Get both artists
+    source_result = await db.execute(select(Artist).where(Artist.id == source_id))
+    source = source_result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail=f"Source artist {source_id} not found")
+
+    target_result = await db.execute(select(Artist).where(Artist.id == target_id))
+    target = target_result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail=f"Target artist {target_id} not found")
+
+    # Transfer track-artist links
+    links_result = await db.execute(
+        select(TrackArtistLink).where(TrackArtistLink.artist_id == source_id)
+    )
+    links = links_result.scalars().all()
+    for link in links:
+        # Check if target already has this link
+        existing = await db.execute(
+            select(TrackArtistLink).where(
+                TrackArtistLink.artist_id == target_id,
+                TrackArtistLink.isrc == link.isrc
+            )
+        )
+        if not existing.scalar_one_or_none():
+            link.artist_id = target_id
+        else:
+            await db.delete(link)
+
+    # Transfer advances
+    advances_result = await db.execute(
+        select(AdvanceLedgerEntry).where(AdvanceLedgerEntry.artist_id == source_id)
+    )
+    advances = advances_result.scalars().all()
+    for advance in advances:
+        advance.artist_id = target_id
+
+    # Transfer contracts
+    contracts_result = await db.execute(
+        select(Contract).where(Contract.artist_id == source_id)
+    )
+    contracts = contracts_result.scalars().all()
+    for contract in contracts:
+        contract.artist_id = target_id
+
+    # Update transactions with source artist name to use target name
+    await db.execute(
+        text("""
+            UPDATE transactions_normalized
+            SET artist_name = :target_name
+            WHERE LOWER(artist_name) = LOWER(:source_name)
+        """),
+        {"target_name": target.name, "source_name": source.name}
+    )
+
+    # Delete source artist
+    source_name = source.name
+    await db.delete(source)
+    await db.flush()
+
+    return {
+        "success": True,
+        "message": f"Merged '{source_name}' into '{target.name}'",
+        "source_id": str(source_id),
+        "target_id": str(target_id),
+        "links_transferred": len(links),
+        "advances_transferred": len(advances),
+        "contracts_transferred": len(contracts),
+    }
 
 
 @router.get("/summary", response_model=List[dict])
@@ -209,6 +350,7 @@ async def get_artist(
     return ArtistResponse(
         id=artist.id,
         name=artist.name,
+        category=artist.category or "signed",
         external_id=artist.external_id,
         spotify_id=artist.spotify_id,
         image_url=artist.image_url,
@@ -216,8 +358,6 @@ async def get_artist(
         created_at=artist.created_at,
     )
 
-
-from pydantic import BaseModel as PydanticBaseModel
 
 class MergeRequest(PydanticBaseModel):
     source_ids: List[UUID]
@@ -333,6 +473,8 @@ async def update_artist(
     # Update allowed fields
     if "name" in data and data["name"]:
         artist.name = data["name"]
+    if "category" in data and data["category"] in ("signed", "collaborator"):
+        artist.category = data["category"]
     if "external_id" in data:
         artist.external_id = data["external_id"]
     if "spotify_id" in data:
@@ -347,6 +489,7 @@ async def update_artist(
     return ArtistResponse(
         id=artist.id,
         name=artist.name,
+        category=artist.category or "signed",
         external_id=artist.external_id,
         spotify_id=artist.spotify_id,
         image_url=artist.image_url,

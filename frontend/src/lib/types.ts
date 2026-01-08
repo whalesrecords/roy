@@ -1,6 +1,6 @@
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'partial';
 
-export type ImportSource = 'tunecore' | 'believe_uk' | 'believe_fr' | 'cdbaby' | 'bandcamp' | 'other';
+export type ImportSource = 'tunecore' | 'believe_uk' | 'believe_fr' | 'cdbaby' | 'bandcamp' | 'squarespace' | 'other';
 
 export interface ImportRecord {
   id: string;
@@ -88,6 +88,7 @@ export const SOURCES: { value: ImportSource; label: string }[] = [
   { value: 'believe_fr', label: 'Believe FR' },
   { value: 'cdbaby', label: 'CD Baby' },
   { value: 'bandcamp', label: 'Bandcamp' },
+  { value: 'squarespace', label: 'Squarespace' },
   { value: 'other', label: 'Autre' },
 ];
 
@@ -108,15 +109,23 @@ export const STATUS_COLORS: Record<ImportStatus, string> = {
 };
 
 // Artists
+export type ArtistCategory = 'signed' | 'collaborator';
+
 export interface Artist {
   id: string;
   name: string;
+  category: ArtistCategory;
   external_id?: string;
   spotify_id?: string;
   image_url?: string;
   image_url_small?: string;
   created_at: string;
 }
+
+export const ARTIST_CATEGORIES: { value: ArtistCategory; label: string }[] = [
+  { value: 'signed', label: 'Artiste signé' },
+  { value: 'collaborator', label: 'Collaborateur / Remixeur' },
+];
 
 // Spotify
 export interface SpotifySearchResult {

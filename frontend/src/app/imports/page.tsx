@@ -18,7 +18,7 @@ import EmptyState from '@/components/imports/EmptyState';
 import ImportErrors from '@/components/imports/ImportErrors';
 import UploadFlow from '@/components/imports/UploadFlow';
 import { ImportRecord } from '@/lib/types';
-import { getImports, deleteImport } from '@/lib/api';
+import { getImports, deleteImport, getImportSaleTypes, ImportSaleTypesResponse } from '@/lib/api';
 
 // Source labels mapping
 const sourceLabels: Record<string, string> = {
@@ -28,6 +28,7 @@ const sourceLabels: Record<string, string> = {
   believe_fr: 'Believe FR',
   cdbaby: 'CD Baby',
   bandcamp: 'Bandcamp',
+  squarespace: 'Squarespace',
   other: 'Autre',
 };
 
@@ -37,6 +38,8 @@ export default function ImportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [selectedImport, setSelectedImport] = useState<ImportRecord | null>(null);
+  const [saleTypes, setSaleTypes] = useState<ImportSaleTypesResponse | null>(null);
+  const [loadingSaleTypes, setLoadingSaleTypes] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
@@ -125,6 +128,31 @@ export default function ImportsPage() {
   const handleUploadComplete = () => {
     setShowUpload(false);
     loadImports();
+  };
+
+  const handleSelectImport = async (imp: ImportRecord) => {
+    setSelectedImport(imp);
+    setSaleTypes(null);
+    setLoadingSaleTypes(true);
+    try {
+      const data = await getImportSaleTypes(imp.id);
+      setSaleTypes(data);
+    } catch {
+      // Sale types optional
+    } finally {
+      setLoadingSaleTypes(false);
+    }
+  };
+
+  const saleTypeLabels: Record<string, string> = {
+    stream: 'Streaming',
+    download: 'Téléchargement',
+    physical: 'Physique',
+    other: 'Autre',
+  };
+
+  const formatCurrency = (value: string, currency: string = 'EUR') => {
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
   const handleDelete = async (importId: string) => {
@@ -256,7 +284,7 @@ export default function ImportsPage() {
                                   <div key={imp.id} className="pl-16 pr-4">
                                     <ImportCard
                                       import_={imp}
-                                      onClick={() => setSelectedImport(imp)}
+                                      onClick={() => handleSelectImport(imp)}
                                     />
                                   </div>
                                 ))}
@@ -283,7 +311,7 @@ export default function ImportsPage() {
 
       <Modal
         isOpen={!!selectedImport}
-        onClose={() => setSelectedImport(null)}
+        onClose={() => { setSelectedImport(null); setSaleTypes(null); }}
         size="lg"
         scrollBehavior="inside"
         backdrop="opaque"
@@ -323,6 +351,48 @@ export default function ImportsPage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Sale Types Breakdown */}
+                    {loadingSaleTypes ? (
+                      <div className="text-center py-4">
+                        <Spinner size="sm" />
+                      </div>
+                    ) : saleTypes && (saleTypes.sale_types.length > 0 || saleTypes.physical_formats.length > 0) && (
+                      <>
+                        <Divider />
+                        <div>
+                          <p className="text-sm text-default-500 mb-2">Types de vente</p>
+                          <div className="space-y-2">
+                            {saleTypes.sale_types.map((st) => (
+                              <div key={st.type} className="flex justify-between items-center">
+                                <span className="text-sm font-medium">{saleTypeLabels[st.type] || st.type}</span>
+                                <span className="text-sm text-default-500">
+                                  {st.count} ventes · {formatCurrency(st.total)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {saleTypes.physical_formats.length > 0 && (
+                          <>
+                            <Divider />
+                            <div>
+                              <p className="text-sm text-default-500 mb-2">Formats physiques</p>
+                              <div className="space-y-2">
+                                {saleTypes.physical_formats.map((pf) => (
+                                  <div key={pf.format} className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">{pf.format}</span>
+                                    <span className="text-sm text-default-500">
+                                      {pf.count} ventes · {formatCurrency(pf.total)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
 
                     {selectedImport.errors.length > 0 && (
                       <>

@@ -124,6 +124,7 @@ class ArtistResponse(BaseModel):
     """Response schema for an artist."""
     id: UUID
     name: str
+    category: str = "signed"  # 'signed' or 'collaborator'
     external_id: Optional[str] = None
     spotify_id: Optional[str] = None
     image_url: Optional[str] = None
@@ -192,6 +193,7 @@ class AdvanceLedgerEntryResponse(BaseModel):
     """Response schema for an advance ledger entry."""
     id: UUID
     artist_id: Optional[UUID] = None
+    artist_name: Optional[str] = None
     entry_type: str
     amount: Decimal
     currency: str
@@ -201,6 +203,7 @@ class AdvanceLedgerEntryResponse(BaseModel):
     royalty_run_id: Optional[UUID] = None
     description: Optional[str] = None
     reference: Optional[str] = None
+    document_url: Optional[str] = None
     effective_date: datetime
     created_at: datetime
 

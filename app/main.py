@@ -17,6 +17,8 @@ from app.routers.spotify import router as spotify_router
 from app.routers.catalog import router as catalog_router
 from app.routers.settings import router as settings_router
 from app.routers.match import router as match_router
+from app.routers.analytics import router as analytics_router
+from app.routers.finances import router as finances_router
 
 
 @asynccontextmanager
@@ -35,6 +37,8 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE transactions_normalized ADD COLUMN IF NOT EXISTS item_url VARCHAR(500)",
             "ALTER TABLE advance_ledger ALTER COLUMN artist_id DROP NOT NULL",
             "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS category VARCHAR(50)",
+            "ALTER TABLE artists ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'signed'",
+            "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS document_url VARCHAR(500)",
         ]
         for sql in migrations:
             try:
@@ -84,6 +88,8 @@ app.include_router(spotify_router)
 app.include_router(catalog_router)
 app.include_router(settings_router)
 app.include_router(match_router)
+app.include_router(analytics_router)
+app.include_router(finances_router)
 
 
 @app.get("/health")

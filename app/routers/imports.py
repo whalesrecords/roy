@@ -26,9 +26,17 @@ from app.models.transaction import TransactionNormalized
 from sqlalchemy import select
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
+from app.services.parsers.squarespace import SquarespaceParser
 from app.services.parsers.believe_uk import BelieveUKParser
 from app.services.parsers.believe_fr import BelieveFRParser
-from app.services.normalize import normalize_tunecore_row, normalize_bandcamp_row, normalize_believe_uk_row, normalize_believe_fr_row
+from app.services.normalize import (
+    normalize_tunecore_row,
+    normalize_bandcamp_row,
+    normalize_squarespace_row,
+    normalize_believe_uk_row,
+    normalize_believe_fr_row,
+    parse_squarespace_date,
+)
 
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -165,9 +173,31 @@ async def analyze_import(
     artists_with_ampersand = []
     total_artists = 0
 
-    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP):
+    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP, ImportSource.SQUARESPACE):
         # Fast: extract period from filename
         period_start, period_end = extract_period_from_filename(file.filename or "")
+
+        # For Squarespace, if period not in filename, extract from CSV content
+        if import_source == ImportSource.SQUARESPACE and (not period_start or not period_end):
+            content = await file.read()
+            parser = SquarespaceParser()
+            result = parser.parse(content)
+
+            # Extract date range from parsed orders
+            dates = []
+            for row in result.rows:
+                if row.date_from:
+                    parsed_date = parse_squarespace_date(row.date_from)
+                    if parsed_date:
+                        dates.append(parsed_date)
+
+            if dates:
+                dates.sort()
+                period_start = dates[0]
+                period_end = dates[-1]
+
+            # Reset file position for potential re-use
+            await file.seek(0)
 
     # Check for duplicates (same source, filename, and period)
     duplicate = None
@@ -305,6 +335,37 @@ async def create_import(
         for row in result.rows:
             try:
                 transaction = normalize_bandcamp_row(
+                    row=row,
+                    import_id=import_record.id,
+                    fallback_period_start=period_start,
+                    fallback_period_end=period_end,
+                )
+                transactions.append(transaction)
+                gross_total += transaction.gross_amount
+            except Exception as e:
+                errors.append(ImportErrorDetail(
+                    row_number=row.row_number,
+                    error=f"Normalization error: {str(e)}",
+                ))
+
+    elif import_source == ImportSource.SQUARESPACE:
+        parser = SquarespaceParser()
+        result = parser.parse(content)
+
+        import_record.rows_total = result.total_rows
+
+        # Collect errors
+        for err in result.errors:
+            errors.append(ImportErrorDetail(
+                row_number=err.row_number,
+                error=err.error,
+                raw_data=err.raw_data,
+            ))
+
+        # Normalize and create transactions
+        for row in result.rows:
+            try:
+                transaction = normalize_squarespace_row(
                     row=row,
                     import_id=import_record.id,
                     fallback_period_start=period_start,
@@ -588,6 +649,84 @@ async def get_mapping(
     return {"mappings": mappings}
 
 
+@router.get("/{import_id}/sale-types")
+async def get_import_sale_types(
+    import_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Get breakdown of sale types for an import.
+    Useful for Bandcamp to see CD vs Vinyl vs Digital.
+    """
+    from uuid import UUID
+    from sqlalchemy import func
+
+    try:
+        uuid_id = UUID(import_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid import ID format",
+        )
+
+    # Get import to check source
+    result = await db.execute(select(Import).where(Import.id == uuid_id))
+    import_record = result.scalar_one_or_none()
+
+    if not import_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Import not found",
+        )
+
+    # Get sale type breakdown
+    sale_types_result = await db.execute(
+        select(
+            TransactionNormalized.sale_type,
+            func.count(TransactionNormalized.id).label('count'),
+            func.sum(TransactionNormalized.gross_amount).label('total'),
+        )
+        .where(TransactionNormalized.import_id == uuid_id)
+        .group_by(TransactionNormalized.sale_type)
+    )
+    sale_types = sale_types_result.all()
+
+    # For physical sales (Bandcamp), get format breakdown
+    physical_formats_result = await db.execute(
+        select(
+            TransactionNormalized.physical_format,
+            func.count(TransactionNormalized.id).label('count'),
+            func.sum(TransactionNormalized.gross_amount).label('total'),
+        )
+        .where(TransactionNormalized.import_id == uuid_id)
+        .where(TransactionNormalized.physical_format.isnot(None))
+        .group_by(TransactionNormalized.physical_format)
+    )
+    physical_formats = physical_formats_result.all()
+
+    return {
+        "import_id": import_id,
+        "source": import_record.source.value if hasattr(import_record.source, 'value') else import_record.source,
+        "sale_types": [
+            {
+                "type": st.sale_type.value if hasattr(st.sale_type, 'value') else str(st.sale_type),
+                "count": st.count,
+                "total": str(st.total or 0),
+            }
+            for st in sale_types
+        ],
+        "physical_formats": [
+            {
+                "format": pf.physical_format,
+                "count": pf.count,
+                "total": str(pf.total or 0),
+            }
+            for pf in physical_formats
+        ],
+    }
+
+
 @router.delete("/{import_id}")
 async def delete_import(
     import_id: str,
@@ -799,6 +938,10 @@ async def get_artist_tracks(
             TransactionNormalized.isrc.in_(linked_isrcs),
         )
 
+    # Filter out malformed data (headers imported as data)
+    from sqlalchemy import and_
+    bad_titles = ['isrc', 'track', 'title', 'song', 'name', 'upc', 'artist']
+
     result = await db.execute(
         select(
             TransactionNormalized.track_title,
@@ -808,7 +951,12 @@ async def get_artist_tracks(
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
         )
-        .where(where_clause)
+        .where(and_(
+            where_clause,
+            # Filter out rows where track_title looks like a column header
+            TransactionNormalized.track_title.isnot(None),
+            func.lower(TransactionNormalized.track_title).notin_(bad_titles),
+        ))
         .group_by(
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
@@ -828,7 +976,7 @@ async def get_artist_tracks(
         artist_gross = gross * share
 
         tracks.append({
-            "track_title": row.track_title,
+            "track_title": row.track_title or "(Sans titre)",
             "release_title": row.release_title,
             "isrc": row.isrc,
             "total_gross": str(artist_gross),

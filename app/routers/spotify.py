@@ -369,6 +369,69 @@ async def fetch_artist_from_url(
         )
 
 
+@router.get("/artwork/releases")
+async def get_cached_release_artworks(
+    upcs: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get cached artwork for multiple releases by UPC.
+    Pass UPCs as comma-separated values.
+    """
+    upc_list = [u.strip() for u in upcs.split(",") if u.strip()]
+    if not upc_list:
+        return []
+
+    result = await db.execute(
+        select(ReleaseArtwork).where(ReleaseArtwork.upc.in_(upc_list))
+    )
+    artworks = result.scalars().all()
+
+    return [
+        {
+            "upc": a.upc,
+            "spotify_id": a.spotify_id,
+            "name": a.name,
+            "image_url": a.image_url,
+            "image_url_small": a.image_url_small,
+        }
+        for a in artworks
+    ]
+
+
+@router.get("/artwork/tracks")
+async def get_cached_track_artworks(
+    isrcs: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get cached artwork for multiple tracks by ISRC.
+    Pass ISRCs as comma-separated values.
+    """
+    isrc_list = [i.strip() for i in isrcs.split(",") if i.strip()]
+    if not isrc_list:
+        return []
+
+    result = await db.execute(
+        select(TrackArtwork).where(TrackArtwork.isrc.in_(isrc_list))
+    )
+    artworks = result.scalars().all()
+
+    return [
+        {
+            "isrc": a.isrc,
+            "spotify_id": a.spotify_id,
+            "name": a.name,
+            "album_name": a.album_name,
+            "image_url": a.image_url,
+            "image_url_small": a.image_url_small,
+        }
+        for a in artworks
+    ]
+
+
 @router.put("/artists/{artist_id}/artwork")
 async def update_artist_artwork(
     artist_id: UUID,

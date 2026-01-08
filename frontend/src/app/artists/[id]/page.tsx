@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory } from '@/lib/types';
+import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory, ArtistCategory, ARTIST_CATEGORIES } from '@/lib/types';
 import {
   getArtist,
   getContracts,
@@ -26,9 +26,12 @@ import {
   fetchArtistFromSpotifyUrl,
   updateArtistArtwork,
   updateArtist,
+  deleteArtist,
   calculateArtistRoyalties,
   searchAlbumByUPC,
   searchTrackByISRC,
+  getCachedReleaseArtworks,
+  getCachedTrackArtworks,
   getLabelSettings,
   CatalogRelease,
   CatalogTrack,
@@ -91,6 +94,7 @@ const PERIODS = generatePeriods();
 
 export default function ArtistDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const artistId = params.id as string;
 
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -129,6 +133,11 @@ export default function ArtistDetailPage() {
   const [advanceCategory, setAdvanceCategory] = useState<ExpenseCategory | ''>('');
   const [creatingAdvance, setCreatingAdvance] = useState(false);
 
+  // Delete artist
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   // Artwork
   const [fetchingArtwork, setFetchingArtwork] = useState(false);
   const [showEditArtwork, setShowEditArtwork] = useState(false);
@@ -147,6 +156,7 @@ export default function ArtistDetailPage() {
   const [showEditArtist, setShowEditArtist] = useState(false);
   const [editName, setEditName] = useState('');
   const [editSpotifyId, setEditSpotifyId] = useState('');
+  const [editCategory, setEditCategory] = useState<ArtistCategory>('signed');
   const [savingArtist, setSavingArtist] = useState(false);
 
   // Expanded releases (to show tracks)
@@ -209,15 +219,52 @@ export default function ArtistDetailPage() {
           setReleases(releasesData);
           setTracks(tracksData);
 
-          // Auto-load artwork for releases (first 10 to avoid rate limiting)
-          const releasesToFetch = releasesData.slice(0, 10);
-          for (const release of releasesToFetch) {
+          // Load cached artworks in bulk (much faster than individual requests)
+          const releaseUpcs = releasesData.map(r => r.upc).filter(Boolean);
+          const trackIsrcs = tracksData.map(t => t.isrc).filter(Boolean);
+
+          const [cachedReleaseArt, cachedTrackArt] = await Promise.all([
+            getCachedReleaseArtworks(releaseUpcs).catch(() => []),
+            getCachedTrackArtworks(trackIsrcs).catch(() => []),
+          ]);
+
+          // Set cached artworks
+          const albumArtMap: Record<string, SpotifyAlbumResult> = {};
+          for (const art of cachedReleaseArt) {
+            if (art.upc && art.image_url) {
+              albumArtMap[art.upc] = {
+                spotify_id: art.spotify_id,
+                name: art.name,
+                image_url: art.image_url,
+                image_url_small: art.image_url_small,
+              };
+            }
+          }
+          setAlbumArtwork(albumArtMap);
+
+          const trackArtMap: Record<string, SpotifyTrackResult> = {};
+          for (const art of cachedTrackArt) {
+            if (art.isrc && art.image_url) {
+              trackArtMap[art.isrc] = {
+                spotify_id: art.spotify_id,
+                name: art.name,
+                album_name: art.album_name,
+                image_url: art.image_url,
+                image_url_small: art.image_url_small,
+              };
+            }
+          }
+          setTrackArtwork(trackArtMap);
+
+          // Fetch missing artwork from Spotify for first 5 releases (the rest can be loaded on demand)
+          const missingReleases = releasesData.filter(r => r.upc && !albumArtMap[r.upc]).slice(0, 5);
+          for (const release of missingReleases) {
             try {
               const artworkResult = await searchAlbumByUPC(release.upc);
               if (artworkResult.image_url) {
                 setAlbumArtwork(prev => ({ ...prev, [release.upc]: artworkResult }));
               }
-            } catch (err) {
+            } catch {
               // Silently fail - artwork is optional
             }
           }
@@ -331,6 +378,18 @@ export default function ArtistDetailPage() {
     }
   };
 
+  const handleDeleteArtist = async () => {
+    if (!artist || deleteConfirmText !== artist.name) return;
+    setDeleting(true);
+    try {
+      await deleteArtist(artistId);
+      router.push('/artists');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de suppression');
+      setDeleting(false);
+    }
+  };
+
   const handleDeletePayment = async (paymentId: string) => {
     if (!confirm('Supprimer ce versement ?')) return;
     setDeletingPaymentId(paymentId);
@@ -386,6 +445,7 @@ export default function ArtistDetailPage() {
       await updateArtist(artistId, {
         name: editName.trim(),
         spotify_id: editSpotifyId.trim() || undefined,
+        category: editCategory,
       });
       setShowEditArtist(false);
       loadData();
@@ -976,6 +1036,7 @@ export default function ArtistDetailPage() {
                   onClick={() => {
                     setEditName(artist.name);
                     setEditSpotifyId(artist.spotify_id || '');
+                    setEditCategory(artist.category || 'signed');
                     setShowEditArtist(true);
                   }}
                   className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded-lg transition-colors"
@@ -986,9 +1047,16 @@ export default function ArtistDetailPage() {
                   </svg>
                 </button>
               </div>
-              <p className="text-sm text-default-500 mt-1">
-                {releases.length} release{releases.length > 1 ? 's' : ''} · {tracks.length} track{tracks.length > 1 ? 's' : ''}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-default-500">
+                  {releases.length} release{releases.length > 1 ? 's' : ''} · {tracks.length} track{tracks.length > 1 ? 's' : ''}
+                </p>
+                {artist.category === 'collaborator' && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 text-secondary-700">
+                    Collaborateur
+                  </span>
+                )}
+              </div>
               {artist.spotify_id && (
                 <a
                   href={`https://open.spotify.com/artist/${artist.spotify_id}`}
@@ -2222,6 +2290,28 @@ export default function ArtistDetailPage() {
               />
               <div>
                 <label className="block text-sm font-medium text-default-700 mb-2">
+                  Catégorie
+                </label>
+                <div className="flex gap-2">
+                  {ARTIST_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.value}
+                      onClick={() => setEditCategory(cat.value)}
+                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                        editCategory === cat.value
+                          ? cat.value === 'signed'
+                            ? 'bg-primary-100 border-primary-500 text-primary-700'
+                            : 'bg-secondary-100 border-secondary-500 text-secondary-700'
+                          : 'bg-default-100 border-default-200 text-default-600 hover:bg-default-200'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-default-700 mb-2">
                   ID Spotify (optionnel)
                 </label>
                 <div className="flex gap-2">
@@ -2469,6 +2559,92 @@ export default function ArtistDetailPage() {
                 Enregistrer
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && artist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-background w-full max-w-md rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-divider bg-red-50">
+              <h2 className="text-lg font-semibold text-red-800">Supprimer l&apos;artiste</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-red-100 border border-red-300 rounded-lg p-4">
+                <p className="text-red-800 font-medium text-center mb-2">
+                  ATTENTION: Cette action est IRREVERSIBLE
+                </p>
+                <p className="text-red-700 text-sm text-center">
+                  Toutes les donnees associees seront supprimees:
+                </p>
+                <ul className="text-red-600 text-sm mt-2 space-y-1 list-disc list-inside">
+                  <li>Contrats ({contracts.length})</li>
+                  <li>Avances ({advances.length})</li>
+                  <li>Versements ({payments.length})</li>
+                  <li>Liens avec les tracks</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-default-700 mb-2">
+                  Pour confirmer, tapez le nom de l&apos;artiste:
+                </label>
+                <p className="text-lg font-bold text-foreground mb-2 bg-default-100 px-3 py-2 rounded-lg">
+                  {artist.name}
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Tapez le nom exactement"
+                  className="w-full px-4 py-3 border-2 border-red-300 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText('');
+                  }}
+                  className="flex-1"
+                  disabled={deleting}
+                >
+                  Annuler
+                </Button>
+                <button
+                  onClick={handleDeleteArtist}
+                  disabled={deleteConfirmText !== artist.name || deleting}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-colors ${
+                    deleteConfirmText === artist.name
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-red-200 text-red-400 cursor-not-allowed'
+                  }`}
+                >
+                  {deleting ? 'Suppression...' : 'Supprimer definitivement'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Danger Zone - at the very bottom */}
+      {artist && (
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <div className="border-2 border-red-200 rounded-xl bg-red-50 p-4">
+            <h3 className="text-red-800 font-semibold mb-2">Zone de danger</h3>
+            <p className="text-red-600 text-sm mb-4">
+              La suppression d&apos;un artiste est irreversible. Toutes les donnees associees seront perdues.
+            </p>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Supprimer cet artiste
+            </button>
           </div>
         </div>
       )}

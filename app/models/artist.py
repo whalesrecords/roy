@@ -1,6 +1,7 @@
 """Artist model for royalty tracking."""
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, List
 
 from sqlalchemy import String, DateTime
@@ -8,6 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.core.database import Base
+
+
+class ArtistCategory(str, Enum):
+    """Category of artist."""
+    SIGNED = "signed"  # Artiste signé chez Whales Records
+    COLLABORATOR = "collaborator"  # Collaborateur / Remixeur
 
 if TYPE_CHECKING:
     from app.models.contract import Contract
@@ -27,6 +34,13 @@ class Artist(Base):
         default=uuid.uuid4,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+    # Artist category (signed or collaborator)
+    category: Mapped[str] = mapped_column(
+        String(20),
+        default=ArtistCategory.SIGNED.value,
+        nullable=False,
+    )
 
     # Optional external identifiers
     external_id: Mapped[str] = mapped_column(String(100), nullable=True, unique=True)

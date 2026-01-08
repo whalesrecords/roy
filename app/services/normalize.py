@@ -12,6 +12,7 @@ from typing import Optional, Tuple
 from app.models.transaction import TransactionNormalized, SaleType
 from app.services.parsers.tunecore import TuneCoreRow
 from app.services.parsers.bandcamp import BandcampRow
+from app.services.parsers.squarespace import SquarespaceRow
 from app.services.parsers.believe_uk import BelieveUKRow
 from app.services.parsers.believe_fr import BelieveFRRow
 
@@ -637,4 +638,98 @@ def normalize_believe_fr_row(
         period_start=period_start,
         period_end=period_end,
         store_name=row.shop,  # GVL (DE), Audiogest (PT), etc.
+    )
+
+def parse_squarespace_date(date_str: Optional[str]) -> Optional[date]:
+    """
+    Parse Squarespace date format.
+
+    Formats: "2026-01-03 14:19:45 +0100"
+
+    Returns:
+        date object or None
+    """
+    if not date_str:
+        return None
+
+    try:
+        # Squarespace format: "2026-01-03 14:19:45 +0100"
+        # We only need the date part
+        date_part = date_str.split()[0]  # "2026-01-03"
+        return date.fromisoformat(date_part)
+    except (ValueError, IndexError):
+        return None
+
+
+def normalize_squarespace_item_type(item_type: str) -> SaleType:
+    """
+    Convert Squarespace item type to SaleType enum.
+
+    Args:
+        item_type: "album", "track", or "package"
+
+    Returns:
+        SaleType enum value
+    """
+    if item_type == "track":
+        return SaleType.DOWNLOAD
+    elif item_type == "album":
+        return SaleType.DOWNLOAD
+    elif item_type == "package":
+        return SaleType.PHYSICAL
+    else:
+        return SaleType.OTHER
+
+
+def normalize_squarespace_row(
+    row: SquarespaceRow,
+    import_id: str,
+    fallback_period_start: date,
+    fallback_period_end: date,
+) -> TransactionNormalized:
+    """
+    Transform a parsed Squarespace row into a normalized transaction.
+
+    Args:
+        row: Parsed Squarespace row
+        import_id: UUID of the parent import
+        fallback_period_start: Default period start if not parseable from CSV
+        fallback_period_end: Default period end if not parseable from CSV
+
+    Returns:
+        TransactionNormalized instance (not yet persisted)
+    """
+    # Try to parse date from row (Squarespace provides paid_at date)
+    parsed_date = parse_squarespace_date(row.date_from)
+
+    if parsed_date:
+        period_start = parsed_date
+        period_end = parsed_date
+    else:
+        period_start = fallback_period_start
+        period_end = fallback_period_end
+
+    # All Squarespace items are treated as releases (albums or physical products)
+    release_title = row.item_name
+    track_title = None
+
+    return TransactionNormalized(
+        import_id=import_id,
+        source_row_number=row.row_number,
+        artist_name=row.artist,
+        release_title=release_title,
+        track_title=track_title,
+        isrc=None,  # Squarespace doesn't provide ISRC
+        upc=None,  # Squarespace doesn't provide UPC in our data
+        territory=None,  # Squarespace doesn't provide buyer country reliably
+        sale_type=normalize_squarespace_item_type(row.item_type),
+        original_sale_type=row.item_type,
+        quantity=row.quantity,
+        gross_amount=row.net_amount,  # This is the item price (without shipping)
+        currency=row.currency.upper() if row.currency else "EUR",
+        period_start=period_start,
+        period_end=period_end,
+        store_name="Squarespace",
+        sku=row.sku,
+        physical_format=row.variant,  # Color/edition variant
     )

@@ -11,18 +11,23 @@ import {
   Spinner,
   Input,
 } from '@heroui/react';
-import { Artist } from '@/lib/types';
-import { getArtists, getCatalogArtists, CatalogArtist, createArtist } from '@/lib/api';
+import { Artist, ArtistCategory, ARTIST_CATEGORIES } from '@/lib/types';
+import { getArtists, getCatalogArtists, CatalogArtist, createArtist, getDuplicateArtists, mergeArtists, SimilarArtistGroup } from '@/lib/api';
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [catalogArtists, setCatalogArtists] = useState<CatalogArtist[]>([]);
+  const [duplicates, setDuplicates] = useState<SimilarArtistGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [mergingPair, setMergingPair] = useState<{ source: Artist; target: Artist } | null>(null);
+  const [merging, setMerging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activating, setActivating] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<ArtistCategory | 'all'>('all');
 
   useEffect(() => {
     loadArtists();
@@ -30,12 +35,39 @@ export default function ArtistsPage() {
 
   const loadArtists = async () => {
     try {
-      const data = await getArtists();
-      setArtists(data);
+      const [artistsData, duplicatesData] = await Promise.all([
+        getArtists(),
+        getDuplicateArtists()
+      ]);
+      setArtists(artistsData);
+      setDuplicates(duplicatesData);
+      if (duplicatesData.length > 0) {
+        setShowDuplicates(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMerge = async () => {
+    if (!mergingPair) return;
+    setMerging(true);
+    setError(null);
+    try {
+      await mergeArtists(mergingPair.source.id, mergingPair.target.id);
+      setMergingPair(null);
+      // Force refresh
+      setDuplicates([]);
+      await loadArtists();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la fusion');
+      setMergingPair(null);
+      // Refresh to get current state
+      await loadArtists();
+    } finally {
+      setMerging(false);
     }
   };
 
@@ -75,10 +107,16 @@ export default function ArtistsPage() {
     return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
-  // Filter artists by search
-  const filteredArtists = artists.filter(a =>
-    a.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter artists by search and category
+  const filteredArtists = artists.filter(a => {
+    const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || a.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Count by category
+  const signedCount = artists.filter(a => a.category === 'signed').length;
+  const collaboratorCount = artists.filter(a => a.category === 'collaborator').length;
 
   // Inactive catalog artists (not yet activated)
   const inactiveCatalog = catalogArtists.filter(ca =>
@@ -134,6 +172,33 @@ export default function ArtistsPage() {
               inputWrapper: "bg-default-100",
             }}
           />
+          {/* Category Filter Tabs */}
+          <div className="flex gap-2 mt-3">
+            <Button
+              size="sm"
+              variant={categoryFilter === 'all' ? 'solid' : 'flat'}
+              color={categoryFilter === 'all' ? 'primary' : 'default'}
+              onPress={() => setCategoryFilter('all')}
+            >
+              Tous ({artists.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={categoryFilter === 'signed' ? 'solid' : 'flat'}
+              color={categoryFilter === 'signed' ? 'primary' : 'default'}
+              onPress={() => setCategoryFilter('signed')}
+            >
+              Signés ({signedCount})
+            </Button>
+            <Button
+              size="sm"
+              variant={categoryFilter === 'collaborator' ? 'solid' : 'flat'}
+              color={categoryFilter === 'collaborator' ? 'secondary' : 'default'}
+              onPress={() => setCategoryFilter('collaborator')}
+            >
+              Collaborateurs ({collaboratorCount})
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -142,6 +207,109 @@ export default function ArtistsPage() {
           <Card className="bg-danger-50">
             <CardBody>
               <p className="text-danger">{error}</p>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Duplicates Warning */}
+        {duplicates.length > 0 && showDuplicates && (
+          <Card className="border-2 border-warning bg-warning-50">
+            <CardHeader className="px-4 py-3 border-b border-warning-200">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <h2 className="font-semibold text-warning-800">Doublons détectés</h2>
+                  <span className="text-sm text-warning-600">({duplicates.length} groupes)</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="light"
+                  onPress={() => setShowDuplicates(false)}
+                >
+                  Masquer
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody className="p-0">
+              <div className="divide-y divide-warning-200">
+                {duplicates.map((group, idx) => (
+                  <div key={idx} className="p-4">
+                    <p className="text-sm text-warning-700 mb-3">
+                      Ces artistes ont des noms similaires. Voulez-vous les fusionner ?
+                    </p>
+                    <div className="space-y-2">
+                      {group.artists.map((artist) => (
+                        <div
+                          key={artist.id}
+                          className="flex items-center justify-between bg-white rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <ArtistAvatar artist={artist} name={artist.name} />
+                            <div>
+                              <p className="font-medium text-foreground">{artist.name}</p>
+                              <p className="text-xs text-default-500">
+                                {artist.spotify_id ? 'Spotify lié' : 'Pas de Spotify'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {group.artists.filter(a => a.id !== artist.id).map((other) => (
+                              <Button
+                                key={other.id}
+                                size="sm"
+                                color="warning"
+                                variant="flat"
+                                onPress={() => setMergingPair({ source: other, target: artist })}
+                              >
+                                Fusionner &quot;{other.name}&quot; ici
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Merge Confirmation Modal */}
+        {mergingPair && (
+          <Card className="border-2 border-primary bg-primary-50">
+            <CardHeader className="px-4 py-3 border-b border-primary-200">
+              <h2 className="font-semibold text-primary-800">Confirmer la fusion</h2>
+            </CardHeader>
+            <CardBody className="p-4 space-y-4">
+              <p className="text-sm text-primary-700">
+                Vous allez fusionner <strong>&quot;{mergingPair.source.name}&quot;</strong> vers <strong>&quot;{mergingPair.target.name}&quot;</strong>.
+              </p>
+              <div className="bg-white rounded-lg p-3 text-sm space-y-1">
+                <p>• Toutes les transactions seront transférées vers <strong>{mergingPair.target.name}</strong></p>
+                <p>• Les avances et contrats seront fusionnés</p>
+                <p>• L&apos;artiste <strong>{mergingPair.source.name}</strong> sera supprimé</p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setMergingPair(null)}
+                  isDisabled={merging}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  color="primary"
+                  onPress={handleMerge}
+                  isLoading={merging}
+                >
+                  Confirmer la fusion
+                </Button>
+              </div>
             </CardBody>
           </Card>
         )}
@@ -192,7 +360,14 @@ export default function ArtistsPage() {
                         <div className="flex items-center gap-3">
                           <ArtistAvatar artist={artist} name={artist.name} />
                           <div>
-                            <p className="font-medium text-foreground">{artist.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-foreground">{artist.name}</p>
+                              {artist.category === 'collaborator' && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full bg-secondary-100 text-secondary-700">
+                                  Collab
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-default-500">
                               {artist.spotify_id ? 'Spotify lié' : 'Configurer →'}
                             </p>

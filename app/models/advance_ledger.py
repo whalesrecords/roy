@@ -140,6 +140,9 @@ class AdvanceLedgerEntry(Base):
     # For advances: reference to source (e.g., contract ID, invoice number)
     reference: Mapped[str] = mapped_column(String(255), nullable=True)
 
+    # Document/invoice URL (PDF stored in Supabase)
+    document_url: Mapped[str] = mapped_column(String(500), nullable=True)
+
     # Timestamps
     effective_date: Mapped[datetime] = mapped_column(
         DateTime,

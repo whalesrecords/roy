@@ -48,6 +48,29 @@ export async function deleteImport(importId: string): Promise<{ success: boolean
   });
 }
 
+export interface SaleTypeBreakdown {
+  type: string;
+  count: number;
+  total: string;
+}
+
+export interface PhysicalFormatBreakdown {
+  format: string;
+  count: number;
+  total: string;
+}
+
+export interface ImportSaleTypesResponse {
+  import_id: string;
+  source: string;
+  sale_types: SaleTypeBreakdown[];
+  physical_formats: PhysicalFormatBreakdown[];
+}
+
+export async function getImportSaleTypes(importId: string): Promise<ImportSaleTypesResponse> {
+  return fetchApi<ImportSaleTypesResponse>(`/imports/${importId}/sale-types`);
+}
+
 export async function createImport(
   file: File,
   source: ImportSource,
@@ -108,6 +131,27 @@ export async function getArtistsSummary(): Promise<ArtistSummary[]> {
   return fetchApi<ArtistSummary[]>('/artists/summary');
 }
 
+export interface SimilarArtistGroup {
+  canonical_name: string;
+  artists: Artist[];
+}
+
+export async function getDuplicateArtists(): Promise<SimilarArtistGroup[]> {
+  return fetchApi<SimilarArtistGroup[]>('/artists/duplicates');
+}
+
+export async function mergeArtists(sourceId: string, targetId: string): Promise<{
+  success: boolean;
+  message: string;
+  links_transferred: number;
+  advances_transferred: number;
+  contracts_transferred: number;
+}> {
+  return fetchApi(`/artists/merge?source_id=${sourceId}&target_id=${targetId}`, {
+    method: 'POST',
+  });
+}
+
 export async function getArtist(artistId: string): Promise<Artist> {
   return fetchApi<Artist>(`/artists/${artistId}`);
 }
@@ -122,7 +166,7 @@ export async function createArtist(name: string, externalId?: string): Promise<A
 
 export async function updateArtist(
   artistId: string,
-  data: { name?: string; spotify_id?: string; image_url?: string; image_url_small?: string }
+  data: { name?: string; spotify_id?: string; image_url?: string; image_url_small?: string; category?: 'signed' | 'collaborator' }
 ): Promise<Artist> {
   return fetchApi<Artist>(`/artists/${artistId}`, {
     method: 'PUT',
@@ -135,20 +179,6 @@ export async function deleteArtist(artistId: string): Promise<{ success: boolean
   return fetchApi<{ success: boolean; deleted_id: string }>(`/artists/${artistId}`, {
     method: 'DELETE',
   });
-}
-
-export async function mergeArtists(
-  targetId: string,
-  sourceIds: string[]
-): Promise<{ success: boolean; target_id: string; merged_count: number; message: string }> {
-  return fetchApi<{ success: boolean; target_id: string; merged_count: number; message: string }>(
-    `/artists/${targetId}/merge`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source_ids: sourceIds }),
-    }
-  );
 }
 
 export async function getContracts(artistId: string): Promise<Contract[]> {
@@ -314,8 +344,9 @@ export async function lockRoyaltyRun(runId: string): Promise<RoyaltyRun> {
   });
 }
 
-export async function deleteRoyaltyRun(runId: string): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(`/royalty-runs/${runId}`, {
+export async function deleteRoyaltyRun(runId: string, force: boolean = false): Promise<{ success: boolean; deleted_id: string }> {
+  const url = force ? `/royalty-runs/${runId}?force=true` : `/royalty-runs/${runId}`;
+  return fetchApi<{ success: boolean; deleted_id: string }>(url, {
     method: 'DELETE',
   });
 }
@@ -459,6 +490,26 @@ export async function searchAlbumByUPC(upc: string): Promise<SpotifyAlbumResult>
 
 export async function searchTrackByISRC(isrc: string): Promise<SpotifyTrackResult> {
   return fetchApi<SpotifyTrackResult>(`/spotify/search/track/isrc/${encodeURIComponent(isrc)}`);
+}
+
+export interface CachedArtwork {
+  upc?: string;
+  isrc?: string;
+  spotify_id?: string;
+  name?: string;
+  album_name?: string;
+  image_url?: string;
+  image_url_small?: string;
+}
+
+export async function getCachedReleaseArtworks(upcs: string[]): Promise<CachedArtwork[]> {
+  if (upcs.length === 0) return [];
+  return fetchApi<CachedArtwork[]>(`/spotify/artwork/releases?upcs=${upcs.join(',')}`);
+}
+
+export async function getCachedTrackArtworks(isrcs: string[]): Promise<CachedArtwork[]> {
+  if (isrcs.length === 0) return [];
+  return fetchApi<CachedArtwork[]>(`/spotify/artwork/tracks?isrcs=${isrcs.join(',')}`);
 }
 
 // Artist royalty calculation
@@ -695,6 +746,234 @@ export async function deletePayment(
     `/artists/${artistId}/payments/${paymentId}`,
     { method: 'DELETE' }
   );
+}
+
+// Expense Report types
+export interface CategoryExpense {
+  category: string;
+  category_label: string;
+  total_amount: string;
+  count: number;
+  currency: string;
+}
+
+export interface ExpenseReportEntry {
+  id: string;
+  artist_id: string | null;
+  entry_type: string;
+  amount: string;
+  currency: string;
+  scope: string;
+  scope_id: string | null;
+  category: string | null;
+  royalty_run_id: string | null;
+  description: string | null;
+  reference: string | null;
+  effective_date: string;
+  created_at: string;
+}
+
+export interface ExpenseReport {
+  total_expenses: string;
+  currency: string;
+  by_category: CategoryExpense[];
+  entries: ExpenseReportEntry[];
+}
+
+export async function getExpenseReport(params?: {
+  artist_id?: string;
+  scope?: string;
+  scope_id?: string;
+  category?: string;
+}): Promise<ExpenseReport> {
+  const searchParams = new URLSearchParams();
+  if (params?.artist_id) searchParams.append('artist_id', params.artist_id);
+  if (params?.scope) searchParams.append('scope', params.scope);
+  if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
+  if (params?.category) searchParams.append('category', params.category);
+
+  const query = searchParams.toString();
+  return fetchApi<ExpenseReport>(`/artists/expenses/report${query ? `?${query}` : ''}`);
+}
+
+// Analytics types
+export interface MonthlyRevenue {
+  month: number;
+  year: number;
+  month_label: string;
+  gross: string;
+  source_breakdown: Record<string, string>;
+}
+
+export interface SourceRevenue {
+  source: string;
+  source_label: string;
+  gross: string;
+  transaction_count: number;
+}
+
+export interface MonthlyExpense {
+  month: number;
+  year: number;
+  month_label: string;
+  amount: string;
+  category_breakdown: Record<string, string>;
+}
+
+export interface CategoryExpenseAnalytics {
+  category: string;
+  category_label: string;
+  amount: string;
+  count: number;
+}
+
+export interface RoyaltiesPayable {
+  period_start: string;
+  period_end: string;
+  net_payable: string;
+  status: string;
+}
+
+export interface AnalyticsSummary {
+  total_revenue: string;
+  total_expenses: string;
+  total_royalties_payable: string;
+  total_outflow: string;
+  net: string;
+  currency: string;
+  monthly_revenue: MonthlyRevenue[];
+  monthly_expenses: MonthlyExpense[];
+  revenue_by_source: SourceRevenue[];
+  expenses_by_category: CategoryExpenseAnalytics[];
+  royalties_payable: RoyaltiesPayable[];
+}
+
+export async function getAnalyticsSummary(year: number): Promise<AnalyticsSummary> {
+  return fetchApi<AnalyticsSummary>(`/analytics/summary?year=${year}`);
+}
+
+// Finances API
+
+export interface ExpenseEntry {
+  id: string;
+  artist_id: string | null;
+  artist_name: string | null;
+  entry_type: string;
+  amount: string;
+  currency: string;
+  scope: string;
+  scope_id: string | null;
+  category: string | null;
+  category_label: string | null;
+  royalty_run_id: string | null;
+  description: string | null;
+  reference: string | null;
+  document_url: string | null;
+  effective_date: string;
+  created_at: string;
+}
+
+export interface RoyaltyPayment {
+  run_id: string;
+  period_start: string;
+  period_end: string;
+  total_net_payable: string;
+  total_artist_royalties: string;
+  total_recouped: string;
+  status: string;
+  locked_at: string | null;
+  artists_count: number;
+}
+
+export interface FinancesSummary {
+  total_expenses: string;
+  total_royalties_payable: string;
+  expenses_count: number;
+  royalty_runs_count: number;
+  currency: string;
+}
+
+export async function getFinancesSummary(year?: number): Promise<FinancesSummary> {
+  const query = year ? `?year=${year}` : '';
+  return fetchApi<FinancesSummary>(`/finances/summary${query}`);
+}
+
+export async function getExpenses(params?: {
+  year?: number;
+  category?: string;
+  artist_id?: string;
+}): Promise<ExpenseEntry[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.year) searchParams.append('year', String(params.year));
+  if (params?.category) searchParams.append('category', params.category);
+  if (params?.artist_id) searchParams.append('artist_id', params.artist_id);
+  const query = searchParams.toString();
+  return fetchApi<ExpenseEntry[]>(`/finances/expenses${query ? `?${query}` : ''}`);
+}
+
+export async function createExpense(data: {
+  artist_id?: string;
+  amount: string;
+  currency?: string;
+  scope?: string;
+  scope_id?: string;
+  category?: string;
+  description?: string;
+  reference?: string;
+  effective_date?: string;
+}): Promise<ExpenseEntry> {
+  return fetchApi<ExpenseEntry>('/finances/expenses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateExpense(
+  expenseId: string,
+  data: {
+    artist_id?: string;
+    amount?: string;
+    currency?: string;
+    scope?: string;
+    scope_id?: string;
+    category?: string;
+    description?: string;
+    reference?: string;
+    effective_date?: string;
+  }
+): Promise<ExpenseEntry> {
+  return fetchApi<ExpenseEntry>(`/finances/expenses/${expenseId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteExpense(expenseId: string): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(`/finances/expenses/${expenseId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function uploadExpenseDocument(expenseId: string, file: File): Promise<{ success: boolean; expense_id: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function deleteExpenseDocument(expenseId: string): Promise<{ success: boolean; expense_id: string }> {
+  return fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getRoyaltyPayments(year?: number): Promise<RoyaltyPayment[]> {
+  const query = year ? `?year=${year}` : '';
+  return fetchApi<RoyaltyPayment[]>(`/finances/royalty-payments${query}`);
 }
 
 // Re-export types from types.ts for convenience
