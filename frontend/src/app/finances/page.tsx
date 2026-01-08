@@ -34,6 +34,7 @@ import {
   FinancesSummary,
   Artist,
 } from '@/lib/api';
+import InvoiceImportModal from '@/components/InvoiceImportModal';
 
 const EXPENSE_CATEGORIES = [
   { value: 'mastering', label: 'Mastering' },
@@ -67,9 +68,12 @@ export default function FinancesPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [activeTab, setActiveTab] = useState<string>('expenses');
+  const [selectedArtistFilter, setSelectedArtistFilter] = useState<string>('all');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInvoiceImportOpen, setIsInvoiceImportOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseEntry | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -81,6 +85,8 @@ export default function FinancesPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formReference, setFormReference] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  const [formScope, setFormScope] = useState<'catalog' | 'track' | 'release'>('catalog');
+  const [formScopeId, setFormScopeId] = useState('');
 
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,6 +147,8 @@ export default function FinancesPage() {
     setFormDescription('');
     setFormReference('');
     setFormDate(new Date().toISOString().split('T')[0]);
+    setFormScope('catalog');
+    setFormScopeId('');
     setIsModalOpen(true);
   };
 
@@ -152,6 +160,8 @@ export default function FinancesPage() {
     setFormDescription(expense.description || '');
     setFormReference(expense.reference || '');
     setFormDate(expense.effective_date.split('T')[0]);
+    setFormScope(expense.scope as 'catalog' | 'track' | 'release');
+    setFormScopeId(expense.scope_id || '');
     setIsModalOpen(true);
   };
 
@@ -167,6 +177,8 @@ export default function FinancesPage() {
         description: formDescription || undefined,
         reference: formReference || undefined,
         effective_date: formDate,
+        scope: formScope,
+        scope_id: formScopeId || undefined,
       };
 
       if (editingExpense) {
@@ -237,6 +249,37 @@ export default function FinancesPage() {
   const totalExpenses = summary ? parseFloat(summary.total_expenses) : 0;
   const totalRoyalties = summary ? parseFloat(summary.total_royalties_payable) : 0;
 
+  // Filter expenses
+  const filteredExpenses = expenses.filter((expense) => {
+    if (selectedArtistFilter !== 'all') {
+      if (selectedArtistFilter === 'general' && expense.artist_id !== null) {
+        return false;
+      }
+      if (selectedArtistFilter !== 'general' && expense.artist_id !== selectedArtistFilter) {
+        return false;
+      }
+    }
+    if (selectedCategoryFilter !== 'all' && expense.category !== selectedCategoryFilter) {
+      return false;
+    }
+    return true;
+  });
+
+  // Group by artist
+  const expensesByArtist = filteredExpenses.reduce((acc, expense) => {
+    const key = expense.artist_id || 'general';
+    if (!acc[key]) {
+      acc[key] = {
+        artist_name: expense.artist_name || 'Frais généraux',
+        expenses: [],
+        total: 0,
+      };
+    }
+    acc[key].expenses.push(expense);
+    acc[key].total += parseFloat(expense.amount);
+    return acc;
+  }, {} as Record<string, { artist_name: string; expenses: ExpenseEntry[]; total: number }>);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -265,6 +308,13 @@ export default function FinancesPage() {
                   </SelectItem>
                 ))}
               </Select>
+              <Button
+                variant="flat"
+                size="sm"
+                onPress={() => setIsInvoiceImportOpen(true)}
+              >
+                Importer Factures
+              </Button>
               <Button color="primary" size="sm" onPress={openCreateModal}>
                 + Ajouter
               </Button>
@@ -328,136 +378,194 @@ export default function FinancesPage() {
 
         {/* Expenses List */}
         {activeTab === 'expenses' && (
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Avances et Frais</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              {expenses.length === 0 ? (
-                <div className="p-8 text-center text-default-500">
-                  Aucune depense pour {selectedYear}
+          <>
+            {/* Filters */}
+            <div className="flex gap-4 flex-wrap">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Artiste</label>
+                <Select
+                  size="sm"
+                  selectedKeys={[selectedArtistFilter]}
+                  onChange={(e) => setSelectedArtistFilter(e.target.value)}
+                  className="w-64"
+                >
+                  <SelectItem key="all">Tous les artistes</SelectItem>
+                  {artists.map((artist) => (
+                    <SelectItem key={artist.id}>{artist.name}</SelectItem>
+                  ))}
+                  <SelectItem key="general">Frais généraux</SelectItem>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Catégorie</label>
+                <Select
+                  size="sm"
+                  selectedKeys={[selectedCategoryFilter]}
+                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                  className="w-64"
+                >
+                  <SelectItem key="all">Toutes les catégories</SelectItem>
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value}>{cat.label}</SelectItem>
+                  ))}
+                </Select>
+              </div>
+            </div>
+
+            <Card className="border border-divider rounded-2xl shadow-sm">
+              <CardHeader className="px-4 py-3 border-b border-divider">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-foreground">Avances et Frais</h2>
+                  <p className="text-sm text-default-500">
+                    {filteredExpenses.length} dépense{filteredExpenses.length > 1 ? 's' : ''}
+                    {' · '}
+                    {formatCurrency(filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0))}
+                  </p>
                 </div>
-              ) : (
-                <div className="divide-y divide-divider">
-                  {expenses.map((expense) => (
-                    <div key={expense.id} className="p-4 hover:bg-default-50 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium text-foreground">
-                              {formatCurrency(expense.amount)}
-                            </p>
-                            {expense.category_label && (
-                              <Chip size="sm" variant="flat" color="primary">
-                                {expense.category_label}
-                              </Chip>
-                            )}
-                            {expense.artist_name && (
-                              <Chip size="sm" variant="flat" color="secondary">
-                                {expense.artist_name}
-                              </Chip>
-                            )}
-                            {expense.document_url && (
-                              <Chip
-                                size="sm"
-                                variant="flat"
-                                color="success"
-                                className="cursor-pointer"
-                                onClick={() => openDocument(expense.document_url!)}
-                              >
-                                PDF
-                              </Chip>
-                            )}
-                          </div>
-                          {expense.description && (
-                            <p className="text-sm text-default-500 mt-1 truncate">
-                              {expense.description}
-                            </p>
-                          )}
-                          <p className="text-xs text-default-400 mt-1">
-                            {formatDate(expense.effective_date)}
-                            {expense.reference && ` - Ref: ${expense.reference}`}
-                          </p>
+              </CardHeader>
+              <CardBody className="p-0">
+                {filteredExpenses.length === 0 ? (
+                  <div className="p-8 text-center text-default-500">
+                    Aucune dépense trouvée
+                  </div>
+                ) : (
+                  <div className="divide-y divide-divider">
+                    {Object.entries(expensesByArtist).map(([artistId, group]) => (
+                      <div key={artistId} className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-semibold text-foreground">{group.artist_name}</h3>
+                          <p className="font-semibold text-warning">{formatCurrency(group.total)}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {/* Upload PDF button */}
-                          <input
-                            type="file"
-                            accept="application/pdf"
-                            className="hidden"
-                            ref={fileInputRef}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file && uploadingId) {
-                                handleFileUpload(uploadingId, file);
-                              }
-                              e.target.value = '';
-                            }}
-                          />
-                          {!expense.document_url ? (
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              isLoading={uploadingId === expense.id}
-                              onPress={() => {
-                                setUploadingId(expense.id);
-                                fileInputRef.current?.click();
-                              }}
-                            >
-                              PDF
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color="danger"
-                              onPress={() => handleDeleteDocument(expense.id)}
-                            >
-                              Suppr PDF
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="flat"
-                            onPress={() => openEditModal(expense)}
-                          >
-                            Modifier
-                          </Button>
-                          {deleteConfirmId === expense.id ? (
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                color="danger"
-                                onPress={() => handleDelete(expense.id)}
-                              >
-                                Confirmer
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="flat"
-                                onPress={() => setDeleteConfirmId(null)}
-                              >
-                                Annuler
-                              </Button>
+                        <div className="space-y-2">
+                          {group.expenses.map((expense) => (
+                            <div key={expense.id} className="p-3 bg-default-50 rounded-lg hover:bg-default-100 transition-colors">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-medium text-foreground">
+                                      {formatCurrency(expense.amount)}
+                                    </p>
+                                    {expense.category_label && (
+                                      <Chip size="sm" variant="flat" color="primary">
+                                        {expense.category_label}
+                                      </Chip>
+                                    )}
+                                    {expense.document_url && (
+                                      <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        color="success"
+                                        className="cursor-pointer"
+                                        onClick={() => openDocument(expense.document_url!)}
+                                      >
+                                        📄 PDF
+                                      </Chip>
+                                    )}
+                                  </div>
+                                  {(expense.scope && expense.scope !== 'catalog') && (
+                                    <p className="text-sm text-default-600 mt-1">
+                                      {expense.scope === 'track' ? '🎵 Track' : '💿 Album'} : {' '}
+                                      <span className="font-medium">
+                                        {expense.scope_title || (expense.scope_id ? expense.scope_id : 'Non spécifié')}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {expense.scope === 'catalog' && (
+                                    <p className="text-sm text-default-500 mt-1">📚 Catalogue général</p>
+                                  )}
+                                  {expense.description && (
+                                    <p className="text-sm text-default-500 mt-1 truncate">
+                                      {expense.description}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-default-400 mt-1">
+                                    {formatDate(expense.effective_date)}
+                                    {expense.reference && ` - Ref: ${expense.reference}`}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {/* Upload PDF button */}
+                                  <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    className="hidden"
+                                    ref={fileInputRef}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file && uploadingId) {
+                                        handleFileUpload(uploadingId, file);
+                                      }
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                  {!expense.document_url ? (
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      isLoading={uploadingId === expense.id}
+                                      onPress={() => {
+                                        setUploadingId(expense.id);
+                                        fileInputRef.current?.click();
+                                      }}
+                                    >
+                                      + PDF
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      color="danger"
+                                      onPress={() => handleDeleteDocument(expense.id)}
+                                    >
+                                      Suppr PDF
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="flat"
+                                    onPress={() => openEditModal(expense)}
+                                  >
+                                    Modifier
+                                  </Button>
+                                  {deleteConfirmId === expense.id ? (
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        color="danger"
+                                        onPress={() => handleDelete(expense.id)}
+                                      >
+                                        Confirmer
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="flat"
+                                        onPress={() => setDeleteConfirmId(null)}
+                                      >
+                                        Annuler
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      variant="flat"
+                                      color="danger"
+                                      onPress={() => setDeleteConfirmId(expense.id)}
+                                    >
+                                      Supprimer
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="flat"
-                              color="danger"
-                              onPress={() => setDeleteConfirmId(expense.id)}
-                            >
-                              Supprimer
-                            </Button>
-                          )}
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardBody>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </>
         )}
 
         {/* Royalty Payments List */}
@@ -518,59 +626,88 @@ export default function FinancesPage() {
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
-              <Input
-                label="Montant (EUR)"
-                labelPlacement="outside"
-                type="number"
-                step="0.01"
-                value={formAmount}
-                onValueChange={setFormAmount}
-                isRequired
-              />
-              <Select
-                label="Categorie"
-                labelPlacement="outside"
-                selectedKeys={formCategory ? [formCategory] : []}
-                onChange={(e) => setFormCategory(e.target.value)}
-              >
-                {EXPENSE_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </Select>
-              <Select
-                label="Artiste (optionnel)"
-                labelPlacement="outside"
-                selectedKeys={formArtistId ? [formArtistId] : []}
-                onChange={(e) => setFormArtistId(e.target.value)}
-              >
-                {artists.map((artist) => (
-                  <SelectItem key={artist.id}>
-                    {artist.name}
-                  </SelectItem>
-                ))}
-              </Select>
-              <Input
-                label="Description"
-                labelPlacement="outside"
-                value={formDescription}
-                onValueChange={setFormDescription}
-              />
-              <Input
-                label="Reference"
-                labelPlacement="outside"
-                value={formReference}
-                onValueChange={setFormReference}
-                placeholder="N facture, etc."
-              />
-              <Input
-                label="Date"
-                labelPlacement="outside"
-                type="date"
-                value={formDate}
-                onValueChange={setFormDate}
-              />
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Montant (EUR)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formAmount}
+                  onValueChange={setFormAmount}
+                  isRequired
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Catégorie</label>
+                <Select
+                  selectedKeys={formCategory ? [formCategory] : []}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                >
+                  {EXPENSE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.value}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Artiste (optionnel)</label>
+                <Select
+                  selectedKeys={formArtistId ? [formArtistId] : []}
+                  onChange={(e) => setFormArtistId(e.target.value)}
+                >
+                  {artists.map((artist) => (
+                    <SelectItem key={artist.id}>
+                      {artist.name}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Périmètre</label>
+                <Select
+                  selectedKeys={[formScope]}
+                  onChange={(e) => setFormScope(e.target.value as 'catalog' | 'track' | 'release')}
+                >
+                  <SelectItem key="catalog">📚 Catalogue général</SelectItem>
+                  <SelectItem key="track">🎵 Track</SelectItem>
+                  <SelectItem key="release">💿 Album</SelectItem>
+                </Select>
+              </div>
+              {formScope !== 'catalog' && (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    {formScope === 'track' ? 'ISRC' : 'UPC'}
+                  </label>
+                  <Input
+                    value={formScopeId}
+                    onValueChange={setFormScopeId}
+                    placeholder={formScope === 'track' ? 'Code ISRC du track' : 'Code UPC de l\'album'}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
+                <Input
+                  value={formDescription}
+                  onValueChange={setFormDescription}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Référence</label>
+                <Input
+                  value={formReference}
+                  onValueChange={setFormReference}
+                  placeholder="N° facture, etc."
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Date</label>
+                <Input
+                  type="date"
+                  value={formDate}
+                  onValueChange={setFormDate}
+                />
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>
@@ -589,6 +726,14 @@ export default function FinancesPage() {
           </>
         )}</ModalContent>
       </Modal>
+
+      {/* Invoice Import Modal */}
+      <InvoiceImportModal
+        isOpen={isInvoiceImportOpen}
+        onClose={() => setIsInvoiceImportOpen(false)}
+        artists={artists}
+        onSuccess={loadData}
+      />
     </>
   );
 }

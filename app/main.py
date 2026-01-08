@@ -19,6 +19,8 @@ from app.routers.settings import router as settings_router
 from app.routers.match import router as match_router
 from app.routers.analytics import router as analytics_router
 from app.routers.finances import router as finances_router
+from app.routers.contracts import router as contracts_router
+from app.routers.invoice_import import router as invoice_import_router
 
 
 @asynccontextmanager
@@ -90,6 +92,8 @@ app.include_router(settings_router)
 app.include_router(match_router)
 app.include_router(analytics_router)
 app.include_router(finances_router)
+app.include_router(contracts_router)
+app.include_router(invoice_import_router)
 
 
 @app.get("/health")

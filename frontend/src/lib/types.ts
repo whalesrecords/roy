@@ -137,6 +137,15 @@ export interface SpotifySearchResult {
   genres?: string[];
 }
 
+export interface ContractParty {
+  id?: string;
+  party_type: 'artist' | 'label';
+  artist_id?: string;
+  label_name?: string;
+  share_percentage: string;
+  created_at?: string;
+}
+
 export interface Contract {
   id: string;
   artist_id: string;
@@ -148,6 +157,7 @@ export interface Contract {
   end_date?: string;
   description?: string;
   created_at: string;
+  parties?: ContractParty[];
 }
 
 export type ExpenseCategory =
@@ -170,6 +180,8 @@ export type ExpenseCategory =
   | 'cd'
   | 'vinyl'
   | 'goodies'
+  | 'accommodation'
+  | 'equipment_rental'
   | 'other';
 
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
@@ -192,6 +204,8 @@ export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [
   { value: 'cd', label: 'CD' },
   { value: 'vinyl', label: 'Vinyles' },
   { value: 'goodies', label: 'Goodies / Merch' },
+  { value: 'accommodation', label: 'Logement / Hôtel' },
+  { value: 'equipment_rental', label: 'Location matériel' },
   { value: 'other', label: 'Autre' },
 ];
 
@@ -259,3 +273,49 @@ export const ROYALTY_STATUS_COLORS: Record<RoyaltyRunStatus, string> = {
   locked: 'bg-purple-100 text-purple-700',
   failed: 'bg-red-100 text-red-700',
 };
+
+// Invoice Import
+export interface ExtractedInvoice {
+  success: boolean;
+  filename: string;
+  // From filename
+  date_from_filename: string | null;
+  category_from_filename: string | null;
+  artist_from_filename: string | null;
+  // From PDF content
+  invoice_number: string | null;
+  vendor_name: string | null;
+  total_amount: string | null;
+  currency: string;
+  album_or_track: string | null;
+  description: string | null;
+  // Metadata
+  confidence_score: number;
+  raw_text: string;
+  warnings: string[];
+  error: string | null;
+  document_base64: string | null;
+}
+
+export interface CreateAdvanceFromInvoice {
+  artist_id?: string;
+  amount: string;
+  currency: string;
+  scope: 'catalog' | 'track' | 'release';
+  scope_id?: string;
+  category?: string;
+  description?: string;
+  reference?: string;
+  effective_date: string;
+  document_base64?: string;
+}
+
+export interface AdvanceCreatedResponse {
+  id: string;
+  artist_id: string | null;
+  amount: string;
+  currency: string;
+  category: string | null;
+  reference: string | null;
+  effective_date: string;
+}

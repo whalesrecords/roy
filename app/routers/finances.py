@@ -21,6 +21,7 @@ from app.core.database import get_db
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
+from app.models.transaction import TransactionNormalized
 
 
 router = APIRouter(prefix="/finances", tags=["finances"])
@@ -48,6 +49,7 @@ class ExpenseResponse(BaseModel):
     currency: str
     scope: str
     scope_id: Optional[str] = None
+    scope_title: Optional[str] = None  # Name of the track/release
     category: Optional[str] = None
     category_label: Optional[str] = None
     royalty_run_id: Optional[str] = None
@@ -219,8 +221,26 @@ async def list_expenses(
     result = await db.execute(query)
     entries = result.scalars().all()
 
-    return [
-        ExpenseResponse(
+    # Build responses with scope titles
+    responses = []
+    for entry in entries:
+        scope_title = None
+
+        # Fetch scope title from transactions
+        if entry.scope == 'track' and entry.scope_id:
+            track_query = select(TransactionNormalized.track_title).where(
+                TransactionNormalized.isrc == entry.scope_id
+            ).limit(1)
+            track_result = await db.execute(track_query)
+            scope_title = track_result.scalar_one_or_none()
+        elif entry.scope == 'release' and entry.scope_id:
+            release_query = select(TransactionNormalized.release_title).where(
+                TransactionNormalized.upc == entry.scope_id
+            ).limit(1)
+            release_result = await db.execute(release_query)
+            scope_title = release_result.scalar_one_or_none()
+
+        responses.append(ExpenseResponse(
             id=str(entry.id),
             artist_id=str(entry.artist_id) if entry.artist_id else None,
             artist_name=entry.artist.name if entry.artist else None,
@@ -229,6 +249,7 @@ async def list_expenses(
             currency=entry.currency,
             scope=entry.scope,
             scope_id=entry.scope_id,
+            scope_title=scope_title,
             category=entry.category,
             category_label=CATEGORY_LABELS.get(entry.category, entry.category) if entry.category else None,
             royalty_run_id=str(entry.royalty_run_id) if entry.royalty_run_id else None,
@@ -237,9 +258,9 @@ async def list_expenses(
             document_url=entry.document_url,
             effective_date=entry.effective_date.isoformat(),
             created_at=entry.created_at.isoformat(),
-        )
-        for entry in entries
-    ]
+        ))
+
+    return responses
 
 
 @router.post("/expenses", response_model=ExpenseResponse)
@@ -287,6 +308,7 @@ async def create_expense(
         currency=entry.currency,
         scope=entry.scope,
         scope_id=entry.scope_id,
+        scope_title=None,
         category=entry.category,
         category_label=CATEGORY_LABELS.get(entry.category, entry.category) if entry.category else None,
         royalty_run_id=None,
@@ -354,6 +376,7 @@ async def update_expense(
         currency=entry.currency,
         scope=entry.scope,
         scope_id=entry.scope_id,
+        scope_title=None,
         category=entry.category,
         category_label=CATEGORY_LABELS.get(entry.category, entry.category) if entry.category else None,
         royalty_run_id=str(entry.royalty_run_id) if entry.royalty_run_id else None,

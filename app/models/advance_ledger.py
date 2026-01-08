@@ -69,6 +69,8 @@ class ExpenseCategory(str, Enum):
     CD = "cd"
     VINYL = "vinyl"
     GOODIES = "goodies"
+    ACCOMMODATION = "accommodation"
+    EQUIPMENT_RENTAL = "equipment_rental"
     OTHER = "other"
 
 
@@ -140,8 +142,8 @@ class AdvanceLedgerEntry(Base):
     # For advances: reference to source (e.g., contract ID, invoice number)
     reference: Mapped[str] = mapped_column(String(255), nullable=True)
 
-    # Document/invoice URL (PDF stored in Supabase)
-    document_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    # Document/invoice URL (PDF stored as base64 data URL)
+    document_url: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Timestamps
     effective_date: Mapped[datetime] = mapped_column(

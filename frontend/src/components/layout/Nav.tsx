@@ -25,6 +25,7 @@ const navItems = [
   { href: '/catalog', label: 'Catalogue' },
   { href: '/artists', label: 'Artistes' },
   { href: '/royalties', label: 'Royalties' },
+  { href: '/contracts', label: 'Contrats' },
   { href: '/finances', label: 'Finances' },
   { href: '/analytics', label: 'Analytics' },
 ];

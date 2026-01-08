@@ -2,6 +2,7 @@ from app.models.import_model import Import, ImportSource, ImportStatus
 from app.models.transaction import TransactionNormalized, SaleType
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
+from app.models.contract_party import ContractParty, PartyType
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.royalty_line_item import RoyaltyLineItem
@@ -22,6 +23,8 @@ __all__ = [
     "Artist",
     "Contract",
     "ContractScope",
+    "ContractParty",
+    "PartyType",
     "AdvanceLedgerEntry",
     "LedgerEntryType",
     "RoyaltyRun",

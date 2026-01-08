@@ -873,20 +873,36 @@ async def get_artist_releases(
         select(
             TransactionNormalized.release_title,
             TransactionNormalized.upc,
+            TransactionNormalized.physical_format,
+            TransactionNormalized.store_name,
             func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
             func.sum(TransactionNormalized.gross_amount).label('total_gross'),
             func.sum(TransactionNormalized.quantity).label('total_streams'),
         )
         .where(where_clause)
-        .group_by(TransactionNormalized.release_title, TransactionNormalized.upc)
+        .group_by(
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+            TransactionNormalized.physical_format,
+            TransactionNormalized.store_name,
+        )
         .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
     rows = result.all()
 
+    # Build UPC mapping: for each release_title, find the first non-UNKNOWN UPC
+    upc_mapping = {}
+    for row in rows:
+        if row.release_title and row.upc and row.upc != "UNKNOWN":
+            if row.release_title not in upc_mapping:
+                upc_mapping[row.release_title] = row.upc
+
     return [
         {
             "release_title": row.release_title or "(Sans album)",
-            "upc": row.upc,
+            "upc": upc_mapping.get(row.release_title, row.upc) if row.upc == "UNKNOWN" else row.upc,
+            "physical_format": row.physical_format,
+            "store_name": row.store_name,
             "track_count": row.track_count or 0,
             "total_gross": str(row.total_gross or 0),
             "total_streams": row.total_streams or 0,

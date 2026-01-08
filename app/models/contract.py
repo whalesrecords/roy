@@ -5,7 +5,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, Numeric, ForeignKey, CheckConstraint
+from sqlalchemy import String, DateTime, Date, Numeric, ForeignKey, CheckConstraint, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,6 +14,7 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.artist import Artist
+    from app.models.contract_party import ContractParty
 
 
 class ContractScope(str, Enum):
@@ -82,6 +83,7 @@ class Contract(Base):
 
     # Metadata
     description: Mapped[str] = mapped_column(String(500), nullable=True)
+    document_url: Mapped[str] = mapped_column(Text, nullable=True)  # PDF contract document
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -100,6 +102,12 @@ class Contract(Base):
     artist: Mapped["Artist"] = relationship(
         "Artist",
         back_populates="contracts",
+    )
+
+    parties: Mapped[list["ContractParty"]] = relationship(
+        "ContractParty",
+        back_populates="contract",
+        cascade="all, delete-orphan",
     )
 
     # Constraints

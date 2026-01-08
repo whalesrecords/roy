@@ -1970,6 +1970,7 @@ async def calculate_artist_royalties(
 
     # Apply scoped advances to each album with CUMULATIVE recoupment
     total_scoped_recoupable = Decimal("0")
+    total_already_recouped_from_history = Decimal("0")  # Track recoupments from previous periods
 
     # Track which singles are included in albums (for display purposes)
     singles_included_in: dict[str, str] = {}  # single_upc -> album_upc
@@ -1985,6 +1986,12 @@ async def calculate_artist_royalties(
             album_advance_balance += release_advances[upc]
             album_isrcs_for_release_advance = upc_to_isrcs.get(upc, set())
 
+            # Add historical revenues for release-level advance (all ISRCs in this album)
+            for isrc in album["tracks"]:
+                if isrc:
+                    key = f"{upc}_{isrc}"
+                    album_historical_revenues += historical_revenues_before_period.get(key, Decimal("0"))
+
             # IMPORTANT: Include royalties from singles that contain the same tracks
             # Album advances should recoup from singles with same ISRC but different UPC
             for other_upc, other_album in albums_data.items():
@@ -1995,6 +2002,10 @@ async def calculate_artist_royalties(
                         # This single contains some tracks from our album
                         # Add its royalties to this album's royalties for recoupment calculation
                         album["artist_royalties"] += other_album.get("artist_royalties", Decimal("0"))
+                        # Also add historical revenues from the single
+                        for isrc in shared_isrcs:
+                            key = f"{other_upc}_{isrc}"
+                            album_historical_revenues += historical_revenues_before_period.get(key, Decimal("0"))
                         # Mark this single as included in the album (for display)
                         singles_included_in[other_upc] = upc
 
@@ -2026,6 +2037,9 @@ async def calculate_artist_royalties(
             already_recouped = min(album_historical_revenues * artist_share, album_advance_balance)
             remaining_advance = album_advance_balance - already_recouped
 
+            # Accumulate historical recoupments for display
+            total_already_recouped_from_history += already_recouped
+
             # What can be recouped this period
             album_recoupable = min(album["artist_royalties"], remaining_advance)
             if album_recoupable < 0:
@@ -2051,10 +2065,12 @@ async def calculate_artist_royalties(
 
     # Calculate clear advance breakdown for display:
     # - total_advances: sum of all advance entries ever given
-    # - total_recouped_before: what was already recouped (from ledger recoupment entries)
+    # - total_recouped_before: what was already recouped in previous periods (calculated from historical revenues)
     # - recoupable: what is recouped THIS period (calculated above)
     # - remaining_advance: what's left after this period
-    total_recouped_before = sum_ledger_recoupments  # Recoupments already recorded in ledger
+    # Note: We use calculated historical recoupments rather than ledger entries
+    # because ledger entries only exist if formal royalty runs were executed
+    total_recouped_before = total_already_recouped_from_history
     remaining_advance = max(Decimal("0"), sum_total_advances - total_recouped_before - recoupable)
 
     # Build album list with effective shares calculated from actual royalties

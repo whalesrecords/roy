@@ -181,69 +181,6 @@ export async function deleteArtist(artistId: string): Promise<{ success: boolean
   });
 }
 
-export async function getContracts(artistId: string): Promise<Contract[]> {
-  return fetchApi<Contract[]>(`/artists/${artistId}/contracts`);
-}
-
-export async function createContract(
-  artistId: string,
-  data: {
-    scope: string;
-    scope_id?: string;
-    artist_share: number;
-    label_share: number;
-    start_date: string;
-    end_date?: string;
-    description?: string;
-  }
-): Promise<Contract> {
-  return fetchApi<Contract>(`/artists/${artistId}/contracts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, artist_id: artistId }),
-  });
-}
-
-export async function updateContract(
-  artistId: string,
-  contractId: string,
-  data: {
-    scope: string;
-    scope_id?: string | null;
-    artist_share: number;
-    label_share: number;
-    start_date: string;
-    end_date?: string;
-    description?: string;
-  }
-): Promise<Contract> {
-  const payload = {
-    artist_id: artistId,
-    scope: data.scope,
-    scope_id: data.scope === 'catalog' ? null : data.scope_id,
-    artist_share: data.artist_share,
-    label_share: data.label_share,
-    start_date: data.start_date,
-    end_date: data.end_date || null,
-    description: data.description || null,
-  };
-  return fetchApi<Contract>(`/artists/${artistId}/contracts/${contractId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteContract(
-  artistId: string,
-  contractId: string
-): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(
-    `/artists/${artistId}/contracts/${contractId}`,
-    { method: 'DELETE' }
-  );
-}
-
 export async function getAdvances(artistId: string): Promise<AdvanceEntry[]> {
   return fetchApi<AdvanceEntry[]>(`/artists/${artistId}/advances`);
 }
@@ -364,6 +301,8 @@ export interface CatalogArtist {
 export interface CatalogRelease {
   release_title: string;
   upc: string;
+  physical_format?: string;
+  store_name?: string;
   track_count: number;
   total_gross: string;
   total_streams: number;
@@ -527,6 +466,7 @@ export interface AlbumRoyalty {
   advance_balance: string;  // Scoped advances for this album
   recoupable: string;       // Amount deducted from this album
   net_payable: string;      // Net after scoped advance deduction
+  included_in_upc?: string; // If this single is included in an album's recoupment
 }
 
 export interface SourceBreakdown {
@@ -863,6 +803,7 @@ export interface ExpenseEntry {
   currency: string;
   scope: string;
   scope_id: string | null;
+  scope_title: string | null;
   category: string | null;
   category_label: string | null;
   royalty_run_id: string | null;
@@ -978,3 +919,123 @@ export async function getRoyaltyPayments(year?: number): Promise<RoyaltyPayment[
 
 // Re-export types from types.ts for convenience
 export type { Artist, Contract, AdvanceEntry, RoyaltyRun } from './types';
+
+// ===== Contracts API =====
+
+export interface ContractParty {
+  id?: string;
+  party_type: 'artist' | 'label';
+  artist_id?: string;
+  label_name?: string;
+  share_percentage: number;
+  created_at?: string;
+}
+
+export interface ContractData {
+  id?: string;
+  artist_id: string;
+  scope: 'track' | 'release' | 'catalog';
+  scope_id?: string;
+  start_date: string;
+  end_date?: string;
+  description?: string;
+  parties: ContractParty[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function getContracts(artistId?: string, scope?: string): Promise<ContractData[]> {
+  const params = new URLSearchParams();
+  if (artistId) params.append('artist_id', artistId);
+  if (scope) params.append('scope', scope);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return fetchApi<ContractData[]>(`/contracts${query}`);
+}
+
+export async function getContract(contractId: string): Promise<ContractData> {
+  return fetchApi<ContractData>(`/contracts/${contractId}`);
+}
+
+export async function createContract(data: Omit<ContractData, 'id' | 'created_at' | 'updated_at'>): Promise<ContractData> {
+  return fetchApi<ContractData>('/contracts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateContract(contractId: string, data: Partial<ContractData>): Promise<ContractData> {
+  return fetchApi<ContractData>(`/contracts/${contractId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteContract(contractId: string): Promise<{ success: boolean; deleted_id: string }> {
+  return fetchApi<{ success: boolean; deleted_id: string }>(`/contracts/${contractId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function uploadContractDocument(contractId: string, file: File): Promise<{ success: boolean; contract_id: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return fetchApi<{ success: boolean; contract_id: string }>(`/contracts/${contractId}/document`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function deleteContractDocument(contractId: string): Promise<{ success: boolean; contract_id: string }> {
+  return fetchApi<{ success: boolean; contract_id: string }>(`/contracts/${contractId}/document`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getActiveContractsForArtist(artistId: string, asOfDate?: string): Promise<ContractData[]> {
+  const query = asOfDate ? `?as_of_date=${asOfDate}` : '';
+  return fetchApi<ContractData[]>(`/contracts/artist/${artistId}/active${query}`);
+}
+
+// ===== Invoice Import API =====
+
+import type { ExtractedInvoice, CreateAdvanceFromInvoice, AdvanceCreatedResponse } from './types';
+
+export async function extractInvoiceData(file: File): Promise<ExtractedInvoice> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return fetchApi<ExtractedInvoice>('/invoice-import/extract', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function batchExtractInvoices(files: File[]): Promise<ExtractedInvoice[]> {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  return fetchApi<ExtractedInvoice[]>('/invoice-import/batch-extract', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function createAdvanceFromInvoice(data: CreateAdvanceFromInvoice): Promise<AdvanceCreatedResponse> {
+  return fetchApi<AdvanceCreatedResponse>('/invoice-import/create-advance', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function batchCreateAdvancesFromInvoices(advances: CreateAdvanceFromInvoice[]): Promise<AdvanceCreatedResponse[]> {
+  return fetchApi<AdvanceCreatedResponse[]>('/invoice-import/batch-create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(advances),
+  });
+}
