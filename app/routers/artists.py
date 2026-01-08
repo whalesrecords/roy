@@ -6,7 +6,7 @@ Handles artist management, contracts, and advances.
 
 import logging
 from decimal import Decimal
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -1300,11 +1300,11 @@ async def update_advance(
             detail=f"Advance {advance_id} not found",
         )
 
-    # Only allow updating advances, not recoupments
-    if entry.entry_type != LedgerEntryType.ADVANCE:
+    # Allow updating advances and recoupments (but not payments)
+    if entry.entry_type == LedgerEntryType.PAYMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only advances can be updated, not recoupments",
+            detail="Payments cannot be updated through this endpoint",
         )
 
     # Validate scope
@@ -1391,11 +1391,11 @@ async def delete_advance(
             detail=f"Advance {advance_id} not found",
         )
 
-    # Only allow deleting advances, not recoupments
-    if entry.entry_type != LedgerEntryType.ADVANCE:
+    # Allow deleting advances and recoupments (but not payments)
+    if entry.entry_type == LedgerEntryType.PAYMENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only advances can be deleted, not recoupments",
+            detail="Payments cannot be deleted through this endpoint",
         )
 
     await db.delete(entry)
@@ -1621,6 +1621,7 @@ class AlbumRoyalty(BaseModel):
     advance_balance: str = "0"  # Scoped advances for this album
     recoupable: str = "0"       # Amount deducted from this album
     net_payable: str = "0"      # Net after scoped advance deduction
+    included_in_upc: Optional[str] = None  # If this single is included in an album's recoupment
 
 
 class SourceBreakdown(BaseModel):
@@ -1903,6 +1904,12 @@ async def calculate_artist_royalties(
     upc_with_advances = set(release_advances.keys())
     isrc_with_advances = set(track_advances.keys())
 
+    # IMPORTANT: Also get ISRCs from albums that have release-level advances
+    # This allows album advances to recoup from singles with the same tracks
+    for upc in upc_with_advances:
+        if upc in albums_data:
+            isrc_with_advances.update(albums_data[upc]["tracks"])
+
     # Only query if there are scoped advances
     if upc_with_advances or isrc_with_advances:
         # Query cumulative revenues from beginning of time until period_end
@@ -1954,8 +1961,18 @@ async def calculate_artist_royalties(
                 key = f"{row.upc}_{row.isrc}"
                 historical_revenues_before_period[key] = row.total_gross or Decimal("0")
 
+    # Build mapping of UPC → ISRCs for albums with advances
+    # This allows album advances to also recoup from singles containing the same tracks
+    upc_to_isrcs: dict[str, set] = {}
+    for upc, album in albums_data.items():
+        if upc in release_advances:
+            upc_to_isrcs[upc] = album["tracks"]
+
     # Apply scoped advances to each album with CUMULATIVE recoupment
     total_scoped_recoupable = Decimal("0")
+
+    # Track which singles are included in albums (for display purposes)
+    singles_included_in: dict[str, str] = {}  # single_upc -> album_upc
 
     for upc, album in albums_data.items():
         album_advance_balance = Decimal("0")
@@ -1963,9 +1980,23 @@ async def calculate_artist_royalties(
         album_historical_revenues = Decimal("0")
 
         # Add release-level advance for this album
+        album_isrcs_for_release_advance = set()
         if upc in release_advances:
             album_advance_balance += release_advances[upc]
-            album_cumulative_revenues += cumulative_revenues_by_upc.get(upc, Decimal("0"))
+            album_isrcs_for_release_advance = upc_to_isrcs.get(upc, set())
+
+            # IMPORTANT: Include royalties from singles that contain the same tracks
+            # Album advances should recoup from singles with same ISRC but different UPC
+            for other_upc, other_album in albums_data.items():
+                if other_upc != upc:  # Don't include the album itself (already counted)
+                    # Check if this other release (single) contains any of our album's tracks
+                    shared_isrcs = other_album["tracks"] & album_isrcs_for_release_advance
+                    if shared_isrcs:
+                        # This single contains some tracks from our album
+                        # Add its royalties to this album's royalties for recoupment calculation
+                        album["artist_royalties"] += other_album.get("artist_royalties", Decimal("0"))
+                        # Mark this single as included in the album (for display)
+                        singles_included_in[other_upc] = upc
 
         # Add track-level advances for tracks in this album
         for isrc in album["tracks"]:
@@ -2030,6 +2061,7 @@ async def calculate_artist_royalties(
     albums = []
     for a in sorted(albums_data.values(), key=lambda x: x["gross"], reverse=True):
         gross = a["gross"]
+        upc = a["upc"]
         # Calculate effective share from actual royalties (handles mixed contracts within album)
         if gross > 0:
             effective_artist_share = a["artist_royalties"] / gross
@@ -2037,6 +2069,9 @@ async def calculate_artist_royalties(
         else:
             effective_artist_share = Decimal("0.5")
             effective_label_share = Decimal("0.5")
+
+        # Check if this single is included in another album's recoupment
+        included_in = singles_included_in.get(upc)
 
         albums.append(AlbumRoyalty(
             release_title=a["release_title"],
@@ -2051,6 +2086,7 @@ async def calculate_artist_royalties(
             advance_balance=str(a.get("advance_balance", Decimal("0"))),
             recoupable=str(a.get("recoupable", Decimal("0"))),
             net_payable=str(a.get("net_payable", a["artist_royalties"])),
+            included_in_upc=included_in,
         ))
 
     # Build sources list

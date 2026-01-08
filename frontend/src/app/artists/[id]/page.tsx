@@ -6,12 +6,15 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory, ArtistCategory, ARTIST_CATEGORIES } from '@/lib/types';
+import { WHALES_LOGO_BASE64 } from '@/lib/whales-logo';
 import {
   getArtist,
+  getArtists,
   getContracts,
   createContract,
   updateContract,
   deleteContract,
+  uploadContractDocument,
   getAdvances,
   createAdvance,
   updateAdvance,
@@ -123,6 +126,9 @@ export default function ArtistDetailPage() {
   const [selectedItem, setSelectedItem] = useState<{ type: 'release' | 'track'; id: string; name: string } | null>(null);
   const [artistShare, setArtistShare] = useState('0.5');
   const [contractStartDate, setContractStartDate] = useState('');
+  const [contractEndDate, setContractEndDate] = useState('');
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [uploadingContract, setUploadingContract] = useState(false);
   const [creatingContract, setCreatingContract] = useState(false);
 
   // Advance form
@@ -185,6 +191,8 @@ export default function ArtistDetailPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [editContractShare, setEditContractShare] = useState('0.5');
   const [editContractStartDate, setEditContractStartDate] = useState('');
+  const [allArtists, setAllArtists] = useState<Artist[]>([]);
+  const [contractParties, setContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number}>>([]);
   const [savingContract, setSavingContract] = useState(false);
   const [deletingContractId, setDeletingContractId] = useState<string | null>(null);
 
@@ -194,12 +202,13 @@ export default function ArtistDetailPage() {
 
   const loadData = async () => {
     try {
-      const [artistData, contractsData, advancesData, balanceData, paymentsData] = await Promise.all([
+      const [artistData, contractsData, advancesData, balanceData, paymentsData, allArtistsData] = await Promise.all([
         getArtist(artistId),
         getContracts(artistId),
         getAdvances(artistId),
         getAdvanceBalance(artistId),
         getPayments(artistId),
+        getArtists(),
       ]);
       setArtist(artistData);
       setContracts(contractsData);
@@ -207,6 +216,7 @@ export default function ArtistDetailPage() {
       setBalance(balanceData.balance);
       setBalanceCurrency(balanceData.currency || 'EUR');
       setPayments(paymentsData);
+      setAllArtists(allArtistsData);
 
       // Load catalog data for the artist
       if (artistData.name) {
@@ -283,20 +293,51 @@ export default function ArtistDetailPage() {
 
   const handleCreateContract = async () => {
     if (!contractStartDate || !selectedItem) return;
+    if (contractParties.length === 0) {
+      setError('Veuillez ajouter au moins une partie au contrat');
+      return;
+    }
+    const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
+    if (totalShare !== 100) {
+      setError('Le total des parts doit être égal à 100%');
+      return;
+    }
+
     setCreatingContract(true);
     try {
-      const share = parseFloat(artistShare);
-      await createContract(artistId, {
+      const contract = await createContract({
+        artist_id: artistId,
         scope: selectedItem.type,
         scope_id: selectedItem.id,
-        artist_share: share,
-        label_share: 1 - share,
         start_date: contractStartDate,
+        end_date: contractEndDate || undefined,
+        parties: contractParties.map(p => ({
+          party_type: p.party_type,
+          artist_id: p.artist_id,
+          label_name: p.label_name,
+          share_percentage: p.share_percentage / 100, // Convert to decimal
+        })),
       });
+
+      // Upload PDF if provided
+      if (contractFile && contract.id) {
+        setUploadingContract(true);
+        try {
+          await uploadContractDocument(contract.id, contractFile);
+        } catch (uploadErr) {
+          console.error('Failed to upload contract document:', uploadErr);
+          setError('Contrat créé mais échec upload PDF');
+        } finally {
+          setUploadingContract(false);
+        }
+      }
+
       setShowContractForm(false);
       setSelectedItem(null);
-      setArtistShare('0.5');
+      setContractParties([]);
       setContractStartDate('');
+      setContractEndDate('');
+      setContractFile(null);
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -307,18 +348,49 @@ export default function ArtistDetailPage() {
 
   const handleCreateCatalogContract = async () => {
     if (!contractStartDate) return;
+    if (contractParties.length === 0) {
+      setError('Veuillez ajouter au moins une partie au contrat');
+      return;
+    }
+    const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
+    if (totalShare !== 100) {
+      setError('Le total des parts doit être égal à 100%');
+      return;
+    }
+
     setCreatingContract(true);
     try {
-      const share = parseFloat(artistShare);
-      await createContract(artistId, {
+      const contract = await createContract({
+        artist_id: artistId,
         scope: 'catalog',
-        artist_share: share,
-        label_share: 1 - share,
         start_date: contractStartDate,
+        end_date: contractEndDate || undefined,
+        parties: contractParties.map(p => ({
+          party_type: p.party_type,
+          artist_id: p.artist_id,
+          label_name: p.label_name,
+          share_percentage: p.share_percentage / 100, // Convert to decimal
+        })),
       });
+
+      // Upload PDF if provided
+      if (contractFile && contract.id) {
+        setUploadingContract(true);
+        try {
+          await uploadContractDocument(contract.id, contractFile);
+        } catch (uploadErr) {
+          console.error('Failed to upload contract document:', uploadErr);
+          setError('Contrat créé mais échec upload PDF');
+        } finally {
+          setUploadingContract(false);
+        }
+      }
+
       setShowContractForm(false);
-      setArtistShare('0.5');
+      setContractParties([]);
       setContractStartDate('');
+      setContractEndDate('');
+      setContractFile(null);
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -668,11 +740,16 @@ export default function ArtistDetailPage() {
 
     // Albums detail
     lines.push('DÉTAIL PAR ALBUM');
-    lines.push('Album;UPC;Tracks;Streams;Brut;Part artiste;Royalties artiste;Avance album;Recoupé;Net album');
+    lines.push('Album;UPC;Tracks;Streams;Brut;Part artiste;Royalties artiste;Avance album;Recoupé;Net album;Inclus dans');
     for (const album of royaltyResult.albums) {
       const advanceBalance = parseFloat(album.advance_balance || '0');
       const recoupable = parseFloat(album.recoupable || '0');
       const netPayable = parseFloat(album.net_payable || album.artist_royalties);
+      const isIncludedInAlbum = !!album.included_in_upc;
+      const parentAlbum = isIncludedInAlbum
+        ? royaltyResult.albums.find(a => a.upc === album.included_in_upc)
+        : null;
+
       lines.push([
         album.release_title,
         album.upc,
@@ -681,9 +758,10 @@ export default function ArtistDetailPage() {
         `${album.gross} ${royaltyResult.currency}`,
         `${(parseFloat(album.artist_share) * 100).toFixed(0)}%`,
         `${album.artist_royalties} ${royaltyResult.currency}`,
-        advanceBalance > 0 ? `${advanceBalance.toFixed(2)} ${royaltyResult.currency}` : '-',
-        recoupable > 0 ? `${recoupable.toFixed(2)} ${royaltyResult.currency}` : '-',
-        `${netPayable.toFixed(2)} ${royaltyResult.currency}`,
+        advanceBalance > 0 ? `${advanceBalance} ${royaltyResult.currency}` : '-',
+        recoupable > 0 ? `${recoupable} ${royaltyResult.currency}` : '-',
+        isIncludedInAlbum ? 'Inclus dans album' : `${netPayable} ${royaltyResult.currency}`,
+        parentAlbum ? parentAlbum.release_title : '-',
       ].join(';'));
     }
 
@@ -710,6 +788,16 @@ export default function ArtistDetailPage() {
       console.error('Error fetching label settings:', err);
     }
 
+    // Fetch advances
+    let advances: AdvanceEntry[] = [];
+    try {
+      const allAdvances = await getAdvances(artist.id);
+      // Filter only actual advances (not recoupments)
+      advances = allAdvances.filter(a => a.entry_type === 'advance');
+    } catch (err) {
+      console.error('Error fetching advances:', err);
+    }
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -734,7 +822,15 @@ export default function ArtistDetailPage() {
 
     // Format dates in English
     const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const formatCurrency = (value: string) => parseFloat(value).toLocaleString('en-US', { style: 'currency', currency: royaltyResult.currency });
+    const formatCurrency = (value: string) => {
+      const num = parseFloat(value);
+      return num.toLocaleString('en-US', {
+        style: 'currency',
+        currency: royaltyResult.currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
     const formatNumber = (value: number) => value.toLocaleString('en-US');
 
     const html = `
@@ -743,6 +839,7 @@ export default function ArtistDetailPage() {
       <head>
         <title>Royalty Statement - ${artist.name}</title>
         <style>
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
           .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
@@ -763,8 +860,29 @@ export default function ArtistDetailPage() {
           th { background: #f5f5f5; font-weight: 600; }
           .mono { font-family: monospace; font-size: 12px; color: #666; }
           .right { text-align: right; }
-          .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e5e5e5; font-size: 12px; color: #666; }
-          @media print { body { padding: 20px; } .label-header { top: 20px; right: 20px; } }
+          .footer {
+            margin-top: 30px;
+            padding: 20px 0 10px 0;
+            border-top: 2px solid #e5e5e5;
+            text-align: center;
+            page-break-inside: avoid;
+          }
+          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; }
+          .footer-text { font-size: 10px; color: #666; margin-top: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+          @page {
+            margin: 20mm 15mm 30mm 15mm;
+            @bottom-center {
+              content: "Page " counter(page) " / " counter(pages);
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-size: 10px;
+              color: #666;
+            }
+          }
+          @media print {
+            body { padding: 20px; }
+            .label-header { top: 20px; right: 20px; }
+            .footer { page-break-inside: avoid; }
+          }
         </style>
       </head>
       <body>
@@ -832,21 +950,55 @@ export default function ArtistDetailPage() {
             <tr>
               <th>Source</th>
               <th class="right">Transactions</th>
-              <th class="right">Streams</th>
+              <th class="right">Streams/Sales</th>
               <th class="right">Gross</th>
               <th class="right">Royalties</th>
             </tr>
           </thead>
           <tbody>
-            ${royaltyResult.sources.map(source => `
+            ${royaltyResult.sources.map(source => {
+              const isSales = source.source_label.toLowerCase() === 'bandcamp' || source.source_label.toLowerCase() === 'squarespace';
+              return `
               <tr>
                 <td>${source.source_label}</td>
                 <td class="right">${formatNumber(source.transaction_count)}</td>
-                <td class="right">${formatNumber(source.streams)}</td>
+                <td class="right">${formatNumber(source.streams)} ${isSales ? 'sale' : 'stream'}${source.streams > 1 ? 's' : ''}</td>
                 <td class="right">${formatCurrency(source.gross)}</td>
                 <td class="right">${formatCurrency(source.artist_royalties)}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
+          </tbody>
+        </table>
+        ` : ''}
+
+        ${advances.length > 0 ? `
+        <h2>Advances History</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th class="right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${advances.map(advance => {
+              const categoryLabel = advance.category
+                ? advance.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                : 'General';
+              return `
+              <tr>
+                <td>${formatDate(new Date(advance.effective_date))}</td>
+                <td>${categoryLabel}</td>
+                <td>${advance.description || '-'}</td>
+                <td class="right" style="color: #b45309; font-weight: 600;">-${formatCurrency(advance.amount)}</td>
+              </tr>
+            `}).join('')}
+            <tr style="font-weight: bold; background: #fee2e2;">
+              <td colspan="3">Total Advances</td>
+              <td class="right" style="color: #dc2626; font-size: 16px;">-${formatCurrency(advances.reduce((sum, a) => sum + parseFloat(a.amount), 0).toString())}</td>
+            </tr>
           </tbody>
         </table>
         ` : ''}
@@ -871,27 +1023,36 @@ export default function ArtistDetailPage() {
               const recoupable = parseFloat(album.recoupable || '0');
               const netPayable = parseFloat(album.net_payable || album.artist_royalties);
               const hasAdvance = advanceBalance > 0;
+              const isIncludedInAlbum = !!album.included_in_upc;
+
+              // Find the parent album title if this single is included in an album
+              const parentAlbum = isIncludedInAlbum
+                ? royaltyResult.albums.find(a => a.upc === album.included_in_upc)
+                : null;
+
               return `
-              <tr>
+              <tr style="${isIncludedInAlbum ? 'background: #fef3c7;' : ''}">
                 <td>
                   <div>${album.release_title}</div>
                   <div class="mono">UPC: ${album.upc}</div>
+                  ${isIncludedInAlbum ? `<div style="font-size: 11px; color: #92400e; margin-top: 4px;">⚠️ Included in ${parentAlbum?.release_title || 'album'} recoupment</div>` : ''}
                 </td>
                 <td>${album.track_count}</td>
                 <td class="right">${formatNumber(album.streams)}</td>
-                <td class="right">${formatCurrency(album.gross)}</td>
+                <td class="right">${isIncludedInAlbum ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.gross)}</span>` : formatCurrency(album.gross)}</td>
                 <td class="right">${(parseFloat(album.artist_share) * 100).toFixed(0)}%</td>
-                <td class="right">${hasAdvance ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
+                <td class="right">${(hasAdvance || isIncludedInAlbum) ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
                 <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
-                <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${formatCurrency(netPayable.toString())}</td>
+                <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${isIncludedInAlbum ? '-' : formatCurrency(netPayable.toString())}</td>
               </tr>
             `}).join('')}
           </tbody>
         </table>
 
         <div class="footer">
-          Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}
+          <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
+          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
         </div>
         </div>
       </body>
@@ -960,13 +1121,48 @@ export default function ArtistDetailPage() {
   };
 
   const formatCurrency = (value: string | number, currency: string = 'EUR') => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('fr-FR', { style: 'currency', currency });
+    const valueStr = typeof value === 'number' ? value.toString() : value;
+    const num = parseFloat(valueStr);
+    return num.toLocaleString('fr-FR', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
   };
 
   const formatNumber = (value: number) => {
     return value.toLocaleString('fr-FR');
   };
+
+  // Group releases by UPC (or release_title if no UPC)
+  const groupedReleases = releases.reduce((acc, release) => {
+    const key = release.upc || release.release_title;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(release);
+    return acc;
+  }, {} as Record<string, CatalogRelease[]>);
+
+  // Convert to array with aggregated data
+  const groupedReleasesArray = Object.entries(groupedReleases).map(([key, releases]) => {
+    const firstRelease = releases[0];
+    const totalGross = releases.reduce((sum, r) => sum + parseFloat(r.total_gross), 0);
+    const totalStreams = releases.reduce((sum, r) => sum + r.total_streams, 0);
+    const totalTracks = Math.max(...releases.map(r => r.track_count)); // Max track count
+
+    return {
+      key,
+      release_title: firstRelease.release_title,
+      upc: firstRelease.upc,
+      currency: firstRelease.currency,
+      total_gross: totalGross.toString(),
+      total_streams: totalStreams,
+      track_count: totalTracks,
+      sources: releases,
+    };
+  });
 
   if (loading) {
     return (
@@ -1256,23 +1452,44 @@ export default function ArtistDetailPage() {
                         const advanceBalance = parseFloat(album.advance_balance || '0');
                         const recoupable = parseFloat(album.recoupable || '0');
                         const netPayable = parseFloat(album.net_payable || album.artist_royalties);
+                        const isIncludedInAlbum = !!album.included_in_upc;
+
+                        // Find the parent album title if this single is included in an album
+                        const parentAlbum = isIncludedInAlbum
+                          ? royaltyResult.albums.find(a => a.upc === album.included_in_upc)
+                          : null;
 
                         return (
-                          <div key={`${album.upc}-${idx}`} className="flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
+                          <div
+                            key={`${album.upc}-${idx}`}
+                            className={`flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0 ${isIncludedInAlbum ? 'bg-warning-50 rounded-lg px-2' : ''}`}
+                          >
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-foreground text-sm truncate">{album.release_title}</p>
+                              <p className={`font-medium text-sm truncate ${isIncludedInAlbum ? 'text-warning-700' : 'text-foreground'}`}>
+                                {album.release_title}
+                              </p>
                               <p className="text-xs text-default-400 font-mono">UPC: {album.upc}</p>
                               <p className="text-xs text-default-500">
                                 {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
                               </p>
-                              {hasAdvance && (
+                              {isIncludedInAlbum && parentAlbum && (
+                                <p className="text-xs text-warning-700 mt-1 font-medium">
+                                  ⚠️ Inclus dans "{parentAlbum.release_title}"
+                                </p>
+                              )}
+                              {hasAdvance && !isIncludedInAlbum && (
                                 <p className="text-xs text-warning-600 mt-1">
                                   Avance: {formatCurrency(advanceBalance, royaltyResult.currency)} → Déduit: {formatCurrency(recoupable, royaltyResult.currency)}
                                 </p>
                               )}
                             </div>
                             <div className="text-right flex-shrink-0">
-                              {hasAdvance ? (
+                              {isIncludedInAlbum ? (
+                                <>
+                                  <p className="text-sm font-medium text-default-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                                  <p className="text-xs text-warning-700">Inclus dans album</p>
+                                </>
+                              ) : hasAdvance ? (
                                 <>
                                   <p className="text-sm font-medium text-foreground">{formatCurrency(netPayable, royaltyResult.currency)}</p>
                                   <p className="text-xs text-default-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
@@ -1280,9 +1497,11 @@ export default function ArtistDetailPage() {
                               ) : (
                                 <p className="text-sm font-medium text-foreground">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
                               )}
-                              <p className="text-xs text-default-500">
-                                {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
-                              </p>
+                              {!isIncludedInAlbum && (
+                                <p className="text-xs text-default-500">
+                                  {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                                </p>
+                              )}
                             </div>
                           </div>
                         );
@@ -1411,6 +1630,10 @@ export default function ArtistDetailPage() {
               <p className="text-default-500 text-sm mb-3">Aucun contrat catalogue défini</p>
               <Button size="sm" onClick={() => {
                 setSelectedItem(null);
+                setContractParties([
+                  { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
+                  { party_type: 'label', label_name: '', share_percentage: 50 }
+                ]);
                 setShowContractForm(true);
               }}>
                 Définir un contrat catalogue
@@ -1423,7 +1646,7 @@ export default function ArtistDetailPage() {
         <div className="bg-background rounded-xl border border-divider">
           <div className="px-4 py-3 border-b border-divider flex items-center justify-between">
             <div>
-              <h2 className="font-medium text-foreground">Releases ({releases.length})</h2>
+              <h2 className="font-medium text-foreground">Releases ({groupedReleasesArray.length})</h2>
               <p className="text-sm text-default-500">% spécifique par album/EP/single</p>
             </div>
             {releases.length > 0 && Object.keys(albumArtwork).length < releases.length && (
@@ -1446,14 +1669,15 @@ export default function ArtistDetailPage() {
             <p className="px-4 py-6 text-center text-default-500">Aucune release trouvée</p>
           ) : (
             <div className="divide-y divide-neutral-100">
-              {releases.map((release, index) => {
-                const contract = getContractForRelease(release.upc);
-                const artwork = albumArtwork[release.upc];
-                const isLoadingArt = loadingArtwork[`album-${release.upc}`];
-                const isExpanded = expandedReleases.has(release.upc);
-                const releaseTracks = getTracksForRelease(release.release_title);
+              {groupedReleasesArray.map((group, index) => {
+                const contract = getContractForRelease(group.upc);
+                const artwork = albumArtwork[group.upc];
+                const isLoadingArt = loadingArtwork[`album-${group.upc}`];
+                const isExpanded = expandedReleases.has(group.key);
+                const releaseTracks = getTracksForRelease(group.release_title);
+                const hasMultipleSources = group.sources.length > 1;
                 return (
-                  <div key={`${release.upc}-${index}`}>
+                  <div key={group.key}>
                     <div className="px-4 py-3">
                       <div className="flex items-start gap-3">
                         {/* Album artwork */}
@@ -1461,12 +1685,12 @@ export default function ArtistDetailPage() {
                           {artwork?.image_url_small ? (
                             <img
                               src={artwork.image_url_small}
-                              alt={release.release_title}
+                              alt={group.release_title}
                               className="w-12 h-12 rounded-md object-cover"
                             />
                           ) : (
                             <button
-                              onClick={() => fetchAlbumArtwork(release.upc)}
+                              onClick={() => fetchAlbumArtwork(group.upc)}
                               disabled={isLoadingArt}
                               className="w-12 h-12 rounded-md bg-default-100 flex items-center justify-center hover:bg-default-200 transition-colors"
                             >
@@ -1482,24 +1706,51 @@ export default function ArtistDetailPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <button
-                            onClick={() => toggleReleaseExpanded(release.upc)}
+                            onClick={() => toggleReleaseExpanded(group.key)}
                             className="text-left w-full group"
                           >
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-foreground truncate group-hover:text-default-700">{release.release_title}</p>
-                              <svg
-                                className={`w-4 h-4 text-default-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
+                              <p className="font-medium text-foreground truncate group-hover:text-default-700">{group.release_title}</p>
+                              {hasMultipleSources && (
+                                <svg
+                                  className={`w-4 h-4 text-default-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              )}
                             </div>
                           </button>
-                          <p className="text-xs text-default-400 font-mono">UPC: {release.upc}</p>
+                          {group.upc ? (
+                            <p className="text-xs text-default-400 font-mono">UPC: {group.upc}</p>
+                          ) : (
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              {group.sources[0].physical_format && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-medium">
+                                  {group.sources[0].physical_format}
+                                </span>
+                              )}
+                              {group.sources[0].store_name && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-medium">
+                                  {group.sources[0].store_name}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           <p className="text-sm text-default-500">
-                            {release.track_count} track{release.track_count > 1 ? 's' : ''} · {formatCurrency(release.total_gross, release.currency)}
+                            {group.track_count} track{group.track_count > 1 ? 's' : ''} · {formatCurrency(group.total_gross, group.currency)}
+                            {group.total_streams > 0 && (
+                              <span className="text-default-400 ml-1">
+                                · {group.total_streams.toLocaleString()} stream{group.total_streams > 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {hasMultipleSources && (
+                              <span className="text-default-400 ml-1">
+                                · {group.sources.length} source{group.sources.length > 1 ? 's' : ''}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1541,7 +1792,11 @@ export default function ArtistDetailPage() {
                               size="sm"
                               variant="secondary"
                               onClick={() => {
-                                setSelectedItem({ type: 'release', id: release.upc, name: release.release_title });
+                                setSelectedItem({ type: 'release', id: group.upc, name: group.release_title });
+                                setContractParties([
+                                  { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
+                                  { party_type: 'label', label_name: '', share_percentage: 50 }
+                                ]);
                                 setShowContractForm(true);
                               }}
                             >
@@ -1551,65 +1806,39 @@ export default function ArtistDetailPage() {
                         </div>
                       </div>
                     </div>
-                    {/* Expanded tracks */}
-                    {isExpanded && releaseTracks.length > 0 && (
+                    {/* Expanded sources */}
+                    {isExpanded && hasMultipleSources && (
                       <div className="bg-default-50 border-t border-divider px-4 py-2">
                         <div className="ml-15 pl-3 border-l-2 border-divider space-y-2">
-                          {releaseTracks.map((track, tIdx) => {
-                            const trackContract = getContractForTrack(track.isrc);
-                            const effectiveContract = trackContract || contract || catalogContract;
-                            const tArtwork = trackArtwork[track.isrc];
-                            const isLoadingTArt = loadingArtwork[`track-${track.isrc}`];
+                          {group.sources.map((source, sIdx) => {
                             return (
-                              <div key={`${track.isrc}-${tIdx}`} className="flex items-center gap-3 py-1">
-                                {/* Track artwork */}
-                                <div className="relative flex-shrink-0">
-                                  {tArtwork?.image_url_small ? (
-                                    <img
-                                      src={tArtwork.image_url_small}
-                                      alt={track.track_title}
-                                      className="w-8 h-8 rounded object-cover"
-                                    />
-                                  ) : (
-                                    <button
-                                      onClick={() => fetchTrackArtwork(track.isrc)}
-                                      disabled={isLoadingTArt}
-                                      className="w-8 h-8 rounded bg-default-200 flex items-center justify-center hover:bg-default-300 transition-colors"
-                                    >
-                                      {isLoadingTArt ? (
-                                        <div className="w-3 h-3 border border-neutral-400 border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <svg className="w-3 h-3 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-                                        </svg>
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
+                              <div key={`${source.store_name || source.physical_format}-${sIdx}`} className="flex items-center gap-3 py-2">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium text-default-800 truncate">{track.track_title}</p>
-                                  <p className="text-xs text-default-400 font-mono">ISRC: {track.isrc}</p>
+                                  <div className="flex items-center gap-2">
+                                    {source.store_name && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-medium text-xs">
+                                        {source.store_name}
+                                      </span>
+                                    )}
+                                    {source.physical_format && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-medium text-xs">
+                                        {source.physical_format}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-default-400 mt-1">
+                                    {source.track_count} track{source.track_count > 1 ? 's' : ''}
+                                  </p>
                                 </div>
                                 <div className="flex items-center gap-2 text-right">
                                   <div>
-                                    <p className="text-sm font-medium text-default-700">{formatCurrency(track.total_gross, track.currency)}</p>
-                                    <p className="text-xs text-default-400">{formatNumber(track.total_streams)} streams</p>
+                                    <p className="text-sm font-medium text-default-700">{formatCurrency(source.total_gross, source.currency)}</p>
+                                    {source.total_streams > 0 && (
+                                      <p className="text-xs text-default-400">
+                                        {formatNumber(source.total_streams)} {source.store_name && (source.store_name.toLowerCase() === 'bandcamp' || source.store_name.toLowerCase() === 'squarespace') ? 'vente' : 'stream'}{source.total_streams > 1 ? 's' : ''}
+                                      </p>
+                                    )}
                                   </div>
-                                  {trackContract ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                      {(parseFloat(trackContract.artist_share) * 100).toFixed(0)}%
-                                    </span>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
-                                        setShowContractForm(true);
-                                      }}
-                                      className="text-xs text-default-500 hover:text-default-700"
-                                    >
-                                      + contrat
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             );
@@ -1726,6 +1955,10 @@ export default function ArtistDetailPage() {
                             variant="secondary"
                             onClick={() => {
                               setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
+                              setContractParties([
+                                { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
+                                { party_type: 'label', label_name: '', share_percentage: 50 }
+                              ]);
                               setShowContractForm(true);
                             }}
                           >
@@ -1795,33 +2028,31 @@ export default function ArtistDetailPage() {
                           {isAdvance ? '-' : '+'}
                           {formatCurrency(entry.amount, entry.currency)}
                         </p>
-                        {isAdvance && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleEditAdvance(entry)}
-                              className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded transition-colors"
-                              title="Modifier"
-                            >
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleEditAdvance(entry)}
+                            className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded transition-colors"
+                            title="Modifier"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAdvance(entry.id)}
+                            disabled={isDeleting}
+                            className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Supprimer"
+                          >
+                            {isDeleting ? (
+                              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAdvance(entry.id)}
-                              disabled={isDeleting}
-                              className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              title="Supprimer"
-                            >
-                              {isDeleting ? (
-                                <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
-                        )}
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1898,6 +2129,7 @@ export default function ArtistDetailPage() {
                 <button onClick={() => {
                   setShowContractForm(false);
                   setSelectedItem(null);
+                  setContractParties([]);
                 }} className="p-2 -mr-2 text-default-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1923,41 +2155,184 @@ export default function ArtistDetailPage() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
-                  Part artiste: {(parseFloat(artistShare) * 100).toFixed(0)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={artistShare}
-                  onChange={(e) => setArtistShare(e.target.value)}
-                  className="w-full h-2 bg-default-200 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-sm text-default-500 mt-2">
-                  <span>Artiste: {(parseFloat(artistShare) * 100).toFixed(0)}%</span>
-                  <span>Label: {((1 - parseFloat(artistShare)) * 100).toFixed(0)}%</span>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-default-700">
+                    Parties du contrat
+                  </label>
+                  <button
+                    onClick={() => {
+                      setContractParties([...contractParties, {
+                        party_type: 'artist',
+                        artist_id: artist?.id,
+                        share_percentage: 0
+                      }]);
+                    }}
+                    className="text-sm text-primary hover:text-primary-600 font-medium"
+                  >
+                    + Ajouter une partie
+                  </button>
                 </div>
+
+                {contractParties.length === 0 && (
+                  <div className="bg-default-100 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-default-500">
+                      Aucune partie définie. Ajoutez des artistes ou labels avec leurs parts respectives.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-3 mb-3">
+                  {contractParties.map((party, index) => (
+                    <div key={index} className="bg-default-50 rounded-lg p-3">
+                      <div className="flex items-start gap-2 mb-2">
+                        <select
+                          value={party.party_type}
+                          onChange={(e) => {
+                            const newParties = [...contractParties];
+                            newParties[index].party_type = e.target.value as 'artist' | 'label';
+                            if (e.target.value === 'artist') {
+                              newParties[index].artist_id = artist?.id;
+                              delete newParties[index].label_name;
+                            } else {
+                              newParties[index].label_name = '';
+                              delete newParties[index].artist_id;
+                            }
+                            setContractParties(newParties);
+                          }}
+                          className="flex-1 px-3 py-2 bg-background border border-divider rounded-lg text-sm"
+                        >
+                          <option value="artist">Artiste</option>
+                          <option value="label">Label</option>
+                        </select>
+                        <button
+                          onClick={() => {
+                            setContractParties(contractParties.filter((_, i) => i !== index));
+                          }}
+                          className="p-2 text-danger hover:bg-danger-50 rounded-lg"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {party.party_type === 'artist' ? (
+                        <select
+                          value={party.artist_id || ''}
+                          onChange={(e) => {
+                            const newParties = [...contractParties];
+                            newParties[index].artist_id = e.target.value;
+                            setContractParties(newParties);
+                          }}
+                          className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm mb-2"
+                        >
+                          <option value="">Sélectionner un artiste</option>
+                          {allArtists.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Nom du label"
+                          value={party.label_name || ''}
+                          onChange={(e) => {
+                            const newParties = [...contractParties];
+                            newParties[index].label_name = e.target.value;
+                            setContractParties(newParties);
+                          }}
+                          className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm mb-2"
+                        />
+                      )}
+
+                      <div>
+                        <label className="block text-xs text-default-500 mb-1">
+                          Part: {party.share_percentage.toFixed(0)}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={party.share_percentage}
+                          onChange={(e) => {
+                            const newParties = [...contractParties];
+                            newParties[index].share_percentage = parseFloat(e.target.value);
+                            setContractParties(newParties);
+                          }}
+                          className="w-full h-2 bg-default-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {contractParties.length > 0 && (
+                  <div className={`rounded-lg p-3 ${
+                    contractParties.reduce((sum, p) => sum + p.share_percentage, 0) === 100
+                      ? 'bg-success-50 text-success-700'
+                      : 'bg-warning-50 text-warning-700'
+                  }`}>
+                    <p className="text-sm font-medium">
+                      Total: {contractParties.reduce((sum, p) => sum + p.share_percentage, 0).toFixed(0)}%
+                      {contractParties.reduce((sum, p) => sum + p.share_percentage, 0) !== 100 && ' (doit être 100%)'}
+                    </p>
+                  </div>
+                )}
               </div>
-              <Input
-                type="date"
-                label="Date de début"
-                value={contractStartDate}
-                onChange={(e) => setContractStartDate(e.target.value)}
-              />
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Date de début</label>
+                <Input
+                  type="date"
+                  value={contractStartDate}
+                  onChange={(e) => setContractStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Date de fin (optionnel)</label>
+                <Input
+                  type="date"
+                  value={contractEndDate}
+                  onChange={(e) => setContractEndDate(e.target.value)}
+                  placeholder="Laissez vide pour un contrat sans date de fin"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">PDF du contrat (optionnel)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setContractFile(file);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm"
+                />
+                {contractFile && (
+                  <p className="text-xs text-success mt-1">
+                    📄 {contractFile.name}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
               <Button variant="secondary" onClick={() => {
                 setShowContractForm(false);
                 setSelectedItem(null);
+                setContractParties([]);
               }} className="flex-1">
                 Annuler
               </Button>
               <Button
                 onClick={selectedItem ? handleCreateContract : handleCreateCatalogContract}
                 loading={creatingContract}
-                disabled={!contractStartDate}
+                disabled={
+                  !contractStartDate ||
+                  contractParties.length === 0 ||
+                  contractParties.reduce((sum, p) => sum + p.share_percentage, 0) !== 100
+                }
                 className="flex-1"
               >
                 Créer
