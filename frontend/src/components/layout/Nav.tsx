@@ -21,13 +21,8 @@ import { getLabelSettings, LabelSettings } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const navItems = [
-  { href: '/imports', label: 'Imports' },
-  { href: '/catalog', label: 'Catalogue' },
   { href: '/artists', label: 'Artistes' },
-  { href: '/royalties', label: 'Royalties' },
-  { href: '/contracts', label: 'Contrats' },
-  { href: '/finances', label: 'Finances' },
-  { href: '/analytics', label: 'Analytics' },
+  { href: '/imports', label: 'Imports' },
 ];
 
 export default function Nav() {
