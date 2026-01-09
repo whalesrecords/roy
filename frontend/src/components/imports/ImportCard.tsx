@@ -22,14 +22,14 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
   const getStatusStyle = () => {
     switch (import_.status) {
       case 'completed':
-        return 'bg-success-100 text-success-700';
+        return 'bg-success-100 text-success-700 border-success-200';
       case 'failed':
-        return 'bg-danger-100 text-danger-700';
+        return 'bg-danger-100 text-danger-700 border-danger-200';
       case 'pending':
       case 'processing':
-        return 'bg-warning-100 text-warning-700';
+        return 'bg-warning-100 text-warning-700 border-warning-200';
       default:
-        return 'bg-default-100 text-default-700';
+        return 'bg-default-100 text-default-700 border-default-200';
     }
   };
 
@@ -51,28 +51,45 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 bg-default-50 border border-default-200 rounded-xl hover:bg-default-100 transition-colors text-left"
+      className="w-full flex items-center gap-4 px-4 py-3 bg-background hover:bg-content2 border border-divider rounded-xl transition-all duration-200 hover:shadow-md text-left my-1"
     >
-      <span className="text-sm text-default-500 w-20 shrink-0">
+      {/* File icon */}
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+
+      {/* Date */}
+      <span className="text-sm text-secondary-500 w-24 shrink-0">
         {formatDate(import_.created_at)}
       </span>
 
-      <span className="text-sm font-medium text-foreground w-32 shrink-0 truncate">
+      {/* Source */}
+      <span className="text-sm font-medium text-foreground w-28 shrink-0 truncate">
         {sourceLabel}
       </span>
 
-      <span className={`text-xs font-medium px-2 py-0.5 rounded-lg ${getStatusStyle()}`}>
+      {/* Status badge */}
+      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getStatusStyle()}`}>
         {getStatusLabel()}
       </span>
 
-      <span className="text-sm text-default-600 ml-auto">
-        {import_.success_rows.toLocaleString('fr-FR')} lignes
+      {/* Row count */}
+      <span className="text-sm text-secondary-600 ml-auto flex items-center gap-2">
+        <span className="font-medium text-foreground">{import_.success_rows.toLocaleString('fr-FR')}</span>
+        <span className="text-secondary-400">lignes</span>
         {import_.error_rows > 0 && (
-          <span className="text-danger ml-2">
+          <span className="text-danger-600 font-medium">
             ({import_.error_rows} erreur{import_.error_rows > 1 ? 's' : ''})
           </span>
         )}
       </span>
+
+      {/* Chevron */}
+      <svg className="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
     </button>
   );
 }

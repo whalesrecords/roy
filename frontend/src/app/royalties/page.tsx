@@ -158,7 +158,7 @@ export default function RoyaltiesPage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">Royalties</h1>
-            <p className="text-sm text-default-500 mt-0.5">Calculs et paiements</p>
+            <p className="text-sm text-secondary-500 mt-0.5">Calculs et paiements</p>
           </div>
           {canCalculate && (
             <Button onClick={() => setShowCreate(true)}>
@@ -170,9 +170,9 @@ export default function RoyaltiesPage() {
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-red-700 text-sm">{error}</p>
-            <button onClick={() => setError(null)} className="text-xs text-red-500 mt-1 hover:underline">
+          <div className="bg-danger-50 border border-danger-200 rounded-xl p-4">
+            <p className="text-danger-700 text-sm">{error}</p>
+            <button onClick={() => setError(null)} className="text-xs text-danger-500 mt-1 hover:underline">
               Fermer
             </button>
           </div>
@@ -180,19 +180,19 @@ export default function RoyaltiesPage() {
 
         {/* Prerequisites check */}
         {!loading && (!hasImports || artists.length === 0) && (
-          <Card className="bg-amber-50 border border-amber-200">
+          <Card className="bg-warning-50 border border-warning-200">
             <CardBody className="p-4">
-              <p className="font-medium text-amber-800 mb-3">Avant de calculer les royalties :</p>
+              <p className="font-medium text-warning-800 mb-3">Avant de calculer les royalties :</p>
               <div className="space-y-2">
                 {!hasImports && (
                   <Link href="/imports" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-200 flex items-center justify-center">
-                        <span className="text-amber-700 font-bold">1</span>
+                      <div className="w-8 h-8 rounded-lg bg-warning-200 flex items-center justify-center">
+                        <span className="text-warning-700 font-bold">1</span>
                       </div>
-                      <span className="text-sm text-amber-700">Importer des donnees de ventes</span>
+                      <span className="text-sm text-warning-700">Importer des donnees de ventes</span>
                     </div>
-                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -200,12 +200,12 @@ export default function RoyaltiesPage() {
                 {artists.length === 0 && (
                   <Link href="/artists" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-200 flex items-center justify-center">
-                        <span className="text-amber-700 font-bold">2</span>
+                      <div className="w-8 h-8 rounded-lg bg-warning-200 flex items-center justify-center">
+                        <span className="text-warning-700 font-bold">2</span>
                       </div>
-                      <span className="text-sm text-amber-700">Activer des artistes avec contrats</span>
+                      <span className="text-sm text-warning-700">Activer des artistes avec contrats</span>
                     </div>
-                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -218,18 +218,18 @@ export default function RoyaltiesPage() {
         {/* Summary stats */}
         {!loading && runs.length > 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-success-100">
               <CardBody className="p-4">
-                <p className="text-xs text-green-600 font-medium mb-1">Total net a payer</p>
-                <p className="text-2xl font-bold text-green-700">{formatCurrency(totalNetPayable.toString())}</p>
-                <p className="text-xs text-green-500 mt-1">{lockedRuns} calcul{lockedRuns > 1 ? 's' : ''} verrouille{lockedRuns > 1 ? 's' : ''}</p>
+                <p className="text-xs text-success font-medium mb-1">Total net a payer</p>
+                <p className="text-2xl font-bold text-success-700">{formatCurrency(totalNetPayable.toString())}</p>
+                <p className="text-xs text-success-500 mt-1">{lockedRuns} calcul{lockedRuns > 1 ? 's' : ''} verrouille{lockedRuns > 1 ? 's' : ''}</p>
               </CardBody>
             </Card>
-            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-primary-100">
               <CardBody className="p-4">
-                <p className="text-xs text-blue-600 font-medium mb-1">Revenus bruts</p>
-                <p className="text-2xl font-bold text-blue-700">{formatCurrency(totalGross.toString())}</p>
-                <p className="text-xs text-blue-500 mt-1">{runs.length} calcul{runs.length > 1 ? 's' : ''} total</p>
+                <p className="text-xs text-primary font-medium mb-1">Revenus bruts</p>
+                <p className="text-2xl font-bold text-primary-700">{formatCurrency(totalGross.toString())}</p>
+                <p className="text-xs text-primary-500 mt-1">{runs.length} calcul{runs.length > 1 ? 's' : ''} total</p>
               </CardBody>
             </Card>
           </div>
@@ -239,18 +239,18 @@ export default function RoyaltiesPage() {
         {loading ? (
           <div className="text-center py-12">
             <Spinner size="lg" />
-            <p className="text-default-500 mt-3">Chargement...</p>
+            <p className="text-secondary-500 mt-3">Chargement...</p>
           </div>
         ) : runs.length === 0 ? (
           <Card>
             <CardBody className="py-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-default-100 flex items-center justify-center">
-                <svg className="w-8 h-8 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-content2 flex items-center justify-center">
+                <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-foreground mb-1">Aucun calcul</h3>
-              <p className="text-sm text-default-500 mb-4">
+              <p className="text-sm text-secondary-500 mb-4">
                 {canCalculate ? 'Lancez votre premier calcul de royalties' : 'Completez les prerequis ci-dessus'}
               </p>
               {canCalculate && (
@@ -267,7 +267,7 @@ export default function RoyaltiesPage() {
                 <div className="flex items-center gap-3 mb-3">
                   <h2 className="text-lg font-semibold text-foreground">{year}</h2>
                   <div className="flex-1 h-px bg-divider"></div>
-                  <span className="text-sm text-default-500">
+                  <span className="text-sm text-secondary-500">
                     {formatCurrency(runsByYear[year].reduce((acc, r) => acc + parseFloat(r.total_net_payable), 0).toString())}
                   </span>
                 </div>
@@ -277,16 +277,16 @@ export default function RoyaltiesPage() {
                       key={run.run_id}
                       isPressable
                       onClick={() => setSelectedRun(run)}
-                      className="border border-divider hover:border-default-300 transition-colors"
+                      className="border border-divider hover:border-default-400 transition-colors"
                     >
                       <CardBody className="p-4">
                         <div className="flex items-center gap-4">
                           {/* Period indicator */}
                           <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
-                            run.is_locked ? 'bg-default-100' : 'bg-primary-50'
+                            run.is_locked ? 'bg-content2' : 'bg-primary-50'
                           }`}>
                             {run.is_locked ? (
-                              <svg className="w-6 h-6 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-6 h-6 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                               </svg>
                             ) : (
@@ -302,11 +302,11 @@ export default function RoyaltiesPage() {
                               {formatPeriod(run.period_start, run.period_end)}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-default-500">
+                              <span className="text-xs text-secondary-500">
                                 {run.artists?.length || 0} artiste{(run.artists?.length || 0) > 1 ? 's' : ''}
                               </span>
                               <span className="text-default-300">·</span>
-                              <span className="text-xs text-default-500">
+                              <span className="text-xs text-secondary-500">
                                 {run.total_transactions.toLocaleString('fr-FR')} transactions
                               </span>
                             </div>
@@ -314,10 +314,10 @@ export default function RoyaltiesPage() {
 
                           {/* Amount */}
                           <div className="text-right">
-                            <p className="text-lg font-bold text-green-600">
+                            <p className="text-lg font-bold text-success">
                               {formatCurrency(run.total_net_payable, run.base_currency)}
                             </p>
-                            <p className="text-xs text-default-400">
+                            <p className="text-xs text-secondary-400">
                               sur {formatCurrency(run.total_gross, run.base_currency)} brut
                             </p>
                           </div>
@@ -334,12 +334,12 @@ export default function RoyaltiesPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Nouveau calcul</h2>
-                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-default-500 hover:text-default-700">
+                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-secondary-500 hover:text-secondary-700">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -351,7 +351,7 @@ export default function RoyaltiesPage() {
               {/* Quick period selection */}
               {imports.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Periodes disponibles
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -372,7 +372,7 @@ export default function RoyaltiesPage() {
                           className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
                             periodStart === imp.period_start && periodEnd === imp.period_end
                               ? 'bg-primary text-white'
-                              : 'bg-default-100 text-default-600 hover:bg-default-200'
+                              : 'bg-content2 text-secondary-600 hover:bg-content3'
                           }`}
                         >
                           {formatDate(imp.period_start)}
@@ -385,7 +385,7 @@ export default function RoyaltiesPage() {
               {/* Date inputs */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-1">Debut</label>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Debut</label>
                   <input
                     type="date"
                     value={periodStart}
@@ -394,7 +394,7 @@ export default function RoyaltiesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-1">Fin</label>
+                  <label className="block text-sm font-medium text-secondary-700 mb-1">Fin</label>
                   <input
                     type="date"
                     value={periodEnd}
@@ -407,7 +407,7 @@ export default function RoyaltiesPage() {
               {/* Artist selection */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-default-700">Artistes</label>
+                  <label className="text-sm font-medium text-secondary-700">Artistes</label>
                   <button
                     onClick={() => {
                       setSelectAllArtists(!selectAllArtists);
@@ -430,13 +430,13 @@ export default function RoyaltiesPage() {
                     {artists.map((artist) => (
                       <label
                         key={artist.id}
-                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-default-50 cursor-pointer border-b border-divider last:border-0"
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-content2 cursor-pointer border-b border-divider last:border-0"
                       >
                         <input
                           type="checkbox"
                           checked={selectedArtistIds.includes(artist.id)}
                           onChange={() => toggleArtistSelection(artist.id)}
-                          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
                         />
                         {artist.image_url_small ? (
                           <Image
@@ -447,7 +447,7 @@ export default function RoyaltiesPage() {
                             className="rounded-full"
                           />
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-default-200 flex items-center justify-center text-xs font-medium text-default-600">
+                          <div className="w-7 h-7 rounded-full bg-content3 flex items-center justify-center text-xs font-medium text-secondary-600">
                             {artist.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -478,7 +478,7 @@ export default function RoyaltiesPage() {
 
       {/* Detail Modal */}
       {selectedRun && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
@@ -488,7 +488,7 @@ export default function RoyaltiesPage() {
                   </h2>
                   <div className="flex items-center gap-2 mt-1">
                     {selectedRun.is_locked && (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-default-100 text-default-600">
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-content2 text-secondary-600">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
@@ -496,13 +496,13 @@ export default function RoyaltiesPage() {
                       </span>
                     )}
                     {!selectedRun.is_locked && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning-100 text-warning-700">
                         Non verrouille
                       </span>
                     )}
                   </div>
                 </div>
-                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-default-500 hover:text-default-700">
+                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-secondary-500 hover:text-secondary-700">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -513,34 +513,34 @@ export default function RoyaltiesPage() {
             <div className="p-4 sm:p-6 space-y-4">
               {/* Summary */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-default-50 rounded-xl p-4">
-                  <p className="text-xs text-default-500 mb-1">Revenus bruts</p>
+                <div className="bg-content2 rounded-xl p-4">
+                  <p className="text-xs text-secondary-500 mb-1">Revenus bruts</p>
                   <p className="text-xl font-bold text-foreground">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
                 </div>
-                <div className="bg-green-50 rounded-xl p-4">
-                  <p className="text-xs text-green-600 mb-1">Net a payer</p>
-                  <p className="text-xl font-bold text-green-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
+                <div className="bg-success-50 rounded-xl p-4">
+                  <p className="text-xs text-success mb-1">Net a payer</p>
+                  <p className="text-xl font-bold text-success-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-default-50 rounded-lg p-3 text-center">
+                <div className="bg-content2 rounded-lg p-3 text-center">
                   <p className="text-lg font-semibold text-foreground">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-default-500">Part artistes</p>
+                  <p className="text-xs text-secondary-500">Part artistes</p>
                 </div>
-                <div className="bg-default-50 rounded-lg p-3 text-center">
+                <div className="bg-content2 rounded-lg p-3 text-center">
                   <p className="text-lg font-semibold text-foreground">{formatCurrency(selectedRun.total_label_royalties, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-default-500">Part label</p>
+                  <p className="text-xs text-secondary-500">Part label</p>
                 </div>
-                <div className="bg-amber-50 rounded-lg p-3 text-center">
-                  <p className="text-lg font-semibold text-amber-700">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-amber-600">Recoupe</p>
+                <div className="bg-warning-50 rounded-lg p-3 text-center">
+                  <p className="text-lg font-semibold text-warning-700">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
+                  <p className="text-xs text-warning-600">Recoupe</p>
                 </div>
               </div>
 
-              <div className="bg-default-50 rounded-xl p-4 text-center">
+              <div className="bg-content2 rounded-xl p-4 text-center">
                 <p className="text-3xl font-bold text-foreground">{selectedRun.total_transactions.toLocaleString('fr-FR')}</p>
-                <p className="text-sm text-default-500">transactions traitees</p>
+                <p className="text-sm text-secondary-500">transactions traitees</p>
               </div>
 
               {/* Artists breakdown */}
@@ -549,23 +549,23 @@ export default function RoyaltiesPage() {
                   <h3 className="font-medium text-foreground mb-3">Detail par artiste</h3>
                   <div className="space-y-2">
                     {selectedRun.artists.map((artist) => (
-                      <div key={artist.artist_id} className="bg-default-50 rounded-xl p-4">
+                      <div key={artist.artist_id} className="bg-content2 rounded-xl p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-default-200 flex items-center justify-center text-sm font-medium text-default-600">
+                            <div className="w-10 h-10 rounded-full bg-content3 flex items-center justify-center text-sm font-medium text-secondary-600">
                               {(artist.artist_name || '?').charAt(0).toUpperCase()}
                             </div>
                             <div>
                               <p className="font-medium text-foreground">{artist.artist_name || 'Inconnu'}</p>
-                              <p className="text-xs text-default-500">
+                              <p className="text-xs text-secondary-500">
                                 {artist.transaction_count.toLocaleString('fr-FR')} transactions
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-green-600">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
+                            <p className="font-bold text-success">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
                             {parseFloat(artist.recouped) > 0 && (
-                              <p className="text-xs text-amber-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupe</p>
+                              <p className="text-xs text-warning-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupe</p>
                             )}
                           </div>
                         </div>
@@ -576,8 +576,8 @@ export default function RoyaltiesPage() {
               )}
 
               {selectedRun.artists && selectedRun.artists.length === 0 && (
-                <div className="bg-amber-50 rounded-xl p-4 text-center">
-                  <p className="text-sm text-amber-700">Aucun artiste pour cette periode</p>
+                <div className="bg-warning-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-warning-700">Aucun artiste pour cette periode</p>
                 </div>
               )}
             </div>
@@ -605,8 +605,8 @@ export default function RoyaltiesPage() {
                 disabled={deleting}
                 className={`w-full py-2.5 text-sm rounded-lg transition-colors ${
                   selectedRun.is_locked
-                    ? 'text-red-600 bg-red-50 hover:bg-red-100'
-                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                    ? 'text-danger bg-danger-50 hover:bg-danger-100'
+                    : 'text-danger hover:text-danger-700 hover:bg-danger-50'
                 }`}
               >
                 {deleting ? 'Suppression...' : selectedRun.is_locked ? 'Supprimer (verrouille)' : 'Supprimer ce calcul'}

@@ -130,7 +130,7 @@ export default function ArtistsPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-background border-b border-divider sticky top-16 z-30">
+      <header className="bg-background border-b border-divider sticky top-14 z-30">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between mb-4">
             <div>

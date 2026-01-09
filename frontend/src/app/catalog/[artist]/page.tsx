@@ -47,7 +47,7 @@ export default function CatalogArtistPage() {
   if (loading) {
     return (
       <div className=" flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -56,14 +56,14 @@ export default function CatalogArtistPage() {
     <div className="">
       <header className="bg-background border-b border-divider">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <Link href="/catalog" className="text-sm text-default-500 hover:text-default-700 mb-2 inline-flex items-center gap-1">
+          <Link href="/catalog" className="text-sm text-secondary-500 hover:text-secondary-700 mb-2 inline-flex items-center gap-1">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
             Catalogue
           </Link>
           <h1 className="text-xl font-semibold text-foreground">{artistName}</h1>
-          <p className="text-sm text-default-500 mt-1">
+          <p className="text-sm text-secondary-500 mt-1">
             {releases.length} release{releases.length > 1 ? 's' : ''} · {tracks.length} track{tracks.length > 1 ? 's' : ''}
           </p>
         </div>
@@ -75,8 +75,8 @@ export default function CatalogArtistPage() {
               onClick={() => setTab('releases')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 tab === 'releases'
-                  ? 'border-neutral-900 text-foreground'
-                  : 'border-transparent text-default-500 hover:text-default-700'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-secondary-500 hover:text-secondary-700'
               }`}
             >
               Releases ({releases.length})
@@ -85,8 +85,8 @@ export default function CatalogArtistPage() {
               onClick={() => setTab('tracks')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 tab === 'tracks'
-                  ? 'border-neutral-900 text-foreground'
-                  : 'border-transparent text-default-500 hover:text-default-700'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-secondary-500 hover:text-secondary-700'
               }`}
             >
               Tracks ({tracks.length})
@@ -97,7 +97,7 @@ export default function CatalogArtistPage() {
 
       <div className="max-w-2xl mx-auto px-4 py-6">
         {error && (
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
         )}
 
         {tab === 'releases' && (
@@ -111,15 +111,15 @@ export default function CatalogArtistPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">{release.release_title}</p>
                     {release.upc && (
-                      <p className="text-xs text-default-400 mt-0.5 font-mono">UPC: {release.upc}</p>
+                      <p className="text-xs text-secondary-400 mt-0.5 font-mono">UPC: {release.upc}</p>
                     )}
-                    <p className="text-sm text-default-500 mt-1">
+                    <p className="text-sm text-secondary-500 mt-1">
                       {release.track_count} track{release.track_count > 1 ? 's' : ''}
                     </p>
                   </div>
                   <div className="text-right ml-4">
                     <p className="font-medium text-foreground">{formatCurrency(release.total_gross, release.currency)}</p>
-                    <p className="text-sm text-default-500">{formatNumber(release.total_streams)} streams</p>
+                    <p className="text-sm text-secondary-500">{formatNumber(release.total_streams)} streams</p>
                   </div>
                 </div>
               </div>
@@ -138,15 +138,15 @@ export default function CatalogArtistPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">{track.track_title}</p>
                     {track.release_title && (
-                      <p className="text-sm text-default-500">{track.release_title}</p>
+                      <p className="text-sm text-secondary-500">{track.release_title}</p>
                     )}
                     {track.isrc && (
-                      <p className="text-xs text-default-400 mt-0.5 font-mono">ISRC: {track.isrc}</p>
+                      <p className="text-xs text-secondary-400 mt-0.5 font-mono">ISRC: {track.isrc}</p>
                     )}
                   </div>
                   <div className="text-right ml-4">
                     <p className="font-medium text-foreground">{formatCurrency(track.total_gross, track.currency)}</p>
-                    <p className="text-sm text-default-500">{formatNumber(track.total_streams)} streams</p>
+                    <p className="text-sm text-secondary-500">{formatNumber(track.total_streams)} streams</p>
                   </div>
                 </div>
               </div>

@@ -18,7 +18,7 @@ interface InputProps {
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className = '', label, error, type = 'text', disabled, ...props }, ref) => {
     return (
-      <div className={`flex flex-col gap-1.5 ${className}`}>
+      <div className={`flex flex-col gap-2 ${className}`}>
         {label && (
           <label className="text-sm font-medium text-foreground">
             {label}
@@ -29,12 +29,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           type={type}
           disabled={disabled}
           className={`
-            w-full h-12 px-3
+            w-full h-12 px-4
             border-2 rounded-xl
-            bg-default-100 text-foreground
-            placeholder:text-default-400
+            bg-background text-foreground
+            placeholder:text-secondary-400
             focus:outline-none focus:border-primary transition-colors
-            hover:border-default-400
+            hover:border-default-300
             disabled:opacity-50 disabled:cursor-not-allowed
             ${error ? 'border-danger' : 'border-default-200'}
           `}

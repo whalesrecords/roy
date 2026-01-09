@@ -1,24 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Spinner,
-  Select,
-  SelectItem,
-  Button,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Input,
-  Tabs,
-  Tab,
-  Chip,
-} from '@heroui/react';
+import { Spinner } from '@heroui/react';
 import {
   getExpenses,
   createExpense,
@@ -228,7 +211,6 @@ export default function FinancesPage() {
   };
 
   const openDocument = (documentUrl: string) => {
-    // For base64 PDFs, open in new tab
     if (documentUrl.startsWith('data:')) {
       const newWindow = window.open();
       if (newWindow) {
@@ -290,91 +272,130 @@ export default function FinancesPage() {
 
   return (
     <>
-      <header className="bg-background border-b border-divider">
-        <div className="max-w-6xl mx-auto px-4 py-4">
+      {/* Header */}
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
+        <div className="max-w-6xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-foreground">Finances</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Finances</h1>
+              <p className="text-secondary-500 text-sm mt-0.5">Gestion des depenses et royalties</p>
+            </div>
             <div className="flex items-center gap-3">
-              <Select
-                size="sm"
-                selectedKeys={[selectedYear]}
+              <select
+                value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-32"
-                aria-label="Annee"
+                className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
               >
                 {years.map((year) => (
-                  <SelectItem key={year}>
-                    {year}
-                  </SelectItem>
+                  <option key={year} value={year}>{year}</option>
                 ))}
-              </Select>
-              <Button
-                variant="flat"
-                size="sm"
-                onPress={() => setIsInvoiceImportOpen(true)}
+              </select>
+              <button
+                onClick={() => setIsInvoiceImportOpen(true)}
+                className="px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 transition-colors"
               >
                 Importer Factures
-              </Button>
-              <Button color="primary" size="sm" onPress={openCreateModal}>
-                + Ajouter
-              </Button>
+              </button>
+              <button
+                onClick={openCreateModal}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Ajouter
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         {error && (
-          <Card className="bg-danger-50 rounded-2xl">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
+          <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4">
+            <p className="text-danger">{error}</p>
+          </div>
         )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Avances / Frais</p>
-              <p className="text-2xl font-bold text-warning">{formatCurrency(totalExpenses)}</p>
-              <p className="text-xs text-default-400 mt-1">{summary?.expenses_count || 0} entrees</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Royalties dues</p>
-              <p className="text-2xl font-bold text-secondary">{formatCurrency(totalRoyalties)}</p>
-              <p className="text-xs text-default-400 mt-1">{summary?.royalty_runs_count || 0} periodes</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Total Sorties</p>
-              <p className="text-2xl font-bold text-danger">{formatCurrency(totalExpenses + totalRoyalties)}</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Derniere mise a jour</p>
-              <p className="text-lg font-medium text-foreground">{new Date().toLocaleDateString('fr-FR')}</p>
-            </CardBody>
-          </Card>
+          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <p className="text-sm text-secondary-500">Avances / Frais</p>
+            </div>
+            <p className="text-2xl font-bold text-warning">{formatCurrency(totalExpenses)}</p>
+            <p className="text-xs text-secondary-400 mt-1">{summary?.expenses_count || 0} entrees</p>
+          </div>
+          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-sm text-secondary-500">Royalties dues</p>
+            </div>
+            <p className="text-2xl font-bold text-secondary">{formatCurrency(totalRoyalties)}</p>
+            <p className="text-xs text-secondary-400 mt-1">{summary?.royalty_runs_count || 0} periodes</p>
+          </div>
+          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                </svg>
+              </div>
+              <p className="text-sm text-secondary-500">Total Sorties</p>
+            </div>
+            <p className="text-2xl font-bold text-danger">{formatCurrency(totalExpenses + totalRoyalties)}</p>
+          </div>
+          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-sm text-secondary-500">Derniere maj</p>
+            </div>
+            <p className="text-lg font-bold text-foreground">{new Date().toLocaleDateString('fr-FR')}</p>
+          </div>
         </div>
 
         {/* Tabs */}
-        <Tabs
-          selectedKey={activeTab}
-          onSelectionChange={(key) => setActiveTab(key as string)}
-          classNames={{
-            tabList: 'bg-default-100 rounded-xl p-1',
-            tab: 'px-4 py-2',
-            cursor: 'bg-background rounded-xl shadow-sm',
-          }}
-        >
-          <Tab key="expenses" title={`Avances / Frais (${expenses.length})`} />
-          <Tab key="royalties" title={`Royalties (${royaltyPayments.length})`} />
-        </Tabs>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('expenses')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
+              activeTab === 'expenses'
+                ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                : 'bg-content2 text-secondary-600 hover:bg-content3'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Avances / Frais ({expenses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('royalties')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
+              activeTab === 'royalties'
+                ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                : 'bg-content2 text-secondary-600 hover:bg-content3'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Royalties ({royaltyPayments.length})
+          </button>
+        </div>
 
         {/* Expenses List */}
         {activeTab === 'expenses' && (
@@ -383,351 +404,347 @@ export default function FinancesPage() {
             <div className="flex gap-4 flex-wrap">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Artiste</label>
-                <Select
-                  size="sm"
-                  selectedKeys={[selectedArtistFilter]}
+                <select
+                  value={selectedArtistFilter}
                   onChange={(e) => setSelectedArtistFilter(e.target.value)}
-                  className="w-64"
-                  items={[
-                    { key: 'all', label: 'Tous les artistes' },
-                    ...artists.map((a) => ({ key: a.id, label: a.name })),
-                    { key: 'general', label: 'Frais généraux' },
-                  ]}
+                  className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
                 >
-                  {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
-                </Select>
+                  <option value="all">Tous les artistes</option>
+                  {artists.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                  <option value="general">Frais généraux</option>
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Catégorie</label>
-                <Select
-                  size="sm"
-                  selectedKeys={[selectedCategoryFilter]}
+                <label className="text-sm font-medium text-foreground mb-2 block">Categorie</label>
+                <select
+                  value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                  className="w-64"
-                  items={[
-                    { key: 'all', label: 'Toutes les catégories' },
-                    ...EXPENSE_CATEGORIES.map((c) => ({ key: c.value, label: c.label })),
-                  ]}
+                  className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
                 >
-                  {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
-                </Select>
+                  <option value="all">Toutes les categories</option>
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <Card className="border border-divider rounded-2xl shadow-sm">
-              <CardHeader className="px-4 py-3 border-b border-divider">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-foreground">Avances et Frais</h2>
-                  <p className="text-sm text-default-500">
-                    {filteredExpenses.length} dépense{filteredExpenses.length > 1 ? 's' : ''}
-                    {' · '}
-                    {formatCurrency(filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0))}
-                  </p>
-                </div>
-              </CardHeader>
-              <CardBody className="p-0">
-                {filteredExpenses.length === 0 ? (
-                  <div className="p-8 text-center text-default-500">
-                    Aucune dépense trouvée
-                  </div>
-                ) : (
-                  <div className="divide-y divide-divider">
-                    {Object.entries(expensesByArtist).map(([artistId, group]) => (
-                      <div key={artistId} className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-semibold text-foreground">{group.artist_name}</h3>
-                          <p className="font-semibold text-warning">{formatCurrency(group.total)}</p>
-                        </div>
-                        <div className="space-y-2">
-                          {group.expenses.map((expense) => (
-                            <div key={expense.id} className="p-3 bg-default-50 rounded-xl hover:bg-default-100 transition-colors">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="font-medium text-foreground">
-                                      {formatCurrency(expense.amount)}
-                                    </p>
-                                    {expense.category_label && (
-                                      <Chip size="sm" variant="flat" color="primary">
-                                        {expense.category_label}
-                                      </Chip>
-                                    )}
-                                    {expense.document_url && (
-                                      <Chip
-                                        size="sm"
-                                        variant="flat"
-                                        color="success"
-                                        className="cursor-pointer"
-                                        onClick={() => openDocument(expense.document_url!)}
-                                      >
-                                        📄 PDF
-                                      </Chip>
-                                    )}
-                                  </div>
-                                  {(expense.scope && expense.scope !== 'catalog') && (
-                                    <p className="text-sm text-default-600 mt-1">
-                                      {expense.scope === 'track' ? '🎵 Track' : '💿 Album'} : {' '}
-                                      <span className="font-medium">
-                                        {expense.scope_title || (expense.scope_id ? expense.scope_id : 'Non spécifié')}
-                                      </span>
-                                    </p>
-                                  )}
-                                  {expense.scope === 'catalog' && (
-                                    <p className="text-sm text-default-500 mt-1">📚 Catalogue général</p>
-                                  )}
-                                  {expense.description && (
-                                    <p className="text-sm text-default-500 mt-1 truncate">
-                                      {expense.description}
-                                    </p>
-                                  )}
-                                  <p className="text-xs text-default-400 mt-1">
-                                    {formatDate(expense.effective_date)}
-                                    {expense.reference && ` - Ref: ${expense.reference}`}
-                                  </p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {/* Upload PDF button */}
-                                  <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    className="hidden"
-                                    ref={fileInputRef}
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file && uploadingId) {
-                                        handleFileUpload(uploadingId, file);
-                                      }
-                                      e.target.value = '';
-                                    }}
-                                  />
-                                  {!expense.document_url ? (
-                                    <Button
-                                      size="sm"
-                                      variant="flat"
-                                      isLoading={uploadingId === expense.id}
-                                      onPress={() => {
-                                        setUploadingId(expense.id);
-                                        fileInputRef.current?.click();
-                                      }}
-                                    >
-                                      + PDF
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="flat"
-                                      color="danger"
-                                      onPress={() => handleDeleteDocument(expense.id)}
-                                    >
-                                      Suppr PDF
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="flat"
-                                    onPress={() => openEditModal(expense)}
-                                  >
-                                    Modifier
-                                  </Button>
-                                  {deleteConfirmId === expense.id ? (
-                                    <div className="flex gap-1">
-                                      <Button
-                                        size="sm"
-                                        color="danger"
-                                        onPress={() => handleDelete(expense.id)}
-                                      >
-                                        Confirmer
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="flat"
-                                        onPress={() => setDeleteConfirmId(null)}
-                                      >
-                                        Annuler
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant="flat"
-                                      color="danger"
-                                      onPress={() => setDeleteConfirmId(expense.id)}
-                                    >
-                                      Supprimer
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </>
-        )}
-
-        {/* Royalty Payments List */}
-        {activeTab === 'royalties' && (
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Royalties (periodes verouillees)</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              {royaltyPayments.length === 0 ? (
-                <div className="p-8 text-center text-default-500">
-                  Aucune royalty verrouillee pour {selectedYear}
+            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
+                <h2 className="font-semibold text-foreground">Avances et Frais</h2>
+                <p className="text-sm text-secondary-500">
+                  {filteredExpenses.length} depense{filteredExpenses.length > 1 ? 's' : ''}
+                  {' · '}
+                  {formatCurrency(filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0))}
+                </p>
+              </div>
+              {filteredExpenses.length === 0 ? (
+                <div className="p-12 text-center text-secondary-500">
+                  Aucune depense trouvee
                 </div>
               ) : (
                 <div className="divide-y divide-divider">
-                  {royaltyPayments.map((payment) => (
-                    <div key={payment.run_id} className="p-4 hover:bg-default-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {formatDate(payment.period_start)} - {formatDate(payment.period_end)}
-                          </p>
-                          <p className="text-sm text-default-500 mt-1">
-                            Royalties artistes: {formatCurrency(payment.total_artist_royalties)}
-                            {' | '}
-                            Recoup: {formatCurrency(payment.total_recouped)}
-                          </p>
-                          {payment.locked_at && (
-                            <p className="text-xs text-default-400 mt-1">
-                              Verrouille le {formatDate(payment.locked_at)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-bold text-secondary">
-                            {formatCurrency(payment.total_net_payable)}
-                          </p>
-                          <Chip size="sm" color="success" variant="flat">
-                            {payment.status}
-                          </Chip>
-                        </div>
+                  {Object.entries(expensesByArtist).map(([artistId, group]) => (
+                    <div key={artistId} className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-foreground">{group.artist_name}</h3>
+                        <p className="font-bold text-warning">{formatCurrency(group.total)}</p>
+                      </div>
+                      <div className="space-y-3">
+                        {group.expenses.map((expense) => (
+                          <div key={expense.id} className="p-4 bg-content2 rounded-xl hover:shadow-md transition-all">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-bold text-foreground text-lg">
+                                    {formatCurrency(expense.amount)}
+                                  </p>
+                                  {expense.category_label && (
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                                      {expense.category_label}
+                                    </span>
+                                  )}
+                                  {expense.document_url && (
+                                    <button
+                                      onClick={() => openDocument(expense.document_url!)}
+                                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors"
+                                    >
+                                      PDF
+                                    </button>
+                                  )}
+                                </div>
+                                {(expense.scope && expense.scope !== 'catalog') && (
+                                  <p className="text-sm text-secondary-600 mt-2">
+                                    {expense.scope === 'track' ? 'Track' : 'Album'} : {' '}
+                                    <span className="font-medium">
+                                      {expense.scope_title || (expense.scope_id ? expense.scope_id : 'Non specifie')}
+                                    </span>
+                                  </p>
+                                )}
+                                {expense.scope === 'catalog' && (
+                                  <p className="text-sm text-secondary-500 mt-2">Catalogue general</p>
+                                )}
+                                {expense.description && (
+                                  <p className="text-sm text-secondary-500 mt-1 truncate">
+                                    {expense.description}
+                                  </p>
+                                )}
+                                <p className="text-xs text-secondary-400 mt-2">
+                                  {formatDate(expense.effective_date)}
+                                  {expense.reference && ` - Ref: ${expense.reference}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <input
+                                  type="file"
+                                  accept="application/pdf"
+                                  className="hidden"
+                                  ref={fileInputRef}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && uploadingId) {
+                                      handleFileUpload(uploadingId, file);
+                                    }
+                                    e.target.value = '';
+                                  }}
+                                />
+                                {!expense.document_url ? (
+                                  <button
+                                    onClick={() => {
+                                      setUploadingId(expense.id);
+                                      fileInputRef.current?.click();
+                                    }}
+                                    disabled={uploadingId === expense.id}
+                                    className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 disabled:opacity-50 transition-colors"
+                                  >
+                                    {uploadingId === expense.id ? <Spinner size="sm" /> : '+ PDF'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleDeleteDocument(expense.id)}
+                                    className="px-3 py-1.5 bg-danger/10 text-danger text-xs font-medium rounded-full hover:bg-danger/20 transition-colors"
+                                  >
+                                    Suppr PDF
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => openEditModal(expense)}
+                                  className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 transition-colors"
+                                >
+                                  Modifier
+                                </button>
+                                {deleteConfirmId === expense.id ? (
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => handleDelete(expense.id)}
+                                      className="px-3 py-1.5 bg-danger text-white text-xs font-medium rounded-full hover:bg-danger-600 transition-colors"
+                                    >
+                                      Confirmer
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 transition-colors"
+                                    >
+                                      Annuler
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setDeleteConfirmId(expense.id)}
+                                    className="px-3 py-1.5 bg-danger/10 text-danger text-xs font-medium rounded-full hover:bg-danger/20 transition-colors"
+                                  >
+                                    Supprimer
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-            </CardBody>
-          </Card>
+            </div>
+          </>
+        )}
+
+        {/* Royalty Payments List */}
+        {activeTab === 'royalties' && (
+          <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-divider">
+              <h2 className="font-semibold text-foreground">Royalties (periodes verrouillees)</h2>
+            </div>
+            {royaltyPayments.length === 0 ? (
+              <div className="p-12 text-center text-secondary-500">
+                Aucune royalty verrouillee pour {selectedYear}
+              </div>
+            ) : (
+              <div className="divide-y divide-divider">
+                {royaltyPayments.map((payment) => (
+                  <div key={payment.run_id} className="p-5 hover:bg-content2 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {formatDate(payment.period_start)} - {formatDate(payment.period_end)}
+                        </p>
+                        <p className="text-sm text-secondary-500 mt-1">
+                          Royalties artistes: {formatCurrency(payment.total_artist_royalties)}
+                          {' | '}
+                          Recoup: {formatCurrency(payment.total_recouped)}
+                        </p>
+                        {payment.locked_at && (
+                          <p className="text-xs text-secondary-400 mt-1">
+                            Verrouille le {formatDate(payment.locked_at)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-secondary">
+                          {formatCurrency(payment.total_net_payable)}
+                        </p>
+                        <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/20">
+                          {payment.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} size="lg">
-        <ModalContent className="bg-background">{(onClose) => (
-          <>
-          <ModalHeader>
-            {editingExpense ? 'Modifier la depense' : 'Nouvelle depense'}
-          </ModalHeader>
-          <ModalBody>
-            <div className="space-y-4">
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+            onClick={() => setIsModalOpen(false)}
+          />
+          <div className="relative bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+            <div className="px-6 py-5 border-b border-divider flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">
+                {editingExpense ? 'Modifier la depense' : 'Nouvelle depense'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-secondary-400 hover:text-foreground transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 overflow-y-auto max-h-[60vh] space-y-4">
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Montant (EUR)</label>
-                <Input
+                <label className="text-sm font-medium text-foreground mb-2 block">Montant (EUR) *</label>
+                <input
                   type="number"
                   step="0.01"
                   value={formAmount}
-                  onValueChange={setFormAmount}
-                  isRequired
+                  onChange={(e) => setFormAmount(e.target.value)}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  required
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Catégorie</label>
-                <Select
-                  selectedKeys={formCategory ? [formCategory] : []}
+                <label className="text-sm font-medium text-foreground mb-2 block">Categorie</label>
+                <select
+                  value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
+                  <option value="">-- Choisir --</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value}>
-                      {cat.label}
-                    </SelectItem>
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
-                </Select>
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Artiste (optionnel)</label>
-                <Select
-                  selectedKeys={formArtistId ? [formArtistId] : []}
+                <select
+                  value={formArtistId}
                   onChange={(e) => setFormArtistId(e.target.value)}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
+                  <option value="">-- Frais generaux --</option>
                   {artists.map((artist) => (
-                    <SelectItem key={artist.id}>
-                      {artist.name}
-                    </SelectItem>
+                    <option key={artist.id} value={artist.id}>{artist.name}</option>
                   ))}
-                </Select>
+                </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Périmètre</label>
-                <Select
-                  selectedKeys={[formScope]}
+                <label className="text-sm font-medium text-foreground mb-2 block">Perimetre</label>
+                <select
+                  value={formScope}
                   onChange={(e) => setFormScope(e.target.value as 'catalog' | 'track' | 'release')}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
-                  <SelectItem key="catalog">📚 Catalogue général</SelectItem>
-                  <SelectItem key="track">🎵 Track</SelectItem>
-                  <SelectItem key="release">💿 Album</SelectItem>
-                </Select>
+                  <option value="catalog">Catalogue general</option>
+                  <option value="track">Track</option>
+                  <option value="release">Album</option>
+                </select>
               </div>
               {formScope !== 'catalog' && (
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">
                     {formScope === 'track' ? 'ISRC' : 'UPC'}
                   </label>
-                  <Input
+                  <input
                     value={formScopeId}
-                    onValueChange={setFormScopeId}
-                    placeholder={formScope === 'track' ? 'Code ISRC du track' : 'Code UPC de l\'album'}
+                    onChange={(e) => setFormScopeId(e.target.value)}
+                    placeholder={formScope === 'track' ? 'Code ISRC du track' : "Code UPC de l'album"}
+                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
               )}
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
-                <Input
+                <input
                   value={formDescription}
-                  onValueChange={setFormDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Référence</label>
-                <Input
+                <label className="text-sm font-medium text-foreground mb-2 block">Reference</label>
+                <input
                   value={formReference}
-                  onValueChange={setFormReference}
-                  placeholder="N° facture, etc."
+                  onChange={(e) => setFormReference(e.target.value)}
+                  placeholder="N facture, etc."
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">Date</label>
-                <Input
+                <input
                   type="date"
                   value={formDate}
-                  onValueChange={setFormDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
             </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="flat" onPress={() => setIsModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              color="primary"
-              onPress={handleSave}
-              isLoading={saving}
-              isDisabled={!formAmount}
-            >
-              {editingExpense ? 'Enregistrer' : 'Creer'}
-            </Button>
-          </ModalFooter>
-          </>
-        )}</ModalContent>
-      </Modal>
+            <div className="px-6 py-4 border-t border-divider flex gap-3 bg-content2/50">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 px-5 py-2.5 border-2 border-default-300 text-foreground font-medium rounded-full hover:bg-default-100 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !formAmount}
+                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-medium rounded-full disabled:opacity-50 shadow-lg shadow-primary/30 transition-all"
+              >
+                {saving && <Spinner size="sm" color="white" />}
+                {editingExpense ? 'Enregistrer' : 'Creer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Import Modal */}
       <InvoiceImportModal

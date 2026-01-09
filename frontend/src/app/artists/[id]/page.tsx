@@ -162,6 +162,7 @@ export default function ArtistDetailPage() {
   const [advanceScope, setAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
   const [advanceScopeId, setAdvanceScopeId] = useState('');
   const [advanceCategory, setAdvanceCategory] = useState<ExpenseCategory | ''>('');
+  const [advanceDate, setAdvanceDate] = useState('');
   const [creatingAdvance, setCreatingAdvance] = useState(false);
 
   // Delete artist
@@ -200,6 +201,7 @@ export default function ArtistDetailPage() {
   const [editAdvanceScope, setEditAdvanceScope] = useState<'catalog' | 'release' | 'track'>('catalog');
   const [editAdvanceScopeId, setEditAdvanceScopeId] = useState('');
   const [editAdvanceCategory, setEditAdvanceCategory] = useState<ExpenseCategory | ''>('');
+  const [editAdvanceDate, setEditAdvanceDate] = useState('');
   const [savingAdvance, setSavingAdvance] = useState(false);
   const [deletingAdvanceId, setDeletingAdvanceId] = useState<string | null>(null);
 
@@ -439,7 +441,8 @@ export default function ArtistDetailPage() {
         advanceDescription || undefined,
         advanceScope,
         advanceScope !== 'catalog' ? advanceScopeId : undefined,
-        advanceCategory || undefined
+        advanceCategory || undefined,
+        advanceDate || undefined
       );
       setShowAdvanceForm(false);
       setAdvanceAmount('');
@@ -447,6 +450,7 @@ export default function ArtistDetailPage() {
       setAdvanceScope('catalog');
       setAdvanceScopeId('');
       setAdvanceCategory('');
+      setAdvanceDate('');
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -579,6 +583,7 @@ export default function ArtistDetailPage() {
     setEditAdvanceScope(advance.scope || 'catalog');
     setEditAdvanceScopeId(advance.scope_id || '');
     setEditAdvanceCategory(advance.category || '');
+    setEditAdvanceDate(advance.effective_date || '');
   };
 
   const handleUpdateAdvance = async () => {
@@ -594,7 +599,8 @@ export default function ArtistDetailPage() {
         editAdvanceDescription || undefined,
         editAdvanceScope,
         editAdvanceScope !== 'catalog' ? editAdvanceScopeId : undefined,
-        editAdvanceCategory || undefined
+        editAdvanceCategory || undefined,
+        editAdvanceDate || undefined
       );
       setEditingAdvance(null);
       loadData();
@@ -869,42 +875,42 @@ export default function ArtistDetailPage() {
         <title>Royalty Statement - ${artist.name}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          body { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: white; }
           .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
-          .label-info { font-size: 11px; color: #333; line-height: 1.4; }
-          .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-          .label-info .legal { color: #666; font-size: 10px; margin-top: 4px; }
+          .label-info { font-size: 11px; color: #4b5563; line-height: 1.5; }
+          .label-name { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+          .label-info .legal { color: #6b7280; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 120px; }
-          h1 { font-size: 24px; margin-bottom: 8px; }
-          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px; }
-          .period { color: #666; font-size: 14px; margin-bottom: 24px; }
+          h1 { font-size: 24px; margin-bottom: 8px; color: #111827; font-weight: 700; }
+          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 2px solid #5584ff; padding-bottom: 8px; color: #111827; font-weight: 600; }
+          .period { color: #6b7280; font-size: 14px; margin-bottom: 24px; padding: 8px 16px; background: #f3f4f6; border-radius: 20px; display: inline-block; }
           .summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
-          .summary-item { background: #f5f5f5; padding: 12px; border-radius: 8px; }
-          .summary-item label { font-size: 12px; color: #666; display: block; }
-          .summary-item value { font-size: 18px; font-weight: 600; }
-          .highlight { background: #dcfce7 !important; }
+          .summary-item { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e5e7eb; }
+          .summary-item label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px; }
+          .summary-item value { font-size: 18px; font-weight: 600; color: #111827; }
+          .highlight { background: linear-gradient(135deg, #5584ff10 0%, #22c55e10 100%) !important; border: 1px solid #22c55e30 !important; }
           table { width: 100%; border-collapse: collapse; font-size: 14px; }
-          th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
-          th { background: #f5f5f5; font-weight: 600; }
-          .mono { font-family: monospace; font-size: 12px; color: #666; }
+          th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+          th { background: #f8fafc; font-weight: 600; color: #374151; }
+          .mono { font-family: monospace; font-size: 12px; color: #6b7280; }
           .right { text-align: right; }
           .footer {
             margin-top: 30px;
             padding: 20px 0 10px 0;
-            border-top: 2px solid #e5e5e5;
+            border-top: 2px solid #e5e7eb;
             text-align: center;
             page-break-inside: avoid;
           }
-          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; }
-          .footer-text { font-size: 10px; color: #666; margin-top: 5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; opacity: 0.7; }
+          .footer-text { font-size: 10px; color: #9ca3af; margin-top: 5px; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
           @page {
             margin: 20mm 15mm 30mm 15mm;
             @bottom-center {
               content: "Page " counter(page) " / " counter(pages);
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
               font-size: 10px;
-              color: #666;
+              color: #6b7280;
             }
           }
           @media print {
@@ -964,9 +970,9 @@ export default function ArtistDetailPage() {
                 <td class="right" style="color: #b45309;">-${formatCurrency(pq.amount.toString())}</td>
               </tr>
             `).join('')}
-            <tr style="font-weight: bold; background: #dcfce7;">
+            <tr style="font-weight: bold; background: linear-gradient(135deg, #22c55e10 0%, #22c55e15 100%);">
               <td colspan="2">Remaining Balance</td>
-              <td class="right" style="color: #15803d; font-size: 18px;">${formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString())}</td>
+              <td class="right" style="color: #22c55e; font-size: 18px;">${formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString())}</td>
             </tr>
           </tbody>
         </table>
@@ -1158,31 +1164,31 @@ export default function ArtistDetailPage() {
         <title>Expenses Statement - ${artist.name}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          body { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: white; }
           .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
-          .label-info { font-size: 11px; color: #333; line-height: 1.4; }
-          .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-          .label-info .legal { color: #666; font-size: 10px; margin-top: 4px; }
+          .label-info { font-size: 11px; color: #4b5563; line-height: 1.5; }
+          .label-name { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+          .label-info .legal { color: #6b7280; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 120px; }
-          h1 { font-size: 24px; margin-bottom: 8px; }
-          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px; }
-          .period { color: #666; font-size: 14px; margin-bottom: 24px; }
-          .summary-box { background: #fee2e2; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center; }
-          .summary-box label { font-size: 14px; color: #991b1b; display: block; margin-bottom: 4px; }
-          .summary-box value { font-size: 28px; font-weight: 700; color: #dc2626; }
+          h1 { font-size: 24px; margin-bottom: 8px; color: #111827; font-weight: 700; }
+          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 2px solid #f59e0b; padding-bottom: 8px; color: #111827; font-weight: 600; }
+          .period { color: #6b7280; font-size: 14px; margin-bottom: 24px; padding: 8px 16px; background: #f3f4f6; border-radius: 20px; display: inline-block; }
+          .summary-box { background: linear-gradient(135deg, #f59e0b10 0%, #f59e0b15 100%); padding: 24px; border-radius: 16px; margin-bottom: 24px; text-align: center; border: 1px solid #f59e0b25; }
+          .summary-box label { font-size: 14px; color: #92400e; display: block; margin-bottom: 8px; }
+          .summary-box value { font-size: 28px; font-weight: 700; color: #d97706; }
           .category-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-          .category-item { background: #f5f5f5; padding: 12px; border-radius: 8px; text-align: center; }
-          .category-item label { font-size: 11px; color: #666; display: block; }
-          .category-item value { font-size: 16px; font-weight: 600; color: #b45309; }
+          .category-item { background: #f8fafc; padding: 14px; border-radius: 12px; text-align: center; border: 1px solid #e5e7eb; }
+          .category-item label { font-size: 11px; color: #6b7280; display: block; margin-bottom: 4px; }
+          .category-item value { font-size: 16px; font-weight: 600; color: #d97706; }
           table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
-          th { background: #f5f5f5; font-weight: 600; }
-          .mono { font-family: monospace; font-size: 11px; color: #666; }
+          th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+          th { background: #f8fafc; font-weight: 600; color: #374151; }
+          .mono { font-family: monospace; font-size: 11px; color: #6b7280; }
           .right { text-align: right; }
-          .footer { margin-top: 30px; padding: 20px 0 10px 0; border-top: 2px solid #e5e5e5; text-align: center; }
-          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; }
-          .footer-text { font-size: 10px; color: #666; }
+          .footer { margin-top: 30px; padding: 20px 0 10px 0; border-top: 2px solid #e5e7eb; text-align: center; }
+          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; opacity: 0.7; }
+          .footer-text { font-size: 10px; color: #9ca3af; }
           @media print { body { padding: 20px; } .label-header { top: 20px; right: 20px; } }
         </style>
       </head>
@@ -1300,7 +1306,8 @@ export default function ArtistDetailPage() {
       `- Bank name:\n` +
       `- IBAN:\n` +
       `- BIC/SWIFT:\n` +
-      `- Address:\n`
+      `- Address:\n\n` +
+      `Note: If we already have your banking information on file, simply reply to confirm and we will process the payment to your existing account.`
     );
     const mailtoLink = `mailto:royalties@whalesrecords.com?subject=${mailtoSubject}&body=${mailtoBody}`;
 
@@ -1328,33 +1335,33 @@ export default function ArtistDetailPage() {
         <title>Artist Statement - ${artist.name}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
+          body { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; background: white; }
           .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
-          .label-info { font-size: 11px; color: #333; line-height: 1.4; }
-          .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-          .label-info .legal { color: #666; font-size: 10px; margin-top: 4px; }
+          .label-info { font-size: 11px; color: #4b5563; line-height: 1.5; }
+          .label-name { font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+          .label-info .legal { color: #6b7280; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 100px; }
-          h1 { font-size: 28px; margin-bottom: 8px; color: #111; }
-          .artist-name { font-size: 22px; color: #333; margin-bottom: 4px; }
-          .period { color: #666; font-size: 14px; margin-bottom: 32px; }
-          .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
-          .summary-table td { padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
-          .summary-table .label { color: #666; font-size: 14px; }
-          .summary-table .value { text-align: right; font-size: 16px; font-weight: 500; }
-          .net-row td { border-bottom: 2px solid #111; padding-top: 16px; }
-          .net-row .label { font-size: 18px; font-weight: 600; color: #111; }
-          .net-row .value { font-size: 24px; font-weight: 700; color: #16a34a; }
-          .contact-section { margin-top: 40px; padding: 24px; background: #f8fafc; border-radius: 12px; text-align: center; }
-          .contact-section h3 { margin: 0 0 8px 0; font-size: 16px; color: #333; }
-          .contact-section p { margin: 0 0 16px 0; font-size: 14px; color: #666; }
-          .contact-btn { display: inline-block; padding: 12px 32px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; }
-          .contact-btn:hover { background: #1d4ed8; }
-          .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e5e5; text-align: center; }
-          .footer-logo { max-width: 100px; max-height: 40px; margin: 0 auto 8px; display: block; }
-          .footer-text { font-size: 10px; color: #999; }
+          h1 { font-size: 28px; margin-bottom: 8px; color: #111827; font-weight: 700; }
+          .artist-name { font-size: 22px; color: #5584ff; font-weight: 600; margin-bottom: 4px; }
+          .period { color: #6b7280; font-size: 14px; margin-bottom: 32px; padding: 8px 16px; background: #f3f4f6; border-radius: 20px; display: inline-block; }
+          .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; background: #fafafa; border-radius: 16px; overflow: hidden; }
+          .summary-table td { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
+          .summary-table .label { color: #6b7280; font-size: 14px; }
+          .summary-table .value { text-align: right; font-size: 16px; font-weight: 600; color: #111827; }
+          .net-row td { border-bottom: none; padding-top: 20px; background: linear-gradient(135deg, #5584ff10 0%, #5584ff05 100%); }
+          .net-row .label { font-size: 18px; font-weight: 700; color: #111827; }
+          .net-row .value { font-size: 26px; font-weight: 700; color: #22c55e; }
+          .contact-section { margin-top: 40px; padding: 28px; background: linear-gradient(135deg, #5584ff08 0%, #5584ff15 100%); border-radius: 20px; text-align: center; border: 1px solid #5584ff20; }
+          .contact-section h3 { margin: 0 0 8px 0; font-size: 18px; color: #111827; font-weight: 600; }
+          .contact-section p { margin: 0 0 20px 0; font-size: 14px; color: #6b7280; }
+          .contact-btn { display: inline-block; padding: 14px 36px; background: #5584ff; color: white; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 14px rgba(85, 132, 255, 0.35); }
+          .contact-btn:hover { background: #4070e8; }
+          .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; }
+          .footer-logo { max-width: 100px; max-height: 40px; margin: 0 auto 8px; display: block; opacity: 0.7; }
+          .footer-text { font-size: 10px; color: #9ca3af; }
           @media print {
-            .contact-btn { background: #2563eb !important; -webkit-print-color-adjust: exact; }
+            .contact-btn { background: #5584ff !important; -webkit-print-color-adjust: exact; }
             body { padding: 20px; }
           }
         </style>
@@ -1393,10 +1400,10 @@ export default function ArtistDetailPage() {
             <a href="${mailtoLink}" class="contact-btn">Request Payment</a>
           </div>
           ` : `
-          <div class="contact-section" style="background: #fef2f2;">
+          <div class="contact-section" style="background: linear-gradient(135deg, #6b728010 0%, #6b728015 100%); border-color: #6b728020;">
             <h3>No payment due at this time</h3>
             <p>Your advances are still being recouped. Contact us if you have questions.</p>
-            <a href="mailto:royalties@whalesrecords.com" class="contact-btn" style="background: #6b7280;">Contact Us</a>
+            <a href="mailto:royalties@whalesrecords.com" class="contact-btn" style="background: #6b7280; box-shadow: 0 4px 14px rgba(107, 114, 128, 0.25);">Contact Us</a>
           </div>
           `}
 
@@ -1517,19 +1524,19 @@ export default function ArtistDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-default-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-neutral-900 border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   if (error || !artist) {
     return (
-      <div className="min-h-screen bg-default-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Artiste non trouvé'}</p>
+          <p className="text-danger mb-4">{error || 'Artiste non trouvé'}</p>
           <Link href="/artists">
-            <Button variant="secondary">Retour</Button>
+            <button className="px-5 py-2.5 bg-content2 text-foreground font-medium rounded-full hover:bg-content3 transition-colors border-2 border-default-200">Retour</button>
           </Link>
         </div>
       </div>
@@ -1539,10 +1546,10 @@ export default function ArtistDetailPage() {
   const catalogContract = getCatalogContract();
 
   return (
-    <div className="min-h-screen bg-default-50">
-      <header className="bg-background border-b border-divider">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <Link href="/artists" className="text-sm text-default-500 hover:text-default-700 mb-2 inline-flex items-center gap-1">
+    <div className="min-h-screen">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
+        <div className="max-w-2xl mx-auto px-6 py-5">
+          <Link href="/artists" className="text-sm text-secondary-500 hover:text-primary mb-3 inline-flex items-center gap-1 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -1555,11 +1562,11 @@ export default function ArtistDetailPage() {
                 <img
                   src={artist.image_url_small || artist.image_url}
                   alt={artist.name}
-                  className="w-16 h-16 rounded-full object-cover"
+                  className="w-16 h-16 rounded-full object-cover ring-2 ring-primary/20"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-default-200 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
@@ -1578,7 +1585,7 @@ export default function ArtistDetailPage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold text-foreground">{artist.name}</h1>
+                <h1 className="text-2xl font-bold text-foreground">{artist.name}</h1>
                 <button
                   onClick={() => {
                     setEditName(artist.name);
@@ -1586,7 +1593,7 @@ export default function ArtistDetailPage() {
                     setEditCategory(artist.category || 'signed');
                     setShowEditArtist(true);
                   }}
-                  className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded-lg transition-colors"
+                  className="p-1.5 text-secondary-400 hover:text-primary hover:bg-primary/10 rounded-xl transition-colors"
                   title="Modifier l'artiste"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1595,11 +1602,11 @@ export default function ArtistDetailPage() {
                 </button>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-default-500">
+                <p className="text-sm text-secondary-500">
                   {releases.length} release{releases.length > 1 ? 's' : ''} · {tracks.length} track{tracks.length > 1 ? 's' : ''}
                 </p>
                 {artist.category === 'collaborator' && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 text-secondary-700">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-secondary/10 text-secondary border border-secondary/20">
                     Collaborateur
                   </span>
                 )}
@@ -1609,7 +1616,7 @@ export default function ArtistDetailPage() {
                   href={`https://open.spotify.com/artist/${artist.spotify_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
+                  className="inline-flex items-center gap-1 text-xs text-success hover:text-success-700 mt-1"
                 >
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
@@ -1621,7 +1628,7 @@ export default function ArtistDetailPage() {
                 <button
                   onClick={handleFetchArtwork}
                   disabled={fetchingArtwork}
-                  className="mt-2 text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
+                  className="mt-2 text-sm text-success hover:text-success-700 inline-flex items-center gap-1"
                 >
                   {fetchingArtwork ? (
                     <>
@@ -1643,35 +1650,35 @@ export default function ArtistDetailPage() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {/* Balance */}
-        <div className="bg-background rounded-xl border border-divider p-4">
+        <div className="bg-background rounded-2xl border border-divider p-5 shadow-sm">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-default-500 mb-1">Solde avance</p>
-              <p className="text-2xl font-semibold text-foreground">
+            <div className="bg-content2 rounded-xl p-4">
+              <p className="text-sm text-secondary-500 mb-1">Solde avance</p>
+              <p className="text-2xl font-bold text-foreground">
                 {formatCurrency(balance, balanceCurrency)}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-default-500 mb-1">Déjà recoupé</p>
-              <p className="text-2xl font-semibold text-green-600">
+            <div className="bg-success/10 rounded-xl p-4">
+              <p className="text-sm text-success-700 mb-1">Deja recoupé</p>
+              <p className="text-2xl font-bold text-success">
                 {formatCurrency(totalRecouped, balanceCurrency)}
               </p>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-divider grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xs text-default-400">Avances données</p>
-              <p className="text-sm font-medium text-red-600">-{formatCurrency(totalAdvances, balanceCurrency)}</p>
+              <p className="text-xs text-secondary-400">Avances donnees</p>
+              <p className="text-sm font-medium text-danger">-{formatCurrency(totalAdvances, balanceCurrency)}</p>
             </div>
             <div>
-              <p className="text-xs text-default-400">Royalties versées</p>
-              <p className="text-sm font-medium text-red-600">-{formatCurrency(totalPayments, balanceCurrency)}</p>
+              <p className="text-xs text-secondary-400">Royalties versees</p>
+              <p className="text-sm font-medium text-danger">-{formatCurrency(totalPayments, balanceCurrency)}</p>
             </div>
             <div>
-              <p className="text-xs text-default-400">Bilan label</p>
-              <p className={`text-sm font-medium ${parseFloat(totalRecouped) - parseFloat(totalAdvances) - parseFloat(totalPayments) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-xs text-secondary-400">Bilan label</p>
+              <p className={`text-sm font-medium ${parseFloat(totalRecouped) - parseFloat(totalAdvances) - parseFloat(totalPayments) >= 0 ? 'text-success' : 'text-danger'}`}>
                 {formatCurrency(String(parseFloat(totalRecouped) - parseFloat(totalAdvances) - parseFloat(totalPayments)), balanceCurrency)}
               </p>
             </div>
@@ -1679,16 +1686,16 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Calcul Royalties */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider">
-            <h2 className="font-medium text-foreground">Calcul des royalties</h2>
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider">
+            <h2 className="font-semibold text-foreground">Calcul des royalties</h2>
           </div>
-          <div className="p-4">
+          <div className="p-5">
             <div className="flex items-center gap-3 mb-4">
               <select
                 value={selectedPeriod}
                 onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="flex-1 px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className="flex-1 h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
               >
                 {PERIODS.map((period) => (
                   <option key={period.value} value={period.value}>
@@ -1696,16 +1703,17 @@ export default function ArtistDetailPage() {
                   </option>
                 ))}
               </select>
-              <Button
+              <button
                 onClick={handleCalculateRoyalties}
-                loading={calculatingRoyalties}
+                disabled={calculatingRoyalties}
+                className="px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl disabled:opacity-50 transition-all"
               >
-                Calculer
-              </Button>
+                {calculatingRoyalties ? 'Calcul...' : 'Calculer'}
+              </button>
             </div>
 
             {royaltyError && (
-              <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+              <div className="bg-danger-50 text-danger px-4 py-3 rounded-xl text-sm mb-4">
                 {royaltyError}
               </div>
             )}
@@ -1714,14 +1722,14 @@ export default function ArtistDetailPage() {
               <div className="space-y-4">
                 {/* Summary */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-default-50 rounded-lg p-3">
-                    <p className="text-xs text-default-500">Brut total</p>
+                  <div className="bg-content2 rounded-xl p-3">
+                    <p className="text-xs text-secondary-500">Brut total</p>
                     <p className="text-lg font-semibold text-foreground">
                       {formatCurrency(royaltyResult.total_gross, royaltyResult.currency)}
                     </p>
                   </div>
-                  <div className="bg-default-50 rounded-lg p-3">
-                    <p className="text-xs text-default-500">Royalties artiste</p>
+                  <div className="bg-content2 rounded-xl p-3">
+                    <p className="text-xs text-secondary-500">Royalties artiste</p>
                     <p className="text-lg font-semibold text-foreground">
                       {formatCurrency(royaltyResult.total_artist_royalties, royaltyResult.currency)}
                     </p>
@@ -1730,54 +1738,54 @@ export default function ArtistDetailPage() {
 
                 {/* Advance breakdown - only show if there are advances */}
                 {parseFloat(royaltyResult.total_advances || '0') > 0 && (
-                  <div className="bg-amber-50 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-medium text-amber-800">Détail des avances</p>
+                  <div className="bg-warning-50 rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-medium text-warning-800">Détail des avances</p>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-amber-700">Avances totales</span>
-                        <span className="font-medium text-amber-900">{formatCurrency(royaltyResult.total_advances, royaltyResult.currency)}</span>
+                        <span className="text-warning-700">Avances totales</span>
+                        <span className="font-medium text-warning-900">{formatCurrency(royaltyResult.total_advances, royaltyResult.currency)}</span>
                       </div>
                       {parseFloat(royaltyResult.total_recouped_before || '0') > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-amber-700">Déjà recoupé (périodes précédentes)</span>
-                          <span className="font-medium text-green-700">-{formatCurrency(royaltyResult.total_recouped_before, royaltyResult.currency)}</span>
+                          <span className="text-warning-700">Déjà recoupé (périodes précédentes)</span>
+                          <span className="font-medium text-success-700">-{formatCurrency(royaltyResult.total_recouped_before, royaltyResult.currency)}</span>
                         </div>
                       )}
                       {parseFloat(royaltyResult.recoupable || '0') > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-amber-700">Recoupé cette période</span>
-                          <span className="font-medium text-green-700">-{formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}</span>
+                          <span className="text-warning-700">Recoupé cette période</span>
+                          <span className="font-medium text-success-700">-{formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between border-t border-amber-200 pt-1 mt-1">
-                        <span className="font-medium text-amber-800">Reste à recouper</span>
-                        <span className="font-bold text-amber-900">{formatCurrency(royaltyResult.remaining_advance, royaltyResult.currency)}</span>
+                      <div className="flex justify-between border-t border-warning-200 pt-1 mt-1">
+                        <span className="font-medium text-warning-800">Reste à recouper</span>
+                        <span className="font-bold text-warning-900">{formatCurrency(royaltyResult.remaining_advance, royaltyResult.currency)}</span>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Net payable */}
-                <div className={`rounded-lg p-4 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-green-50' : 'bg-default-50'}`}>
-                  <p className="text-xs text-default-500 mb-1">Net payable à l'artiste</p>
-                  <p className={`text-2xl font-bold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-green-700' : 'text-foreground'}`}>
+                <div className={`rounded-xl p-4 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-success-50' : 'bg-content2'}`}>
+                  <p className="text-xs text-secondary-500 mb-1">Net payable à l'artiste</p>
+                  <p className={`text-2xl font-bold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-success-700' : 'text-foreground'}`}>
                     {formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}
                   </p>
                 </div>
 
                 {/* Paid quarters (for year view) */}
                 {paidQuarters.length > 0 && (
-                  <div className="bg-amber-50 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-medium text-amber-700">Trimestres deja payes cette annee</p>
+                  <div className="bg-warning-50 rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-medium text-warning-700">Trimestres deja payes cette annee</p>
                     {paidQuarters.map((pq, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-amber-800">{pq.quarter} (paye le {new Date(pq.date).toLocaleDateString('fr-FR')})</span>
-                        <span className="font-medium text-amber-900">-{formatCurrency(pq.amount.toString(), royaltyResult.currency)}</span>
+                        <span className="text-warning-800">{pq.quarter} (paye le {new Date(pq.date).toLocaleDateString('fr-FR')})</span>
+                        <span className="font-medium text-warning-900">-{formatCurrency(pq.amount.toString(), royaltyResult.currency)}</span>
                       </div>
                     ))}
-                    <div className="border-t border-amber-200 pt-2 flex justify-between">
-                      <span className="text-sm font-medium text-amber-800">Reste a payer</span>
-                      <span className="text-lg font-bold text-green-700">
+                    <div className="border-t border-warning-200 pt-2 flex justify-between">
+                      <span className="text-sm font-medium text-warning-800">Reste a payer</span>
+                      <span className="text-lg font-bold text-success-700">
                         {formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString(), royaltyResult.currency)}
                       </span>
                     </div>
@@ -1785,33 +1793,33 @@ export default function ArtistDetailPage() {
                 )}
 
                 {/* Period info */}
-                <p className="text-xs text-default-500 text-center">
+                <p className="text-xs text-secondary-500 text-center">
                   Période: {new Date(royaltyResult.period_start).toLocaleDateString('fr-FR')} - {new Date(royaltyResult.period_end).toLocaleDateString('fr-FR')}
                 </p>
 
                 {/* Sources breakdown */}
                 {royaltyResult.sources && royaltyResult.sources.length > 0 && (
                   <div className="border-t border-divider pt-4">
-                    <h3 className="text-sm font-medium text-default-700 mb-3">Détail par source</h3>
+                    <h3 className="text-sm font-medium text-secondary-700 mb-3">Détail par source</h3>
                     <div className="space-y-2">
                       {royaltyResult.sources.map((source, idx) => (
-                        <div key={`${source.source}-${idx}`} className="flex items-center justify-between gap-3 py-2 border-b border-neutral-50 last:border-0">
+                        <div key={`${source.source}-${idx}`} className="flex items-center justify-between gap-3 py-2 border-b border-default-50 last:border-0">
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              source.source === 'tunecore' ? 'bg-blue-100 text-blue-800' :
-                              source.source === 'bandcamp' ? 'bg-cyan-100 text-cyan-800' :
-                              source.source === 'believe_uk' ? 'bg-purple-100 text-purple-800' :
-                              'bg-gray-100 text-gray-800'
+                              source.source === 'tunecore' ? 'bg-primary/10 text-primary-700' :
+                              source.source === 'bandcamp' ? 'bg-success/10 text-success-700' :
+                              source.source === 'believe_uk' ? 'bg-secondary/10 text-secondary-700' :
+                              'bg-content2 text-secondary-600'
                             }`}>
                               {source.source_label}
                             </span>
-                            <span className="text-xs text-default-500">
+                            <span className="text-xs text-secondary-500">
                               {formatNumber(source.transaction_count)} transactions · {formatNumber(source.streams)} streams
                             </span>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-foreground">{formatCurrency(source.artist_royalties, royaltyResult.currency)}</p>
-                            <p className="text-xs text-default-500">sur {formatCurrency(source.gross, royaltyResult.currency)}</p>
+                            <p className="text-xs text-secondary-500">sur {formatCurrency(source.gross, royaltyResult.currency)}</p>
                           </div>
                         </div>
                       ))}
@@ -1822,7 +1830,7 @@ export default function ArtistDetailPage() {
                 {/* Albums breakdown */}
                 {royaltyResult.albums.length > 0 && (
                   <div className="border-t border-divider pt-4">
-                    <h3 className="text-sm font-medium text-default-700 mb-3">Détail par album</h3>
+                    <h3 className="text-sm font-medium text-secondary-700 mb-3">Détail par album</h3>
                     <div className="space-y-2">
                       {royaltyResult.albums.map((album, idx) => {
                         const hasAdvance = parseFloat(album.advance_balance || '0') > 0;
@@ -1839,14 +1847,14 @@ export default function ArtistDetailPage() {
                         return (
                           <div
                             key={`${album.upc}-${idx}`}
-                            className={`flex items-start justify-between gap-3 py-2 border-b border-neutral-50 last:border-0 ${isIncludedInAlbum ? 'bg-warning-50 rounded-lg px-2' : ''}`}
+                            className={`flex items-start justify-between gap-3 py-2 border-b border-default-50 last:border-0 ${isIncludedInAlbum ? 'bg-warning-50 rounded-xl px-2' : ''}`}
                           >
                             <div className="min-w-0 flex-1">
                               <p className={`font-medium text-sm truncate ${isIncludedInAlbum ? 'text-warning-700' : 'text-foreground'}`}>
                                 {album.release_title}
                               </p>
-                              <p className="text-xs text-default-400 font-mono">UPC: {album.upc}</p>
-                              <p className="text-xs text-default-500">
+                              <p className="text-xs text-secondary-400 font-mono">UPC: {album.upc}</p>
+                              <p className="text-xs text-secondary-500">
                                 {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
                               </p>
                               {isIncludedInAlbum && parentAlbum && (
@@ -1863,19 +1871,19 @@ export default function ArtistDetailPage() {
                             <div className="text-right flex-shrink-0">
                               {isIncludedInAlbum ? (
                                 <>
-                                  <p className="text-sm font-medium text-default-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                                  <p className="text-sm font-medium text-secondary-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
                                   <p className="text-xs text-warning-700">Inclus dans album</p>
                                 </>
                               ) : hasAdvance ? (
                                 <>
                                   <p className="text-sm font-medium text-foreground">{formatCurrency(netPayable, royaltyResult.currency)}</p>
-                                  <p className="text-xs text-default-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
+                                  <p className="text-xs text-secondary-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
                                 </>
                               ) : (
                                 <p className="text-sm font-medium text-foreground">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>
                               )}
                               {!isIncludedInAlbum && (
-                                <p className="text-xs text-default-500">
+                                <p className="text-xs text-secondary-500">
                                   {(parseFloat(album.artist_share || '0') * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
                                 </p>
                               )}
@@ -1888,7 +1896,7 @@ export default function ArtistDetailPage() {
                 )}
 
                 {royaltyResult.albums.length === 0 && (
-                  <p className="text-center text-sm text-default-500 py-4">
+                  <p className="text-center text-sm text-secondary-500 py-4">
                     Aucune donnée pour cette période
                   </p>
                 )}
@@ -1955,14 +1963,14 @@ export default function ArtistDetailPage() {
                         <Button
                           onClick={handleMarkAsPaid}
                           loading={markingAsPaid}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white"
+                          className="w-full bg-success hover:bg-success-600 text-white"
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                           Marquer comme paye ({formatCurrency(remaining.toString(), royaltyResult.currency)})
                         </Button>
-                        <p className="text-xs text-default-500 text-center mt-2">
+                        <p className="text-xs text-secondary-500 text-center mt-2">
                           Cree un versement et enregistre le paiement
                         </p>
                       </div>
@@ -1976,17 +1984,17 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Contrat Catalogue Global */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider">
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider">
             <h2 className="font-medium text-foreground">Contrat catalogue (défaut)</h2>
-            <p className="text-sm text-default-500">S'applique à tout sauf si un contrat spécifique existe</p>
+            <p className="text-sm text-secondary-500">S'applique à tout sauf si un contrat spécifique existe</p>
           </div>
           {catalogContract ? (
             <div className="px-4 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
@@ -1997,7 +2005,7 @@ export default function ArtistDetailPage() {
                         return `${(artistShare * 100).toFixed(0)}% artiste / ${(labelShare * 100).toFixed(0)}% label`;
                       })()}
                     </p>
-                    <p className="text-sm text-default-500">
+                    <p className="text-sm text-secondary-500">
                       Depuis {new Date(catalogContract.start_date).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
@@ -2005,7 +2013,7 @@ export default function ArtistDetailPage() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleEditContract(catalogContract)}
-                    className="p-2 text-default-400 hover:text-default-600 hover:bg-default-100 rounded-lg transition-colors"
+                    className="p-2 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded-xl transition-colors"
                     title="Modifier"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2015,11 +2023,11 @@ export default function ArtistDetailPage() {
                   <button
                     onClick={() => catalogContract.id && handleDeleteContract(catalogContract.id)}
                     disabled={deletingContractId === catalogContract.id}
-                    className="p-2 text-default-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded-xl transition-colors"
                     title="Supprimer"
                   >
                     {deletingContractId === catalogContract.id ? (
-                      <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2031,7 +2039,7 @@ export default function ArtistDetailPage() {
             </div>
           ) : (
             <div className="px-4 py-4">
-              <p className="text-default-500 text-sm mb-3">Aucun contrat catalogue défini</p>
+              <p className="text-secondary-500 text-sm mb-3">Aucun contrat catalogue défini</p>
               <Button size="sm" onClick={() => {
                 setSelectedItem(null);
                 setContractParties([
@@ -2047,16 +2055,16 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Releases avec contrats */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider flex items-center justify-between">
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
             <div>
               <h2 className="font-medium text-foreground">Releases ({groupedReleasesArray.length})</h2>
-              <p className="text-sm text-default-500">% spécifique par album/EP/single</p>
+              <p className="text-sm text-secondary-500">% spécifique par album/EP/single</p>
             </div>
             {releases.length > 0 && Object.keys(albumArtwork).length < releases.length && (
               <button
                 onClick={fetchAllArtwork}
-                className="text-sm text-green-600 hover:text-green-700 inline-flex items-center gap-1"
+                className="text-sm text-success hover:text-success-700 inline-flex items-center gap-1"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
@@ -2067,12 +2075,12 @@ export default function ArtistDetailPage() {
           </div>
           {loadingCatalog ? (
             <div className="px-4 py-8 text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full mx-auto" />
+              <div className="animate-spin w-6 h-6 border-2 border-default-900 border-t-transparent rounded-full mx-auto" />
             </div>
           ) : releases.length === 0 ? (
-            <p className="px-4 py-6 text-center text-default-500">Aucune release trouvée</p>
+            <p className="px-4 py-6 text-center text-secondary-500">Aucune release trouvée</p>
           ) : (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-divider">
               {groupedReleasesArray.map((group, index) => {
                 const contract = getContractForRelease(group.upc);
                 const artwork = albumArtwork[group.upc];
@@ -2096,12 +2104,12 @@ export default function ArtistDetailPage() {
                             <button
                               onClick={() => fetchAlbumArtwork(group.upc)}
                               disabled={isLoadingArt}
-                              className="w-12 h-12 rounded-md bg-default-100 flex items-center justify-center hover:bg-default-200 transition-colors"
+                              className="w-12 h-12 rounded-md bg-content2 flex items-center justify-center hover:bg-content3 transition-colors"
                             >
                               {isLoadingArt ? (
-                                <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-default-400 border-t-transparent rounded-full animate-spin" />
                               ) : (
-                                <svg className="w-5 h-5 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                                 </svg>
                               )}
@@ -2114,10 +2122,10 @@ export default function ArtistDetailPage() {
                             className="text-left w-full group"
                           >
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-foreground truncate group-hover:text-default-700">{group.release_title}</p>
+                              <p className="font-medium text-foreground truncate group-hover:text-secondary-700">{group.release_title}</p>
                               {hasMultipleSources && (
                                 <svg
-                                  className={`w-4 h-4 text-default-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                  className={`w-4 h-4 text-secondary-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2128,30 +2136,30 @@ export default function ArtistDetailPage() {
                             </div>
                           </button>
                           {group.upc ? (
-                            <p className="text-xs text-default-400 font-mono">UPC: {group.upc}</p>
+                            <p className="text-xs text-secondary-400 font-mono">UPC: {group.upc}</p>
                           ) : (
                             <div className="flex flex-wrap items-center gap-2 text-xs">
                               {group.sources[0].physical_format && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-medium">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary/10 text-secondary-700 font-medium">
                                   {group.sources[0].physical_format}
                                 </span>
                               )}
                               {group.sources[0].store_name && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-medium">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary-700 font-medium">
                                   {group.sources[0].store_name}
                                 </span>
                               )}
                             </div>
                           )}
-                          <p className="text-sm text-default-500">
+                          <p className="text-sm text-secondary-500">
                             {group.track_count} track{group.track_count > 1 ? 's' : ''} · {formatCurrency(group.total_gross, group.currency)}
                             {group.total_streams > 0 && (
-                              <span className="text-default-400 ml-1">
+                              <span className="text-secondary-400 ml-1">
                                 · {group.total_streams.toLocaleString()} stream{group.total_streams > 1 ? 's' : ''}
                               </span>
                             )}
                             {hasMultipleSources && (
-                              <span className="text-default-400 ml-1">
+                              <span className="text-secondary-400 ml-1">
                                 · {group.sources.length} source{group.sources.length > 1 ? 's' : ''}
                               </span>
                             )}
@@ -2160,12 +2168,12 @@ export default function ArtistDetailPage() {
                         <div className="flex items-center gap-2">
                           {contract ? (
                             <div className="flex items-center gap-1">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
                                 {(getContractShares(contract).artistShare * 100).toFixed(0)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
-                                className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded transition-colors"
+                                className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
                                 title="Modifier"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2175,11 +2183,11 @@ export default function ArtistDetailPage() {
                               <button
                                 onClick={() => contract.id && handleDeleteContract(contract.id)}
                                 disabled={deletingContractId === contract.id}
-                                className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
                                 title="Supprimer"
                               >
                                 {deletingContractId === contract.id ? (
-                                  <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                  <div className="w-3.5 h-3.5 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
                                 ) : (
                                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2188,7 +2196,7 @@ export default function ArtistDetailPage() {
                               </button>
                             </div>
                           ) : catalogContract ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-default-100 text-default-600">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
                               {(getContractShares(catalogContract).artistShare * 100).toFixed(0)}% (défaut)
                             </span>
                           ) : (
@@ -2212,7 +2220,7 @@ export default function ArtistDetailPage() {
                     </div>
                     {/* Expanded sources */}
                     {isExpanded && hasMultipleSources && (
-                      <div className="bg-default-50 border-t border-divider px-4 py-2">
+                      <div className="bg-content2 border-t border-divider px-4 py-2">
                         <div className="ml-15 pl-3 border-l-2 border-divider space-y-2">
                           {group.sources.map((source, sIdx) => {
                             return (
@@ -2220,25 +2228,25 @@ export default function ArtistDetailPage() {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     {source.store_name && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 font-medium text-xs">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary-700 font-medium text-xs">
                                         {source.store_name}
                                       </span>
                                     )}
                                     {source.physical_format && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-medium text-xs">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary/10 text-secondary-700 font-medium text-xs">
                                         {source.physical_format}
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-default-400 mt-1">
+                                  <p className="text-xs text-secondary-400 mt-1">
                                     {source.track_count} track{source.track_count > 1 ? 's' : ''}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2 text-right">
                                   <div>
-                                    <p className="text-sm font-medium text-default-700">{formatCurrency(source.total_gross, source.currency)}</p>
+                                    <p className="text-sm font-medium text-secondary-700">{formatCurrency(source.total_gross, source.currency)}</p>
                                     {source.total_streams > 0 && (
-                                      <p className="text-xs text-default-400">
+                                      <p className="text-xs text-secondary-400">
                                         {formatNumber(source.total_streams)} {source.store_name && (source.store_name.toLowerCase() === 'bandcamp' || source.store_name.toLowerCase() === 'squarespace') ? 'vente' : 'stream'}{source.total_streams > 1 ? 's' : ''}
                                       </p>
                                     )}
@@ -2258,19 +2266,19 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Tracks avec contrats */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider">
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider">
             <h2 className="font-medium text-foreground">Tracks ({tracks.length})</h2>
-            <p className="text-sm text-default-500">% spécifique par track (optionnel)</p>
+            <p className="text-sm text-secondary-500">% spécifique par track (optionnel)</p>
           </div>
           {loadingCatalog ? (
             <div className="px-4 py-8 text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-neutral-900 border-t-transparent rounded-full mx-auto" />
+              <div className="animate-spin w-6 h-6 border-2 border-default-900 border-t-transparent rounded-full mx-auto" />
             </div>
           ) : tracks.length === 0 ? (
-            <p className="px-4 py-6 text-center text-default-500">Aucune track trouvée</p>
+            <p className="px-4 py-6 text-center text-secondary-500">Aucune track trouvée</p>
           ) : (
-            <div className="divide-y divide-neutral-100 max-h-96 overflow-y-auto">
+            <div className="divide-y divide-divider max-h-96 overflow-y-auto">
               {tracks.map((track, index) => {
                 const trackContract = getContractForTrack(track.isrc);
                 const releaseContract = releases.find(r => r.release_title === track.release_title)
@@ -2297,12 +2305,12 @@ export default function ArtistDetailPage() {
                           <button
                             onClick={() => fetchTrackArtwork(track.isrc)}
                             disabled={isLoadingArt}
-                            className="w-10 h-10 rounded bg-default-100 flex items-center justify-center hover:bg-default-200 transition-colors"
+                            className="w-10 h-10 rounded bg-content2 flex items-center justify-center hover:bg-content3 transition-colors"
                           >
                             {isLoadingArt ? (
-                              <div className="w-3 h-3 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+                              <div className="w-3 h-3 border-2 border-default-400 border-t-transparent rounded-full animate-spin" />
                             ) : (
-                              <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                               </svg>
                             )}
@@ -2311,18 +2319,18 @@ export default function ArtistDetailPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-foreground truncate">{track.track_title}</p>
-                        <p className="text-sm text-default-500 truncate">{track.release_title}</p>
-                        <p className="text-xs text-default-400 font-mono">ISRC: {track.isrc}</p>
+                        <p className="text-sm text-secondary-500 truncate">{track.release_title}</p>
+                        <p className="text-xs text-secondary-400 font-mono">ISRC: {track.isrc}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
                               {(getContractShares(trackContract).artistShare * 100).toFixed(0)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
-                              className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded transition-colors"
+                              className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
                               title="Modifier"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2332,11 +2340,11 @@ export default function ArtistDetailPage() {
                             <button
                               onClick={() => trackContract.id && handleDeleteContract(trackContract.id)}
                               disabled={deletingContractId === trackContract.id}
-                              className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
                               title="Supprimer"
                             >
                               {deletingContractId === trackContract.id ? (
-                                <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                <div className="w-3.5 h-3.5 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
                               ) : (
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2347,8 +2355,8 @@ export default function ArtistDetailPage() {
                         ) : effectiveContract ? (
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                             isReleaseLevel
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-default-100 text-default-600'
+                              ? 'bg-success/10 text-success-700'
+                              : 'bg-content2 text-secondary-600'
                           }`}>
                             {(getContractShares(effectiveContract).artistShare * 100).toFixed(0)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
@@ -2379,18 +2387,18 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Advances */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider flex items-center justify-between">
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
             <div>
               <h2 className="font-medium text-foreground">Avances</h2>
-              <p className="text-sm text-default-500">Par catalogue, album ou track</p>
+              <p className="text-sm text-secondary-500">Par catalogue, album ou track</p>
             </div>
             <Button size="sm" onClick={() => setShowAdvanceForm(true)}>Ajouter</Button>
           </div>
           {advances.length === 0 ? (
-            <p className="px-4 py-6 text-center text-default-500">Aucune avance</p>
+            <p className="px-4 py-6 text-center text-secondary-500">Aucune avance</p>
           ) : (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-divider">
               {advances.map((entry) => {
                 const isAdvance = entry.entry_type === 'advance';
                 const isDeleting = deletingAdvanceId === entry.id;
@@ -2404,44 +2412,44 @@ export default function ArtistDetailPage() {
                           </p>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             entry.scope === 'catalog'
-                              ? 'bg-default-100 text-default-600'
+                              ? 'bg-content2 text-secondary-600'
                               : entry.scope === 'release'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-blue-100 text-blue-700'
+                                ? 'bg-success/10 text-success-700'
+                                : 'bg-primary/10 text-primary-700'
                           }`}>
                             {entry.scope === 'catalog' ? 'Catalogue' : entry.scope === 'release' ? 'Album' : 'Track'}
                           </span>
                           {entry.category && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary-700">
                               {EXPENSE_CATEGORIES.find(c => c.value === entry.category)?.label || entry.category}
                             </span>
                           )}
                         </div>
                         {entry.scope !== 'catalog' && entry.scope_id && (
-                          <p className="text-sm text-default-600">
+                          <p className="text-sm text-secondary-600">
                             {entry.scope === 'release'
                               ? (releases.find(r => r.upc === entry.scope_id)?.release_title || entry.scope_id)
                               : (tracks.find(t => t.isrc === entry.scope_id)?.track_title || entry.scope_id)
                             }
-                            <span className="text-xs text-default-400 font-mono ml-2">({entry.scope_id})</span>
+                            <span className="text-xs text-secondary-400 font-mono ml-2">({entry.scope_id})</span>
                           </p>
                         )}
                         {entry.description && (
-                          <p className="text-sm text-default-500">{entry.description}</p>
+                          <p className="text-sm text-secondary-500">{entry.description}</p>
                         )}
-                        <p className="text-xs text-default-400 mt-1">
+                        <p className="text-xs text-secondary-400 mt-1">
                           {new Date(entry.effective_date).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className={`font-medium ${isAdvance ? 'text-red-600' : 'text-green-600'}`}>
+                        <p className={`font-medium ${isAdvance ? 'text-danger' : 'text-success'}`}>
                           {isAdvance ? '-' : '+'}
                           {formatCurrency(entry.amount, entry.currency)}
                         </p>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleEditAdvance(entry)}
-                            className="p-1.5 text-default-400 hover:text-default-600 hover:bg-default-100 rounded transition-colors"
+                            className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
                             title="Modifier"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2451,11 +2459,11 @@ export default function ArtistDetailPage() {
                           <button
                             onClick={() => handleDeleteAdvance(entry.id)}
                             disabled={isDeleting}
-                            className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
                             title="Supprimer"
                           >
                             {isDeleting ? (
-                              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                              <div className="w-4 h-4 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
                             ) : (
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2473,18 +2481,18 @@ export default function ArtistDetailPage() {
         </div>
 
         {/* Payments */}
-        <div className="bg-background rounded-xl border border-divider">
-          <div className="px-4 py-3 border-b border-divider flex items-center justify-between">
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
             <div>
               <h2 className="font-medium text-foreground">Versements</h2>
-              <p className="text-sm text-default-500">Royalties payées à l'artiste</p>
+              <p className="text-sm text-secondary-500">Royalties payées à l'artiste</p>
             </div>
             <Button size="sm" onClick={() => setShowPaymentForm(true)}>Ajouter</Button>
           </div>
           {payments.length === 0 ? (
-            <p className="px-4 py-6 text-center text-default-500">Aucun versement</p>
+            <p className="px-4 py-6 text-center text-secondary-500">Aucun versement</p>
           ) : (
-            <div className="divide-y divide-neutral-100">
+            <div className="divide-y divide-divider">
               {payments.map((payment) => {
                 const isDeleting = deletingPaymentId === payment.id;
                 return (
@@ -2493,24 +2501,24 @@ export default function ArtistDetailPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground">Versement</p>
                         {payment.description && (
-                          <p className="text-sm text-default-500">{payment.description}</p>
+                          <p className="text-sm text-secondary-500">{payment.description}</p>
                         )}
-                        <p className="text-xs text-default-400 mt-1">
+                        <p className="text-xs text-secondary-400 mt-1">
                           {new Date(payment.effective_date).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-green-600">
+                        <p className="font-medium text-success">
                           {formatCurrency(payment.amount, payment.currency)}
                         </p>
                         <button
                           onClick={() => handleDeletePayment(payment.id)}
                           disabled={isDeleting}
-                          className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
                           title="Supprimer"
                         >
                           {isDeleting ? (
-                            <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-4 h-4 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
                           ) : (
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2529,7 +2537,7 @@ export default function ArtistDetailPage() {
 
       {/* Contract Form Modal */}
       {showContractForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
@@ -2540,7 +2548,7 @@ export default function ArtistDetailPage() {
                   setShowContractForm(false);
                   setSelectedItem(null);
                   setContractParties([]);
-                }} className="p-2 -mr-2 text-default-500">
+                }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2549,24 +2557,24 @@ export default function ArtistDetailPage() {
             </div>
             <div className="p-4 sm:p-6 space-y-4">
               {selectedItem && (
-                <div className="bg-default-50 rounded-lg p-3">
-                  <p className="text-sm text-default-500">
+                <div className="bg-content2 rounded-xl p-3">
+                  <p className="text-sm text-secondary-500">
                     {selectedItem.type === 'release' ? 'Release (UPC)' : 'Track (ISRC)'}
                   </p>
                   <p className="font-medium text-foreground">{selectedItem.name}</p>
-                  <p className="text-xs text-default-400 font-mono mt-1">{selectedItem.id}</p>
+                  <p className="text-xs text-secondary-400 font-mono mt-1">{selectedItem.id}</p>
                 </div>
               )}
               {!selectedItem && (
-                <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-sm text-blue-700">
+                <div className="bg-primary/5 rounded-xl p-3">
+                  <p className="text-sm text-primary-700">
                     Le contrat catalogue s'applique à toutes les releases et tracks qui n'ont pas de contrat spécifique.
                   </p>
                 </div>
               )}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-default-700">
+                  <label className="block text-sm font-medium text-secondary-700">
                     Parties du contrat
                   </label>
                   <button
@@ -2584,8 +2592,8 @@ export default function ArtistDetailPage() {
                 </div>
 
                 {contractParties.length === 0 && (
-                  <div className="bg-default-100 rounded-lg p-3 mb-3">
-                    <p className="text-sm text-default-500">
+                  <div className="bg-content2 rounded-xl p-3 mb-3">
+                    <p className="text-sm text-secondary-500">
                       Aucune partie définie. Ajoutez des artistes ou labels avec leurs parts respectives.
                     </p>
                   </div>
@@ -2593,7 +2601,7 @@ export default function ArtistDetailPage() {
 
                 <div className="space-y-3 mb-3">
                   {contractParties.map((party, index) => (
-                    <div key={index} className="bg-default-50 rounded-lg p-3">
+                    <div key={index} className="bg-content2 rounded-xl p-3">
                       <div className="flex items-start gap-2 mb-2">
                         <select
                           value={party.party_type}
@@ -2609,7 +2617,7 @@ export default function ArtistDetailPage() {
                             }
                             setContractParties(newParties);
                           }}
-                          className="flex-1 px-3 py-2 bg-background border border-divider rounded-lg text-sm"
+                          className="flex-1 px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm"
                         >
                           <option value="artist">Artiste</option>
                           <option value="label">Label</option>
@@ -2618,7 +2626,7 @@ export default function ArtistDetailPage() {
                           onClick={() => {
                             setContractParties(contractParties.filter((_, i) => i !== index));
                           }}
-                          className="p-2 text-danger hover:bg-danger-50 rounded-lg"
+                          className="p-2 text-danger hover:bg-danger-50 rounded-xl"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -2634,7 +2642,7 @@ export default function ArtistDetailPage() {
                             newParties[index].artist_id = e.target.value;
                             setContractParties(newParties);
                           }}
-                          className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm mb-2"
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm mb-2"
                         >
                           <option value="">Sélectionner un artiste</option>
                           {allArtists.map((a) => (
@@ -2651,12 +2659,12 @@ export default function ArtistDetailPage() {
                             newParties[index].label_name = e.target.value;
                             setContractParties(newParties);
                           }}
-                          className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm mb-2"
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm mb-2"
                         />
                       )}
 
                       <div>
-                        <label className="block text-xs text-default-500 mb-1">
+                        <label className="block text-xs text-secondary-500 mb-1">
                           Part: {party.share_percentage.toFixed(0)}%
                         </label>
                         <input
@@ -2670,7 +2678,7 @@ export default function ArtistDetailPage() {
                             newParties[index].share_percentage = parseFloat(e.target.value);
                             setContractParties(newParties);
                           }}
-                          className="w-full h-2 bg-default-200 rounded-lg appearance-none cursor-pointer"
+                          className="w-full h-2 bg-content3 rounded-xl appearance-none cursor-pointer"
                         />
                       </div>
                     </div>
@@ -2678,7 +2686,7 @@ export default function ArtistDetailPage() {
                 </div>
 
                 {contractParties.length > 0 && (
-                  <div className={`rounded-lg p-3 ${
+                  <div className={`rounded-xl p-3 ${
                     contractParties.reduce((sum, p) => sum + p.share_percentage, 0) === 100
                       ? 'bg-success-50 text-success-700'
                       : 'bg-warning-50 text-warning-700'
@@ -2718,7 +2726,7 @@ export default function ArtistDetailPage() {
                       setContractFile(file);
                     }
                   }}
-                  className="w-full px-3 py-2 bg-background border border-divider rounded-lg text-sm"
+                  className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm"
                 />
                 {contractFile && (
                   <p className="text-xs text-success mt-1">
@@ -2754,7 +2762,7 @@ export default function ArtistDetailPage() {
 
       {/* Advance Form Modal */}
       {showAdvanceForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
@@ -2763,7 +2771,7 @@ export default function ArtistDetailPage() {
                   setShowAdvanceForm(false);
                   setAdvanceScope('catalog');
                   setAdvanceScopeId('');
-                }} className="p-2 -mr-2 text-default-500">
+                }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2781,7 +2789,7 @@ export default function ArtistDetailPage() {
 
               {/* Scope selector */}
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Appliquer à
                 </label>
                 <div className="flex gap-2">
@@ -2791,10 +2799,10 @@ export default function ArtistDetailPage() {
                       setAdvanceScope('catalog');
                       setAdvanceScopeId('');
                     }}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       advanceScope === 'catalog'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Catalogue
@@ -2802,10 +2810,10 @@ export default function ArtistDetailPage() {
                   <button
                     type="button"
                     onClick={() => setAdvanceScope('release')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       advanceScope === 'release'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Album
@@ -2813,10 +2821,10 @@ export default function ArtistDetailPage() {
                   <button
                     type="button"
                     onClick={() => setAdvanceScope('track')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       advanceScope === 'track'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Track
@@ -2827,13 +2835,13 @@ export default function ArtistDetailPage() {
               {/* Scope ID selector */}
               {advanceScope === 'release' && (
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Sélectionner un album
                   </label>
                   <select
                     value={advanceScopeId}
                     onChange={(e) => setAdvanceScopeId(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary"
                   >
                     <option value="">-- Choisir un album --</option>
                     {releases.map((r) => (
@@ -2847,13 +2855,13 @@ export default function ArtistDetailPage() {
 
               {advanceScope === 'track' && (
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Sélectionner un track
                   </label>
                   <select
                     value={advanceScopeId}
                     onChange={(e) => setAdvanceScopeId(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary"
                   >
                     <option value="">-- Choisir un track --</option>
                     {tracks.map((t) => (
@@ -2867,13 +2875,13 @@ export default function ArtistDetailPage() {
 
               {/* Category selector */}
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Catégorie
                 </label>
                 <select
                   value={advanceCategory}
                   onChange={(e) => setAdvanceCategory(e.target.value as ExpenseCategory | '')}
-                  className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-background"
+                  className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary bg-background"
                 >
                   <option value="">-- Choisir une catégorie --</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
@@ -2883,6 +2891,13 @@ export default function ArtistDetailPage() {
                   ))}
                 </select>
               </div>
+
+              <Input
+                type="date"
+                label="Date"
+                value={advanceDate}
+                onChange={(e) => setAdvanceDate(e.target.value)}
+              />
 
               <Input
                 label="Description (optionnel)"
@@ -2897,6 +2912,7 @@ export default function ArtistDetailPage() {
                 setAdvanceScope('catalog');
                 setAdvanceScopeId('');
                 setAdvanceCategory('');
+                setAdvanceDate('');
               }} className="flex-1">
                 Annuler
               </Button>
@@ -2915,12 +2931,12 @@ export default function ArtistDetailPage() {
 
       {/* Payment Form Modal */}
       {showPaymentForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Nouveau versement</h2>
-                <button onClick={() => setShowPaymentForm(false)} className="p-2 -mr-2 text-default-500">
+                <button onClick={() => setShowPaymentForm(false)} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2969,7 +2985,7 @@ export default function ArtistDetailPage() {
 
       {/* Edit Artwork Modal */}
       {showEditArtwork && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
@@ -2978,7 +2994,7 @@ export default function ArtistDetailPage() {
                   setShowEditArtwork(false);
                   setSpotifyProfileUrl('');
                   setEditImageUrl('');
-                }} className="p-2 -mr-2 text-default-500">
+                }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -2992,8 +3008,8 @@ export default function ArtistDetailPage() {
                 </div>
               )}
 
-              <div className="bg-default-50 rounded-lg p-3 space-y-3">
-                <p className="text-sm text-default-600">
+              <div className="bg-content2 rounded-xl p-3 space-y-3">
+                <p className="text-sm text-secondary-600">
                   Collez l'URL du profil Spotify de l'artiste pour récupérer la bonne image:
                 </p>
                 <Input
@@ -3005,7 +3021,7 @@ export default function ArtistDetailPage() {
                 <button
                   onClick={handleFetchArtwork}
                   disabled={fetchingArtwork}
-                  className="w-full py-2 text-sm text-green-600 hover:text-green-700 border border-green-200 rounded-lg inline-flex items-center justify-center gap-2"
+                  className="w-full py-2 text-sm text-success hover:text-success-700 border border-green-200 rounded-xl inline-flex items-center justify-center gap-2"
                 >
                   {fetchingArtwork ? (
                     <>
@@ -3025,7 +3041,7 @@ export default function ArtistDetailPage() {
 
               <div className="relative flex items-center py-2">
                 <div className="flex-grow border-t border-divider"></div>
-                <span className="flex-shrink mx-3 text-xs text-default-400">ou</span>
+                <span className="flex-shrink mx-3 text-xs text-secondary-400">ou</span>
                 <div className="flex-grow border-t border-divider"></div>
               </div>
 
@@ -3054,12 +3070,12 @@ export default function ArtistDetailPage() {
 
       {/* Edit Artist Modal */}
       {showEditArtist && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Modifier l'artiste</h2>
-                <button onClick={() => setShowEditArtist(false)} className="p-2 -mr-2 text-default-500">
+                <button onClick={() => setShowEditArtist(false)} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -3074,7 +3090,7 @@ export default function ArtistDetailPage() {
                 placeholder="Nom de l'artiste"
               />
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Catégorie
                 </label>
                 <div className="flex gap-2">
@@ -3082,12 +3098,12 @@ export default function ArtistDetailPage() {
                     <button
                       key={cat.value}
                       onClick={() => setEditCategory(cat.value)}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
+                      className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
                         editCategory === cat.value
                           ? cat.value === 'signed'
                             ? 'bg-primary-100 border-primary-500 text-primary-700'
                             : 'bg-secondary-100 border-secondary-500 text-secondary-700'
-                          : 'bg-default-100 border-default-200 text-default-600 hover:bg-default-200'
+                          : 'bg-content2 border-default-200 text-secondary-600 hover:bg-content3'
                       }`}
                     >
                       {cat.label}
@@ -3096,7 +3112,7 @@ export default function ArtistDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   ID Spotify (optionnel)
                 </label>
                 <div className="flex gap-2">
@@ -3107,7 +3123,7 @@ export default function ArtistDetailPage() {
                     className="flex-1"
                   />
                 </div>
-                <p className="text-xs text-default-500 mt-1">
+                <p className="text-xs text-secondary-500 mt-1">
                   L'ID se trouve dans l'URL du profil Spotify: open.spotify.com/artist/<strong>ID</strong>
                 </p>
               </div>
@@ -3131,12 +3147,12 @@ export default function ArtistDetailPage() {
 
       {/* Edit Advance Modal */}
       {editingAdvance && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Modifier l'avance</h2>
-                <button onClick={() => setEditingAdvance(null)} className="p-2 -mr-2 text-default-500">
+                <button onClick={() => setEditingAdvance(null)} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -3154,7 +3170,7 @@ export default function ArtistDetailPage() {
 
               {/* Scope selector */}
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Appliquer à
                 </label>
                 <div className="flex gap-2">
@@ -3164,10 +3180,10 @@ export default function ArtistDetailPage() {
                       setEditAdvanceScope('catalog');
                       setEditAdvanceScopeId('');
                     }}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       editAdvanceScope === 'catalog'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Catalogue
@@ -3175,10 +3191,10 @@ export default function ArtistDetailPage() {
                   <button
                     type="button"
                     onClick={() => setEditAdvanceScope('release')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       editAdvanceScope === 'release'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Album
@@ -3186,10 +3202,10 @@ export default function ArtistDetailPage() {
                   <button
                     type="button"
                     onClick={() => setEditAdvanceScope('track')}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                       editAdvanceScope === 'track'
-                        ? 'bg-neutral-900 text-white'
-                        : 'bg-default-100 text-default-600 hover:bg-default-200'
+                        ? 'bg-foreground text-background'
+                        : 'bg-content2 text-secondary-600 hover:bg-content3'
                     }`}
                   >
                     Track
@@ -3200,13 +3216,13 @@ export default function ArtistDetailPage() {
               {/* Scope ID selector */}
               {editAdvanceScope === 'release' && (
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Sélectionner un album
                   </label>
                   <select
                     value={editAdvanceScopeId}
                     onChange={(e) => setEditAdvanceScopeId(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary"
                   >
                     <option value="">-- Choisir un album --</option>
                     {releases.map((r) => (
@@ -3220,13 +3236,13 @@ export default function ArtistDetailPage() {
 
               {editAdvanceScope === 'track' && (
                 <div>
-                  <label className="block text-sm font-medium text-default-700 mb-2">
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">
                     Sélectionner un track
                   </label>
                   <select
                     value={editAdvanceScopeId}
                     onChange={(e) => setEditAdvanceScopeId(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary"
                   >
                     <option value="">-- Choisir un track --</option>
                     {tracks.map((t) => (
@@ -3240,13 +3256,13 @@ export default function ArtistDetailPage() {
 
               {/* Category selector */}
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Catégorie
                 </label>
                 <select
                   value={editAdvanceCategory}
                   onChange={(e) => setEditAdvanceCategory(e.target.value as ExpenseCategory | '')}
-                  className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-background"
+                  className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:outline-none focus:border-primary bg-background"
                 >
                   <option value="">-- Choisir une catégorie --</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
@@ -3256,6 +3272,13 @@ export default function ArtistDetailPage() {
                   ))}
                 </select>
               </div>
+
+              <Input
+                type="date"
+                label="Date"
+                value={editAdvanceDate}
+                onChange={(e) => setEditAdvanceDate(e.target.value)}
+              />
 
               <Input
                 label="Description (optionnel)"
@@ -3283,12 +3306,12 @@ export default function ArtistDetailPage() {
 
       {/* Edit Contract Modal */}
       {editingContract && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
             <div className="px-4 py-4 sm:px-6 border-b border-divider">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Modifier le contrat</h2>
-                <button onClick={() => setEditingContract(null)} className="p-2 -mr-2 text-default-500">
+                <button onClick={() => setEditingContract(null)} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -3296,8 +3319,8 @@ export default function ArtistDetailPage() {
               </div>
             </div>
             <div className="p-4 sm:p-6 space-y-4">
-              <div className="bg-default-50 rounded-lg p-3">
-                <p className="text-sm text-default-500">
+              <div className="bg-content2 rounded-xl p-3">
+                <p className="text-sm text-secondary-500">
                   {editingContract.scope === 'catalog' ? 'Catalogue' : editingContract.scope === 'release' ? 'Release (UPC)' : 'Track (ISRC)'}
                 </p>
                 <p className="font-medium text-foreground">
@@ -3306,7 +3329,7 @@ export default function ArtistDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Part artiste: {(parseFloat(editContractShare) * 100).toFixed(0)}%
                 </label>
                 <input
@@ -3316,9 +3339,9 @@ export default function ArtistDetailPage() {
                   step="0.05"
                   value={editContractShare}
                   onChange={(e) => setEditContractShare(e.target.value)}
-                  className="w-full h-2 bg-default-200 rounded-lg appearance-none cursor-pointer"
+                  className="w-full h-2 bg-content3 rounded-xl appearance-none cursor-pointer"
                 />
-                <div className="flex justify-between text-sm text-default-500 mt-2">
+                <div className="flex justify-between text-sm text-secondary-500 mt-2">
                   <span>Artiste: {(parseFloat(editContractShare) * 100).toFixed(0)}%</span>
                   <span>Label: {((1 - parseFloat(editContractShare)) * 100).toFixed(0)}%</span>
                 </div>
@@ -3350,20 +3373,20 @@ export default function ArtistDetailPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && artist && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-background w-full max-w-md rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-divider bg-red-50">
-              <h2 className="text-lg font-semibold text-red-800">Supprimer l&apos;artiste</h2>
+            <div className="px-6 py-4 border-b border-divider bg-danger-50">
+              <h2 className="text-lg font-semibold text-danger-800">Supprimer l&apos;artiste</h2>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-red-100 border border-red-300 rounded-lg p-4">
-                <p className="text-red-800 font-medium text-center mb-2">
+              <div className="bg-danger-100 border border-danger-300 rounded-xl p-4">
+                <p className="text-danger-800 font-medium text-center mb-2">
                   ATTENTION: Cette action est IRREVERSIBLE
                 </p>
-                <p className="text-red-700 text-sm text-center">
+                <p className="text-danger-700 text-sm text-center">
                   Toutes les donnees associees seront supprimees:
                 </p>
-                <ul className="text-red-600 text-sm mt-2 space-y-1 list-disc list-inside">
+                <ul className="text-danger text-sm mt-2 space-y-1 list-disc list-inside">
                   <li>Contrats ({contracts.length})</li>
                   <li>Avances ({advances.length})</li>
                   <li>Versements ({payments.length})</li>
@@ -3372,10 +3395,10 @@ export default function ArtistDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-default-700 mb-2">
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
                   Pour confirmer, tapez le nom de l&apos;artiste:
                 </label>
-                <p className="text-lg font-bold text-foreground mb-2 bg-default-100 px-3 py-2 rounded-lg">
+                <p className="text-lg font-bold text-foreground mb-2 bg-content2 px-3 py-2 rounded-xl">
                   {artist.name}
                 </p>
                 <input
@@ -3383,7 +3406,7 @@ export default function ArtistDetailPage() {
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder="Tapez le nom exactement"
-                  className="w-full px-4 py-3 border-2 border-red-300 rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-4 py-3 border-2 border-danger-300 rounded-xl text-foreground focus:outline-none focus:outline-none focus:border-danger"
                 />
               </div>
 
@@ -3402,10 +3425,10 @@ export default function ArtistDetailPage() {
                 <button
                   onClick={handleDeleteArtist}
                   disabled={deleteConfirmText !== artist.name || deleting}
-                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-colors ${
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-medium transition-colors ${
                     deleteConfirmText === artist.name
-                      ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-red-200 text-red-400 cursor-not-allowed'
+                      ? 'bg-danger text-white hover:bg-danger-600'
+                      : 'bg-danger-200 text-danger-400 cursor-not-allowed'
                   }`}
                 >
                   {deleting ? 'Suppression...' : 'Supprimer definitivement'}
@@ -3419,14 +3442,14 @@ export default function ArtistDetailPage() {
       {/* Danger Zone - at the very bottom */}
       {artist && (
         <div className="max-w-2xl mx-auto px-4 py-8">
-          <div className="border-2 border-red-200 rounded-xl bg-red-50 p-4">
-            <h3 className="text-red-800 font-semibold mb-2">Zone de danger</h3>
-            <p className="text-red-600 text-sm mb-4">
+          <div className="border-2 border-danger-200 rounded-xl bg-danger-50 p-4">
+            <h3 className="text-danger-800 font-semibold mb-2">Zone de danger</h3>
+            <p className="text-danger text-sm mb-4">
               La suppression d&apos;un artiste est irreversible. Toutes les donnees associees seront perdues.
             </p>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-danger text-white rounded-xl hover:bg-danger-600 transition-colors text-sm font-medium"
             >
               Supprimer cet artiste
             </button>

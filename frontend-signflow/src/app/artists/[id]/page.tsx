@@ -1547,7 +1547,7 @@ export default function ArtistDetailPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-16 z-30">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
         <div className="max-w-2xl mx-auto px-6 py-5">
           <Link href="/artists" className="text-sm text-secondary-500 hover:text-primary mb-3 inline-flex items-center gap-1 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -6,8 +6,6 @@ import {
   CardBody,
   CardHeader,
   Spinner,
-  Select,
-  SelectItem,
 } from '@heroui/react';
 import {
   BarChart,
@@ -119,23 +117,24 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <header className="bg-background border-b border-divider sticky top-0 z-40">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-foreground">Analytics</h1>
-            <Select
-              size="sm"
-              selectedKeys={[selectedYear]}
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Analytics</h1>
+              <p className="text-secondary-500 text-sm mt-0.5">Vue d'ensemble financière</p>
+            </div>
+            <select
+              value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-32"
-              aria-label="Annee"
+              className="px-4 py-2 bg-content2 border-2 border-default-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary"
             >
               {years.map((year) => (
-                <SelectItem key={year}>
+                <option key={year} value={year}>
                   {year}
-                </SelectItem>
+                </option>
               ))}
-            </Select>
+            </select>
           </div>
         </div>
       </header>

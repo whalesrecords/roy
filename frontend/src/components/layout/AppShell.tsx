@@ -26,9 +26,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Show nav only when authenticated
   return (
-    <div className="min-h-screen bg-default-50">
+    <div className="min-h-screen bg-content2">
       {user && <Nav />}
-      <main>{children}</main>
+      <main className={user ? 'pt-16' : ''}>{children}</main>
     </div>
   );
 }

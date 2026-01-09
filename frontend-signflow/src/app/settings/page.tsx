@@ -138,7 +138,7 @@ export default function SettingsPage() {
   return (
     <>
       {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-16 z-30">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
         <div className="max-w-2xl mx-auto px-6 py-5">
           <h1 className="text-2xl font-bold text-foreground">Parametres</h1>
           <p className="text-secondary-500 text-sm mt-0.5">Configuration du label</p>

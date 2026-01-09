@@ -1,7 +1,7 @@
 'use client';
 
-import { Button as HeroButton } from '@heroui/react';
 import { forwardRef, ReactNode } from 'react';
+import { Spinner } from '@heroui/react';
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -23,43 +23,39 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       loading = false,
       disabled,
       children,
+      type = 'button',
+      onClick,
       ...props
     },
     ref
   ) => {
-    const colorMap = {
-      primary: 'primary' as const,
-      secondary: 'default' as const,
-      ghost: 'default' as const,
-      danger: 'danger' as const,
+    const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+
+    const variantStyles = {
+      primary: 'bg-primary text-white shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:bg-primary-600',
+      secondary: 'bg-content2 text-foreground border-2 border-default-200 hover:bg-content3 hover:border-default-300',
+      ghost: 'bg-transparent text-foreground hover:bg-content2',
+      danger: 'bg-danger text-white shadow-lg shadow-danger/30 hover:shadow-xl hover:shadow-danger/40 hover:bg-danger-600',
     };
 
-    const variantMap = {
-      primary: 'solid' as const,
-      secondary: 'bordered' as const,
-      ghost: 'light' as const,
-      danger: 'solid' as const,
-    };
-
-    const sizeMap = {
-      sm: 'sm' as const,
-      md: 'md' as const,
-      lg: 'lg' as const,
+    const sizeStyles = {
+      sm: 'text-xs px-3 py-1.5 h-8',
+      md: 'text-sm px-5 py-2.5 h-10',
+      lg: 'text-base px-6 py-3 h-12',
     };
 
     return (
-      <HeroButton
+      <button
         ref={ref}
-        color={colorMap[variant]}
-        variant={variantMap[variant]}
-        size={sizeMap[size]}
-        isLoading={loading}
-        isDisabled={disabled || loading}
-        className={className}
+        type={type}
+        disabled={disabled || loading}
+        onClick={onClick}
+        className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
+        {loading && <Spinner size="sm" color={variant === 'primary' || variant === 'danger' ? 'white' : 'current'} />}
         {children}
-      </HeroButton>
+      </button>
     );
   }
 );
