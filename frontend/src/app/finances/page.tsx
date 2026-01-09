@@ -388,12 +388,13 @@ export default function FinancesPage() {
                   selectedKeys={[selectedArtistFilter]}
                   onChange={(e) => setSelectedArtistFilter(e.target.value)}
                   className="w-64"
+                  items={[
+                    { key: 'all', label: 'Tous les artistes' },
+                    ...artists.map((a) => ({ key: a.id, label: a.name })),
+                    { key: 'general', label: 'Frais généraux' },
+                  ]}
                 >
-                  <SelectItem key="all">Tous les artistes</SelectItem>
-                  {artists.map((artist) => (
-                    <SelectItem key={artist.id}>{artist.name}</SelectItem>
-                  ))}
-                  <SelectItem key="general">Frais généraux</SelectItem>
+                  {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
                 </Select>
               </div>
               <div>
@@ -403,11 +404,12 @@ export default function FinancesPage() {
                   selectedKeys={[selectedCategoryFilter]}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
                   className="w-64"
+                  items={[
+                    { key: 'all', label: 'Toutes les catégories' },
+                    ...EXPENSE_CATEGORIES.map((c) => ({ key: c.value, label: c.label })),
+                  ]}
                 >
-                  <SelectItem key="all">Toutes les catégories</SelectItem>
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value}>{cat.label}</SelectItem>
-                  ))}
+                  {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
                 </Select>
               </div>
             </div>

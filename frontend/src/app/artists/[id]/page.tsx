@@ -321,7 +321,7 @@ export default function ArtistDetailPage() {
           party_type: p.party_type,
           artist_id: p.artist_id,
           label_name: p.label_name,
-          share_percentage: p.share_percentage / 100, // Convert to decimal
+          share_percentage: String(p.share_percentage / 100), // Convert to decimal string
         })),
       });
 
@@ -375,7 +375,7 @@ export default function ArtistDetailPage() {
           party_type: p.party_type,
           artist_id: p.artist_id,
           label_name: p.label_name,
-          share_percentage: p.share_percentage / 100, // Convert to decimal
+          share_percentage: String(p.share_percentage / 100), // Convert to decimal string
         })),
       });
 
@@ -598,21 +598,21 @@ export default function ArtistDetailPage() {
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
-    setEditContractShare(contract.artist_share);
+    setEditContractShare(contract.artist_share || '0.5');
     setEditContractStartDate(contract.start_date);
   };
 
   const handleUpdateContract = async () => {
-    if (!editingContract || !editContractStartDate) return;
+    if (!editingContract || !editingContract.id || !editContractStartDate) return;
     setSavingContract(true);
     try {
       const share = parseFloat(editContractShare);
-      await updateContract(artistId, editingContract.id, {
-        scope: editingContract.scope,
-        scope_id: editingContract.scope_id || undefined,
-        artist_share: share,
-        label_share: 1 - share,
+      await updateContract(editingContract.id, {
         start_date: editContractStartDate,
+        parties: [
+          { party_type: 'artist' as const, artist_id: artistId, share_percentage: share.toString() },
+          { party_type: 'label' as const, label_name: 'Whales Records', share_percentage: (1 - share).toString() },
+        ],
       });
       setEditingContract(null);
       loadData();
@@ -627,7 +627,7 @@ export default function ArtistDetailPage() {
     if (!confirm('Supprimer ce contrat ?')) return;
     setDeletingContractId(contractId);
     try {
-      await deleteContract(artistId, contractId);
+      await deleteContract(contractId);
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur');
@@ -762,7 +762,7 @@ export default function ArtistDetailPage() {
         album.track_count.toString(),
         album.streams.toString(),
         `${album.gross} ${royaltyResult.currency}`,
-        `${(parseFloat(album.artist_share) * 100).toFixed(0)}%`,
+        `${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%`,
         `${album.artist_royalties} ${royaltyResult.currency}`,
         advanceBalance > 0 ? `${advanceBalance} ${royaltyResult.currency}` : '-',
         recoupable > 0 ? `${recoupable} ${royaltyResult.currency}` : '-',
@@ -1046,7 +1046,7 @@ export default function ArtistDetailPage() {
                 <td>${album.track_count}</td>
                 <td class="right">${formatNumber(album.streams)}</td>
                 <td class="right">${isIncludedInAlbum ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.gross)}</span>` : formatCurrency(album.gross)}</td>
-                <td class="right">${(parseFloat(album.artist_share) * 100).toFixed(0)}%</td>
+                <td class="right">${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%</td>
                 <td class="right">${(hasAdvance || isIncludedInAlbum) ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
                 <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
                 <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${isIncludedInAlbum ? '-' : formatCurrency(netPayable.toString())}</td>
@@ -1531,7 +1531,7 @@ export default function ArtistDetailPage() {
                               )}
                               {!isIncludedInAlbum && (
                                 <p className="text-xs text-default-500">
-                                  {(parseFloat(album.artist_share) * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                                  {(parseFloat(album.artist_share || '0') * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
                                 </p>
                               )}
                             </div>
@@ -1623,7 +1623,7 @@ export default function ArtistDetailPage() {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">
-                      {(parseFloat(catalogContract.artist_share) * 100).toFixed(0)}% artiste / {(parseFloat(catalogContract.label_share) * 100).toFixed(0)}% label
+                      {(parseFloat(catalogContract.artist_share || '0') * 100).toFixed(0)}% artiste / {(parseFloat(catalogContract.label_share || '0') * 100).toFixed(0)}% label
                     </p>
                     <p className="text-sm text-default-500">
                       Depuis {new Date(catalogContract.start_date).toLocaleDateString('fr-FR')}
@@ -1641,7 +1641,7 @@ export default function ArtistDetailPage() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleDeleteContract(catalogContract.id)}
+                    onClick={() => catalogContract.id && handleDeleteContract(catalogContract.id)}
                     disabled={deletingContractId === catalogContract.id}
                     className="p-2 text-default-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Supprimer"
@@ -1789,7 +1789,7 @@ export default function ArtistDetailPage() {
                           {contract ? (
                             <div className="flex items-center gap-1">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                {(parseFloat(contract.artist_share) * 100).toFixed(0)}%
+                                {(parseFloat(contract.artist_share || '0') * 100).toFixed(0)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
@@ -1801,7 +1801,7 @@ export default function ArtistDetailPage() {
                                 </svg>
                               </button>
                               <button
-                                onClick={() => handleDeleteContract(contract.id)}
+                                onClick={() => contract.id && handleDeleteContract(contract.id)}
                                 disabled={deletingContractId === contract.id}
                                 className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                 title="Supprimer"
@@ -1817,7 +1817,7 @@ export default function ArtistDetailPage() {
                             </div>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-default-100 text-default-600">
-                              {(parseFloat(catalogContract.artist_share) * 100).toFixed(0)}% (défaut)
+                              {(parseFloat(catalogContract.artist_share || '0') * 100).toFixed(0)}% (défaut)
                             </span>
                           ) : (
                             <Button
@@ -1946,7 +1946,7 @@ export default function ArtistDetailPage() {
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              {(parseFloat(trackContract.artist_share) * 100).toFixed(0)}%
+                              {(parseFloat(trackContract.artist_share || '0') * 100).toFixed(0)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
@@ -1958,7 +1958,7 @@ export default function ArtistDetailPage() {
                               </svg>
                             </button>
                             <button
-                              onClick={() => handleDeleteContract(trackContract.id)}
+                              onClick={() => trackContract.id && handleDeleteContract(trackContract.id)}
                               disabled={deletingContractId === trackContract.id}
                               className="p-1.5 text-default-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Supprimer"
@@ -1978,7 +1978,7 @@ export default function ArtistDetailPage() {
                               ? 'bg-green-100 text-green-700'
                               : 'bg-default-100 text-default-600'
                           }`}>
-                            {(parseFloat(effectiveContract.artist_share) * 100).toFixed(0)}%
+                            {(parseFloat(effectiveContract.artist_share || '0') * 100).toFixed(0)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (

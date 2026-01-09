@@ -352,13 +352,13 @@ export default function InvoiceImportModal({
                         <label className="block text-xs font-medium text-default-600 mb-1">
                           Montant * ({invoice.currency || 'EUR'})
                         </label>
-                        <Input
+                        <input
                           type="number"
                           step="0.01"
                           value={invoice.editedAmount}
                           onChange={(e) => updateInvoice(index, { editedAmount: e.target.value })}
                           placeholder="0.00"
-                          className="text-sm"
+                          className="w-full h-10 px-3 text-sm rounded-xl bg-default-100 border-2 border-default-200 focus:border-primary focus:outline-none"
                         />
                       </div>
 
@@ -472,7 +472,7 @@ export default function InvoiceImportModal({
         {/* Footer */}
         {step === 'preview' && (
           <div className="px-6 py-4 border-t border-divider flex items-center justify-between">
-            <Button variant="flat" onClick={() => setStep('upload')}>
+            <Button variant="ghost" onClick={() => setStep('upload')}>
               Ajouter des fichiers
             </Button>
             <div className="flex items-center gap-3">

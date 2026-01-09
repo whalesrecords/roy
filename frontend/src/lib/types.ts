@@ -147,16 +147,16 @@ export interface ContractParty {
 }
 
 export interface Contract {
-  id: string;
+  id?: string;
   artist_id: string;
   scope: 'track' | 'release' | 'catalog';
   scope_id?: string;
-  artist_share: string;
-  label_share: string;
+  artist_share?: string;
+  label_share?: string;
   start_date: string;
   end_date?: string;
   description?: string;
-  created_at: string;
+  created_at?: string;
   parties?: ContractParty[];
 }
 

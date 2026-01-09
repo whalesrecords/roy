@@ -45,8 +45,8 @@ export default function ContractsPage() {
   const [endDate, setEndDate] = useState('');
   const [description, setDescription] = useState('');
   const [parties, setParties] = useState<ContractParty[]>([
-    { party_type: 'artist', artist_id: '', share_percentage: 0.5 },
-    { party_type: 'label', label_name: '', share_percentage: 0.5 },
+    { party_type: 'artist', artist_id: '', share_percentage: '0.5' },
+    { party_type: 'label', label_name: '', share_percentage: '0.5' },
   ]);
 
   useEffect(() => {
@@ -113,13 +113,13 @@ export default function ContractsPage() {
     setEndDate('');
     setDescription('');
     setParties([
-      { party_type: 'artist', artist_id: '', share_percentage: 0.5 },
-      { party_type: 'label', label_name: '', share_percentage: 0.5 },
+      { party_type: 'artist', artist_id: '', share_percentage: '0.5' },
+      { party_type: 'label', label_name: '', share_percentage: '0.5' },
     ]);
   };
 
   const handleAddParty = (type: 'artist' | 'label') => {
-    setParties([...parties, { party_type: type, artist_id: '', label_name: '', share_percentage: 0 }]);
+    setParties([...parties, { party_type: type, artist_id: '', label_name: '', share_percentage: '0' }]);
   };
 
   const handleRemoveParty = (index: number) => {
@@ -132,7 +132,7 @@ export default function ContractsPage() {
     setParties(newParties);
   };
 
-  const totalShare = parties.reduce((sum, p) => sum + (p.share_percentage || 0), 0);
+  const totalShare = parties.reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
 
   const handleSubmit = async () => {
     if (!artistId || !startDate || parties.length === 0) {
@@ -278,7 +278,7 @@ export default function ContractsPage() {
                             return (
                               <div key={i} className="flex justify-between items-center py-2 px-3 rounded-xl bg-default-100">
                                 <span className="text-sm font-medium text-foreground">{partyArtist?.name || 'Inconnu'}</span>
-                                <span className="text-sm font-bold text-success">{(party.share_percentage * 100).toFixed(1)}%</span>
+                                <span className="text-sm font-bold text-success">{(parseFloat(party.share_percentage) * 100).toFixed(1)}%</span>
                               </div>
                             );
                           })}
@@ -293,7 +293,7 @@ export default function ContractsPage() {
                           {labelParties.map((party, i) => (
                             <div key={i} className="flex justify-between items-center py-2 px-3 rounded-xl bg-default-100">
                               <span className="text-sm font-medium text-foreground">{party.label_name}</span>
-                              <span className="text-sm font-bold text-primary">{(party.share_percentage * 100).toFixed(1)}%</span>
+                              <span className="text-sm font-bold text-primary">{(parseFloat(party.share_percentage) * 100).toFixed(1)}%</span>
                             </div>
                           ))}
                         </div>
@@ -329,7 +329,7 @@ export default function ContractsPage() {
                       }}
                     >
                       {artists.map((artist) => (
-                        <SelectItem key={artist.id} value={artist.id}>{artist.name}</SelectItem>
+                        <SelectItem key={artist.id}>{artist.name}</SelectItem>
                       ))}
                     </Select>
                   </div>
@@ -348,9 +348,9 @@ export default function ContractsPage() {
                         value: "text-foreground",
                       }}
                     >
-                      <SelectItem key="catalog" value="catalog">Tout le catalogue</SelectItem>
-                      <SelectItem key="release" value="release">Release spécifique (UPC)</SelectItem>
-                      <SelectItem key="track" value="track">Track spécifique (ISRC)</SelectItem>
+                      <SelectItem key="catalog">Tout le catalogue</SelectItem>
+                      <SelectItem key="release">Release spécifique (UPC)</SelectItem>
+                      <SelectItem key="track">Track spécifique (ISRC)</SelectItem>
                     </Select>
                   </div>
 
@@ -465,7 +465,7 @@ export default function ContractsPage() {
                                   }}
                                 >
                                   {artists.map((artist) => (
-                                    <SelectItem key={artist.id} value={artist.id}>{artist.name}</SelectItem>
+                                    <SelectItem key={artist.id}>{artist.name}</SelectItem>
                                   ))}
                                 </Select>
                               </div>
@@ -495,8 +495,8 @@ export default function ContractsPage() {
                               min={0}
                               max={100}
                               step={0.1}
-                              value={String((party.share_percentage || 0) * 100)}
-                              onChange={(e) => handlePartyChange(index, 'share_percentage', parseFloat(e.target.value) / 100)}
+                              value={String(parseFloat(party.share_percentage || '0') * 100)}
+                              onChange={(e) => handlePartyChange(index, 'share_percentage', String(parseFloat(e.target.value) / 100))}
                               classNames={{
                                 inputWrapper: "rounded-xl bg-default-100 border-2 border-default-200",
                               }}

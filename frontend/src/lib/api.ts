@@ -6,6 +6,7 @@ import type {
   CreateImportResponse,
   Artist,
   Contract,
+  ContractParty,
   AdvanceEntry,
   RoyaltyRun,
 } from './types';
@@ -926,18 +927,9 @@ export async function getRoyaltyPayments(year?: number): Promise<RoyaltyPayment[
 }
 
 // Re-export types from types.ts for convenience
-export type { Artist, Contract, AdvanceEntry, RoyaltyRun } from './types';
+export type { Artist, Contract, AdvanceEntry, RoyaltyRun, ContractParty } from './types';
 
 // ===== Contracts API =====
-
-export interface ContractParty {
-  id?: string;
-  party_type: 'artist' | 'label';
-  artist_id?: string;
-  label_name?: string;
-  share_percentage: number;
-  created_at?: string;
-}
 
 export interface ContractData {
   id?: string;
