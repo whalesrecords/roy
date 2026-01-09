@@ -1776,6 +1776,15 @@ async def calculate_artist_royalties(
     albums_data: dict = {}  # upc -> {data}
     sources_data: dict = {}  # source -> {data}
 
+    # Build release_title -> UPC mapping from transactions that have both
+    # This allows Bandcamp tracks (without UPC) to inherit UPC from other sources
+    release_title_to_upc: dict[str, str] = {}
+    for tx in transactions:
+        if tx.upc and tx.release_title:
+            # Only map if we don't already have a mapping, or this UPC is more "valid"
+            if tx.release_title not in release_title_to_upc:
+                release_title_to_upc[tx.release_title] = tx.upc
+
     # Source labels mapping
     source_labels = {
         "tunecore": "TuneCore",
@@ -1788,7 +1797,11 @@ async def calculate_artist_royalties(
     }
 
     for tx in transactions:
-        upc = tx.upc or "UNKNOWN"
+        # Try to get UPC: direct > from release_title mapping > UNKNOWN
+        upc = tx.upc
+        if not upc and tx.release_title:
+            upc = release_title_to_upc.get(tx.release_title)
+        upc = upc or "UNKNOWN"
         source = tx.source.value.lower() if tx.source else "other"
 
         # Initialize album data
