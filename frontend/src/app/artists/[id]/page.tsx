@@ -1143,6 +1143,8 @@ export default function ArtistDetailPage() {
           ${labelSettings.postal_code || labelSettings.city ? `<div>${[labelSettings.postal_code, labelSettings.city].filter(Boolean).join(' ')}</div>` : ''}
           ${labelSettings.country ? `<div>${labelSettings.country}</div>` : ''}
           ${labelSettings.email ? `<div>${labelSettings.email}</div>` : ''}
+          ${labelSettings.siret ? `<div class="legal">SIRET: ${labelSettings.siret}</div>` : ''}
+          ${labelSettings.vat_number ? `<div class="legal">TVA: ${labelSettings.vat_number}</div>` : ''}
         </div>
       </div>
     ` : '';
@@ -1161,6 +1163,7 @@ export default function ArtistDetailPage() {
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
           .label-info { font-size: 11px; color: #333; line-height: 1.4; }
           .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+          .label-info .legal { color: #666; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 120px; }
           h1 { font-size: 24px; margin-bottom: 8px; }
           h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px; }
@@ -1312,6 +1315,8 @@ export default function ArtistDetailPage() {
           ${labelSettings.postal_code || labelSettings.city ? `<div>${[labelSettings.postal_code, labelSettings.city].filter(Boolean).join(' ')}</div>` : ''}
           ${labelSettings.country ? `<div>${labelSettings.country}</div>` : ''}
           ${labelSettings.email ? `<div>${labelSettings.email}</div>` : ''}
+          ${labelSettings.siret ? `<div class="legal">SIRET: ${labelSettings.siret}</div>` : ''}
+          ${labelSettings.vat_number ? `<div class="legal">TVA: ${labelSettings.vat_number}</div>` : ''}
         </div>
       </div>
     ` : '';
@@ -1320,7 +1325,7 @@ export default function ArtistDetailPage() {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Royalty Statement - ${artist.name}</title>
+        <title>Artist Statement - ${artist.name}</title>
         <style>
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
@@ -1328,6 +1333,7 @@ export default function ArtistDetailPage() {
           .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
           .label-info { font-size: 11px; color: #333; line-height: 1.4; }
           .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+          .label-info .legal { color: #666; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 100px; }
           h1 { font-size: 28px; margin-bottom: 8px; color: #111; }
           .artist-name { font-size: 22px; color: #333; margin-bottom: 4px; }
