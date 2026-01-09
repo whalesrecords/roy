@@ -105,6 +105,9 @@ export default function ArtistDetailPage() {
   const [advances, setAdvances] = useState<AdvanceEntry[]>([]);
   const [balance, setBalance] = useState<string>('0');
   const [balanceCurrency, setBalanceCurrency] = useState<string>('EUR');
+  const [totalAdvances, setTotalAdvances] = useState<string>('0');
+  const [totalRecouped, setTotalRecouped] = useState<string>('0');
+  const [totalPayments, setTotalPayments] = useState<string>('0');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -215,6 +218,9 @@ export default function ArtistDetailPage() {
       setAdvances(advancesData);
       setBalance(balanceData.balance);
       setBalanceCurrency(balanceData.currency || 'EUR');
+      setTotalAdvances(balanceData.total_advances || '0');
+      setTotalRecouped(balanceData.total_recouped || '0');
+      setTotalPayments(balanceData.total_payments || '0');
       setPayments(paymentsData);
       setAllArtists(allArtistsData);
 
@@ -1295,10 +1301,36 @@ export default function ArtistDetailPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         {/* Balance */}
         <div className="bg-background rounded-xl border border-divider p-4">
-          <p className="text-sm text-default-500 mb-1">Solde avance</p>
-          <p className="text-2xl font-semibold text-foreground">
-            {formatCurrency(balance, balanceCurrency)}
-          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-default-500 mb-1">Solde avance</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatCurrency(balance, balanceCurrency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-default-500 mb-1">Déjà recoupé</p>
+              <p className="text-2xl font-semibold text-green-600">
+                {formatCurrency(totalRecouped, balanceCurrency)}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-divider grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-default-400">Avances données</p>
+              <p className="text-sm font-medium text-red-600">-{formatCurrency(totalAdvances, balanceCurrency)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-default-400">Royalties versées</p>
+              <p className="text-sm font-medium text-red-600">-{formatCurrency(totalPayments, balanceCurrency)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-default-400">Bilan label</p>
+              <p className={`text-sm font-medium ${parseFloat(totalRecouped) - parseFloat(totalAdvances) - parseFloat(totalPayments) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(String(parseFloat(totalRecouped) - parseFloat(totalAdvances) - parseFloat(totalPayments)), balanceCurrency)}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Calcul Royalties */}

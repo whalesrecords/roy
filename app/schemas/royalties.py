@@ -216,6 +216,9 @@ class AdvanceBalanceResponse(BaseModel):
     artist_id: UUID
     balance: Decimal = Field(description="Current advance balance (positive = unrecouped)")
     currency: str
+    total_advances: Decimal = Field(default=Decimal("0"), description="Total advances given to artist")
+    total_recouped: Decimal = Field(default=Decimal("0"), description="Total already recouped from royalties")
+    total_payments: Decimal = Field(default=Decimal("0"), description="Total royalty payments made to artist")
 
 
 # Payment schemas

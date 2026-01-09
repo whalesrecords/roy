@@ -209,8 +209,16 @@ export async function createAdvance(
   });
 }
 
-export async function getAdvanceBalance(artistId: string): Promise<{ balance: string; currency: string }> {
-  return fetchApi<{ balance: string; currency: string }>(`/artists/${artistId}/advance-balance`);
+export interface AdvanceBalanceResponse {
+  balance: string;
+  currency: string;
+  total_advances: string;
+  total_recouped: string;
+  total_payments: string;
+}
+
+export async function getAdvanceBalance(artistId: string): Promise<AdvanceBalanceResponse> {
+  return fetchApi<AdvanceBalanceResponse>(`/artists/${artistId}/advance-balance`);
 }
 
 export async function updateAdvance(

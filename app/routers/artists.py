@@ -1444,12 +1444,24 @@ async def get_advance_balance(
     )
     total_recoupments = Decimal(str(recoupment_result.scalar()))
 
+    # Sum payments (royalties paid to artist)
+    payment_result = await db.execute(
+        select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
+            AdvanceLedgerEntry.artist_id == artist_id,
+            AdvanceLedgerEntry.entry_type == LedgerEntryType.PAYMENT,
+        )
+    )
+    total_payments = Decimal(str(payment_result.scalar()))
+
     balance = total_advances - total_recoupments
 
     return AdvanceBalanceResponse(
         artist_id=artist_id,
         balance=balance,
         currency="EUR",
+        total_advances=total_advances,
+        total_recouped=total_recoupments,
+        total_payments=total_payments,
     )
 
 
