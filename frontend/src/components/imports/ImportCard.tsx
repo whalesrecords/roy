@@ -22,14 +22,14 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
   const getStatusStyle = () => {
     switch (import_.status) {
       case 'completed':
-        return 'bg-green-100 text-green-800';
+        return 'bg-success-100 text-success-700';
       case 'failed':
-        return 'bg-red-100 text-red-800';
+        return 'bg-danger-100 text-danger-700';
       case 'pending':
       case 'processing':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-warning-100 text-warning-700';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-default-100 text-default-700';
     }
   };
 
@@ -51,24 +51,24 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+      className="w-full flex items-center gap-3 px-4 py-3 bg-default-50 border border-default-200 rounded-xl hover:bg-default-100 transition-colors text-left"
     >
-      <span className="text-sm text-gray-500 w-20 shrink-0">
+      <span className="text-sm text-default-500 w-20 shrink-0">
         {formatDate(import_.created_at)}
       </span>
 
-      <span className="text-sm font-medium text-gray-900 w-32 shrink-0 truncate">
+      <span className="text-sm font-medium text-foreground w-32 shrink-0 truncate">
         {sourceLabel}
       </span>
 
-      <span className={`text-xs font-medium px-2 py-0.5 rounded ${getStatusStyle()}`}>
+      <span className={`text-xs font-medium px-2 py-0.5 rounded-lg ${getStatusStyle()}`}>
         {getStatusLabel()}
       </span>
 
-      <span className="text-sm text-gray-600 ml-auto">
+      <span className="text-sm text-default-600 ml-auto">
         {import_.success_rows.toLocaleString('fr-FR')} lignes
         {import_.error_rows > 0 && (
-          <span className="text-red-600 ml-2">
+          <span className="text-danger ml-2">
             ({import_.error_rows} erreur{import_.error_rows > 1 ? 's' : ''})
           </span>
         )}

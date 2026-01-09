@@ -241,10 +241,10 @@ export default function CatalogPage() {
           </p>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-4 bg-default-100 p-1 rounded-lg">
+          <div className="flex gap-1 mt-4 bg-default-100 p-1 rounded-xl">
             <button
               onClick={() => setTab('artists')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                 tab === 'artists'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-default-600 hover:text-foreground'
@@ -254,7 +254,7 @@ export default function CatalogPage() {
             </button>
             <button
               onClick={() => setTab('tracks')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                 tab === 'tracks'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-default-600 hover:text-foreground'
@@ -264,7 +264,7 @@ export default function CatalogPage() {
             </button>
             <button
               onClick={() => setTab('collaborations')}
-              className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
                 tab === 'collaborations'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-default-600 hover:text-foreground'
@@ -288,9 +288,9 @@ export default function CatalogPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setFilterLinked(null)}
-                className={`px-3 py-1.5 rounded-full text-sm ${
+                className={`px-3 py-1.5 rounded-xl text-sm transition-colors ${
                   filterLinked === null
-                    ? 'bg-neutral-900 text-white'
+                    ? 'bg-foreground text-background'
                     : 'bg-default-100 text-default-600'
                 }`}
               >
@@ -298,9 +298,9 @@ export default function CatalogPage() {
               </button>
               <button
                 onClick={() => setFilterLinked(true)}
-                className={`px-3 py-1.5 rounded-full text-sm ${
+                className={`px-3 py-1.5 rounded-xl text-sm transition-colors ${
                   filterLinked === true
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-success text-white'
                     : 'bg-default-100 text-default-600'
                 }`}
               >
@@ -308,9 +308,9 @@ export default function CatalogPage() {
               </button>
               <button
                 onClick={() => setFilterLinked(false)}
-                className={`px-3 py-1.5 rounded-full text-sm ${
+                className={`px-3 py-1.5 rounded-xl text-sm transition-colors ${
                   filterLinked === false
-                    ? 'bg-orange-600 text-white'
+                    ? 'bg-warning text-white'
                     : 'bg-default-100 text-default-600'
                 }`}
               >
@@ -395,7 +395,7 @@ export default function CatalogPage() {
                             {track.linked_artists.map(link => (
                               <span
                                 key={link.artist_id}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700"
+                                className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs bg-success-100 text-success-700"
                               >
                                 {link.artist_name}: {(parseFloat(link.share_percent) * 100).toFixed(0)}%
                               </span>
@@ -435,8 +435,8 @@ export default function CatalogPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-amber-800">
+              <div className="bg-warning-50 border border-warning-200 rounded-xl p-3 mb-4">
+                <p className="text-sm text-warning-700">
                   <strong>{suggestions.length} collaboration(s)</strong> detectee(s). Le % represente la part du revenu brut attribuee a chaque artiste. Le contrat de chaque artiste s'applique ensuite (part artiste / part label).
                 </p>
               </div>
@@ -450,7 +450,7 @@ export default function CatalogPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-foreground truncate">{suggestion.track_title}</p>
-                          <p className="text-sm text-orange-600 mt-1">{suggestion.original_artist_name}</p>
+                          <p className="text-sm text-warning mt-1">{suggestion.original_artist_name}</p>
                         </div>
                         {allArtistsExist ? (
                           <Button
@@ -460,7 +460,7 @@ export default function CatalogPage() {
                             Configurer
                           </Button>
                         ) : (
-                          <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                          <span className="text-xs text-warning-700 bg-warning-100 px-2 py-1 rounded-lg">
                             {missingArtists.length} artiste(s) a creer
                           </span>
                         )}
@@ -470,23 +470,23 @@ export default function CatalogPage() {
                         {suggestion.detected_artists.map((artist, idx) => (
                           <div
                             key={idx}
-                            className={`flex items-center justify-between p-2 rounded-lg ${
+                            className={`flex items-center justify-between p-2 rounded-xl ${
                               artist.exists
-                                ? 'bg-green-50 border border-green-200'
-                                : 'bg-gray-50 border border-gray-200'
+                                ? 'bg-success-50 border border-success-200'
+                                : 'bg-default-50 border border-default-200'
                             }`}
                           >
                             <div className="flex items-center gap-2">
                               {artist.exists ? (
-                                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               ) : (
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                               )}
-                              <span className={`text-sm font-medium ${artist.exists ? 'text-green-700' : 'text-gray-600'}`}>
+                              <span className={`text-sm font-medium ${artist.exists ? 'text-success-700' : 'text-default-600'}`}>
                                 {artist.name}
                               </span>
                             </div>
@@ -533,14 +533,14 @@ export default function CatalogPage() {
             </div>
 
             <div className="p-4 sm:p-6 space-y-4">
-              <div className="bg-default-50 rounded-lg p-3">
+              <div className="bg-default-50 rounded-xl p-3">
                 <p className="font-medium text-foreground">{linkingTrack.track_title}</p>
                 <p className="text-sm text-default-500">{linkingTrack.original_artist_name}</p>
                 <p className="text-xs text-default-400 font-mono mt-1">ISRC: {linkingTrack.isrc}</p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-700">
+              <div className="bg-primary-50 border border-primary-200 rounded-xl p-3">
+                <p className="text-xs text-primary-700">
                   Les % representent la repartition du <strong>revenu brut</strong> entre les artistes. Le contrat de chaque artiste (part artiste/label) s'applique ensuite.
                 </p>
               </div>
@@ -550,7 +550,7 @@ export default function CatalogPage() {
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-default-700">Repartition du brut:</p>
                   {linkShares.map((share) => (
-                    <div key={share.artist_id} className="flex items-center gap-3 bg-default-50 rounded-lg p-3">
+                    <div key={share.artist_id} className="flex items-center gap-3 bg-default-50 rounded-xl p-3">
                       <div className="flex-1">
                         <p className="font-medium text-foreground">{getArtistName(share.artist_id)}</p>
                       </div>
@@ -561,12 +561,12 @@ export default function CatalogPage() {
                           max="100"
                           value={Math.round(share.share_percent * 100)}
                           onChange={(e) => updateShare(share.artist_id, parseInt(e.target.value) / 100)}
-                          className="w-16 px-2 py-1 border border-divider rounded text-center text-sm"
+                          className="w-16 px-2 py-1 border border-divider rounded-lg text-center text-sm bg-background"
                         />
                         <span className="text-sm text-default-500">%</span>
                         <button
                           onClick={() => removeArtistFromLink(share.artist_id)}
-                          className="p-1 text-default-400 hover:text-red-600"
+                          className="p-1 text-default-400 hover:text-danger transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -577,8 +577,8 @@ export default function CatalogPage() {
                   ))}
                   <p className={`text-sm ${
                     Math.abs(linkShares.reduce((sum, s) => sum + s.share_percent, 0) - 1) < 0.01
-                      ? 'text-green-600'
-                      : 'text-red-600'
+                      ? 'text-success'
+                      : 'text-danger'
                   }`}>
                     Total: {Math.round(linkShares.reduce((sum, s) => sum + s.share_percent, 0) * 100)}%
                     {Math.abs(linkShares.reduce((sum, s) => sum + s.share_percent, 0) - 1) >= 0.01 && ' (doit etre 100%)'}
@@ -594,7 +594,7 @@ export default function CatalogPage() {
                     if (e.target.value) addArtistToLink(e.target.value);
                     e.target.value = '';
                   }}
-                  className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  className="w-full h-12 px-3 border-2 border-default-200 bg-default-100 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="">-- Choisir un artiste --</option>
                   {managedArtists

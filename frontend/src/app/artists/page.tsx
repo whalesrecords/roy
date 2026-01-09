@@ -243,7 +243,7 @@ export default function ArtistsPage() {
                       {group.artists.map((artist) => (
                         <div
                           key={artist.id}
-                          className="flex items-center justify-between bg-white rounded-lg p-3"
+                          className="flex items-center justify-between bg-background rounded-xl p-3"
                         >
                           <div className="flex items-center gap-3">
                             <ArtistAvatar artist={artist} name={artist.name} />
@@ -287,7 +287,7 @@ export default function ArtistsPage() {
               <p className="text-sm text-primary-700">
                 Vous allez fusionner <strong>&quot;{mergingPair.source.name}&quot;</strong> vers <strong>&quot;{mergingPair.target.name}&quot;</strong>.
               </p>
-              <div className="bg-white rounded-lg p-3 text-sm space-y-1">
+              <div className="bg-background rounded-xl p-3 text-sm space-y-1">
                 <p>• Toutes les transactions seront transférées vers <strong>{mergingPair.target.name}</strong></p>
                 <p>• Les avances et contrats seront fusionnés</p>
                 <p>• L&apos;artiste <strong>{mergingPair.source.name}</strong> sera supprimé</p>

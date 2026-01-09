@@ -88,7 +88,7 @@ export default function Nav() {
         {/* Theme toggle button */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg hover:bg-default-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-default-100 transition-colors"
           aria-label={theme === 'light' ? 'Activer le mode sombre' : 'Activer le mode clair'}
         >
           {theme === 'light' ? (
@@ -152,7 +152,7 @@ export default function Nav() {
             <NavbarMenuItem key={item.href}>
               <Link
                 href={item.href}
-                className={`w-full text-lg block py-4 px-2 rounded-lg transition-colors ${
+                className={`w-full text-lg block py-4 px-2 rounded-xl transition-colors ${
                   isActive
                     ? 'text-primary font-semibold bg-primary/10'
                     : 'text-foreground hover:bg-default-100'
@@ -168,7 +168,7 @@ export default function Nav() {
           <NavbarMenuItem>
             <Link
               href="/settings"
-              className="w-full text-lg block py-4 px-2 text-foreground hover:bg-default-100 rounded-lg transition-colors"
+              className="w-full text-lg block py-4 px-2 text-foreground hover:bg-default-100 rounded-xl transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
               Paramètres
@@ -187,7 +187,7 @@ export default function Nav() {
                     signOut();
                     setIsMenuOpen(false);
                   }}
-                  className="w-full text-lg block py-4 px-2 text-danger text-left hover:bg-danger/10 rounded-lg transition-colors"
+                  className="w-full text-lg block py-4 px-2 text-danger text-left hover:bg-danger/10 rounded-xl transition-colors"
                 >
                   Déconnexion
                 </button>

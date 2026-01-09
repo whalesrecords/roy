@@ -369,7 +369,7 @@ export default function FinancesPage() {
           classNames={{
             tabList: 'bg-default-100 rounded-xl p-1',
             tab: 'px-4 py-2',
-            cursor: 'bg-background rounded-lg shadow-sm',
+            cursor: 'bg-background rounded-xl shadow-sm',
           }}
         >
           <Tab key="expenses" title={`Avances / Frais (${expenses.length})`} />
@@ -440,7 +440,7 @@ export default function FinancesPage() {
                         </div>
                         <div className="space-y-2">
                           {group.expenses.map((expense) => (
-                            <div key={expense.id} className="p-3 bg-default-50 rounded-lg hover:bg-default-100 transition-colors">
+                            <div key={expense.id} className="p-3 bg-default-50 rounded-xl hover:bg-default-100 transition-colors">
                               <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">

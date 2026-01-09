@@ -222,7 +222,7 @@ export default function ImportsPage() {
               const totalImports = years.reduce((sum, y) => sum + sourceData[y].length, 0);
 
               return (
-                <div key={source} className="border border-divider rounded-lg overflow-hidden">
+                <div key={source} className="border border-divider rounded-xl overflow-hidden">
                   {/* Source folder header */}
                   <button
                     onClick={() => toggleSource(source)}
@@ -279,7 +279,7 @@ export default function ImportsPage() {
 
                             {/* Individual imports */}
                             {isYearExpanded && (
-                              <div className="bg-white dark:bg-gray-900 border-b border-divider last:border-0">
+                              <div className="bg-background border-b border-divider last:border-0">
                                 {yearImports.map((imp) => (
                                   <div key={imp.id} className="pl-16 pr-4">
                                     <ImportCard
@@ -316,7 +316,7 @@ export default function ImportsPage() {
         scrollBehavior="inside"
         backdrop="opaque"
       >
-        <ModalContent className="bg-white dark:bg-gray-900">
+        <ModalContent className="bg-background">
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
