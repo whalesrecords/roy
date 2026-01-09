@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { MaintenanceProvider } from '@/contexts/MaintenanceContext';
 import AppShell from '@/components/layout/AppShell';
 import { HeroUIProvider } from '@heroui/react';
 
@@ -43,11 +44,13 @@ export default function RootLayout({
       <body className={`${inter.className} bg-background text-foreground min-h-screen`}>
         <ThemeProvider>
           <HeroUIProvider>
-            <AuthProvider>
-              <AppShell>
-                {children}
-              </AppShell>
-            </AuthProvider>
+            <MaintenanceProvider>
+              <AuthProvider>
+                <AppShell>
+                  {children}
+                </AppShell>
+              </AuthProvider>
+            </MaintenanceProvider>
           </HeroUIProvider>
         </ThemeProvider>
       </body>

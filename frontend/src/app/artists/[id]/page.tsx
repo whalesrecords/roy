@@ -117,7 +117,9 @@ function getContractShares(contract: Contract): { artistShare: number; labelShar
 export default function ArtistDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { displayName } = useAuth();
+  const { displayName, user } = useAuth();
+  // Ensure we always have a name to display in PDFs
+  const generatedByName = displayName || user?.email || 'Unknown';
   const artistId = params.id as string;
 
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -1088,7 +1090,7 @@ export default function ArtistDetailPage() {
 
         <div class="footer">
           <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
-          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${displayName ? ` by ${displayName}` : ''}
+          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} by ${generatedByName}
           ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
         </div>
         </div>
@@ -1243,7 +1245,7 @@ export default function ArtistDetailPage() {
 
           <div class="footer">
             <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
-            <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${displayName ? ` by ${displayName}` : ''}
+            <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} by ${generatedByName}
             ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
           </div>
         </div>
