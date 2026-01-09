@@ -1000,48 +1000,6 @@ export default function ArtistDetailPage() {
         </table>
         ` : ''}
 
-        ${advances.length > 0 ? `
-        <h2>Advances History</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Category</th>
-              <th>Album / Track</th>
-              <th>Description</th>
-              <th class="right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${advances.map(advance => {
-              const categoryLabel = advance.category
-                ? advance.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                : 'General';
-              // Find album/track name based on scope
-              let scopeLabel = 'Catalog';
-              if (advance.scope === 'release' && advance.scope_id) {
-                const album = royaltyResult.albums.find(a => a.upc === advance.scope_id);
-                scopeLabel = album ? album.release_title : `UPC: ${advance.scope_id}`;
-              } else if (advance.scope === 'track' && advance.scope_id) {
-                scopeLabel = `Track: ${advance.scope_id}`;
-              }
-              return `
-              <tr>
-                <td>${formatDate(new Date(advance.effective_date))}</td>
-                <td>${categoryLabel}</td>
-                <td>${scopeLabel}</td>
-                <td>${advance.description || '-'}</td>
-                <td class="right" style="color: #b45309; font-weight: 600;">-${formatCurrency(advance.amount)}</td>
-              </tr>
-            `}).join('')}
-            <tr style="font-weight: bold; background: #fee2e2;">
-              <td colspan="4">Total Advances</td>
-              <td class="right" style="color: #dc2626; font-size: 16px;">-${formatCurrency(advances.reduce((sum, a) => sum + parseFloat(a.amount), 0).toString())}</td>
-            </tr>
-          </tbody>
-        </table>
-        ` : ''}
-
         <h2>Album Details</h2>
         <table>
           <thead>
@@ -1083,6 +1041,199 @@ export default function ArtistDetailPage() {
                 <td class="right">${(hasAdvance || isIncludedInAlbum) ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
                 <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
                 <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${isIncludedInAlbum ? '-' : formatCurrency(netPayable.toString())}</td>
+              </tr>
+            `}).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
+          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} by ${generatedByName}
+          ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
+        </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  // Expenses PDF with advances history
+  const handlePrintExpensesPDF = async () => {
+    if (!royaltyResult || !artist) return;
+
+    // Fetch label settings for the header
+    let labelSettings: LabelSettings | null = null;
+    try {
+      labelSettings = await getLabelSettings();
+    } catch (err) {
+      console.error('Error fetching label settings:', err);
+    }
+
+    // Fetch advances
+    let advancesList: AdvanceEntry[] = [];
+    try {
+      const allAdvances = await getAdvances(artist.id);
+      advancesList = allAdvances.filter(a => a.entry_type === 'advance');
+    } catch (err) {
+      console.error('Error fetching advances:', err);
+    }
+
+    if (advancesList.length === 0) {
+      alert('No advances to display');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Format dates in English
+    const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const formatCurrency = (value: string) => {
+      const num = parseFloat(value);
+      return num.toLocaleString('en-US', {
+        style: 'currency',
+        currency: royaltyResult.currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
+
+    // Group advances by category
+    const advancesByCategory: Record<string, { total: number; items: AdvanceEntry[] }> = {};
+    for (const adv of advancesList) {
+      const cat = adv.category || 'general';
+      if (!advancesByCategory[cat]) {
+        advancesByCategory[cat] = { total: 0, items: [] };
+      }
+      advancesByCategory[cat].total += parseFloat(adv.amount);
+      advancesByCategory[cat].items.push(adv);
+    }
+
+    const categoryLabels: Record<string, string> = {
+      general: 'General',
+      recording: 'Recording',
+      mixing: 'Mixing',
+      mastering: 'Mastering',
+      artwork: 'Artwork',
+      photos: 'Photos',
+      video: 'Video',
+      pr: 'PR / Press',
+      advertising: 'Advertising',
+      distribution: 'Distribution',
+      cd: 'CD Production',
+      vinyl: 'Vinyl Production',
+      goodies: 'Goodies / Merch',
+      other: 'Other',
+    };
+
+    // Build label header HTML
+    const labelHeaderHtml = labelSettings ? `
+      <div class="label-header">
+        ${labelSettings.logo_base64 ? `<img src="${labelSettings.logo_base64}" alt="${labelSettings.label_name}" class="label-logo" />` : ''}
+        <div class="label-info">
+          <div class="label-name">${labelSettings.label_name}</div>
+          ${labelSettings.address_line1 ? `<div>${labelSettings.address_line1}</div>` : ''}
+          ${labelSettings.address_line2 ? `<div>${labelSettings.address_line2}</div>` : ''}
+          ${labelSettings.postal_code || labelSettings.city ? `<div>${[labelSettings.postal_code, labelSettings.city].filter(Boolean).join(' ')}</div>` : ''}
+          ${labelSettings.country ? `<div>${labelSettings.country}</div>` : ''}
+          ${labelSettings.email ? `<div>${labelSettings.email}</div>` : ''}
+        </div>
+      </div>
+    ` : '';
+
+    const totalAdvances = advancesList.reduce((sum, a) => sum + parseFloat(a.amount), 0);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Expenses Statement - ${artist.name}</title>
+        <style>
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+          .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
+          .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
+          .label-info { font-size: 11px; color: #333; line-height: 1.4; }
+          .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+          .main-content { margin-top: 120px; }
+          h1 { font-size: 24px; margin-bottom: 8px; }
+          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 1px solid #e5e5e5; padding-bottom: 8px; }
+          .period { color: #666; font-size: 14px; margin-bottom: 24px; }
+          .summary-box { background: #fee2e2; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center; }
+          .summary-box label { font-size: 14px; color: #991b1b; display: block; margin-bottom: 4px; }
+          .summary-box value { font-size: 28px; font-weight: 700; color: #dc2626; }
+          .category-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+          .category-item { background: #f5f5f5; padding: 12px; border-radius: 8px; text-align: center; }
+          .category-item label { font-size: 11px; color: #666; display: block; }
+          .category-item value { font-size: 16px; font-weight: 600; color: #b45309; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #e5e5e5; }
+          th { background: #f5f5f5; font-weight: 600; }
+          .mono { font-family: monospace; font-size: 11px; color: #666; }
+          .right { text-align: right; }
+          .footer { margin-top: 30px; padding: 20px 0 10px 0; border-top: 2px solid #e5e5e5; text-align: center; }
+          .footer-logo { max-width: 150px; max-height: 60px; margin: 0 auto 10px; display: block; }
+          .footer-text { font-size: 10px; color: #666; }
+          @media print { body { padding: 20px; } .label-header { top: 20px; right: 20px; } }
+        </style>
+      </head>
+      <body>
+        ${labelHeaderHtml}
+
+        <div class="main-content">
+        <h1>Expenses Statement</h1>
+        <p style="font-size: 18px; margin-bottom: 4px;">${artist.name}</p>
+        <p class="period">As of ${formatDate(new Date())}</p>
+
+        <div class="summary-box">
+          <label>Total Advances & Expenses</label>
+          <value>${formatCurrency(totalAdvances.toString())}</value>
+        </div>
+
+        <h2>By Category</h2>
+        <div class="category-summary">
+          ${Object.entries(advancesByCategory).map(([cat, data]) => `
+            <div class="category-item">
+              <label>${categoryLabels[cat] || cat}</label>
+              <value>${formatCurrency(data.total.toString())}</value>
+            </div>
+          `).join('')}
+        </div>
+
+        <h2>Detailed History</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Scope</th>
+              <th>Description</th>
+              <th class="right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${advancesList.map(advance => {
+              const categoryLabel = categoryLabels[advance.category || 'general'] || advance.category || 'General';
+              let scopeLabel = 'Catalog';
+              if (advance.scope === 'release' && advance.scope_id) {
+                const album = royaltyResult.albums.find(a => a.upc === advance.scope_id);
+                scopeLabel = album ? album.release_title : `UPC: ${advance.scope_id}`;
+              } else if (advance.scope === 'track' && advance.scope_id) {
+                scopeLabel = `Track: ${advance.scope_id}`;
+              }
+              return `
+              <tr>
+                <td>${formatDate(new Date(advance.effective_date))}</td>
+                <td>${categoryLabel}</td>
+                <td>${scopeLabel}</td>
+                <td>${advance.description || '-'}</td>
+                <td class="right" style="color: #b45309; font-weight: 600;">${formatCurrency(advance.amount)}</td>
               </tr>
             `}).join('')}
           </tbody>
@@ -1738,40 +1889,55 @@ export default function ArtistDetailPage() {
 
                 {/* Export buttons */}
                 {royaltyResult.albums.length > 0 && (
-                  <div className="flex gap-2 pt-4 border-t border-divider">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={handleExportCSV}
-                      className="flex-1"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      CSV
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={handlePrintPDF}
-                      className="flex-1"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
-                      PDF
-                    </Button>
+                  <div className="pt-4 border-t border-divider space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handleExportCSV}
+                        className="flex-1"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handlePrintPDF}
+                        className="flex-1"
+                        title="PDF des revenus et royalties"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Revenus
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={handlePrintExpensesPDF}
+                        className="flex-1"
+                        title="PDF des avances et dépenses"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                        </svg>
+                        Depenses
+                      </Button>
+                    </div>
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={handlePrintArtistPDF}
-                      className="flex-1"
+                      className="w-full"
                       title="PDF simplifié pour l'artiste avec lien de contact"
                     >
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                       </svg>
-                      PDF Artiste
+                      PDF Artiste (avec lien paiement)
                     </Button>
                   </div>
                 )}
