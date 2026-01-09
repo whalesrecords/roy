@@ -37,3 +37,15 @@ frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/.env*.local
+
+# Node (frontend-signflow)
+frontend-signflow/node_modules/
+frontend-signflow/.next/
+frontend-signflow/out/
+frontend-signflow/.env*.local
+
+# Node (frontend-backup)
+frontend-backup/node_modules/
+frontend-backup/.next/
+frontend-backup/out/
+frontend-backup/.env*.local
