@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
 import Input from '@/components/ui/Input';
 import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory, ArtistCategory, ARTIST_CATEGORIES } from '@/lib/types';
 import { WHALES_LOGO_BASE64 } from '@/lib/whales-logo';
@@ -116,6 +117,7 @@ function getContractShares(contract: Contract): { artistShare: number; labelShar
 export default function ArtistDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { displayName } = useAuth();
   const artistId = params.id as string;
 
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -1086,9 +1088,164 @@ export default function ArtistDetailPage() {
 
         <div class="footer">
           <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
-          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${displayName ? ` by ${displayName}` : ''}
           ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
         </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
+  // Simplified PDF for artists with mailto link
+  const handlePrintArtistPDF = async () => {
+    if (!royaltyResult || !artist) return;
+
+    // Fetch label settings for the header
+    let labelSettings: LabelSettings | null = null;
+    try {
+      labelSettings = await getLabelSettings();
+    } catch (err) {
+      console.error('Error fetching label settings:', err);
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Format dates in English
+    const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const formatCurrency = (value: string) => {
+      const num = parseFloat(value);
+      return num.toLocaleString('en-US', {
+        style: 'currency',
+        currency: royaltyResult.currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    };
+
+    const periodLabel = `${formatDate(new Date(royaltyResult.period_start))} - ${formatDate(new Date(royaltyResult.period_end))}`;
+    const netPayable = parseFloat(royaltyResult.net_payable);
+
+    // Mailto link
+    const mailtoSubject = encodeURIComponent(`Royalty payment request ${periodLabel} for ${artist.name}`);
+    const mailtoBody = encodeURIComponent(
+      `Artist: ${artist.name}\n` +
+      `Period: ${periodLabel}\n` +
+      `Amount: ${formatCurrency(royaltyResult.net_payable)}\n\n` +
+      `Please provide your payment details:\n` +
+      `- Full name:\n` +
+      `- Bank name:\n` +
+      `- IBAN:\n` +
+      `- BIC/SWIFT:\n` +
+      `- Address:\n`
+    );
+    const mailtoLink = `mailto:royalties@whalesrecords.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+
+    // Build label header HTML
+    const labelHeaderHtml = labelSettings ? `
+      <div class="label-header">
+        ${labelSettings.logo_base64 ? `<img src="${labelSettings.logo_base64}" alt="${labelSettings.label_name}" class="label-logo" />` : ''}
+        <div class="label-info">
+          <div class="label-name">${labelSettings.label_name}</div>
+          ${labelSettings.address_line1 ? `<div>${labelSettings.address_line1}</div>` : ''}
+          ${labelSettings.address_line2 ? `<div>${labelSettings.address_line2}</div>` : ''}
+          ${labelSettings.postal_code || labelSettings.city ? `<div>${[labelSettings.postal_code, labelSettings.city].filter(Boolean).join(' ')}</div>` : ''}
+          ${labelSettings.country ? `<div>${labelSettings.country}</div>` : ''}
+          ${labelSettings.email ? `<div>${labelSettings.email}</div>` : ''}
+        </div>
+      </div>
+    ` : '';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Royalty Statement - ${artist.name}</title>
+        <style>
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto; }
+          .label-header { position: absolute; top: 40px; right: 40px; text-align: right; }
+          .label-logo { max-width: 80px; max-height: 50px; object-fit: contain; margin-bottom: 8px; }
+          .label-info { font-size: 11px; color: #333; line-height: 1.4; }
+          .label-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+          .main-content { margin-top: 100px; }
+          h1 { font-size: 28px; margin-bottom: 8px; color: #111; }
+          .artist-name { font-size: 22px; color: #333; margin-bottom: 4px; }
+          .period { color: #666; font-size: 14px; margin-bottom: 32px; }
+          .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+          .summary-table td { padding: 12px 0; border-bottom: 1px solid #e5e5e5; }
+          .summary-table .label { color: #666; font-size: 14px; }
+          .summary-table .value { text-align: right; font-size: 16px; font-weight: 500; }
+          .net-row td { border-bottom: 2px solid #111; padding-top: 16px; }
+          .net-row .label { font-size: 18px; font-weight: 600; color: #111; }
+          .net-row .value { font-size: 24px; font-weight: 700; color: #16a34a; }
+          .contact-section { margin-top: 40px; padding: 24px; background: #f8fafc; border-radius: 12px; text-align: center; }
+          .contact-section h3 { margin: 0 0 8px 0; font-size: 16px; color: #333; }
+          .contact-section p { margin: 0 0 16px 0; font-size: 14px; color: #666; }
+          .contact-btn { display: inline-block; padding: 12px 32px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; }
+          .contact-btn:hover { background: #1d4ed8; }
+          .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e5e5; text-align: center; }
+          .footer-logo { max-width: 100px; max-height: 40px; margin: 0 auto 8px; display: block; }
+          .footer-text { font-size: 10px; color: #999; }
+          @media print {
+            .contact-btn { background: #2563eb !important; -webkit-print-color-adjust: exact; }
+            body { padding: 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        ${labelHeaderHtml}
+
+        <div class="main-content">
+          <h1>Royalty Statement</h1>
+          <p class="artist-name">${artist.name}</p>
+          <p class="period">Period: ${periodLabel}</p>
+
+          <table class="summary-table">
+            <tr>
+              <td class="label">Gross Revenue</td>
+              <td class="value">${formatCurrency(royaltyResult.total_gross)}</td>
+            </tr>
+            <tr>
+              <td class="label">Your Royalties</td>
+              <td class="value">${formatCurrency(royaltyResult.total_artist_royalties)}</td>
+            </tr>
+            <tr>
+              <td class="label">Advances Recouped</td>
+              <td class="value" style="color: #b45309;">-${formatCurrency(royaltyResult.recoupable)}</td>
+            </tr>
+            <tr class="net-row">
+              <td class="label">Net Payable to You</td>
+              <td class="value">${formatCurrency(royaltyResult.net_payable)}</td>
+            </tr>
+          </table>
+
+          ${netPayable > 0 ? `
+          <div class="contact-section">
+            <h3>Ready to receive your payment?</h3>
+            <p>Click below to send us your payment details</p>
+            <a href="${mailtoLink}" class="contact-btn">Request Payment</a>
+          </div>
+          ` : `
+          <div class="contact-section" style="background: #fef2f2;">
+            <h3>No payment due at this time</h3>
+            <p>Your advances are still being recouped. Contact us if you have questions.</p>
+            <a href="mailto:royalties@whalesrecords.com" class="contact-btn" style="background: #6b7280;">Contact Us</a>
+          </div>
+          `}
+
+          <div class="footer">
+            <img src="${WHALES_LOGO_BASE64}" alt="Whales Logo" class="footer-logo" />
+            <div class="footer-text">Generated on ${formatDate(new Date())} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${displayName ? ` by ${displayName}` : ''}
+            ${labelSettings?.label_name ? ` - ${labelSettings.label_name}` : ''}</div>
+          </div>
         </div>
       </body>
       </html>
@@ -1601,6 +1758,18 @@ export default function ArtistDetailPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                       </svg>
                       PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handlePrintArtistPDF}
+                      className="flex-1"
+                      title="PDF simplifié pour l'artiste avec lien de contact"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                      </svg>
+                      PDF Artiste
                     </Button>
                   </div>
                 )}
