@@ -984,6 +984,7 @@ export default function ArtistDetailPage() {
             <tr>
               <th>Date</th>
               <th>Category</th>
+              <th>Album / Track</th>
               <th>Description</th>
               <th class="right">Amount</th>
             </tr>
@@ -993,16 +994,25 @@ export default function ArtistDetailPage() {
               const categoryLabel = advance.category
                 ? advance.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
                 : 'General';
+              // Find album/track name based on scope
+              let scopeLabel = 'Catalog';
+              if (advance.scope === 'release' && advance.scope_id) {
+                const album = royaltyResult.albums.find(a => a.upc === advance.scope_id);
+                scopeLabel = album ? album.release_title : `UPC: ${advance.scope_id}`;
+              } else if (advance.scope === 'track' && advance.scope_id) {
+                scopeLabel = `Track: ${advance.scope_id}`;
+              }
               return `
               <tr>
                 <td>${formatDate(new Date(advance.effective_date))}</td>
                 <td>${categoryLabel}</td>
+                <td>${scopeLabel}</td>
                 <td>${advance.description || '-'}</td>
                 <td class="right" style="color: #b45309; font-weight: 600;">-${formatCurrency(advance.amount)}</td>
               </tr>
             `}).join('')}
             <tr style="font-weight: bold; background: #fee2e2;">
-              <td colspan="3">Total Advances</td>
+              <td colspan="4">Total Advances</td>
               <td class="right" style="color: #dc2626; font-size: 16px;">-${formatCurrency(advances.reduce((sum, a) => sum + parseFloat(a.amount), 0).toString())}</td>
             </tr>
           </tbody>
