@@ -1413,14 +1413,18 @@ async def get_advance_balance(
     """
     Get current advance balance for an artist.
 
-    balance = sum(advances) - sum(recoupments)
+    balance = sum(advances) - calculated_recoupments
     Positive balance means artist has unrecouped advance.
+
+    Recoupments are calculated from actual revenues, not from ledger entries,
+    to show what would have been recouped even without formal royalty runs.
     """
-    # Verify artist exists
+    # Get artist
     result = await db.execute(
         select(Artist).where(Artist.id == artist_id)
     )
-    if not result.scalar_one_or_none():
+    artist = result.scalar_one_or_none()
+    if not artist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Artist {artist_id} not found",
@@ -1435,15 +1439,6 @@ async def get_advance_balance(
     )
     total_advances = Decimal(str(advance_result.scalar()))
 
-    # Sum recoupments
-    recoupment_result = await db.execute(
-        select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
-            AdvanceLedgerEntry.artist_id == artist_id,
-            AdvanceLedgerEntry.entry_type == LedgerEntryType.RECOUPMENT,
-        )
-    )
-    total_recoupments = Decimal(str(recoupment_result.scalar()))
-
     # Sum payments (royalties paid to artist)
     payment_result = await db.execute(
         select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
@@ -1453,14 +1448,40 @@ async def get_advance_balance(
     )
     total_payments = Decimal(str(payment_result.scalar()))
 
-    balance = total_advances - total_recoupments
+    # Calculate recoupments from actual revenues instead of ledger entries
+    # Get total gross revenues for this artist
+    revenue_result = await db.execute(
+        select(func.coalesce(func.sum(TransactionNormalized.gross_amount), 0)).where(
+            TransactionNormalized.artist_name == artist.name,
+        )
+    )
+    total_gross_revenues = Decimal(str(revenue_result.scalar()))
+
+    # Get catalog contract for default share, or use 50%
+    contract_result = await db.execute(
+        select(Contract).where(
+            Contract.artist_id == artist_id,
+            Contract.scope == ContractScope.CATALOG,
+        )
+    )
+    catalog_contract = contract_result.scalar_one_or_none()
+    artist_share = catalog_contract.artist_share if catalog_contract else Decimal("0.5")
+
+    # Calculate artist royalties from revenues
+    total_artist_royalties = total_gross_revenues * artist_share
+
+    # Calculate what would have been recouped (min of royalties and advances)
+    calculated_recouped = min(total_artist_royalties, total_advances) if total_advances > 0 else Decimal("0")
+
+    # Balance is advances minus what's been recouped
+    balance = max(Decimal("0"), total_advances - calculated_recouped)
 
     return AdvanceBalanceResponse(
         artist_id=artist_id,
         balance=balance,
         currency="EUR",
         total_advances=total_advances,
-        total_recouped=total_recoupments,
+        total_recouped=calculated_recouped,
         total_payments=total_payments,
     )
 
