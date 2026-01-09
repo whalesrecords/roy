@@ -95,6 +95,24 @@ function generatePeriods(): Period[] {
 
 const PERIODS = generatePeriods();
 
+// Helper to calculate shares from contract parties
+function getContractShares(contract: Contract): { artistShare: number; labelShare: number } {
+  if (!contract.parties || contract.parties.length === 0) {
+    // Fallback to old fields if parties not available
+    return {
+      artistShare: parseFloat(contract.artist_share || '0'),
+      labelShare: parseFloat(contract.label_share || '0'),
+    };
+  }
+  const artistShare = contract.parties
+    .filter(p => p.party_type === 'artist')
+    .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
+  const labelShare = contract.parties
+    .filter(p => p.party_type === 'label')
+    .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
+  return { artistShare, labelShare };
+}
+
 export default function ArtistDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -598,7 +616,8 @@ export default function ArtistDetailPage() {
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
-    setEditContractShare(contract.artist_share || '0.5');
+    const { artistShare } = getContractShares(contract);
+    setEditContractShare(artistShare > 0 ? String(artistShare) : '0.5');
     setEditContractStartDate(contract.start_date);
   };
 
@@ -1633,7 +1652,10 @@ export default function ArtistDetailPage() {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">
-                      {(parseFloat(catalogContract.artist_share || '0') * 100).toFixed(0)}% artiste / {(parseFloat(catalogContract.label_share || '0') * 100).toFixed(0)}% label
+                      {(() => {
+                        const { artistShare, labelShare } = getContractShares(catalogContract);
+                        return `${(artistShare * 100).toFixed(0)}% artiste / ${(labelShare * 100).toFixed(0)}% label`;
+                      })()}
                     </p>
                     <p className="text-sm text-default-500">
                       Depuis {new Date(catalogContract.start_date).toLocaleDateString('fr-FR')}
@@ -1799,7 +1821,7 @@ export default function ArtistDetailPage() {
                           {contract ? (
                             <div className="flex items-center gap-1">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                {(parseFloat(contract.artist_share || '0') * 100).toFixed(0)}%
+                                {(getContractShares(contract).artistShare * 100).toFixed(0)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
@@ -1827,7 +1849,7 @@ export default function ArtistDetailPage() {
                             </div>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-default-100 text-default-600">
-                              {(parseFloat(catalogContract.artist_share || '0') * 100).toFixed(0)}% (défaut)
+                              {(getContractShares(catalogContract).artistShare * 100).toFixed(0)}% (défaut)
                             </span>
                           ) : (
                             <Button
@@ -1956,7 +1978,7 @@ export default function ArtistDetailPage() {
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              {(parseFloat(trackContract.artist_share || '0') * 100).toFixed(0)}%
+                              {(getContractShares(trackContract).artistShare * 100).toFixed(0)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
@@ -1988,7 +2010,7 @@ export default function ArtistDetailPage() {
                               ? 'bg-green-100 text-green-700'
                               : 'bg-default-100 text-default-600'
                           }`}>
-                            {(parseFloat(effectiveContract.artist_share || '0') * 100).toFixed(0)}%
+                            {(getContractShares(effectiveContract).artistShare * 100).toFixed(0)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (

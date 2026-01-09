@@ -132,6 +132,9 @@ class ContractListItem(BaseModel):
     start_date: date
     end_date: Optional[date]
     parties: list[PartyResponse]
+    # Legacy fields for backward compatibility with old contracts
+    artist_share: Optional[Decimal] = None
+    label_share: Optional[Decimal] = None
 
     class Config:
         from_attributes = True
