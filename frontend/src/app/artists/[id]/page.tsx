@@ -2013,8 +2013,14 @@ export default function ArtistDetailPage() {
                             </span>
                           )}
                         </div>
-                        {entry.scope !== 'catalog' && (
-                          <p className="text-xs text-default-400 font-mono">{entry.scope_id}</p>
+                        {entry.scope !== 'catalog' && entry.scope_id && (
+                          <p className="text-sm text-default-600">
+                            {entry.scope === 'release'
+                              ? (releases.find(r => r.upc === entry.scope_id)?.release_title || entry.scope_id)
+                              : (tracks.find(t => t.isrc === entry.scope_id)?.track_title || entry.scope_id)
+                            }
+                            <span className="text-xs text-default-400 font-mono ml-2">({entry.scope_id})</span>
+                          </p>
                         )}
                         {entry.description && (
                           <p className="text-sm text-default-500">{entry.description}</p>
