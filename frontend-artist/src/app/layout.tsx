@@ -6,16 +6,19 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Royalties Artist',
-  description: 'Consultez vos revenus et statistiques',
+  title: 'Whales Records - Espace Artiste',
+  description: 'Consultez vos revenus, statistiques et demandez vos paiements',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Royalties',
+    title: 'Whales Artists',
   },
   formatDetection: {
     telephone: false,
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 

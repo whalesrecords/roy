@@ -1,24 +1,21 @@
 {
-  "name": "Royalties Artist",
-  "short_name": "Royalties",
-  "description": "Consultez vos revenus et statistiques",
+  "name": "Whales Records - Espace Artiste",
+  "short_name": "Whales Artists",
+  "description": "Consultez vos revenus, statistiques et demandez vos paiements",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr",
+  "categories": ["finance", "music"],
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "type": "image/svg+xml"
     },
     {
       "src": "/icon.svg",

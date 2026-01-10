@@ -5,9 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner, Input, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getLabelSettings, LabelSettings } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [profile, setProfile] = useState<ArtistProfile>({});
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -300,8 +302,40 @@ export default function SettingsPage() {
           </p>
         </form>
 
-        {/* Logout Section */}
+        {/* Language Section */}
         <div className="mt-8 pt-6 border-t border-divider">
+          <h3 className="text-sm font-semibold text-secondary-500 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+            </svg>
+            {t('settings.language')}
+          </h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setLanguage('fr')}
+              className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                language === 'fr'
+                  ? 'bg-primary text-white'
+                  : 'bg-content2 text-foreground hover:bg-content3'
+              }`}
+            >
+              Francais
+            </button>
+            <button
+              onClick={() => setLanguage('en')}
+              className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
+                language === 'en'
+                  ? 'bg-primary text-white'
+                  : 'bg-content2 text-foreground hover:bg-content3'
+              }`}
+            >
+              English
+            </button>
+          </div>
+        </div>
+
+        {/* Logout Section */}
+        <div className="mt-6 pt-6 border-t border-divider">
           <button
             onClick={logout}
             className="w-full py-3 text-danger hover:bg-danger/10 rounded-xl transition-colors flex items-center justify-center gap-2"
@@ -309,7 +343,7 @@ export default function SettingsPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            Deconnexion
+            {t('settings.logout')}
           </button>
         </div>
 
