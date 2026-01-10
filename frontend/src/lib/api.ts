@@ -182,6 +182,12 @@ export async function deleteArtist(artistId: string): Promise<{ success: boolean
   });
 }
 
+export async function generateAccessCode(artistId: string): Promise<{ access_code: string }> {
+  return fetchApi<{ access_code: string }>(`/artist-portal/generate-code/${artistId}`, {
+    method: 'POST',
+  });
+}
+
 export async function getAdvances(artistId: string): Promise<AdvanceEntry[]> {
   return fetchApi<AdvanceEntry[]>(`/artists/${artistId}/advances`);
 }

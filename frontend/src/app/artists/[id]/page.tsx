@@ -39,6 +39,7 @@ import {
   getCachedTrackArtworks,
   getLabelSettings,
   createStatement,
+  generateAccessCode,
   CatalogRelease,
   CatalogTrack,
   ArtistRoyaltyCalculation,
@@ -185,6 +186,7 @@ export default function ArtistDetailPage() {
   const [royaltyError, setRoyaltyError] = useState<string | null>(null);
   const [markingAsPaid, setMarkingAsPaid] = useState(false);
   const [publishingStatement, setPublishingStatement] = useState(false);
+  const [generatingCode, setGeneratingCode] = useState(false);
   const [paidQuarters, setPaidQuarters] = useState<{ quarter: string; amount: number; date: string }[]>([]);
 
   // Edit artist
@@ -798,6 +800,21 @@ export default function ArtistDetailPage() {
       setError(err instanceof Error ? err.message : 'Erreur lors de la publication');
     } finally {
       setPublishingStatement(false);
+    }
+  };
+
+  const handleGenerateAccessCode = async () => {
+    if (!artist) return;
+
+    setGeneratingCode(true);
+    try {
+      const result = await generateAccessCode(artistId);
+      // Refresh artist data to get the new access code
+      setArtist({ ...artist, access_code: result.access_code });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la generation du code');
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -1717,7 +1734,7 @@ export default function ArtistDetailPage() {
                     Profil Spotify
                   </a>
                 )}
-                {artist.access_code && (
+                {artist.access_code ? (
                   <a
                     href={`https://artists.whalesrecords.com?code=${artist.access_code}`}
                     target="_blank"
@@ -1729,6 +1746,26 @@ export default function ArtistDetailPage() {
                     </svg>
                     Espace Artiste ({artist.access_code})
                   </a>
+                ) : (
+                  <button
+                    onClick={handleGenerateAccessCode}
+                    disabled={generatingCode}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-700 disabled:opacity-50"
+                  >
+                    {generatingCode ? (
+                      <>
+                        <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+                        Generation...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                        Creer acces Espace Artiste
+                      </>
+                    )}
+                  </button>
                 )}
               </div>
               {!artist.image_url && (
