@@ -49,3 +49,9 @@ frontend-backup/node_modules/
 frontend-backup/.next/
 frontend-backup/out/
 frontend-backup/.env*.local
+
+# Node (frontend-artist)
+frontend-artist/node_modules/
+frontend-artist/.next/
+frontend-artist/out/
+frontend-artist/.env*.local

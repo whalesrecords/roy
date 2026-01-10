@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure smooth theme transitions */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Prevent flash of wrong theme */
+html,
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

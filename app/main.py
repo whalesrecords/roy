@@ -21,6 +21,7 @@ from app.routers.analytics import router as analytics_router
 from app.routers.finances import router as finances_router
 from app.routers.contracts import router as contracts_router
 from app.routers.invoice_import import router as invoice_import_router
+from app.routers.artist_portal import router as artist_portal_router
 
 
 @asynccontextmanager
@@ -41,6 +42,8 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS category VARCHAR(50)",
             "ALTER TABLE artists ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT 'signed'",
             "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS document_url VARCHAR(500)",
+            "ALTER TABLE artists ADD COLUMN IF NOT EXISTS access_code VARCHAR(20)",
+            "ALTER TABLE artists ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
         ]
         for sql in migrations:
             try:
@@ -94,6 +97,7 @@ app.include_router(analytics_router)
 app.include_router(finances_router)
 app.include_router(contracts_router)
 app.include_router(invoice_import_router)
+app.include_router(artist_portal_router)
 
 
 @app.get("/health")

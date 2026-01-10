@@ -50,6 +50,10 @@ class Artist(Base):
     image_url: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url_small: Mapped[str] = mapped_column(String(500), nullable=True)
 
+    # Artist portal access
+    access_code: Mapped[str] = mapped_column(String(20), nullable=True, unique=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
