@@ -5,6 +5,7 @@ Handles royalty runs, calculations, and statements.
 """
 
 import logging
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -16,12 +17,13 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.royalty_run import RoyaltyRun
-from app.models.statement import Statement
+from app.models.statement import Statement, StatementStatus
 from app.models.artist import Artist
 from app.schemas.royalties import (
     RoyaltyRunCreate,
     RoyaltyRunResponse,
     ArtistRoyaltyResult,
+    StatementCreate,
     StatementResponse,
     StatementsListResponse,
 )
@@ -428,4 +430,106 @@ async def get_artist_statements(
             for stmt in statements
         ],
         total_count=len(statements),
+    )
+
+
+@artists_router.post("/{artist_id}/statements", response_model=StatementResponse)
+async def create_artist_statement(
+    artist_id: UUID,
+    data: StatementCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> StatementResponse:
+    """
+    Create a statement for an artist.
+
+    This creates a direct statement without going through a royalty run.
+    Used to publish calculation results to the artist portal.
+    """
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    artist = result.scalar_one_or_none()
+
+    if artist is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Check for existing statement in the same period
+    existing = await db.execute(
+        select(Statement).where(
+            Statement.artist_id == artist_id,
+            Statement.period_start == data.period_start,
+            Statement.period_end == data.period_end,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A statement already exists for this period",
+        )
+
+    # Create a dummy royalty run to satisfy the foreign key
+    # In a real scenario, you'd want a proper royalty run
+    run = RoyaltyRun(
+        period_start=data.period_start,
+        period_end=data.period_end,
+        base_currency=data.currency,
+        status="completed",
+        is_locked=True,
+        total_transactions=data.transaction_count,
+        total_gross=data.gross_revenue,
+        total_artist_royalties=data.artist_royalties,
+        total_label_royalties=data.label_royalties,
+        total_recouped=data.recouped,
+        total_net_payable=data.net_payable,
+        completed_at=datetime.utcnow(),
+        locked_at=datetime.utcnow() if data.finalize else None,
+    )
+    db.add(run)
+    await db.flush()
+
+    # Create the statement
+    stmt = Statement(
+        artist_id=artist_id,
+        royalty_run_id=run.id,
+        period_start=data.period_start,
+        period_end=data.period_end,
+        currency=data.currency,
+        status=StatementStatus.FINALIZED if data.finalize else StatementStatus.DRAFT,
+        gross_revenue=data.gross_revenue,
+        artist_royalties=data.artist_royalties,
+        label_royalties=data.label_royalties,
+        advance_balance_before=data.advance_balance,
+        recouped=data.recouped,
+        advance_balance_after=data.advance_balance - data.recouped,
+        net_payable=data.net_payable,
+        transaction_count=data.transaction_count,
+        finalized_at=datetime.utcnow() if data.finalize else None,
+    )
+    db.add(stmt)
+    await db.flush()
+
+    return StatementResponse(
+        id=stmt.id,
+        artist_id=stmt.artist_id,
+        royalty_run_id=stmt.royalty_run_id,
+        period_start=stmt.period_start,
+        period_end=stmt.period_end,
+        currency=stmt.currency,
+        status=stmt.status.value,
+        gross_revenue=stmt.gross_revenue,
+        artist_royalties=stmt.artist_royalties,
+        label_royalties=stmt.label_royalties,
+        advance_balance_before=stmt.advance_balance_before,
+        recouped=stmt.recouped,
+        advance_balance_after=stmt.advance_balance_after,
+        net_payable=stmt.net_payable,
+        transaction_count=stmt.transaction_count,
+        created_at=stmt.created_at,
+        finalized_at=stmt.finalized_at,
+        paid_at=stmt.paid_at,
     )

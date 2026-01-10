@@ -17,6 +17,22 @@ class RoyaltyRunCreate(BaseModel):
     artist_ids: Optional[List[UUID]] = Field(default=None, description="Optional list of artist IDs to include. If None, includes all artists.")
 
 
+class StatementCreate(BaseModel):
+    """Request schema for creating a statement for an artist."""
+    artist_id: UUID
+    period_start: date = Field(description="Start of the statement period")
+    period_end: date = Field(description="End of the statement period")
+    currency: str = Field(default="EUR")
+    gross_revenue: Decimal = Field(description="Total gross revenue")
+    artist_royalties: Decimal = Field(description="Artist's share of royalties")
+    label_royalties: Decimal = Field(default=Decimal("0"), description="Label's share")
+    advance_balance: Decimal = Field(default=Decimal("0"), description="Advance balance before recoupment")
+    recouped: Decimal = Field(default=Decimal("0"), description="Amount recouped")
+    net_payable: Decimal = Field(description="Net amount payable to artist")
+    transaction_count: int = Field(default=0)
+    finalize: bool = Field(default=True, description="Finalize the statement immediately")
+
+
 # Response schemas
 
 class ArtistRoyaltyResult(BaseModel):
@@ -230,3 +246,10 @@ class PaymentCreate(BaseModel):
     currency: str = Field(default="EUR")
     description: Optional[str] = Field(default=None, description="Payment description/reference")
     payment_date: Optional[date] = Field(default=None, description="Date of payment (defaults to today)")
+
+
+class PaymentUpdate(BaseModel):
+    """Request schema for updating a payment."""
+    amount: Optional[Decimal] = Field(default=None, gt=0, description="Payment amount (positive)")
+    description: Optional[str] = Field(default=None, description="Payment description/reference")
+    payment_date: Optional[date] = Field(default=None, description="Date of payment")

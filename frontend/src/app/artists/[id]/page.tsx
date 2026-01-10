@@ -23,6 +23,7 @@ import {
   getAdvanceBalance,
   getPayments,
   createPayment,
+  updatePayment,
   deletePayment,
   getArtistReleases,
   getArtistTracks,
@@ -37,6 +38,7 @@ import {
   getCachedReleaseArtworks,
   getCachedTrackArtworks,
   getLabelSettings,
+  createStatement,
   CatalogRelease,
   CatalogTrack,
   ArtistRoyaltyCalculation,
@@ -182,6 +184,7 @@ export default function ArtistDetailPage() {
   const [royaltyResult, setRoyaltyResult] = useState<ArtistRoyaltyCalculation | null>(null);
   const [royaltyError, setRoyaltyError] = useState<string | null>(null);
   const [markingAsPaid, setMarkingAsPaid] = useState(false);
+  const [publishingStatement, setPublishingStatement] = useState(false);
   const [paidQuarters, setPaidQuarters] = useState<{ quarter: string; amount: number; date: string }[]>([]);
 
   // Edit artist
@@ -213,6 +216,11 @@ export default function ArtistDetailPage() {
   const [paymentDate, setPaymentDate] = useState('');
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [editingPayment, setEditingPayment] = useState<AdvanceEntry | null>(null);
+  const [editPaymentAmount, setEditPaymentAmount] = useState('');
+  const [editPaymentDescription, setEditPaymentDescription] = useState('');
+  const [editPaymentDate, setEditPaymentDate] = useState('');
+  const [savingPayment, setSavingPayment] = useState(false);
 
   // Edit contract
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
@@ -507,6 +515,33 @@ export default function ArtistDetailPage() {
     }
   };
 
+  const handleEditPayment = (payment: AdvanceEntry) => {
+    setEditingPayment(payment);
+    setEditPaymentAmount(payment.amount);
+    setEditPaymentDescription(payment.description || '');
+    setEditPaymentDate(payment.effective_date.split('T')[0]);
+  };
+
+  const handleUpdatePayment = async () => {
+    if (!editingPayment) return;
+    setSavingPayment(true);
+    try {
+      await updatePayment(
+        artistId,
+        editingPayment.id,
+        parseFloat(editPaymentAmount),
+        editPaymentDescription,
+        editPaymentDate
+      );
+      setEditingPayment(null);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de mise à jour');
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
   const handleFetchArtwork = async () => {
     setFetchingArtwork(true);
     try {
@@ -733,6 +768,36 @@ export default function ArtistDetailPage() {
       setError(err instanceof Error ? err.message : 'Erreur lors du paiement');
     } finally {
       setMarkingAsPaid(false);
+    }
+  };
+
+  const handlePublishStatement = async () => {
+    if (!royaltyResult || !artist) return;
+
+    const period = PERIODS.find(p => p.value === selectedPeriod);
+    if (!period) return;
+
+    setPublishingStatement(true);
+    try {
+      await createStatement(artistId, {
+        artist_id: artistId,
+        period_start: royaltyResult.period_start,
+        period_end: royaltyResult.period_end,
+        currency: royaltyResult.currency,
+        gross_revenue: royaltyResult.total_gross,
+        artist_royalties: royaltyResult.total_artist_royalties,
+        label_royalties: royaltyResult.total_label_royalties,
+        advance_balance: royaltyResult.advance_balance,
+        recouped: royaltyResult.recoupable,
+        net_payable: royaltyResult.net_payable,
+        transaction_count: royaltyResult.albums.reduce((sum, a) => sum + a.track_count, 0),
+        finalize: true,
+      });
+      alert('Relevé publié sur l\'Espace Artiste !');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la publication');
+    } finally {
+      setPublishingStatement(false);
     }
   };
 
@@ -1950,6 +2015,18 @@ export default function ArtistDetailPage() {
                       </svg>
                       PDF Artiste (avec lien paiement)
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={handlePublishStatement}
+                      loading={publishingStatement}
+                      className="w-full mt-2 bg-primary hover:bg-primary-600"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Publier sur l'Espace Artiste
+                    </Button>
                   </div>
                 )}
 
@@ -2512,6 +2589,15 @@ export default function ArtistDetailPage() {
                           {formatCurrency(payment.amount, payment.currency)}
                         </p>
                         <button
+                          onClick={() => handleEditPayment(payment)}
+                          className="p-1.5 text-secondary-400 hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                          title="Modifier"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
                           onClick={() => handleDeletePayment(payment.id)}
                           disabled={isDeleting}
                           className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
@@ -2534,6 +2620,60 @@ export default function ArtistDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Edit Payment Modal */}
+      {editingPayment && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">Modifier le versement</h2>
+                <button onClick={() => setEditingPayment(null)} className="p-2 -mr-2 text-secondary-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Montant (EUR)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editPaymentAmount}
+                  onChange={(e) => setEditPaymentAmount(e.target.value)}
+                  placeholder="1000.00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Description</label>
+                <Input
+                  value={editPaymentDescription}
+                  onChange={(e) => setEditPaymentDescription(e.target.value)}
+                  placeholder="Versement Q3 2024"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Date</label>
+                <Input
+                  type="date"
+                  value={editPaymentDate}
+                  onChange={(e) => setEditPaymentDate(e.target.value)}
+                />
+              </div>
+              <Button
+                onClick={handleUpdatePayment}
+                loading={savingPayment}
+                disabled={!editPaymentAmount}
+                className="w-full"
+              >
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contract Form Modal */}
       {showContractForm && (

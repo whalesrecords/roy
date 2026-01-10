@@ -127,6 +127,42 @@ export interface LabelSettings {
   label_logo_url?: string;
 }
 
+export interface Statement {
+  id: string;
+  period_start: string;
+  period_end: string;
+  period_label: string;
+  gross_revenue: string;
+  artist_royalties: string;
+  recouped: string;
+  net_payable: string;
+  currency: string;
+  status: string;
+  created_at: string;
+}
+
+export interface StatementReleaseDetail {
+  upc: string;
+  title: string;
+  gross: string;
+  artist_royalties: string;
+  track_count: number;
+}
+
+export interface StatementSourceDetail {
+  source: string;
+  source_label: string;
+  gross: string;
+  artist_royalties: string;
+  transaction_count: number;
+}
+
+export interface StatementDetail extends Statement {
+  advance_balance: string;
+  releases: StatementReleaseDetail[];
+  sources: StatementSourceDetail[];
+}
+
 // API Functions
 export async function getArtistDashboard(): Promise<ArtistDashboard> {
   return fetchApi<ArtistDashboard>('/artist-portal/dashboard');
@@ -169,4 +205,12 @@ export async function getQuarterlyRevenue(year?: number): Promise<QuarterlyReven
 
 export async function getLabelSettings(): Promise<LabelSettings> {
   return fetchApi<LabelSettings>('/artist-portal/label-settings');
+}
+
+export async function getStatements(): Promise<Statement[]> {
+  return fetchApi<Statement[]>('/artist-portal/statements');
+}
+
+export async function getStatementDetail(id: string): Promise<StatementDetail> {
+  return fetchApi<StatementDetail>(`/artist-portal/statements/${id}`);
 }

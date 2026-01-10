@@ -301,6 +301,42 @@ export async function deleteRoyaltyRun(runId: string, force: boolean = false): P
   });
 }
 
+// Create statement for artist (publish to artist portal)
+export interface StatementCreate {
+  artist_id: string;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  gross_revenue: string;
+  artist_royalties: string;
+  label_royalties: string;
+  advance_balance: string;
+  recouped: string;
+  net_payable: string;
+  transaction_count: number;
+  finalize: boolean;
+}
+
+export interface StatementCreated {
+  id: string;
+  artist_id: string;
+  period_start: string;
+  period_end: string;
+  currency: string;
+  status: string;
+  gross_revenue: string;
+  artist_royalties: string;
+  net_payable: string;
+}
+
+export async function createStatement(artistId: string, data: StatementCreate): Promise<StatementCreated> {
+  return fetchApi<StatementCreated>(`/artists/${artistId}/statements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
 // Catalog (from imports)
 export interface CatalogArtist {
   artist_name: string;
@@ -699,6 +735,24 @@ export async function deletePayment(
     `/artists/${artistId}/payments/${paymentId}`,
     { method: 'DELETE' }
   );
+}
+
+export async function updatePayment(
+  artistId: string,
+  paymentId: string,
+  amount?: number,
+  description?: string,
+  paymentDate?: string
+): Promise<AdvanceEntry> {
+  return fetchApi<AdvanceEntry>(`/artists/${artistId}/payments/${paymentId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount,
+      description,
+      payment_date: paymentDate,
+    }),
+  });
 }
 
 // Expense Report types

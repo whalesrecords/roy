@@ -17,6 +17,8 @@ from app.models.contract import Contract
 from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.contract_party import ContractParty
 from app.models.label_settings import LabelSettings
+from app.models.statement import Statement
+from app.models.royalty_line_item import RoyaltyLineItem
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -124,6 +126,53 @@ class QuarterlyRevenueResponse(BaseModel):
 class LabelSettingsResponse(BaseModel):
     label_name: Optional[str] = None
     label_logo_url: Optional[str] = None
+
+
+class StatementResponse(BaseModel):
+    id: str
+    period_start: str
+    period_end: str
+    period_label: str
+    gross_revenue: str
+    artist_royalties: str
+    recouped: str
+    net_payable: str
+    currency: str
+    status: str
+    created_at: str
+
+
+class StatementReleaseDetail(BaseModel):
+    upc: str
+    title: str
+    gross: str
+    artist_royalties: str
+    track_count: int
+
+
+class StatementSourceDetail(BaseModel):
+    source: str
+    source_label: str
+    gross: str
+    artist_royalties: str
+    transaction_count: int
+
+
+class StatementDetailResponse(BaseModel):
+    id: str
+    period_start: str
+    period_end: str
+    period_label: str
+    gross_revenue: str
+    artist_royalties: str
+    recouped: str
+    net_payable: str
+    advance_balance: str
+    currency: str
+    status: str
+    created_at: str
+    releases: List[StatementReleaseDetail]
+    sources: List[StatementSourceDetail]
 
 
 # ============ Token Storage (simple in-memory for MVP) ============
@@ -247,8 +296,16 @@ async def get_dashboard(
     # Use default 50% artist share for now (contract logic would require eager loading)
     artist_share = 0.5
 
-    # Calculate net (gross * artist_share - advances + payments)
-    total_net = (total_gross * artist_share) - advance_balance + payments_total
+    # Calculate net from statements - sum of unpaid statements' net_payable
+    statements_result = await db.execute(
+        select(func.coalesce(func.sum(Statement.net_payable), 0)).where(
+            and_(
+                Statement.artist_id == artist.id,
+                Statement.status != "paid",
+            )
+        )
+    )
+    total_net = float(statements_result.scalar() or 0)
 
     # Count releases and tracks
     releases_result = await db.execute(
@@ -677,6 +734,162 @@ async def get_label_settings(
     return {
         "label_name": settings.label_name,
         "label_logo_url": settings.logo_base64 or settings.logo_url,
+    }
+
+
+@router.get("/statements", response_model=List[StatementResponse])
+async def get_statements(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get royalty statements for the artist."""
+    result = await db.execute(
+        select(Statement)
+        .where(Statement.artist_id == artist.id)
+        .order_by(Statement.period_end.desc())
+    )
+
+    statements = []
+    for stmt in result.scalars().all():
+        # Generate period label as quarter (Q1-Q4)
+        quarter = (stmt.period_start.month - 1) // 3 + 1
+        period_label = f"Q{quarter} {stmt.period_start.year}"
+
+        statements.append({
+            "id": str(stmt.id),
+            "period_start": stmt.period_start.isoformat(),
+            "period_end": stmt.period_end.isoformat(),
+            "period_label": period_label,
+            "gross_revenue": f"{float(stmt.gross_revenue):.2f}",
+            "artist_royalties": f"{float(stmt.artist_royalties):.2f}",
+            "recouped": f"{float(stmt.recouped):.2f}",
+            "net_payable": f"{float(stmt.net_payable):.2f}",
+            "currency": stmt.currency,
+            "status": stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+            "created_at": stmt.created_at.isoformat(),
+        })
+
+    return statements
+
+
+@router.get("/statements/{statement_id}", response_model=StatementDetailResponse)
+async def get_statement_detail(
+    statement_id: str,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get detailed breakdown of a royalty statement."""
+    # Get the statement
+    result = await db.execute(
+        select(Statement)
+        .where(Statement.id == uuid.UUID(statement_id))
+        .where(Statement.artist_id == artist.id)
+    )
+    stmt = result.scalar_one_or_none()
+
+    if not stmt:
+        raise HTTPException(status_code=404, detail="Relevé non trouvé")
+
+    # Get line items from the royalty run
+    items_result = await db.execute(
+        select(RoyaltyLineItem)
+        .where(RoyaltyLineItem.royalty_run_id == stmt.royalty_run_id)
+        .where(RoyaltyLineItem.artist_id == artist.id)
+    )
+    line_items = items_result.scalars().all()
+
+    # Aggregate by release (UPC)
+    releases_dict = {}
+    for item in line_items:
+        upc = item.upc or "unknown"
+        if upc not in releases_dict:
+            releases_dict[upc] = {
+                "upc": upc,
+                "title": item.release_title or "Unknown",
+                "gross": 0.0,
+                "artist_royalties": 0.0,
+                "tracks": set(),
+            }
+        releases_dict[upc]["gross"] += float(item.gross_amount or 0)
+        releases_dict[upc]["artist_royalties"] += float(item.artist_amount or 0)
+        if item.isrc:
+            releases_dict[upc]["tracks"].add(item.isrc)
+
+    releases = [
+        {
+            "upc": r["upc"],
+            "title": r["title"],
+            "gross": f"{r['gross']:.2f}",
+            "artist_royalties": f"{r['artist_royalties']:.2f}",
+            "track_count": len(r["tracks"]),
+        }
+        for r in sorted(releases_dict.values(), key=lambda x: x["artist_royalties"], reverse=True)
+    ]
+
+    # Aggregate by source - get store_name from transactions
+    sources_dict = {}
+    for item in line_items:
+        # Get store name from transaction
+        tx_result = await db.execute(
+            select(TransactionNormalized.store_name)
+            .where(TransactionNormalized.id == item.transaction_id)
+        )
+        store = tx_result.scalar_one_or_none() or "other"
+
+        if store not in sources_dict:
+            sources_dict[store] = {
+                "source": store.lower().replace(" ", "_"),
+                "gross": 0.0,
+                "artist_royalties": 0.0,
+                "count": 0,
+            }
+        sources_dict[store]["gross"] += float(item.gross_amount or 0)
+        sources_dict[store]["artist_royalties"] += float(item.artist_amount or 0)
+        sources_dict[store]["count"] += 1
+
+    platform_labels = {
+        "spotify": "Spotify",
+        "apple_music": "Apple Music",
+        "deezer": "Deezer",
+        "youtube_music": "YouTube Music",
+        "amazon_music": "Amazon Music",
+        "tidal": "Tidal",
+        "bandcamp": "Bandcamp",
+        "soundcloud": "SoundCloud",
+        "believe": "Believe",
+        "tunecore": "TuneCore",
+    }
+
+    sources = [
+        {
+            "source": s["source"],
+            "source_label": platform_labels.get(s["source"], store),
+            "gross": f"{s['gross']:.2f}",
+            "artist_royalties": f"{s['artist_royalties']:.2f}",
+            "transaction_count": s["count"],
+        }
+        for store, s in sorted(sources_dict.items(), key=lambda x: x[1]["artist_royalties"], reverse=True)
+    ]
+
+    # Generate period label as quarter
+    quarter = (stmt.period_start.month - 1) // 3 + 1
+    period_label = f"Q{quarter} {stmt.period_start.year}"
+
+    return {
+        "id": str(stmt.id),
+        "period_start": stmt.period_start.isoformat(),
+        "period_end": stmt.period_end.isoformat(),
+        "period_label": period_label,
+        "gross_revenue": f"{float(stmt.gross_revenue):.2f}",
+        "artist_royalties": f"{float(stmt.artist_royalties):.2f}",
+        "recouped": f"{float(stmt.recouped):.2f}",
+        "net_payable": f"{float(stmt.net_payable):.2f}",
+        "advance_balance": f"{float(stmt.advance_balance_before):.2f}",
+        "currency": stmt.currency,
+        "status": stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+        "created_at": stmt.created_at.isoformat(),
+        "releases": releases,
+        "sources": sources,
     }
 
 

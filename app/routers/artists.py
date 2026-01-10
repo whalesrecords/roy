@@ -28,6 +28,7 @@ from app.schemas.royalties import (
     AdvanceLedgerEntryResponse,
     AdvanceBalanceResponse,
     PaymentCreate,
+    PaymentUpdate,
 )
 from app.models.transaction import TransactionNormalized
 
@@ -1630,6 +1631,71 @@ async def delete_payment(
     await db.flush()
 
     return {"success": True, "deleted_id": str(payment_id)}
+
+
+@router.put("/{artist_id}/payments/{payment_id}", response_model=AdvanceLedgerEntryResponse)
+async def update_payment(
+    artist_id: UUID,
+    payment_id: UUID,
+    data: PaymentUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> AdvanceLedgerEntryResponse:
+    """Update a payment entry."""
+    # Verify artist exists
+    result = await db.execute(
+        select(Artist).where(Artist.id == artist_id)
+    )
+    artist = result.scalar_one_or_none()
+    if not artist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Artist {artist_id} not found",
+        )
+
+    # Get the payment entry
+    result = await db.execute(
+        select(AdvanceLedgerEntry).where(
+            AdvanceLedgerEntry.id == payment_id,
+            AdvanceLedgerEntry.artist_id == artist_id,
+            AdvanceLedgerEntry.entry_type == LedgerEntryType.PAYMENT,
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Payment {payment_id} not found",
+        )
+
+    # Update fields if provided
+    if data.amount is not None:
+        entry.amount = data.amount
+    if data.description is not None:
+        entry.description = data.description
+    if data.payment_date is not None:
+        from datetime import datetime as dt
+        entry.effective_date = dt.combine(data.payment_date, dt.min.time())
+
+    await db.flush()
+
+    return AdvanceLedgerEntryResponse(
+        id=entry.id,
+        artist_id=entry.artist_id,
+        artist_name=artist.name,
+        entry_type=entry.entry_type.value,
+        amount=entry.amount,
+        currency=entry.currency,
+        scope=entry.scope.value if entry.scope else "catalog",
+        scope_id=entry.scope_id,
+        category=entry.category.value if entry.category else None,
+        royalty_run_id=entry.royalty_run_id,
+        description=entry.description,
+        reference=entry.reference,
+        document_url=entry.document_url,
+        effective_date=entry.effective_date,
+        created_at=entry.created_at,
+    )
 
 
 # Royalty calculation per artist
