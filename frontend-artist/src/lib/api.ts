@@ -89,6 +89,44 @@ export interface PlatformStats {
   percentage: number;
 }
 
+export interface Expense {
+  id: string;
+  amount: string;
+  currency: string;
+  category?: string;
+  category_label?: string;
+  scope: string;
+  scope_title?: string;
+  description?: string;
+  date: string;
+}
+
+export interface Contract {
+  id: string;
+  scope: string;
+  scope_id?: string;
+  scope_title?: string;
+  start_date: string;
+  end_date?: string;
+  artist_share: number;
+  label_share: number;
+  description?: string;
+}
+
+export interface QuarterlyRevenue {
+  quarter: string;
+  year: number;
+  gross: string;
+  net: string;
+  streams: number;
+  currency: string;
+}
+
+export interface LabelSettings {
+  label_name?: string;
+  label_logo_url?: string;
+}
+
 // API Functions
 export async function getArtistDashboard(): Promise<ArtistDashboard> {
   return fetchApi<ArtistDashboard>('/artist-portal/dashboard');
@@ -114,4 +152,21 @@ export async function getArtistPayments(): Promise<ArtistPayment[]> {
 export async function getPlatformStats(year?: number): Promise<PlatformStats[]> {
   const params = year ? `?year=${year}` : '';
   return fetchApi<PlatformStats[]>(`/artist-portal/platforms${params}`);
+}
+
+export async function getExpenses(): Promise<Expense[]> {
+  return fetchApi<Expense[]>('/artist-portal/expenses');
+}
+
+export async function getContracts(): Promise<Contract[]> {
+  return fetchApi<Contract[]>('/artist-portal/contracts');
+}
+
+export async function getQuarterlyRevenue(year?: number): Promise<QuarterlyRevenue[]> {
+  const params = year ? `?year=${year}` : '';
+  return fetchApi<QuarterlyRevenue[]>(`/artist-portal/revenue-quarterly${params}`);
+}
+
+export async function getLabelSettings(): Promise<LabelSettings> {
+  return fetchApi<LabelSettings>('/artist-portal/label-settings');
 }

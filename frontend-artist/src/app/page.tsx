@@ -5,12 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getArtistDashboard, ArtistDashboard } from '@/lib/api';
+import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, ArtistDashboard, QuarterlyRevenue, LabelSettings } from '@/lib/api';
 
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [data, setData] = useState<ArtistDashboard | null>(null);
+  const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
+  const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +24,14 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const dashboard = await getArtistDashboard();
+      const [dashboard, quarterlyData, settings] = await Promise.all([
+        getArtistDashboard(),
+        getQuarterlyRevenue(),
+        getLabelSettings(),
+      ]);
       setData(dashboard);
+      setQuarterly(quarterlyData);
+      setLabelSettings(settings);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -177,6 +185,24 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* Quarterly Revenue */}
+        {quarterly.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-secondary-500 uppercase tracking-wide px-1">
+              Revenus par Trimestre
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {quarterly.map((q) => (
+                <div key={q.quarter} className="bg-background border border-divider rounded-2xl p-4">
+                  <p className="text-sm text-secondary-500 mb-1">{q.quarter} {q.year}</p>
+                  <p className="text-lg font-bold text-foreground">{formatCurrency(q.gross, q.currency)}</p>
+                  <p className="text-xs text-success">{formatNumber(q.streams)} streams</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Links */}
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-secondary-500 uppercase tracking-wide px-1">
@@ -236,7 +262,54 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
+
+          <Link
+            href="/expenses"
+            className="flex items-center gap-4 p-4 bg-background border border-divider rounded-2xl hover:border-primary/50 transition-colors"
+          >
+            <div className="w-12 h-12 bg-danger/10 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Frais du Label</p>
+              <p className="text-sm text-secondary-500">Investissements sur vos projets</p>
+            </div>
+            <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+
+          <Link
+            href="/contracts"
+            className="flex items-center gap-4 p-4 bg-background border border-divider rounded-2xl hover:border-primary/50 transition-colors"
+          >
+            <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Mes Contrats</p>
+              <p className="text-sm text-secondary-500">Accords de partage</p>
+            </div>
+            <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
+
+        {/* Label Logo */}
+        {labelSettings?.label_logo_url && (
+          <div className="flex justify-center pt-4">
+            <img
+              src={labelSettings.label_logo_url}
+              alt={labelSettings.label_name || 'Label'}
+              className="h-12 object-contain opacity-50"
+            />
+          </div>
+        )}
       </main>
 
       {/* Bottom Navigation */}

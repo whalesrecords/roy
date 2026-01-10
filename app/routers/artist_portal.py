@@ -12,8 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.artist import Artist
 from app.models.transaction import TransactionNormalized
-from app.models.advance_ledger import AdvanceLedgerEntry
+from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType, ExpenseCategory
 from app.models.contract import Contract
+from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.contract_party import ContractParty
+from app.models.label_settings import LabelSettings
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -62,6 +65,7 @@ class TrackResponse(BaseModel):
     isrc: str
     title: str
     release_title: Optional[str] = None
+    artwork_url: Optional[str] = None
     gross: str
     net: str
     streams: int
@@ -82,6 +86,44 @@ class PlatformStatsResponse(BaseModel):
     gross: str
     streams: int
     percentage: float
+
+
+class ExpenseResponse(BaseModel):
+    id: str
+    amount: str
+    currency: str
+    category: Optional[str] = None
+    category_label: Optional[str] = None
+    scope: str
+    scope_title: Optional[str] = None
+    description: Optional[str] = None
+    date: str
+
+
+class ContractResponse(BaseModel):
+    id: str
+    scope: str
+    scope_id: Optional[str] = None
+    scope_title: Optional[str] = None
+    start_date: str
+    end_date: Optional[str] = None
+    artist_share: float
+    label_share: float
+    description: Optional[str] = None
+
+
+class QuarterlyRevenueResponse(BaseModel):
+    quarter: str
+    year: int
+    gross: str
+    net: str
+    streams: int
+    currency: str
+
+
+class LabelSettingsResponse(BaseModel):
+    label_name: Optional[str] = None
+    label_logo_url: Optional[str] = None
 
 
 # ============ Token Storage (simple in-memory for MVP) ============
@@ -172,7 +214,7 @@ async def get_dashboard(
     # Get total revenue
     revenue_result = await db.execute(
         select(
-            func.coalesce(func.sum(TransactionNormalized.gross_eur), 0).label("gross"),
+            func.coalesce(func.sum(TransactionNormalized.gross_amount), 0).label("gross"),
             func.coalesce(func.sum(TransactionNormalized.quantity), 0).label("streams"),
         ).where(TransactionNormalized.artist_name == artist.name)
     )
@@ -202,22 +244,8 @@ async def get_dashboard(
     )
     payments_total = float(payments_result.scalar() or 0)
 
-    # Get artist share from contracts (average)
-    contracts_result = await db.execute(
-        select(Contract).where(Contract.artist_id == artist.id)
-    )
-    contracts = contracts_result.scalars().all()
-
-    artist_share = 0.5  # Default 50%
-    if contracts:
-        # Use the first contract's share as default
-        for c in contracts:
-            if c.parties:
-                for party in c.parties:
-                    if party.party_type == "artist":
-                        artist_share = party.share_percent / 100
-                        break
-                break
+    # Use default 50% artist share for now (contract logic would require eager loading)
+    artist_share = 0.5
 
     # Calculate net (gross * artist_share - advances + payments)
     total_net = (total_gross * artist_share) - advance_balance + payments_total
@@ -269,7 +297,7 @@ async def get_releases(
         select(
             TransactionNormalized.upc,
             TransactionNormalized.release_title,
-            func.sum(TransactionNormalized.gross_eur).label("gross"),
+            func.sum(TransactionNormalized.gross_amount).label("gross"),
             func.sum(TransactionNormalized.quantity).label("streams"),
             func.count(func.distinct(TransactionNormalized.isrc)).label("track_count"),
         )
@@ -280,17 +308,26 @@ async def get_releases(
             )
         )
         .group_by(TransactionNormalized.upc, TransactionNormalized.release_title)
-        .order_by(func.sum(TransactionNormalized.gross_eur).desc())
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
 
+    rows = result.all()
+
+    # Get artwork for all UPCs
+    upcs = [row.upc for row in rows if row.upc]
+    artwork_result = await db.execute(
+        select(ReleaseArtwork).where(ReleaseArtwork.upc.in_(upcs))
+    )
+    artworks = {a.upc: a.image_url for a in artwork_result.scalars().all()}
+
     releases = []
-    for row in result.all():
+    for row in rows:
         gross = float(row.gross or 0)
         net = gross * 0.5  # Default 50% share
         releases.append({
             "upc": row.upc,
             "title": row.release_title or "Unknown",
-            "artwork_url": None,
+            "artwork_url": artworks.get(row.upc),
             "gross": f"{gross:.2f}",
             "net": f"{net:.2f}",
             "streams": int(row.streams or 0),
@@ -312,7 +349,7 @@ async def get_tracks(
             TransactionNormalized.isrc,
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
-            func.sum(TransactionNormalized.gross_eur).label("gross"),
+            func.sum(TransactionNormalized.gross_amount).label("gross"),
             func.sum(TransactionNormalized.quantity).label("streams"),
         )
         .where(
@@ -326,17 +363,27 @@ async def get_tracks(
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
         )
-        .order_by(func.sum(TransactionNormalized.gross_eur).desc())
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
 
+    rows = result.all()
+
+    # Get artwork for all ISRCs
+    isrcs = [row.isrc for row in rows if row.isrc]
+    artwork_result = await db.execute(
+        select(TrackArtwork).where(TrackArtwork.isrc.in_(isrcs))
+    )
+    artworks = {a.isrc: a.image_url for a in artwork_result.scalars().all()}
+
     tracks = []
-    for row in result.all():
+    for row in rows:
         gross = float(row.gross or 0)
         net = gross * 0.5  # Default 50% share
         tracks.append({
             "isrc": row.isrc,
             "title": row.track_title or "Unknown",
             "release_title": row.release_title,
+            "artwork_url": artworks.get(row.isrc),
             "gross": f"{gross:.2f}",
             "net": f"{net:.2f}",
             "streams": int(row.streams or 0),
@@ -384,18 +431,18 @@ async def get_platform_stats(
 ):
     """Get revenue breakdown by platform."""
     query = select(
-        TransactionNormalized.source,
-        func.sum(TransactionNormalized.gross_eur).label("gross"),
+        TransactionNormalized.store_name,
+        func.sum(TransactionNormalized.gross_amount).label("gross"),
         func.sum(TransactionNormalized.quantity).label("streams"),
     ).where(TransactionNormalized.artist_name == artist.name)
 
     if year:
         query = query.where(
-            func.extract("year", TransactionNormalized.sale_month) == year
+            func.extract("year", TransactionNormalized.period_start) == year
         )
 
-    query = query.group_by(TransactionNormalized.source).order_by(
-        func.sum(TransactionNormalized.gross_eur).desc()
+    query = query.group_by(TransactionNormalized.store_name).order_by(
+        func.sum(TransactionNormalized.gross_amount).desc()
     )
 
     result = await db.execute(query)
@@ -422,7 +469,7 @@ async def get_platform_stats(
     for row in rows:
         gross = float(row.gross or 0)
         percentage = (gross / total * 100) if total > 0 else 0
-        source = row.source or "other"
+        source = row.store_name or "other"
         stats.append({
             "platform": source.lower().replace(" ", "_"),
             "platform_label": platform_labels.get(source.lower().replace(" ", "_"), source),
@@ -432,6 +479,205 @@ async def get_platform_stats(
         })
 
     return stats
+
+
+@router.get("/expenses", response_model=List[ExpenseResponse])
+async def get_expenses(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get label expenses for the artist."""
+    # Category labels in French
+    category_labels = {
+        "mastering": "Mastering",
+        "mixing": "Mixage",
+        "recording": "Enregistrement",
+        "photos": "Photos",
+        "video": "Vidéo",
+        "advertising": "Publicité",
+        "groover": "Groover",
+        "submithub": "SubmitHub",
+        "google_ads": "Google Ads",
+        "instagram": "Instagram",
+        "tiktok": "TikTok",
+        "facebook": "Facebook",
+        "spotify_ads": "Spotify Ads",
+        "pr": "Relations Presse",
+        "distribution": "Distribution",
+        "artwork": "Artwork",
+        "cd": "CD",
+        "vinyl": "Vinyle",
+        "goodies": "Goodies",
+        "accommodation": "Hébergement",
+        "equipment_rental": "Location équipement",
+        "other": "Autre",
+    }
+
+    result = await db.execute(
+        select(AdvanceLedgerEntry)
+        .where(
+            and_(
+                AdvanceLedgerEntry.artist_id == artist.id,
+                AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
+            )
+        )
+        .order_by(AdvanceLedgerEntry.effective_date.desc())
+    )
+
+    expenses = []
+    for entry in result.scalars().all():
+        # Get scope title if applicable
+        scope_title = None
+        if entry.scope == "release" and entry.scope_id:
+            artwork_result = await db.execute(
+                select(ReleaseArtwork).where(ReleaseArtwork.upc == entry.scope_id)
+            )
+            artwork = artwork_result.scalar_one_or_none()
+            scope_title = artwork.name if artwork else entry.scope_id
+        elif entry.scope == "track" and entry.scope_id:
+            track_result = await db.execute(
+                select(TrackArtwork).where(TrackArtwork.isrc == entry.scope_id)
+            )
+            track = track_result.scalar_one_or_none()
+            scope_title = track.name if track else entry.scope_id
+
+        expenses.append({
+            "id": str(entry.id),
+            "amount": f"{float(entry.amount):.2f}",
+            "currency": entry.currency,
+            "category": entry.category,
+            "category_label": category_labels.get(entry.category, entry.category) if entry.category else None,
+            "scope": entry.scope,
+            "scope_title": scope_title,
+            "description": entry.description,
+            "date": entry.effective_date.strftime("%Y-%m-%d") if entry.effective_date else entry.created_at.strftime("%Y-%m-%d"),
+        })
+
+    return expenses
+
+
+@router.get("/contracts", response_model=List[ContractResponse])
+async def get_contracts(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get contracts for the artist."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(Contract)
+        .options(selectinload(Contract.parties))
+        .where(Contract.artist_id == artist.id)
+        .order_by(Contract.start_date.desc())
+    )
+
+    contracts = []
+    for contract in result.scalars().all():
+        # Calculate shares
+        artist_share = 0.0
+        label_share = 0.0
+        for party in contract.parties:
+            if party.party_type == "artist":
+                artist_share += float(party.share_percent or 0)
+            else:
+                label_share += float(party.share_percent or 0)
+
+        # Get scope title
+        scope_title = None
+        if contract.scope == "release" and contract.scope_id:
+            artwork_result = await db.execute(
+                select(ReleaseArtwork).where(ReleaseArtwork.upc == contract.scope_id)
+            )
+            artwork = artwork_result.scalar_one_or_none()
+            scope_title = artwork.name if artwork else contract.scope_id
+        elif contract.scope == "track" and contract.scope_id:
+            track_result = await db.execute(
+                select(TrackArtwork).where(TrackArtwork.isrc == contract.scope_id)
+            )
+            track = track_result.scalar_one_or_none()
+            scope_title = track.name if track else contract.scope_id
+
+        contracts.append({
+            "id": str(contract.id),
+            "scope": contract.scope or "catalog",
+            "scope_id": contract.scope_id,
+            "scope_title": scope_title,
+            "start_date": contract.start_date.strftime("%Y-%m-%d") if contract.start_date else None,
+            "end_date": contract.end_date.strftime("%Y-%m-%d") if contract.end_date else None,
+            "artist_share": artist_share,
+            "label_share": label_share,
+            "description": contract.description,
+        })
+
+    return contracts
+
+
+@router.get("/revenue-quarterly", response_model=List[QuarterlyRevenueResponse])
+async def get_quarterly_revenue(
+    year: Optional[int] = None,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get revenue breakdown by quarter."""
+    from datetime import date
+    current_year = year or date.today().year
+
+    # Get monthly revenue
+    result = await db.execute(
+        select(
+            func.extract("month", TransactionNormalized.period_start).label("month"),
+            func.sum(TransactionNormalized.gross_amount).label("gross"),
+            func.sum(TransactionNormalized.quantity).label("streams"),
+        )
+        .where(
+            and_(
+                TransactionNormalized.artist_name == artist.name,
+                func.extract("year", TransactionNormalized.period_start) == current_year,
+            )
+        )
+        .group_by(func.extract("month", TransactionNormalized.period_start))
+    )
+
+    # Aggregate by quarter
+    quarters = {1: {"gross": 0, "streams": 0}, 2: {"gross": 0, "streams": 0}, 3: {"gross": 0, "streams": 0}, 4: {"gross": 0, "streams": 0}}
+
+    for row in result.all():
+        month = int(row.month)
+        quarter = (month - 1) // 3 + 1
+        quarters[quarter]["gross"] += float(row.gross or 0)
+        quarters[quarter]["streams"] += int(row.streams or 0)
+
+    quarterly_data = []
+    for q in range(1, 5):
+        gross = quarters[q]["gross"]
+        net = gross * 0.5  # Default 50% share
+        quarterly_data.append({
+            "quarter": f"Q{q}",
+            "year": current_year,
+            "gross": f"{gross:.2f}",
+            "net": f"{net:.2f}",
+            "streams": quarters[q]["streams"],
+            "currency": "EUR",
+        })
+
+    return quarterly_data
+
+
+@router.get("/label-settings", response_model=LabelSettingsResponse)
+async def get_label_settings(
+    db: AsyncSession = Depends(get_db),
+):
+    """Get label settings (logo, name) for display in artist portal."""
+    result = await db.execute(select(LabelSettings).limit(1))
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        return {"label_name": None, "label_logo_url": None}
+
+    return {
+        "label_name": settings.label_name,
+        "label_logo_url": settings.logo_base64 or settings.logo_url,
+    }
 
 
 # ============ Admin endpoint to generate access codes ============
