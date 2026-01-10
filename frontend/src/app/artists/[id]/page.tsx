@@ -2042,20 +2042,27 @@ export default function ArtistDetailPage() {
                       </svg>
                       PDF Artiste (avec lien paiement)
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      onClick={handlePublishStatement}
-                      loading={publishingStatement}
-                      className="w-full mt-2 bg-primary hover:bg-primary-600"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      Publier sur l'Espace Artiste
-                    </Button>
                   </div>
                 )}
+
+                {/* Publish to artist portal button */}
+                <div className="pt-4 border-t border-divider">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handlePublishStatement}
+                    loading={publishingStatement}
+                    className="w-full bg-primary hover:bg-primary-600"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    Publier sur l'Espace Artiste
+                  </Button>
+                  <p className="text-xs text-secondary-500 text-center mt-2">
+                    Envoie le relevé sur l'espace artiste
+                  </p>
+                </div>
 
                 {/* Mark as paid button */}
                 {(() => {
