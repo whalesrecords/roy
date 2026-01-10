@@ -13,6 +13,7 @@ const config: Config = {
   },
   darkMode: 'class',
   plugins: [
+    // Cast to any to fix type incompatibility between tailwindcss and @heroui/react
     heroui({
       themes: {
         light: {
@@ -114,7 +115,8 @@ const config: Config = {
           },
         },
       },
-    }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any,
   ],
 };
 
