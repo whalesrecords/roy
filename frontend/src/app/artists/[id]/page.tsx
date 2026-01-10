@@ -2640,7 +2640,6 @@ export default function ArtistDetailPage() {
                 <label className="block text-sm font-medium text-foreground mb-2">Montant (EUR)</label>
                 <Input
                   type="number"
-                  step="0.01"
                   value={editPaymentAmount}
                   onChange={(e) => setEditPaymentAmount(e.target.value)}
                   placeholder="1000.00"
