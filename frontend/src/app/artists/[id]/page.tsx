@@ -1676,6 +1676,33 @@ export default function ArtistDetailPage() {
                   </span>
                 )}
               </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-secondary-400">
+                <span
+                  className="cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => navigator.clipboard.writeText(artist.id)}
+                  title="Cliquer pour copier"
+                >
+                  ID: {artist.id.slice(0, 8)}...
+                </span>
+                {artist.spotify_id && (
+                  <span
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => navigator.clipboard.writeText(artist.spotify_id!)}
+                    title="Cliquer pour copier"
+                  >
+                    Spotify: {artist.spotify_id}
+                  </span>
+                )}
+                {artist.external_id && (
+                  <span
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => navigator.clipboard.writeText(artist.external_id!)}
+                    title="Cliquer pour copier"
+                  >
+                    External: {artist.external_id}
+                  </span>
+                )}
+              </div>
               {artist.spotify_id && (
                 <a
                   href={`https://open.spotify.com/artist/${artist.spotify_id}`}
