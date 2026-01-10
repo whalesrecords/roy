@@ -414,7 +414,7 @@ async def get_payments(
     for entry in result.scalars().all():
         payments.append({
             "id": str(entry.id),
-            "amount": entry.amount,
+            "amount": f"{float(entry.amount):.2f}",
             "currency": entry.currency,
             "date": entry.effective_date.isoformat() if entry.effective_date else entry.created_at.isoformat(),
             "description": entry.description,
