@@ -214,3 +214,41 @@ export async function getStatements(): Promise<Statement[]> {
 export async function getStatementDetail(id: string): Promise<StatementDetail> {
   return fetchApi<StatementDetail>(`/artist-portal/statements/${id}`);
 }
+
+// Profile Types
+export interface ArtistProfile {
+  email?: string;
+  phone?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  postal_code?: string;
+  country?: string;
+  bank_name?: string;
+  account_holder?: string;
+  iban?: string;
+  bic?: string;
+  siret?: string;
+  vat_number?: string;
+}
+
+// Profile API Functions
+export async function getProfile(): Promise<ArtistProfile> {
+  return fetchApi<ArtistProfile>('/artist-portal/profile');
+}
+
+export async function updateProfile(data: Partial<ArtistProfile>): Promise<ArtistProfile> {
+  return fetchApi<ArtistProfile>('/artist-portal/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function requestPayment(statementId: string, message?: string): Promise<{ message: string; statement_id: string }> {
+  return fetchApi('/artist-portal/request-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ statement_id: statementId, message }),
+  });
+}

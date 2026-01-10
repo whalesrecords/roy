@@ -1,6 +1,7 @@
 """Artist Portal API endpoints for artists to view their royalties."""
 import secrets
 import uuid
+import json
 from datetime import datetime
 from typing import Optional, List
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.artist import Artist
@@ -19,6 +21,8 @@ from app.models.contract_party import ContractParty
 from app.models.label_settings import LabelSettings
 from app.models.statement import Statement
 from app.models.royalty_line_item import RoyaltyLineItem
+from app.models.artist_profile import ArtistProfile
+from app.models.notification import Notification, NotificationType
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -914,3 +918,338 @@ async def generate_access_code(
     await db.commit()
 
     return {"access_code": code}
+
+
+# ============ Profile Schemas ============
+
+class ArtistProfileResponse(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_holder: Optional[str] = None
+    iban: Optional[str] = None
+    bic: Optional[str] = None
+    siret: Optional[str] = None
+    vat_number: Optional[str] = None
+
+
+class ArtistProfileUpdate(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
+    country: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_holder: Optional[str] = None
+    iban: Optional[str] = None
+    bic: Optional[str] = None
+    siret: Optional[str] = None
+    vat_number: Optional[str] = None
+
+
+class PaymentRequestBody(BaseModel):
+    statement_id: str
+    message: Optional[str] = None
+
+
+# Field labels for notifications
+PROFILE_FIELD_LABELS = {
+    "email": "Email",
+    "phone": "Telephone",
+    "address_line1": "Adresse ligne 1",
+    "address_line2": "Adresse ligne 2",
+    "city": "Ville",
+    "postal_code": "Code postal",
+    "country": "Pays",
+    "bank_name": "Nom de la banque",
+    "account_holder": "Titulaire du compte",
+    "iban": "IBAN",
+    "bic": "BIC",
+    "siret": "SIRET",
+    "vat_number": "Numero de TVA",
+}
+
+
+# ============ Profile Endpoints ============
+
+@router.get("/profile", response_model=ArtistProfileResponse)
+async def get_profile(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get artist profile information."""
+    result = await db.execute(
+        select(ArtistProfile).where(ArtistProfile.artist_id == artist.id)
+    )
+    profile = result.scalar_one_or_none()
+
+    if not profile:
+        return ArtistProfileResponse()
+
+    return ArtistProfileResponse(
+        email=profile.email,
+        phone=profile.phone,
+        address_line1=profile.address_line1,
+        address_line2=profile.address_line2,
+        city=profile.city,
+        postal_code=profile.postal_code,
+        country=profile.country,
+        bank_name=profile.bank_name,
+        account_holder=profile.account_holder,
+        iban=profile.iban,
+        bic=profile.bic,
+        siret=profile.siret,
+        vat_number=profile.vat_number,
+    )
+
+
+@router.put("/profile", response_model=ArtistProfileResponse)
+async def update_profile(
+    data: ArtistProfileUpdate,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update artist profile information."""
+    from app.services.email_service import send_profile_update_notification
+
+    # Get or create profile
+    result = await db.execute(
+        select(ArtistProfile).where(ArtistProfile.artist_id == artist.id)
+    )
+    profile = result.scalar_one_or_none()
+
+    changed_fields = []
+
+    if not profile:
+        profile = ArtistProfile(artist_id=artist.id)
+        db.add(profile)
+        # Track all non-null fields as changes for new profile
+        for field, value in data.model_dump().items():
+            if value is not None:
+                changed_fields.append(PROFILE_FIELD_LABELS.get(field, field))
+    else:
+        # Track changed fields
+        for field, value in data.model_dump().items():
+            if value is not None:
+                old_value = getattr(profile, field, None)
+                if old_value != value:
+                    changed_fields.append(PROFILE_FIELD_LABELS.get(field, field))
+
+    # Update fields
+    for field, value in data.model_dump().items():
+        if value is not None:
+            setattr(profile, field, value)
+
+    await db.commit()
+    await db.refresh(profile)
+
+    # Create notification and send email if fields changed
+    if changed_fields:
+        # Create notification in database
+        notification = Notification(
+            notification_type=NotificationType.PROFILE_UPDATE.value,
+            artist_id=artist.id,
+            title=f"Profil mis a jour - {artist.name}",
+            message=f"Champs modifies: {', '.join(changed_fields)}",
+            data=json.dumps({"changed_fields": changed_fields}),
+        )
+        db.add(notification)
+        await db.commit()
+
+        # Send email notification (async, don't wait)
+        try:
+            await send_profile_update_notification(
+                artist_name=artist.name,
+                artist_id=str(artist.id),
+                changed_fields=changed_fields,
+            )
+        except Exception as e:
+            print(f"Failed to send profile update email: {e}")
+
+    return ArtistProfileResponse(
+        email=profile.email,
+        phone=profile.phone,
+        address_line1=profile.address_line1,
+        address_line2=profile.address_line2,
+        city=profile.city,
+        postal_code=profile.postal_code,
+        country=profile.country,
+        bank_name=profile.bank_name,
+        account_holder=profile.account_holder,
+        iban=profile.iban,
+        bic=profile.bic,
+        siret=profile.siret,
+        vat_number=profile.vat_number,
+    )
+
+
+@router.post("/request-payment")
+async def request_payment(
+    data: PaymentRequestBody,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Request payment for a statement."""
+    from app.services.email_service import send_payment_request_email
+
+    # Get the statement
+    result = await db.execute(
+        select(Statement)
+        .where(Statement.id == uuid.UUID(data.statement_id))
+        .where(Statement.artist_id == artist.id)
+    )
+    stmt = result.scalar_one_or_none()
+
+    if not stmt:
+        raise HTTPException(status_code=404, detail="Releve non trouve")
+
+    if stmt.status == "paid":
+        raise HTTPException(status_code=400, detail="Ce releve a deja ete paye")
+
+    # Get artist profile
+    profile_result = await db.execute(
+        select(ArtistProfile).where(ArtistProfile.artist_id == artist.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+
+    # Prepare bank details and contact info
+    bank_details = None
+    contact_info = None
+
+    if profile:
+        bank_details = {
+            "bank_name": profile.bank_name,
+            "account_holder": profile.account_holder,
+            "iban": profile.iban,
+            "bic": profile.bic,
+        }
+        contact_info = {
+            "email": profile.email,
+            "phone": profile.phone,
+            "address_line1": profile.address_line1,
+            "address_line2": profile.address_line2,
+            "city": profile.city,
+            "postal_code": profile.postal_code,
+            "country": profile.country,
+            "siret": profile.siret,
+            "vat_number": profile.vat_number,
+        }
+
+    # Generate period label
+    quarter = (stmt.period_start.month - 1) // 3 + 1
+    period_label = f"Q{quarter} {stmt.period_start.year}"
+
+    # Create notification
+    notification = Notification(
+        notification_type=NotificationType.PAYMENT_REQUEST.value,
+        artist_id=artist.id,
+        title=f"Demande de paiement - {artist.name}",
+        message=f"Demande de paiement de {float(stmt.net_payable):.2f} {stmt.currency} pour {period_label}",
+        data=json.dumps({
+            "statement_id": str(stmt.id),
+            "amount": str(stmt.net_payable),
+            "currency": stmt.currency,
+            "period_label": period_label,
+        }),
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Send email
+    try:
+        await send_payment_request_email(
+            artist_name=artist.name,
+            artist_email=profile.email if profile else artist.email,
+            period_label=period_label,
+            amount=f"{float(stmt.net_payable):.2f}",
+            currency=stmt.currency,
+            bank_details=bank_details,
+            contact_info=contact_info,
+        )
+    except Exception as e:
+        print(f"Failed to send payment request email: {e}")
+        # Don't fail the request if email fails
+
+    return {"message": "Demande de paiement envoyee", "statement_id": str(stmt.id)}
+
+
+# ============ Notifications Endpoint (for admin) ============
+
+@router.get("/notifications")
+async def get_notifications(
+    unread_only: bool = False,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get notifications for admin dashboard."""
+    query = select(Notification).order_by(Notification.created_at.desc()).limit(limit)
+
+    if unread_only:
+        query = query.where(Notification.is_read == False)
+
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+
+    # Get artist names
+    artist_ids = [n.artist_id for n in notifications if n.artist_id]
+    artists_result = await db.execute(
+        select(Artist).where(Artist.id.in_(artist_ids))
+    )
+    artists_map = {a.id: a.name for a in artists_result.scalars().all()}
+
+    return [
+        {
+            "id": str(n.id),
+            "type": n.notification_type,
+            "artist_id": str(n.artist_id) if n.artist_id else None,
+            "artist_name": artists_map.get(n.artist_id) if n.artist_id else None,
+            "title": n.title,
+            "message": n.message,
+            "data": json.loads(n.data) if n.data else None,
+            "is_read": n.is_read,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in notifications
+    ]
+
+
+@router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a notification as read."""
+    result = await db.execute(
+        select(Notification).where(Notification.id == uuid.UUID(notification_id))
+    )
+    notification = result.scalar_one_or_none()
+
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification non trouvee")
+
+    notification.is_read = True
+    await db.commit()
+
+    return {"message": "Notification marquee comme lue"}
+
+
+@router.put("/notifications/read-all")
+async def mark_all_notifications_read(
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark all notifications as read."""
+    from sqlalchemy import update
+
+    await db.execute(
+        update(Notification).where(Notification.is_read == False).values(is_read=True)
+    )
+    await db.commit()
+
+    return {"message": "Toutes les notifications marquees comme lues"}

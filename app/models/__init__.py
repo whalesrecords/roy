@@ -11,6 +11,8 @@ from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.track_artist_link import TrackArtistLink
 from app.models.label_settings import LabelSettings
 from app.models.match_suggestion import MatchSuggestion, MatchMethod, MatchStatus
+from app.models.artist_profile import ArtistProfile
+from app.models.notification import Notification, NotificationType
 
 __all__ = [
     # Import models
@@ -43,4 +45,9 @@ __all__ = [
     "MatchSuggestion",
     "MatchMethod",
     "MatchStatus",
+    # Artist Profile
+    "ArtistProfile",
+    # Notifications
+    "Notification",
+    "NotificationType",
 ]

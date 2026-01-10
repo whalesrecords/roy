@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, ArtistDashboard, QuarterlyRevenue, LabelSettings } from '@/lib/api';
+import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, getStatements, ArtistDashboard, QuarterlyRevenue, LabelSettings, Statement, requestPayment } from '@/lib/api';
 
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
@@ -13,8 +13,11 @@ export default function DashboardPage() {
   const [data, setData] = useState<ArtistDashboard | null>(null);
   const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
+  const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requestingPayment, setRequestingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (artist) {
@@ -24,18 +27,41 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const [dashboard, quarterlyData, settings] = await Promise.all([
+      const [dashboard, quarterlyData, settings, statementsData] = await Promise.all([
         getArtistDashboard(),
         getQuarterlyRevenue(),
         getLabelSettings(),
+        getStatements(),
       ]);
       setData(dashboard);
       setQuarterly(quarterlyData);
       setLabelSettings(settings);
+      setStatements(statementsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Get unpaid statements for payment request
+  const unpaidStatements = statements.filter(s => s.status !== 'paid');
+  const totalUnpaid = unpaidStatements.reduce((sum, s) => sum + parseFloat(s.net_payable), 0);
+
+  const handleRequestPayment = async () => {
+    if (unpaidStatements.length === 0) return;
+
+    setRequestingPayment(true);
+    setError(null);
+    try {
+      // Request payment for the first unpaid statement
+      await requestPayment(unpaidStatements[0].id);
+      setPaymentSuccess('Demande de paiement envoyee avec succes!');
+      setTimeout(() => setPaymentSuccess(null), 5000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la demande');
+    } finally {
+      setRequestingPayment(false);
     }
   };
 
@@ -123,13 +149,25 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Success Message */}
+        {paymentSuccess && (
+          <div className="p-4 bg-success/10 border border-success/20 rounded-2xl">
+            <p className="text-success text-sm flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {paymentSuccess}
+            </p>
+          </div>
+        )}
+
         {/* Main Balance Card */}
         <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-6 text-white shadow-xl shadow-primary/30">
           <p className="text-white/70 text-sm font-medium mb-1">Solde disponible</p>
           <p className="text-4xl font-bold mb-4">
             {data ? formatCurrency(data.total_net, data.currency) : '—'}
           </p>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-4 text-sm mb-4">
             <div>
               <p className="text-white/70">Revenus bruts</p>
               <p className="font-semibold">{data ? formatCurrency(data.total_gross, data.currency) : '—'}</p>
@@ -140,6 +178,28 @@ export default function DashboardPage() {
               <p className="font-semibold">{data ? formatCurrency(data.advance_balance, data.currency) : '—'}</p>
             </div>
           </div>
+          {/* Request Payment Button */}
+          {totalUnpaid > 0 && (
+            <button
+              onClick={handleRequestPayment}
+              disabled={requestingPayment}
+              className="w-full bg-white/20 hover:bg-white/30 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {requestingPayment ? (
+                <>
+                  <Spinner size="sm" color="white" />
+                  Envoi en cours...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Demander mon paiement
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Stats Grid */}
@@ -338,6 +398,13 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             <span className="text-xs font-medium">Paiements</span>
+          </Link>
+          <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-xs font-medium">Profil</span>
           </Link>
         </div>
       </nav>

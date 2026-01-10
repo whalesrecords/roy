@@ -145,6 +145,8 @@ class ArtistResponse(BaseModel):
     spotify_id: Optional[str] = None
     image_url: Optional[str] = None
     image_url_small: Optional[str] = None
+    access_code: Optional[str] = None
+    email: Optional[str] = None
     created_at: datetime
 
     class Config:

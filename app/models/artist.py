@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.advance_ledger import AdvanceLedgerEntry
     from app.models.statement import Statement
     from app.models.track_artist_link import TrackArtistLink
+    from app.models.artist_profile import ArtistProfile
 
 
 class Artist(Base):
@@ -86,6 +87,12 @@ class Artist(Base):
     track_links: Mapped[List["TrackArtistLink"]] = relationship(
         "TrackArtistLink",
         back_populates="artist",
+        cascade="all, delete-orphan",
+    )
+    profile: Mapped["ArtistProfile"] = relationship(
+        "ArtistProfile",
+        back_populates="artist",
+        uselist=False,
         cascade="all, delete-orphan",
     )
 

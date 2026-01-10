@@ -119,6 +119,8 @@ export interface Artist {
   spotify_id?: string;
   image_url?: string;
   image_url_small?: string;
+  access_code?: string;
+  email?: string;
   created_at: string;
 }
 
