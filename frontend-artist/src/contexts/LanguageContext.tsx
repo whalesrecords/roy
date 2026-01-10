@@ -282,7 +282,7 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('fr');
+  const [language, setLanguageState] = useState<Language>('en');
 
   useEffect(() => {
     // Load language from localStorage
@@ -290,10 +290,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     if (saved && (saved === 'fr' || saved === 'en')) {
       setLanguageState(saved);
     } else {
-      // Detect browser language
+      // Detect browser language - default to English, switch to French if browser is French
       const browserLang = navigator.language.toLowerCase();
-      if (browserLang.startsWith('en')) {
-        setLanguageState('en');
+      if (browserLang.startsWith('fr')) {
+        setLanguageState('fr');
       }
     }
   }, []);
