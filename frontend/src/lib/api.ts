@@ -1164,3 +1164,34 @@ export async function batchCreateAdvancesFromInvoices(advances: CreateAdvanceFro
     body: JSON.stringify(advances),
   });
 }
+
+// ============ Notifications ============
+
+export interface Notification {
+  id: string;
+  type: 'payment_request' | 'profile_update';
+  artist_id: string | null;
+  artist_name: string | null;
+  title: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export async function getNotifications(unreadOnly = false): Promise<Notification[]> {
+  const params = unreadOnly ? '?unread_only=true' : '';
+  return fetchApi<Notification[]>(`/artist-portal/notifications${params}`);
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  await fetchApi(`/artist-portal/notifications/${notificationId}/read`, {
+    method: 'PUT',
+  });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await fetchApi('/artist-portal/notifications/read-all', {
+    method: 'PUT',
+  });
+}
