@@ -1,0 +1,13 @@
+{
+  "name": "royalties-desktop",
+  "version": "0.1.0",
+  "description": "Royalties Management Desktop Application",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:mac": "tauri build --target universal-apple-darwin"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.11"
+  }
+}

@@ -226,11 +226,28 @@ class SpotifyService:
         track = tracks[0]
         album = track.get("album", {})
         images = album.get("images", [])
+        album_id = album.get("id")
+
+        # Fetch full album details to get release_date and UPC
+        album_release_date = None
+        album_upc = None
+        if album_id:
+            try:
+                album_details = await self._request(f"/albums/{album_id}")
+                if album_details:
+                    album_release_date = album_details.get("release_date")
+                    external_ids = album_details.get("external_ids", {})
+                    album_upc = external_ids.get("upc")
+            except Exception:
+                pass  # Ignore errors, we'll just have null values
 
         data = {
             "spotify_id": track.get("id"),
             "name": track.get("name"),
             "album_name": album.get("name"),
+            "album_id": album_id,
+            "album_release_date": album_release_date,
+            "album_upc": album_upc,
             "image_url": images[0]["url"] if images else None,
             "image_url_small": images[-1]["url"] if images else None,
             "artists": [a.get("name") for a in track.get("artists", [])],
@@ -272,6 +289,131 @@ class SpotifyService:
             "total_tracks": result.get("total_tracks"),
             "artists": [a.get("name") for a in result.get("artists", [])],
         }
+
+    async def get_album_tracks(self, album_id: str) -> list[dict]:
+        """
+        Get all tracks for an album by Spotify ID.
+
+        Returns:
+            List of track dicts with duration, ISRC, etc.
+        """
+        cache_key = f"album_tracks:{album_id}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        # First get the album to get release date and genre
+        album_result = await self._request(f"/albums/{album_id}")
+        album_release_date = album_result.get("release_date", "")
+        album_genres = album_result.get("genres", [])
+        album_label = album_result.get("label", "")
+
+        all_tracks = []
+        offset = 0
+        limit = 50
+
+        while True:
+            result = await self._request(f"/albums/{album_id}/tracks", {
+                "limit": limit,
+                "offset": offset,
+            })
+
+            items = result.get("items", [])
+            if not items:
+                break
+
+            for track in items:
+                all_tracks.append({
+                    "spotify_id": track.get("id"),
+                    "name": track.get("name"),
+                    "track_number": track.get("track_number"),
+                    "disc_number": track.get("disc_number"),
+                    "duration_ms": track.get("duration_ms"),
+                    "explicit": track.get("explicit"),
+                    "artists": [a.get("name") for a in track.get("artists", [])],
+                    "isrc": track.get("external_ids", {}).get("isrc"),  # May not be available in simplified track
+                })
+
+            if len(items) < limit:
+                break
+            offset += limit
+
+        # Get full track details for ISRCs (simplified tracks don't have external_ids)
+        track_ids = [t["spotify_id"] for t in all_tracks if t["spotify_id"]]
+        if track_ids:
+            # Spotify allows max 50 tracks per request
+            for i in range(0, len(track_ids), 50):
+                batch = track_ids[i:i+50]
+                tracks_result = await self._request("/tracks", {"ids": ",".join(batch)})
+                for full_track in tracks_result.get("tracks", []):
+                    if full_track:
+                        for t in all_tracks:
+                            if t["spotify_id"] == full_track.get("id"):
+                                t["isrc"] = full_track.get("external_ids", {}).get("isrc")
+                                break
+
+        result_data = {
+            "tracks": all_tracks,
+            "release_date": album_release_date,
+            "genres": album_genres,
+            "label": album_label,
+        }
+        _set_cached(cache_key, result_data)
+        return result_data
+
+    async def get_artist_albums(self, artist_id: str, include_groups: str = "album,single,compilation") -> list[dict]:
+        """
+        Get all albums for an artist by Spotify ID.
+
+        Args:
+            artist_id: Spotify artist ID
+            include_groups: Comma-separated list of album types (album, single, compilation, appears_on)
+
+        Returns:
+            List of album dicts with info including artwork URLs
+        """
+        cache_key = f"artist_albums:{artist_id}:{include_groups}"
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return cached
+
+        all_albums = []
+        offset = 0
+        limit = 50  # Max allowed by Spotify API
+
+        while True:
+            result = await self._request(f"/artists/{artist_id}/albums", {
+                "include_groups": include_groups,
+                "limit": limit,
+                "offset": offset,
+                "market": "FR",  # Use French market for availability
+            })
+
+            items = result.get("items", [])
+            if not items:
+                break
+
+            for album in items:
+                images = album.get("images", [])
+                all_albums.append({
+                    "spotify_id": album.get("id"),
+                    "name": album.get("name"),
+                    "album_type": album.get("album_type"),
+                    "release_date": album.get("release_date"),
+                    "total_tracks": album.get("total_tracks"),
+                    "image_url": images[0]["url"] if images else None,
+                    "image_url_small": images[-1]["url"] if images else None,
+                    "artists": [a.get("name") for a in album.get("artists", [])],
+                    "external_urls": album.get("external_urls", {}),
+                })
+
+            # Check if there are more albums
+            if len(items) < limit:
+                break
+            offset += limit
+
+        _set_cached(cache_key, all_albums)
+        return all_albums
 
 
 # Default service instance

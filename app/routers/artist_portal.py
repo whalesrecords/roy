@@ -295,15 +295,38 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/debug-config")
+async def debug_config():
+    """Debug endpoint to check Supabase configuration (no sensitive data)."""
+    import os
+    return {
+        "supabase_url_set": bool(settings.SUPABASE_URL),
+        "supabase_url_value": settings.SUPABASE_URL[:30] + "..." if settings.SUPABASE_URL else None,
+        "supabase_anon_key_set": bool(settings.SUPABASE_ANON_KEY),
+        "supabase_anon_key_prefix": settings.SUPABASE_ANON_KEY[:20] + "..." if settings.SUPABASE_ANON_KEY else None,
+        "supabase_service_key_set": bool(settings.SUPABASE_SERVICE_ROLE_KEY),
+        "supabase_service_key_prefix": settings.SUPABASE_SERVICE_ROLE_KEY[:20] + "..." if settings.SUPABASE_SERVICE_ROLE_KEY else None,
+        "env_supabase_url": os.getenv("SUPABASE_URL", "NOT SET")[:30] if os.getenv("SUPABASE_URL") else "NOT SET",
+        "env_supabase_anon_key": os.getenv("SUPABASE_ANON_KEY", "NOT SET")[:20] if os.getenv("SUPABASE_ANON_KEY") else "NOT SET",
+        "env_supabase_service_key": os.getenv("SUPABASE_SERVICE_ROLE_KEY", "NOT SET")[:20] if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else "NOT SET",
+    }
+
+
 @router.post("/login-email", response_model=LoginResponse)
 async def login_email(request: EmailLoginRequest, db: AsyncSession = Depends(get_db)):
     """Login with email and password via Supabase Auth."""
-    if not settings.SUPABASE_ANON_KEY:
+    import os
+    # Read directly from env to bypass lru_cache
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "")
+    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+
+    if not anon_key:
+        logger.error("SUPABASE_ANON_KEY not set in environment")
         raise HTTPException(status_code=500, detail="Supabase non configuré")
 
     try:
-        from app.core.supabase_client import get_supabase_client
-        supabase = get_supabase_client()
+        from supabase import create_client
+        supabase = create_client(supabase_url, anon_key)
 
         # Authenticate with Supabase
         auth_response = supabase.auth.sign_in_with_password({

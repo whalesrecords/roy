@@ -1,8 +1,9 @@
-"""Artwork models for storing Spotify images."""
+"""Artwork models for storing Spotify images and catalog metadata."""
 import uuid
 from datetime import datetime
+from typing import Optional, List
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import String, DateTime, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -10,7 +11,7 @@ from app.core.database import Base
 
 
 class ReleaseArtwork(Base):
-    """Store artwork for releases (albums/EPs/singles) by UPC."""
+    """Store artwork and metadata for releases (albums/EPs/singles) by UPC."""
 
     __tablename__ = "release_artwork"
 
@@ -26,6 +27,13 @@ class ReleaseArtwork(Base):
     name: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url_small: Mapped[str] = mapped_column(String(500), nullable=True)
+
+    # Catalog metadata (from Spotify)
+    release_date: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    genres: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    label: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    total_tracks: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    album_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # album, single, compilation
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -45,7 +53,7 @@ class ReleaseArtwork(Base):
 
 
 class TrackArtwork(Base):
-    """Store artwork for tracks by ISRC."""
+    """Store artwork and metadata for tracks by ISRC."""
 
     __tablename__ = "track_artwork"
 
@@ -62,6 +70,13 @@ class TrackArtwork(Base):
     album_name: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url_small: Mapped[str] = mapped_column(String(500), nullable=True)
+
+    # Catalog metadata (from Spotify)
+    duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    track_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    disc_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    artists: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    release_upc: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)  # Link to release
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

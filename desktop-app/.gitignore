@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Rust build
+src-tauri/target/
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store

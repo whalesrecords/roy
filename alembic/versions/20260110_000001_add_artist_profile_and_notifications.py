@@ -1,7 +1,7 @@
 """Add artist_profile and notifications tables
 
 Revision ID: 20260110_000001
-Revises: 20260108_183738
+Revises: 42fb40cd5ae4
 Create Date: 2026-01-10
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '20260110_000001'
-down_revision: Union[str, None] = '20260108_183738'
+down_revision: Union[str, None] = '42fb40cd5ae4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
