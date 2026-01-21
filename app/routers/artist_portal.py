@@ -312,6 +312,84 @@ async def debug_config():
     }
 
 
+@router.get("/list-supabase-users")
+async def list_supabase_users():
+    """List all users in Supabase Auth (admin only)."""
+    import os
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+
+    if not service_key:
+        raise HTTPException(status_code=500, detail="Supabase service key not configured")
+
+    try:
+        from supabase import create_client
+        supabase = create_client(supabase_url, service_key)
+
+        # List users
+        users_response = supabase.auth.admin.list_users()
+
+        users = []
+        for user in users_response:
+            users.append({
+                "id": user.id,
+                "email": user.email,
+                "created_at": user.created_at,
+                "email_confirmed": user.email_confirmed_at is not None,
+            })
+
+        return {"count": len(users), "users": users}
+
+    except Exception as e:
+        logger.error(f"Failed to list users: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    new_password: str
+
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Reset password for a Supabase user by email (admin only)."""
+    import os
+    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+
+    if not service_key:
+        raise HTTPException(status_code=500, detail="Supabase service key not configured")
+
+    try:
+        from supabase import create_client
+        supabase = create_client(supabase_url, service_key)
+
+        # Find user by email
+        users_response = supabase.auth.admin.list_users()
+        user_id = None
+        for user in users_response:
+            if user.email == request.email:
+                user_id = user.id
+                break
+
+        if not user_id:
+            raise HTTPException(status_code=404, detail=f"User with email {request.email} not found in Supabase")
+
+        # Update password
+        supabase.auth.admin.update_user_by_id(
+            user_id,
+            {"password": request.new_password}
+        )
+
+        return {"message": f"Password updated for {request.email}", "user_id": user_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reset password: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 @router.post("/login-email", response_model=LoginResponse)
 async def login_email(request: EmailLoginRequest, db: AsyncSession = Depends(get_db)):
     """Login with email and password via Supabase Auth."""
