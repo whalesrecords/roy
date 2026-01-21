@@ -11,7 +11,11 @@ import type {
   RoyaltyRun,
 } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use Next.js rewrite proxy to avoid CORS issues in browser
+// The proxy is configured in next.config.js to forward /api/backend/* to the backend
+const API_BASE = typeof window !== 'undefined'
+  ? '/api/backend'  // Client-side: use proxy
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');  // Server-side: direct
 const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
 async function fetchApi<T>(
@@ -185,6 +189,13 @@ export async function deleteArtist(artistId: string): Promise<{ success: boolean
 export async function generateAccessCode(artistId: string): Promise<{ access_code: string }> {
   return fetchApi<{ access_code: string }>(`/artist-portal/generate-code/${artistId}`, {
     method: 'POST',
+  });
+}
+
+export async function createArtistAuth(artistId: string, email: string, password: string): Promise<{ message: string; auth_user_id: string; email: string }> {
+  return fetchApi<{ message: string; auth_user_id: string; email: string }>('/artist-portal/create-auth', {
+    method: 'POST',
+    body: JSON.stringify({ artist_id: artistId, email, password }),
   });
 }
 
@@ -504,6 +515,60 @@ export async function getCachedReleaseArtworks(upcs: string[]): Promise<CachedAr
 export async function getCachedTrackArtworks(isrcs: string[]): Promise<CachedArtwork[]> {
   if (isrcs.length === 0) return [];
   return fetchApi<CachedArtwork[]>(`/spotify/artwork/tracks?isrcs=${isrcs.join(',')}`);
+}
+
+// Catalog metadata (cached Spotify data)
+
+export interface CatalogTrackMetadata {
+  isrc: string;
+  spotify_id?: string;
+  name?: string;
+  track_number?: number;
+  disc_number?: number;
+  duration_ms?: number;
+  artists?: string[];
+}
+
+export interface CatalogReleaseMetadata {
+  found: boolean;
+  upc: string;
+  spotify_id?: string;
+  name?: string;
+  image_url?: string;
+  image_url_small?: string;
+  release_date?: string;
+  genres?: string[];
+  label?: string;
+  total_tracks?: number;
+  album_type?: string;
+  tracks?: CatalogTrackMetadata[];
+  updated_at?: string;
+}
+
+export async function getReleaseMetadata(upc: string): Promise<CatalogReleaseMetadata> {
+  return fetchApi<CatalogReleaseMetadata>(`/spotify/catalog/releases/${upc}`);
+}
+
+export async function refreshReleaseMetadata(upc: string): Promise<{ success: boolean; tracks_updated: number }> {
+  return fetchApi(`/spotify/catalog/releases/${upc}/refresh`, { method: 'POST' });
+}
+
+export async function getTracksMetadata(isrcs: string[]): Promise<CatalogTrackMetadata[]> {
+  if (isrcs.length === 0) return [];
+  return fetchApi<CatalogTrackMetadata[]>(`/spotify/catalog/tracks?isrcs=${isrcs.join(',')}`);
+}
+
+export async function batchRefreshReleases(upcs: string[]): Promise<{
+  total: number;
+  success_count: number;
+  failed_count: number;
+  not_found_count: number;
+}> {
+  return fetchApi('/spotify/catalog/releases/batch-refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ upcs }),
+  });
 }
 
 // Artist royalty calculation

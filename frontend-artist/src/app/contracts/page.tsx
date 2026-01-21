@@ -23,14 +23,14 @@ export default function ContractsPage() {
       const data = await getContracts();
       setContracts(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -39,7 +39,7 @@ export default function ContractsPage() {
 
   const getScopeLabel = (scope: string) => {
     switch (scope) {
-      case 'catalog': return 'Tout le catalogue';
+      case 'catalog': return 'Full catalog';
       case 'release': return 'Album';
       case 'track': return 'Track';
       default: return scope;
@@ -69,8 +69,8 @@ export default function ContractsPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Mes Contrats</h1>
-            <p className="text-xs text-secondary-500">Accords de partage des revenus</p>
+            <h1 className="font-semibold text-foreground">My Contracts</h1>
+            <p className="text-xs text-secondary-500">Revenue sharing agreements</p>
           </div>
         </div>
       </header>
@@ -89,7 +89,7 @@ export default function ContractsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-secondary-500">Aucun contrat enregistré</p>
+            <p className="text-secondary-500">No contracts on file</p>
           </div>
         ) : (
           contracts.map((contract) => (
@@ -112,11 +112,11 @@ export default function ContractsPage() {
               {/* Shares */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-success/5 border border-success/20 rounded-xl p-3">
-                  <p className="text-xs text-success font-medium mb-1">Part Artiste</p>
+                  <p className="text-xs text-success font-medium mb-1">Artist Share</p>
                   <p className="text-2xl font-bold text-success">{contract.artist_share}%</p>
                 </div>
                 <div className="bg-secondary/5 border border-secondary/20 rounded-xl p-3">
-                  <p className="text-xs text-secondary-600 font-medium mb-1">Part Label</p>
+                  <p className="text-xs text-secondary-600 font-medium mb-1">Label Share</p>
                   <p className="text-2xl font-bold text-secondary-600">{contract.label_share}%</p>
                 </div>
               </div>
@@ -129,7 +129,7 @@ export default function ContractsPage() {
                 <span>
                   {formatDate(contract.start_date)}
                   {' - '}
-                  {contract.end_date ? formatDate(contract.end_date) : 'Illimité'}
+                  {contract.end_date ? formatDate(contract.end_date) : 'Unlimited'}
                 </span>
               </div>
 
@@ -151,7 +151,7 @@ export default function ContractsPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,7 +169,7 @@ export default function ContractsPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-xs font-medium">Paiements</span>
+            <span className="text-xs font-medium">Payments</span>
           </Link>
         </div>
       </nav>

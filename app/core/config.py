@@ -19,6 +19,11 @@ class Settings:
     SPOTIFY_CLIENT_ID: str = os.getenv("SPOTIFY_CLIENT_ID", "")
     SPOTIFY_CLIENT_SECRET: str = os.getenv("SPOTIFY_CLIENT_SECRET", "")
 
+    # Supabase (for auth)
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
+
     # Sync URL for migrations (if needed)
     @property
     def DATABASE_URL_SYNC(self) -> str:

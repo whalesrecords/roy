@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Input from '@/components/ui/Input';
 import { Artist, Contract, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory, ArtistCategory, ARTIST_CATEGORIES } from '@/lib/types';
 import { WHALES_LOGO_BASE64 } from '@/lib/whales-logo';
+import CatalogSection from '@/components/artist/CatalogSection';
 import {
   getArtist,
   getArtists,
@@ -40,6 +41,7 @@ import {
   getLabelSettings,
   createStatement,
   generateAccessCode,
+  createArtistAuth,
   CatalogRelease,
   CatalogTrack,
   ArtistRoyaltyCalculation,
@@ -188,6 +190,12 @@ export default function ArtistDetailPage() {
   const [publishingStatement, setPublishingStatement] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [paidQuarters, setPaidQuarters] = useState<{ quarter: string; amount: number; date: string }[]>([]);
+
+  // Create auth account
+  const [showCreateAuthModal, setShowCreateAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [creatingAuth, setCreatingAuth] = useState(false);
 
   // Edit artist
   const [showEditArtist, setShowEditArtist] = useState(false);
@@ -815,6 +823,24 @@ export default function ArtistDetailPage() {
       setError(err instanceof Error ? err.message : 'Erreur lors de la generation du code');
     } finally {
       setGeneratingCode(false);
+    }
+  };
+
+  const handleCreateAuth = async () => {
+    if (!artist || !authEmail || !authPassword) return;
+
+    setCreatingAuth(true);
+    try {
+      const result = await createArtistAuth(artistId, authEmail, authPassword);
+      // Update artist with new email and auth_user_id
+      setArtist({ ...artist, email: result.email, auth_user_id: result.auth_user_id });
+      setShowCreateAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la creation du compte');
+    } finally {
+      setCreatingAuth(false);
     }
   };
 
@@ -1734,9 +1760,9 @@ export default function ArtistDetailPage() {
                     Profil Spotify
                   </a>
                 )}
-                {artist.access_code ? (
+                {artist.auth_user_id ? (
                   <a
-                    href={`https://artists.whalesrecords.com?code=${artist.access_code}`}
+                    href="https://artists.whalesrecords.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-700"
@@ -1744,27 +1770,20 @@ export default function ArtistDetailPage() {
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Espace Artiste ({artist.access_code})
+                    Espace Artiste ({artist.email})
                   </a>
                 ) : (
                   <button
-                    onClick={handleGenerateAccessCode}
-                    disabled={generatingCode}
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-700 disabled:opacity-50"
+                    onClick={() => {
+                      setAuthEmail(artist.email || '');
+                      setShowCreateAuthModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary-700"
                   >
-                    {generatingCode ? (
-                      <>
-                        <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-                        Generation...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                        </svg>
-                        Creer acces Espace Artiste
-                      </>
-                    )}
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Creer compte Espace Artiste
                   </button>
                 )}
               </div>
@@ -2216,6 +2235,14 @@ export default function ArtistDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Catalogue complet avec export Label Copy */}
+        {artist && (
+          <CatalogSection
+            artistName={artist.name}
+            artistSpotifyId={artist.spotify_id}
+          />
+        )}
 
         {/* Releases avec contrats */}
         <div className="bg-background rounded-2xl border border-divider shadow-sm">
@@ -3658,6 +3685,73 @@ export default function ArtistDetailPage() {
                 >
                   {deleting ? 'Suppression...' : 'Supprimer definitivement'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Auth Account Modal */}
+      {showCreateAuthModal && artist && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-background w-full max-w-md rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-divider">
+              <h2 className="text-lg font-semibold text-foreground">Creer un compte Espace Artiste</h2>
+              <p className="text-sm text-secondary-500 mt-1">
+                Definissez les identifiants de connexion pour {artist.name}
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="artiste@email.com"
+                  className="w-full px-4 py-3 border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Mot de passe
+                </label>
+                <input
+                  type="text"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="Mot de passe initial"
+                  className="w-full px-4 py-3 border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary"
+                />
+                <p className="text-xs text-secondary-400 mt-1">
+                  Vous devrez communiquer ces identifiants a l&apos;artiste
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowCreateAuthModal(false);
+                    setAuthEmail('');
+                    setAuthPassword('');
+                  }}
+                  className="flex-1"
+                  disabled={creatingAuth}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleCreateAuth}
+                  disabled={!authEmail || !authPassword || creatingAuth}
+                  className="flex-1"
+                >
+                  {creatingAuth ? 'Creation...' : 'Creer le compte'}
+                </Button>
               </div>
             </div>
           </div>

@@ -31,18 +31,18 @@ export default function PaymentsPage() {
       setPayments(paymentsData);
       setStatements(statementsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
+    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -52,11 +52,11 @@ export default function PaymentsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <span className="px-2 py-0.5 bg-success/10 text-success text-xs font-medium rounded-full">Payé</span>;
+        return <span className="px-2 py-0.5 bg-success/10 text-success text-xs font-medium rounded-full">Paid</span>;
       case 'finalized':
-        return <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">Finalisé</span>;
+        return <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">Finalized</span>;
       default:
-        return <span className="px-2 py-0.5 bg-secondary/10 text-secondary-600 text-xs font-medium rounded-full">Brouillon</span>;
+        return <span className="px-2 py-0.5 bg-secondary/10 text-secondary-600 text-xs font-medium rounded-full">Draft</span>;
     }
   };
 
@@ -70,10 +70,10 @@ export default function PaymentsPage() {
     setError(null);
     try {
       await requestPayment(statementId);
-      setPaymentSuccess('Demande de paiement envoyee avec succes!');
+      setPaymentSuccess('Payment request sent successfully!');
       setTimeout(() => setPaymentSuccess(null), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la demande');
+      setError(err instanceof Error ? err.message : 'Error during request');
     } finally {
       setRequestingPayment(false);
     }
@@ -98,8 +98,8 @@ export default function PaymentsPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Paiements</h1>
-            <p className="text-xs text-secondary-500">Relevés et versements</p>
+            <h1 className="font-semibold text-foreground">Payments</h1>
+            <p className="text-xs text-secondary-500">Statements and disbursements</p>
           </div>
         </div>
       </header>
@@ -125,11 +125,11 @@ export default function PaymentsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-4 text-white">
-            <p className="text-white/70 text-xs mb-1">Royalties dues</p>
+            <p className="text-white/70 text-xs mb-1">Royalties due</p>
             <p className="text-xl font-bold">{formatCurrency(totalPayable.toString())}</p>
           </div>
           <div className="bg-gradient-to-br from-success to-success/80 rounded-2xl p-4 text-white">
-            <p className="text-white/70 text-xs mb-1">Total verse</p>
+            <p className="text-white/70 text-xs mb-1">Total paid</p>
             <p className="text-xl font-bold">{formatCurrency(totalPaid.toString())}</p>
           </div>
         </div>
@@ -144,14 +144,14 @@ export default function PaymentsPage() {
             {requestingPayment ? (
               <>
                 <Spinner size="sm" color="white" />
-                Envoi en cours...
+                Sending...
               </>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
-                Demander mon paiement ({formatCurrency(totalPayable.toString())})
+                Request Payment ({formatCurrency(totalPayable.toString())})
               </>
             )}
           </button>
@@ -167,7 +167,7 @@ export default function PaymentsPage() {
                 : 'text-secondary-500'
             }`}
           >
-            Relevés ({statements.length})
+            Statements ({statements.length})
           </button>
           <button
             onClick={() => setActiveTab('payments')}
@@ -177,7 +177,7 @@ export default function PaymentsPage() {
                 : 'text-secondary-500'
             }`}
           >
-            Versements ({payments.length})
+            Disbursements ({payments.length})
           </button>
         </div>
 
@@ -191,8 +191,8 @@ export default function PaymentsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <p className="text-secondary-500">Aucun relevé disponible</p>
-                <p className="text-xs text-secondary-400 mt-1">Les relevés seront générés par votre label</p>
+                <p className="text-secondary-500">No statements available</p>
+                <p className="text-xs text-secondary-400 mt-1">Statements will be generated by your label</p>
               </div>
             ) : (
               statements.map((stmt) => (
@@ -216,19 +216,19 @@ export default function PaymentsPage() {
 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-secondary-500">Revenus bruts</span>
+                      <span className="text-secondary-500">Gross revenue</span>
                       <span className="text-foreground">{formatCurrency(stmt.gross_revenue, stmt.currency)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-secondary-500">Vos royalties</span>
+                      <span className="text-secondary-500">Your royalties</span>
                       <span className="text-foreground">{formatCurrency(stmt.artist_royalties, stmt.currency)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-secondary-500">Avances récupérées</span>
+                      <span className="text-secondary-500">Advances recouped</span>
                       <span className="text-warning">-{formatCurrency(stmt.recouped, stmt.currency)}</span>
                     </div>
                     <div className="flex justify-between pt-2 border-t border-divider">
-                      <span className="font-semibold text-foreground">Net à percevoir</span>
+                      <span className="font-semibold text-foreground">Net payable</span>
                       <span className="font-bold text-success text-lg">{formatCurrency(stmt.net_payable, stmt.currency)}</span>
                     </div>
                   </div>
@@ -248,7 +248,7 @@ export default function PaymentsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <p className="text-secondary-500">Aucun versement pour le moment</p>
+                <p className="text-secondary-500">No disbursements yet</p>
               </div>
             ) : (
               payments.map((payment) => (
@@ -262,7 +262,7 @@ export default function PaymentsPage() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">Versement</p>
+                    <p className="font-semibold text-foreground">Disbursement</p>
                     {payment.description && (
                       <p className="text-sm text-secondary-500 truncate">{payment.description}</p>
                     )}
@@ -283,7 +283,7 @@ export default function PaymentsPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -301,14 +301,14 @@ export default function PaymentsPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-xs font-medium">Paiements</span>
+            <span className="text-xs font-medium">Payments</span>
           </Link>
           <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-xs font-medium">Profil</span>
+            <span className="text-xs font-medium">Profile</span>
           </Link>
         </div>
       </nav>

@@ -38,7 +38,7 @@ export default function DashboardPage() {
       setLabelSettings(settings);
       setStatements(statementsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
@@ -56,17 +56,17 @@ export default function DashboardPage() {
     try {
       // Request payment for the first unpaid statement
       await requestPayment(unpaidStatements[0].id);
-      setPaymentSuccess('Demande de paiement envoyee avec succes!');
+      setPaymentSuccess('Payment request sent successfully!');
       setTimeout(() => setPaymentSuccess(null), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la demande');
+      setError(err instanceof Error ? err.message : 'Error during request');
     } finally {
       setRequestingPayment(false);
     }
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
+    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
@@ -76,7 +76,7 @@ export default function DashboardPage() {
     if (value >= 1000) {
       return (value / 1000).toFixed(1) + 'K';
     }
-    return value.toLocaleString('fr-FR');
+    return value.toLocaleString('en-US');
   };
 
   if (authLoading || loading) {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
             )}
             <div>
               <p className="font-semibold text-foreground">{artist.name}</p>
-              <p className="text-xs text-secondary-500">Espace Artiste</p>
+              <p className="text-xs text-secondary-500">Artist Portal</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -163,18 +163,18 @@ export default function DashboardPage() {
 
         {/* Main Balance Card */}
         <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-6 text-white shadow-xl shadow-primary/30">
-          <p className="text-white/70 text-sm font-medium mb-1">Solde disponible</p>
+          <p className="text-white/70 text-sm font-medium mb-1">Available Balance</p>
           <p className="text-4xl font-bold mb-4">
             {data ? formatCurrency(data.total_net, data.currency) : '—'}
           </p>
           <div className="flex items-center gap-4 text-sm mb-4">
             <div>
-              <p className="text-white/70">Revenus bruts</p>
+              <p className="text-white/70">Gross Revenue</p>
               <p className="font-semibold">{data ? formatCurrency(data.total_gross, data.currency) : '—'}</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div>
-              <p className="text-white/70">Avances</p>
+              <p className="text-white/70">Advances</p>
               <p className="font-semibold">{data ? formatCurrency(data.advance_balance, data.currency) : '—'}</p>
             </div>
           </div>
@@ -188,14 +188,14 @@ export default function DashboardPage() {
               {requestingPayment ? (
                 <>
                   <Spinner size="sm" color="white" />
-                  Envoi en cours...
+                  Sending...
                 </>
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  Demander mon paiement
+                  Request Payment
                 </>
               )}
             </button>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
               </svg>
             </div>
             <p className="text-2xl font-bold text-foreground">{formatNumber(data?.total_streams || 0)}</p>
-            <p className="text-sm text-secondary-500">Streams totaux</p>
+            <p className="text-sm text-secondary-500">Total Streams</p>
           </div>
 
           <div className="bg-background border border-divider rounded-2xl p-4">
@@ -240,8 +240,8 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-foreground">Voir les stats</p>
-            <p className="text-xs text-secondary-500">Par plateforme</p>
+            <p className="text-sm font-semibold text-foreground">View stats</p>
+            <p className="text-xs text-secondary-500">By platform</p>
           </Link>
         </div>
 
@@ -249,7 +249,7 @@ export default function DashboardPage() {
         {quarterly.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-secondary-500 uppercase tracking-wide px-1">
-              Revenus par Trimestre
+              Revenue by Quarter
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {quarterly.map((q) => (
@@ -266,7 +266,7 @@ export default function DashboardPage() {
         {/* Quick Links */}
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-secondary-500 uppercase tracking-wide px-1">
-            Détails
+            Details
           </h2>
 
           <Link
@@ -279,8 +279,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">Mes Releases</p>
-              <p className="text-sm text-secondary-500">Revenus par album</p>
+              <p className="font-semibold text-foreground">My Releases</p>
+              <p className="text-sm text-secondary-500">Revenue by album</p>
             </div>
             <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -297,8 +297,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">Mes Tracks</p>
-              <p className="text-sm text-secondary-500">Revenus par titre</p>
+              <p className="font-semibold text-foreground">My Tracks</p>
+              <p className="text-sm text-secondary-500">Revenue by track</p>
             </div>
             <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -315,8 +315,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">Paiements</p>
-              <p className="text-sm text-secondary-500">Historique des versements</p>
+              <p className="font-semibold text-foreground">Payments</p>
+              <p className="text-sm text-secondary-500">Payment history</p>
             </div>
             <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -333,8 +333,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">Frais du Label</p>
-              <p className="text-sm text-secondary-500">Investissements sur vos projets</p>
+              <p className="font-semibold text-foreground">Label Expenses</p>
+              <p className="text-sm text-secondary-500">Investments on your projects</p>
             </div>
             <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -351,8 +351,8 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground">Mes Contrats</p>
-              <p className="text-sm text-secondary-500">Accords de partage</p>
+              <p className="font-semibold text-foreground">My Contracts</p>
+              <p className="text-sm text-secondary-500">Revenue sharing agreements</p>
             </div>
             <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -379,7 +379,7 @@ export default function DashboardPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -397,14 +397,14 @@ export default function DashboardPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-xs font-medium">Paiements</span>
+            <span className="text-xs font-medium">Payments</span>
           </Link>
           <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-xs font-medium">Profil</span>
+            <span className="text-xs font-medium">Profile</span>
           </Link>
         </div>
       </nav>

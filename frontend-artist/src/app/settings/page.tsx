@@ -64,7 +64,7 @@ export default function SettingsPage() {
         vat_number: profileData.vat_number || '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
@@ -87,10 +87,10 @@ export default function SettingsPage() {
 
       const updated = await updateProfile(dataToSend);
       setProfile(updated);
-      setSuccess('Profil mis a jour avec succes');
+      setSuccess('Profile updated successfully');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de sauvegarde');
+      setError(err instanceof Error ? err.message : 'Save error');
     } finally {
       setSaving(false);
     }
@@ -123,8 +123,8 @@ export default function SettingsPage() {
             </svg>
           </Link>
           <div className="flex-1">
-            <h1 className="font-semibold text-foreground">Parametres</h1>
-            <p className="text-xs text-secondary-500">Coordonnees et informations bancaires</p>
+            <h1 className="font-semibold text-foreground">Settings</h1>
+            <p className="text-xs text-secondary-500">Contact and bank information</p>
           </div>
           {/* Label Logo */}
           {labelSettings?.label_logo_url && (
@@ -163,14 +163,14 @@ export default function SettingsPage() {
               <Input
                 label="Email"
                 type="email"
-                placeholder="votre@email.com"
+                placeholder="your@email.com"
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
               />
               <Input
-                label="Telephone"
+                label="Phone"
                 type="tel"
-                placeholder="+33 6 12 34 56 78"
+                placeholder="+1 234 567 8900"
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
               />
@@ -184,38 +184,38 @@ export default function SettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Adresse
+              Address
             </h2>
             <div className="space-y-4">
               <Input
-                label="Adresse ligne 1"
-                placeholder="123 Rue de la Musique"
+                label="Address line 1"
+                placeholder="123 Music Street"
                 value={formData.address_line1}
                 onChange={(e) => handleChange('address_line1', e.target.value)}
               />
               <Input
-                label="Adresse ligne 2"
-                placeholder="Appartement, batiment..."
+                label="Address line 2"
+                placeholder="Apartment, building..."
                 value={formData.address_line2}
                 onChange={(e) => handleChange('address_line2', e.target.value)}
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="Code postal"
-                  placeholder="75001"
+                  label="Postal code"
+                  placeholder="10001"
                   value={formData.postal_code}
                   onChange={(e) => handleChange('postal_code', e.target.value)}
                 />
                 <Input
-                  label="Ville"
-                  placeholder="Paris"
+                  label="City"
+                  placeholder="New York"
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
                 />
               </div>
               <Input
-                label="Pays"
-                placeholder="France"
+                label="Country"
+                placeholder="United States"
                 value={formData.country}
                 onChange={(e) => handleChange('country', e.target.value)}
               />
@@ -228,30 +228,30 @@ export default function SettingsPage() {
               <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              Coordonnees bancaires
+              Bank details
             </h2>
             <div className="space-y-4">
               <Input
-                label="Titulaire du compte"
-                placeholder="Nom complet ou raison sociale"
+                label="Account holder"
+                placeholder="Full name or business name"
                 value={formData.account_holder}
                 onChange={(e) => handleChange('account_holder', e.target.value)}
               />
               <Input
-                label="Nom de la banque"
-                placeholder="BNP Paribas"
+                label="Bank name"
+                placeholder="Bank of America"
                 value={formData.bank_name}
                 onChange={(e) => handleChange('bank_name', e.target.value)}
               />
               <Input
                 label="IBAN"
-                placeholder="FR76 1234 5678 9012 3456 7890 123"
+                placeholder="US12 3456 7890 1234 5678 9012 345"
                 value={formData.iban}
                 onChange={(e) => handleChange('iban', e.target.value)}
               />
               <Input
                 label="BIC / SWIFT"
-                placeholder="BNPAFRPP"
+                placeholder="BOFAUS3N"
                 value={formData.bic}
                 onChange={(e) => handleChange('bic', e.target.value)}
               />
@@ -264,21 +264,21 @@ export default function SettingsPage() {
               <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Informations legales (optionnel)
+              Legal information (optional)
             </h2>
             <p className="text-xs text-secondary-500 mb-4">
-              Si vous avez une structure professionnelle
+              If you have a business entity
             </p>
             <div className="space-y-4">
               <Input
-                label="SIRET"
+                label="Business ID / SIRET"
                 placeholder="123 456 789 00012"
                 value={formData.siret}
                 onChange={(e) => handleChange('siret', e.target.value)}
               />
               <Input
-                label="Numero de TVA"
-                placeholder="FR12345678901"
+                label="VAT number"
+                placeholder="US123456789"
                 value={formData.vat_number}
                 onChange={(e) => handleChange('vat_number', e.target.value)}
               />
@@ -293,12 +293,12 @@ export default function SettingsPage() {
             size="lg"
             isLoading={saving}
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+            {saving ? 'Saving...' : 'Save changes'}
           </Button>
 
           {/* Info notice */}
           <p className="text-xs text-secondary-500 text-center">
-            Les modifications de vos coordonnees seront notifiees a {labelSettings?.label_name || 'notre equipe'} pour verification.
+            Changes to your information will be sent to {labelSettings?.label_name || 'our team'} for verification.
           </p>
         </form>
 
@@ -366,7 +366,7 @@ export default function SettingsPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,7 +385,7 @@ export default function SettingsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-xs font-medium">Profil</span>
+            <span className="text-xs font-medium">Profile</span>
           </Link>
         </div>
       </nav>

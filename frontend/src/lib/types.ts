@@ -121,6 +121,7 @@ export interface Artist {
   image_url_small?: string;
   access_code?: string;
   email?: string;
+  auth_user_id?: string;
   created_at: string;
 }
 

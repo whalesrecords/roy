@@ -23,20 +23,20 @@ export default function ReleasesPage() {
       const data = await getArtistReleases();
       setReleases(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
+    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
   };
 
   const formatNumber = (value: number) => {
     if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
     if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
-    return value.toLocaleString('fr-FR');
+    return value.toLocaleString('en-US');
   };
 
   if (authLoading || loading) {
@@ -58,7 +58,7 @@ export default function ReleasesPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Mes Releases</h1>
+            <h1 className="font-semibold text-foreground">My Releases</h1>
             <p className="text-xs text-secondary-500">{releases.length} album{releases.length > 1 ? 's' : ''}</p>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function ReleasesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p className="text-secondary-500">Aucune release pour le moment</p>
+            <p className="text-secondary-500">No releases yet</p>
           </div>
         )}
 
@@ -112,7 +112,7 @@ export default function ReleasesPage() {
                     <p className="font-semibold text-success">{formatCurrency(release.net, release.currency)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-secondary-500">Brut</p>
+                    <p className="text-xs text-secondary-500">Gross</p>
                     <p className="text-sm text-foreground">{formatCurrency(release.gross, release.currency)}</p>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export default function ReleasesPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-primary">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +147,7 @@ export default function ReleasesPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-xs font-medium">Paiements</span>
+            <span className="text-xs font-medium">Payments</span>
           </Link>
         </div>
       </nav>

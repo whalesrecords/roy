@@ -1,9 +1,12 @@
 """Artist Portal API endpoints for artists to view their royalties."""
+import logging
 import secrets
 import uuid
 import json
 from datetime import datetime
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
@@ -12,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models.artist import Artist
 from app.models.transaction import TransactionNormalized
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType, ExpenseCategory
@@ -30,12 +34,26 @@ router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 # ============ Schemas ============
 
 class LoginRequest(BaseModel):
+    """Login with access code (legacy)."""
     code: str
+
+
+class EmailLoginRequest(BaseModel):
+    """Login with email and password."""
+    email: str
+    password: str
 
 
 class LoginResponse(BaseModel):
     token: str
     artist: dict
+
+
+class CreateArtistAuthRequest(BaseModel):
+    """Request to create Supabase auth account for an artist."""
+    artist_id: str
+    email: str
+    password: str
 
 
 class ArtistInfo(BaseModel):
@@ -181,6 +199,7 @@ class StatementDetailResponse(BaseModel):
 
 # ============ Token Storage (simple in-memory for MVP) ============
 # In production, use Redis or database storage
+# Note: Access code tokens are still stored here for backward compatibility
 
 _tokens: dict[str, str] = {}  # token -> artist_id
 
@@ -197,34 +216,63 @@ def get_artist_id_from_token(token: str) -> Optional[str]:
     return _tokens.get(token)
 
 
+def get_supabase_client():
+    """Get Supabase client lazily to avoid import errors if not configured."""
+    from app.core.supabase_client import get_supabase_admin_client
+    return get_supabase_admin_client()
+
+
 async def get_current_artist(
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> Artist:
-    """Get the current artist from the authorization header."""
+    """Get the current artist from the authorization header.
+
+    Supports two token types:
+    1. Legacy in-memory tokens (from access code login)
+    2. Supabase JWT tokens (from email/password login)
+    """
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Non authentifié")
 
     token = authorization.replace("Bearer ", "")
+
+    # First try legacy token lookup
     artist_id = get_artist_id_from_token(token)
 
-    if not artist_id:
-        raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+    if artist_id:
+        # Legacy token found
+        result = await db.execute(select(Artist).where(Artist.id == uuid.UUID(artist_id)))
+        artist = result.scalar_one_or_none()
+        if artist:
+            return artist
 
-    result = await db.execute(select(Artist).where(Artist.id == uuid.UUID(artist_id)))
-    artist = result.scalar_one_or_none()
+    # Try Supabase JWT validation
+    if settings.SUPABASE_SERVICE_ROLE_KEY:
+        try:
+            supabase = get_supabase_client()
+            # Verify the JWT token and get user info
+            user_response = supabase.auth.get_user(token)
+            if user_response and user_response.user:
+                auth_user_id = user_response.user.id
+                # Find artist by auth_user_id
+                result = await db.execute(
+                    select(Artist).where(Artist.auth_user_id == auth_user_id)
+                )
+                artist = result.scalar_one_or_none()
+                if artist:
+                    return artist
+        except Exception as e:
+            logger.debug(f"Supabase token validation failed: {e}")
 
-    if not artist:
-        raise HTTPException(status_code=404, detail="Artiste non trouvé")
-
-    return artist
+    raise HTTPException(status_code=401, detail="Token invalide ou expiré")
 
 
 # ============ Endpoints ============
 
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
-    """Login with access code."""
+    """Login with access code (legacy)."""
     result = await db.execute(
         select(Artist).where(Artist.access_code == request.code.upper())
     )
@@ -245,6 +293,122 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
             "artwork_url": artist.image_url,
         }
     }
+
+
+@router.post("/login-email", response_model=LoginResponse)
+async def login_email(request: EmailLoginRequest, db: AsyncSession = Depends(get_db)):
+    """Login with email and password via Supabase Auth."""
+    if not settings.SUPABASE_ANON_KEY:
+        raise HTTPException(status_code=500, detail="Supabase non configuré")
+
+    try:
+        from app.core.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+
+        # Authenticate with Supabase
+        auth_response = supabase.auth.sign_in_with_password({
+            "email": request.email,
+            "password": request.password,
+        })
+
+        if not auth_response or not auth_response.user:
+            raise HTTPException(status_code=401, detail="Email ou mot de passe invalide")
+
+        auth_user_id = auth_response.user.id
+
+        # Find artist by auth_user_id
+        result = await db.execute(
+            select(Artist).where(Artist.auth_user_id == auth_user_id)
+        )
+        artist = result.scalar_one_or_none()
+
+        if not artist:
+            # Try to find by email as fallback
+            result = await db.execute(
+                select(Artist).where(Artist.email == request.email)
+            )
+            artist = result.scalar_one_or_none()
+
+            if artist:
+                # Link the auth_user_id to the artist
+                artist.auth_user_id = auth_user_id
+                await db.commit()
+            else:
+                raise HTTPException(status_code=401, detail="Aucun artiste associé à ce compte")
+
+        # Return the Supabase access token
+        return {
+            "token": auth_response.session.access_token,
+            "artist": {
+                "id": str(artist.id),
+                "name": artist.name,
+                "email": artist.email,
+                "artwork_url": artist.image_url,
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Supabase login error: {e}")
+        raise HTTPException(status_code=401, detail="Email ou mot de passe invalide")
+
+
+@router.post("/create-auth")
+async def create_artist_auth(
+    request: CreateArtistAuthRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create Supabase auth account for an artist (admin only)."""
+    if not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Supabase non configuré")
+
+    # Find the artist
+    result = await db.execute(
+        select(Artist).where(Artist.id == uuid.UUID(request.artist_id))
+    )
+    artist = result.scalar_one_or_none()
+
+    if not artist:
+        raise HTTPException(status_code=404, detail="Artiste non trouvé")
+
+    try:
+        supabase = get_supabase_client()
+
+        # Create user in Supabase Auth
+        auth_response = supabase.auth.admin.create_user({
+            "email": request.email,
+            "password": request.password,
+            "email_confirm": True,  # Auto-confirm email
+            "user_metadata": {
+                "artist_id": str(artist.id),
+                "artist_name": artist.name,
+            }
+        })
+
+        if not auth_response or not auth_response.user:
+            raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
+
+        # Update artist with auth_user_id and email
+        artist.auth_user_id = auth_response.user.id
+        artist.email = request.email
+        await db.commit()
+
+        return {
+            "message": "Compte créé avec succès",
+            "artist_id": str(artist.id),
+            "auth_user_id": auth_response.user.id,
+            "email": request.email,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Supabase create user error: {e}")
+        # Check if user already exists
+        if "already been registered" in str(e).lower() or "already exists" in str(e).lower():
+            raise HTTPException(status_code=400, detail="Un compte avec cet email existe déjà")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 
 @router.get("/me", response_model=ArtistInfo)
@@ -913,9 +1077,11 @@ async def generate_access_code(
 
     # Generate a simple 8-character code
     code = secrets.token_hex(4).upper()
-    artist.access_code = code
 
-    await db.commit()
+    # Update the artist directly via ORM
+    artist.access_code = code
+    # Don't call commit - let get_db handle it
+    print(f"DEBUG: Setting code {code} for artist {artist.name}")
 
     return {"access_code": code}
 
@@ -1253,3 +1419,95 @@ async def mark_all_notifications_read(
     await db.commit()
 
     return {"message": "Toutes les notifications marquees comme lues"}
+
+
+# ============ Batch Create Auth Accounts ============
+
+class BatchCreateAuthRequest(BaseModel):
+    """Request to create Supabase auth accounts for all artists."""
+    default_password: str = "WhalesRecords2025!"
+
+
+@router.post("/create-auth-batch")
+async def create_auth_batch(
+    request: BatchCreateAuthRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create Supabase auth accounts for all artists with email but no auth_user_id."""
+    if not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Supabase non configure")
+
+    # Find all artists with email but no auth_user_id
+    result = await db.execute(
+        select(Artist).where(
+            and_(
+                Artist.email.isnot(None),
+                Artist.email != "",
+                Artist.auth_user_id.is_(None),
+            )
+        )
+    )
+    artists = result.scalars().all()
+
+    if not artists:
+        return {"message": "Aucun artiste a creer", "created": 0, "errors": []}
+
+    supabase = get_supabase_client()
+    created = []
+    errors = []
+
+    for artist in artists:
+        try:
+            # Create user in Supabase Auth
+            auth_response = supabase.auth.admin.create_user({
+                "email": artist.email,
+                "password": request.default_password,
+                "email_confirm": True,
+                "user_metadata": {
+                    "artist_id": str(artist.id),
+                    "artist_name": artist.name,
+                }
+            })
+
+            if auth_response and auth_response.user:
+                artist.auth_user_id = auth_response.user.id
+                created.append({
+                    "artist_id": str(artist.id),
+                    "name": artist.name,
+                    "email": artist.email,
+                    "auth_user_id": auth_response.user.id,
+                })
+            else:
+                errors.append({
+                    "artist_id": str(artist.id),
+                    "name": artist.name,
+                    "email": artist.email,
+                    "error": "Failed to create user",
+                })
+
+        except Exception as e:
+            error_msg = str(e)
+            # Check if user already exists
+            if "already been registered" in error_msg.lower() or "already exists" in error_msg.lower():
+                errors.append({
+                    "artist_id": str(artist.id),
+                    "name": artist.name,
+                    "email": artist.email,
+                    "error": "Email already registered in Supabase",
+                })
+            else:
+                errors.append({
+                    "artist_id": str(artist.id),
+                    "name": artist.name,
+                    "email": artist.email,
+                    "error": error_msg,
+                })
+
+    await db.commit()
+
+    return {
+        "message": f"{len(created)} comptes crees, {len(errors)} erreurs",
+        "created": len(created),
+        "created_accounts": created,
+        "errors": errors,
+    }

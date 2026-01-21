@@ -53,7 +53,8 @@ class Artist(Base):
 
     # Artist portal access
     access_code: Mapped[str] = mapped_column(String(20), nullable=True, unique=True)
-    email: Mapped[str] = mapped_column(String(255), nullable=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=True, unique=True, index=True)
+    auth_user_id: Mapped[str] = mapped_column(String(100), nullable=True, unique=True, index=True)  # Supabase auth.users.id
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

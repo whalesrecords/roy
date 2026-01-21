@@ -13,7 +13,8 @@ interface Artist {
 interface AuthContextType {
   artist: Artist | null;
   loading: boolean;
-  login: (code: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  loginWithCode: (code: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -67,7 +68,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (code: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_URL}/artist-portal/login-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('artist-token', data.token);
+        localStorage.setItem('artist-id', data.artist.id);
+        setArtist(data.artist);
+        router.push('/');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    }
+  };
+
+  const loginWithCode = async (code: string): Promise<boolean> => {
     try {
       const res = await fetch(`${API_URL}/artist-portal/login`, {
         method: 'POST',
@@ -87,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return false;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Login with code failed:', error);
       return false;
     }
   };
@@ -100,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ artist, loading, login, logout }}>
+    <AuthContext.Provider value={{ artist, loading, login, loginWithCode, logout }}>
       {children}
     </AuthContext.Provider>
   );

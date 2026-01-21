@@ -23,18 +23,18 @@ export default function ExpensesPage() {
       const data = await getExpenses();
       setExpenses(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
+    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -43,7 +43,7 @@ export default function ExpensesPage() {
 
   const getScopeLabel = (scope: string) => {
     switch (scope) {
-      case 'catalog': return 'Catalogue';
+      case 'catalog': return 'Catalog';
       case 'release': return 'Album';
       case 'track': return 'Track';
       default: return scope;
@@ -75,8 +75,8 @@ export default function ExpensesPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Frais du Label</h1>
-            <p className="text-xs text-secondary-500">Investissements sur vos projets</p>
+            <h1 className="font-semibold text-foreground">Label Expenses</h1>
+            <p className="text-xs text-secondary-500">Investments on your projects</p>
           </div>
         </div>
       </header>
@@ -90,9 +90,9 @@ export default function ExpensesPage() {
 
         {/* Summary Card */}
         <div className="bg-gradient-to-br from-warning/80 to-warning/60 rounded-3xl p-6 text-white">
-          <p className="text-white/70 text-sm font-medium mb-1">Total des frais</p>
+          <p className="text-white/70 text-sm font-medium mb-1">Total expenses</p>
           <p className="text-3xl font-bold">{formatCurrency(totalExpenses.toString())}</p>
-          <p className="text-white/70 text-sm mt-2">{expenses.length} dépense{expenses.length > 1 ? 's' : ''}</p>
+          <p className="text-white/70 text-sm mt-2">{expenses.length} expense{expenses.length > 1 ? 's' : ''}</p>
         </div>
 
         {/* Expenses List */}
@@ -104,7 +104,7 @@ export default function ExpensesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
                 </svg>
               </div>
-              <p className="text-secondary-500">Aucun frais enregistré</p>
+              <p className="text-secondary-500">No expenses on file</p>
             </div>
           ) : (
             expenses.map((expense) => (
@@ -147,7 +147,7 @@ export default function ExpensesPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs font-medium">Accueil</span>
+            <span className="text-xs font-medium">Home</span>
           </Link>
           <Link href="/releases" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,7 +165,7 @@ export default function ExpensesPage() {
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-xs font-medium">Paiements</span>
+            <span className="text-xs font-medium">Payments</span>
           </Link>
         </div>
       </nav>
