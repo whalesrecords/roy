@@ -11,11 +11,7 @@ import type {
   RoyaltyRun,
 } from './types';
 
-// Use Next.js rewrite proxy to avoid CORS issues in browser
-// The proxy is configured in next.config.js to forward /api/backend/* to the backend
-const API_BASE = typeof window !== 'undefined'
-  ? '/api/backend'  // Client-side: use proxy
-  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');  // Server-side: direct
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
 
 async function fetchApi<T>(
