@@ -1195,3 +1195,137 @@ export async function markAllNotificationsRead(): Promise<void> {
     method: 'PUT',
   });
 }
+
+// ============ Tickets ============
+
+export interface TicketMessage {
+  id: string;
+  message: string;
+  sender_type: 'artist' | 'admin' | 'system';
+  sender_name: string | null;
+  is_internal: boolean;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  category: string;
+  category_label: string;
+  status: string;
+  status_label: string;
+  priority: string;
+  priority_label: string;
+  artist_names?: string[];
+  unread_count: number;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface TicketDetail {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  category: string;
+  category_label: string;
+  status: string;
+  status_label: string;
+  priority: string;
+  priority_label: string;
+  assigned_to: string | null;
+  messages: TicketMessage[];
+  participants: string[];
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  closed_at: string | null;
+}
+
+export interface TicketStats {
+  total: number;
+  open: number;
+  in_progress: number;
+  resolved: number;
+  closed: number;
+  by_category: Record<string, number>;
+}
+
+export interface CreateTicketRequest {
+  subject: string;
+  category: string;
+  message: string;
+  artist_ids: string[];
+  priority?: string;
+}
+
+export interface UpdateTicketRequest {
+  status?: string;
+  priority?: string;
+  assigned_to?: string;
+}
+
+export interface AddMessageRequest {
+  message: string;
+  is_internal?: boolean;
+}
+
+export async function getTicketStats(): Promise<TicketStats> {
+  return fetchApi<TicketStats>('/tickets/stats');
+}
+
+export async function getTickets(params?: {
+  status?: string;
+  category?: string;
+  artist_id?: string;
+  priority?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<Ticket[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.set('status', params.status);
+  if (params?.category) queryParams.set('category', params.category);
+  if (params?.artist_id) queryParams.set('artist_id', params.artist_id);
+  if (params?.priority) queryParams.set('priority', params.priority);
+  if (params?.search) queryParams.set('search', params.search);
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.offset) queryParams.set('offset', params.offset.toString());
+
+  const query = queryParams.toString();
+  return fetchApi<Ticket[]>(`/tickets${query ? `?${query}` : ''}`);
+}
+
+export async function getTicketDetail(ticketId: string): Promise<TicketDetail> {
+  return fetchApi<TicketDetail>(`/tickets/${ticketId}`);
+}
+
+export async function createTicket(data: CreateTicketRequest): Promise<TicketDetail> {
+  return fetchApi<TicketDetail>('/tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateTicket(ticketId: string, data: UpdateTicketRequest): Promise<TicketDetail> {
+  return fetchApi<TicketDetail>(`/tickets/${ticketId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addTicketMessage(ticketId: string, data: AddMessageRequest): Promise<TicketMessage> {
+  return fetchApi<TicketMessage>(`/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTicket(ticketId: string): Promise<void> {
+  await fetchApi(`/tickets/${ticketId}`, {
+    method: 'DELETE',
+  });
+}

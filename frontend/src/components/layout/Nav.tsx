@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, useRef } from 'react';
-import { getLabelSettings, LabelSettings, getNotifications, markNotificationRead, markAllNotificationsRead, Notification } from '@/lib/api';
+import { getLabelSettings, LabelSettings, getNotifications, markNotificationRead, markAllNotificationsRead, Notification, getTicketStats } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const navItems = [
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/catalog', label: 'Catalogue', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
   { href: '/royalties', label: 'Royalties', icon: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
   { href: '/analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { href: '/tickets', label: 'Support', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: true },
   { href: '/settings', label: 'Paramètres', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ];
 
@@ -26,6 +27,7 @@ export default function Nav() {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -36,9 +38,12 @@ export default function Nav() {
     getLabelSettings().then(setLabelSettings).catch(() => {});
     // Fetch notifications
     getNotifications().then(setNotifications).catch(() => {});
-    // Refresh notifications every 30 seconds
+    // Fetch ticket stats
+    getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
+    // Refresh notifications and tickets every 30 seconds
     const interval = setInterval(() => {
       getNotifications().then(setNotifications).catch(() => {});
+      getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -277,7 +282,12 @@ export default function Nav() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                           </svg>
                           {item.label}
-                          {isActive && (
+                          {item.badge && openTicketsCount > 0 && (
+                            <span className="ml-auto px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
+                              {openTicketsCount}
+                            </span>
+                          )}
+                          {isActive && !item.badge && (
                             <svg className="w-4 h-4 ml-auto text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
