@@ -149,9 +149,14 @@ export default function TicketsPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <SelectItem key="">Toutes</SelectItem>
-            {Object.entries(CATEGORY_LABELS).map(([key, { label }]) => (
-              <SelectItem key={key}>{label}</SelectItem>
-            ))}
+            <SelectItem key="payment">Paiements</SelectItem>
+            <SelectItem key="profile">Profil</SelectItem>
+            <SelectItem key="technical">Technique</SelectItem>
+            <SelectItem key="royalties">Royalties</SelectItem>
+            <SelectItem key="contracts">Contrats</SelectItem>
+            <SelectItem key="catalog">Catalogue</SelectItem>
+            <SelectItem key="general">Général</SelectItem>
+            <SelectItem key="other">Autre</SelectItem>
           </Select>
           <Select
             placeholder="Priorité"
