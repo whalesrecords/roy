@@ -106,25 +106,29 @@ export default function SupportPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-background safe-top safe-bottom pb-24">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Support Tickets</h1>
-        <Button color="primary" size="lg" onClick={onOpen}>
-          + New Ticket
-        </Button>
-      </div>
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-divider">
+        <div className="px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Support</h1>
+          <Button color="primary" size="md" onClick={onOpen}>
+            + New Ticket
+          </Button>
+        </div>
+      </header>
 
-      {/* Filters */}
-      <div className="bg-background rounded-lg p-4 shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <main className="px-4 py-6 space-y-6">
+
+        {/* Filters */}
+        <div className="bg-background border border-divider rounded-2xl p-4">
+          <div className="grid grid-cols-1 gap-3">
           <Select
             placeholder="Status"
             selectedKeys={statusFilter ? [statusFilter] : []}
@@ -151,41 +155,40 @@ export default function SupportPage() {
             <SelectItem key="general">General</SelectItem>
             <SelectItem key="other">Other</SelectItem>
           </Select>
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-danger/10 border border-danger rounded-lg p-4 mb-6">
-          <p className="text-danger">{error}</p>
-        </div>
-      )}
-
-      {/* Tickets List */}
-      <div className="space-y-4">
-        {tickets.length === 0 ? (
-          <div className="bg-background rounded-lg p-12 text-center text-secondary-500 shadow">
-            No tickets found
           </div>
-        ) : (
-          tickets.map((ticket) => {
-            const categoryInfo = CATEGORY_OPTIONS.find((c) => c.key === ticket.category);
-            return (
-              <Link
-                key={ticket.id}
-                href={`/support/${ticket.id}`}
-                className="block bg-background rounded-lg p-4 shadow hover:shadow-lg transition-shadow"
-              >
-                <div className="flex items-start gap-4">
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
+            <p className="text-danger text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Tickets List */}
+        <div className="space-y-3">
+          {tickets.length === 0 ? (
+            <div className="bg-background border border-divider rounded-2xl p-12 text-center">
+              <p className="text-secondary-500">No tickets found</p>
+            </div>
+          ) : (
+            tickets.map((ticket) => {
+              const categoryInfo = CATEGORY_OPTIONS.find((c) => c.key === ticket.category);
+              return (
+                <Link
+                  key={ticket.id}
+                  href={`/support/${ticket.id}`}
+                  className="flex items-center gap-4 p-4 bg-background border border-divider rounded-2xl hover:border-primary/50 transition-colors"
+                >
                   {/* Category Icon */}
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
                     {categoryInfo?.icon}
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-sm text-secondary-500">
+                      <span className="font-mono text-xs text-secondary-500">
                         {ticket.ticket_number}
                       </span>
                       <span
@@ -196,23 +199,24 @@ export default function SupportPage() {
                         {ticket.status_label}
                       </span>
                       {ticket.unread_count > 0 && (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-danger text-white">
-                          {ticket.unread_count} new
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-danger text-white font-bold">
+                          {ticket.unread_count}
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold text-lg mb-1 truncate">
+                    <h3 className="font-semibold text-foreground mb-1 truncate">
                       {ticket.subject}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-secondary-500">
+                    <div className="flex items-center gap-2 text-xs text-secondary-500">
                       <span>{ticket.category_label}</span>
+                      <span>•</span>
                       <span>{formatTimeAgo(ticket.last_message_at)}</span>
                     </div>
                   </div>
 
                   {/* Arrow */}
                   <svg
-                    className="w-5 h-5 text-secondary-400 flex-shrink-0 mt-2"
+                    className="w-5 h-5 text-secondary-400 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -224,12 +228,12 @@ export default function SupportPage() {
                       d="M9 5l7 7-7 7"
                     />
                   </svg>
-                </div>
-              </Link>
-            );
-          })
-        )}
-      </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </main>
 
       {/* Create Ticket Modal */}
       <Modal isOpen={isOpen} onClose={onClose} size="2xl">

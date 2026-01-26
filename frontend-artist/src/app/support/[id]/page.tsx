@@ -112,16 +112,16 @@ export default function TicketDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   if (!ticket) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="bg-danger/10 border border-danger rounded-lg p-4">
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
           <p className="text-danger">Ticket not found</p>
         </div>
       </div>
@@ -131,55 +131,63 @@ export default function TicketDetailPage() {
   const categoryInfo = CATEGORY_OPTIONS.find((c) => c.key === ticket.category);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-background safe-top safe-bottom pb-24">
       {/* Header */}
-      <div className="mb-6">
-        <Link href="/support" className="text-primary hover:underline mb-2 inline-block">
-          ← Back to tickets
-        </Link>
-        <div className="flex items-start gap-4 mb-2">
-          {/* Category Icon */}
-          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
-            {categoryInfo?.icon}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-divider">
+        <div className="px-4 py-3 flex items-center gap-3">
+          <Link href="/support" className="p-2 -ml-2 hover:bg-content2 rounded-lg transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-mono text-secondary-500">{ticket.ticket_number}</p>
+            <h1 className="text-lg font-bold truncate">{ticket.subject}</h1>
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-mono text-sm text-secondary-500">{ticket.ticket_number}</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs text-white ${
-                  STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]
-                }`}
-              >
-                {ticket.status_label}
-              </span>
-              {ticket.priority_label && (
-                <span className="px-2 py-0.5 rounded-full text-xs bg-secondary text-white">
-                  {ticket.priority_label}
+        </div>
+      </header>
+
+      <main className="px-4 py-6 space-y-6">
+        {/* Ticket Info Card */}
+        <div className="bg-background border border-divider rounded-2xl p-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl flex-shrink-0">
+              {categoryInfo?.icon}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs text-white ${
+                    STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]
+                  }`}
+                >
+                  {ticket.status_label}
                 </span>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold mb-2">{ticket.subject}</h1>
-            <div className="flex items-center gap-4 text-sm text-secondary-500">
-              <span>{ticket.category_label}</span>
-              <span>Created {formatTime(ticket.created_at)}</span>
+                {ticket.priority_label && (
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-secondary/20 text-secondary-foreground">
+                    {ticket.priority_label}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-secondary-500 mb-1">{ticket.category_label}</p>
+              <p className="text-xs text-secondary-500">Created {formatTime(ticket.created_at)}</p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="bg-danger/10 border border-danger rounded-lg p-4 mb-6">
-          <p className="text-danger">{error}</p>
-        </div>
-      )}
+        {/* Error */}
+        {error && (
+          <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
+            <p className="text-danger text-sm">{error}</p>
+          </div>
+        )}
 
-      {/* Messages Thread */}
-      <div className="bg-background rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-divider">
-          <h2 className="font-semibold">Conversation</h2>
-        </div>
-        <div className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
+        {/* Messages Thread */}
+        <div className="bg-background border border-divider rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-divider">
+            <h2 className="font-semibold">Conversation</h2>
+          </div>
+          <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
           {ticket.messages.map((message) => {
             const isArtist = message.sender_type === 'artist';
             const isSystem = message.sender_type === 'system';
@@ -190,25 +198,25 @@ export default function TicketDetailPage() {
                 className={`flex ${isArtist ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[70%] rounded-lg p-4 ${
+                  className={`max-w-[85%] rounded-2xl p-3 ${
                     isSystem
-                      ? 'bg-secondary/20 text-center w-full max-w-none text-sm'
+                      ? 'bg-content2 text-center w-full max-w-none text-xs'
                       : isArtist
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary/30'
+                      : 'bg-content2'
                   }`}
                 >
                   {!isSystem && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-semibold text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-xs">
                         {message.sender_name || 'Support'}
                       </span>
                     </div>
                   )}
-                  <p className="whitespace-pre-wrap">{message.message}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.message}</p>
                   <p
-                    className={`text-xs mt-2 ${
-                      isArtist ? 'text-primary-foreground/70' : 'text-secondary-500'
+                    className={`text-xs mt-1 ${
+                      isArtist ? 'text-primary-foreground/60' : 'text-secondary-500'
                     }`}
                   >
                     {formatTime(message.created_at)}
@@ -217,48 +225,51 @@ export default function TicketDetailPage() {
               </div>
             );
           })}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
-
-      {/* Reply Form or Closed Notice */}
-      {ticket.status === 'closed' ? (
-        <div className="bg-secondary/20 rounded-lg p-6 text-center">
-          <p className="text-secondary-500">This ticket is closed</p>
-        </div>
-      ) : (
-        <div className="bg-background rounded-lg shadow p-4">
-          <h3 className="font-semibold mb-4">Reply</h3>
-          <Textarea
-            placeholder="Your message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            minRows={4}
-            className="mb-4"
-          />
-          <div className="flex items-center justify-between gap-4">
-            {ticket.status === 'resolved' && (
-              <Button
-                color="success"
-                variant="flat"
-                onClick={handleCloseTicket}
-                isLoading={closing}
-              >
-                Close Ticket
-              </Button>
-            )}
-            <Button
-              color="primary"
-              onClick={handleSendMessage}
-              isLoading={sending}
-              isDisabled={!newMessage.trim()}
-              className="ml-auto"
-            >
-              Send
-            </Button>
+            <div ref={messagesEndRef} />
           </div>
         </div>
-      )}
+
+        {/* Reply Form or Closed Notice */}
+        {ticket.status === 'closed' ? (
+          <div className="bg-content2 rounded-2xl p-6 text-center">
+            <p className="text-secondary-500 text-sm">This ticket is closed</p>
+          </div>
+        ) : (
+          <div className="bg-background border border-divider rounded-2xl p-4">
+            <h3 className="font-semibold mb-3 text-sm">Reply</h3>
+            <Textarea
+              placeholder="Your message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              minRows={3}
+              className="mb-3"
+            />
+            <div className="flex items-center justify-between gap-3">
+              {ticket.status === 'resolved' && (
+                <Button
+                  color="success"
+                  variant="flat"
+                  size="sm"
+                  onClick={handleCloseTicket}
+                  isLoading={closing}
+                >
+                  Close Ticket
+                </Button>
+              )}
+              <Button
+                color="primary"
+                size="sm"
+                onClick={handleSendMessage}
+                isLoading={sending}
+                isDisabled={!newMessage.trim()}
+                className="ml-auto"
+              >
+                Send
+              </Button>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
