@@ -96,31 +96,31 @@ export default function TicketsPage() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Total</div>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total</div>
             <div className="text-2xl font-bold">{stats.total}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm text-blue-500">Ouverts</div>
-            <div className="text-2xl font-bold">{stats.open}</div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-4 border border-blue-200 dark:border-blue-800">
+            <div className="text-sm text-blue-600 dark:text-blue-400 mb-1">Ouverts</div>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.open}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm text-orange-500">En cours</div>
-            <div className="text-2xl font-bold">{stats.in_progress}</div>
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-2xl p-4 border border-orange-200 dark:border-orange-800">
+            <div className="text-sm text-orange-600 dark:text-orange-400 mb-1">En cours</div>
+            <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">{stats.in_progress}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm text-green-500">Résolus</div>
-            <div className="text-2xl font-bold">{stats.resolved}</div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-4 border border-green-200 dark:border-green-800">
+            <div className="text-sm text-green-600 dark:text-green-400 mb-1">Résolus</div>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.resolved}</div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Fermés</div>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Fermés</div>
             <div className="text-2xl font-bold">{stats.closed}</div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input
             placeholder="Rechercher (numéro, sujet...)"
@@ -174,76 +174,76 @@ export default function TicketsPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
           <p className="text-red-800 dark:text-red-200">{error}</p>
         </div>
       )}
 
       {/* Tickets List */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="space-y-3">
         {tickets.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center text-gray-500">
             Aucun ticket trouvé
           </div>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tickets.map((ticket) => {
-              const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
-              return (
-                <Link
-                  key={ticket.id}
-                  href={`/tickets/${ticket.id}`}
-                  className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          tickets.map((ticket) => {
+            const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
+            return (
+              <Link
+                key={ticket.id}
+                href={`/tickets/${ticket.id}`}
+                className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md transition-all"
+              >
+                {/* Category Icon */}
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ backgroundColor: `${categoryInfo?.color}20` }}
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Category Icon */}
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl flex-shrink-0"
-                      style={{ backgroundColor: `${categoryInfo?.color}20` }}
+                  {categoryInfo?.icon}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                      {ticket.ticket_number}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs text-white ${
+                        STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]
+                      }`}
                     >
-                      {categoryInfo?.icon}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-sm text-gray-500">
-                          {ticket.ticket_number}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs text-white ${
-                            STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]
-                          }`}
-                        >
-                          {ticket.status_label}
-                        </span>
-                        {ticket.unread_count > 0 && (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 text-white">
-                            {ticket.unread_count} nouveau{ticket.unread_count > 1 ? 'x' : ''}
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="font-semibold text-lg mb-1 truncate">
-                        {ticket.subject}
-                      </h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>{ticket.category_label}</span>
-                        {ticket.artist_names && ticket.artist_names.length > 0 && (
-                          <span>👤 {ticket.artist_names.join(', ')}</span>
-                        )}
-                        <span>{formatTimeAgo(ticket.last_message_at)}</span>
-                      </div>
-                    </div>
-
-                    {/* Arrow */}
-                    <svg className="w-5 h-5 text-gray-400 flex-shrink-0 mt-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                      {ticket.status_label}
+                    </span>
+                    {ticket.unread_count > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-red-500 text-white font-bold">
+                        {ticket.unread_count}
+                      </span>
+                    )}
                   </div>
-                </Link>
-              );
-            })}
-          </div>
+                  <h3 className="font-semibold text-base mb-1 truncate dark:text-white">
+                    {ticket.subject}
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                    <span>{ticket.category_label}</span>
+                    {ticket.artist_names && ticket.artist_names.length > 0 && (
+                      <>
+                        <span>•</span>
+                        <span>👤 {ticket.artist_names.join(', ')}</span>
+                      </>
+                    )}
+                    <span>•</span>
+                    <span>{formatTimeAgo(ticket.last_message_at)}</span>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            );
+          })
         )}
       </div>
     </div>

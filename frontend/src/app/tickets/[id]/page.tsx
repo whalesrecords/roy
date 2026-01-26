@@ -174,7 +174,7 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Status & Priority Controls */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Statut</label>
@@ -207,17 +207,17 @@ export default function TicketDetailPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
           <p className="text-red-800 dark:text-red-200">{error}</p>
         </div>
       )}
 
       {/* Messages Thread */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <h2 className="font-semibold">Conversation</h2>
         </div>
-        <div className="p-4 space-y-4 max-h-[600px] overflow-y-auto">
+        <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
           {ticket.messages.map((message) => {
             const isArtist = message.sender_type === 'artist';
             const isSystem = message.sender_type === 'system';
@@ -229,14 +229,14 @@ export default function TicketDetailPage() {
                 className={`flex ${isArtist ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[70%] rounded-lg p-4 ${
+                  className={`max-w-[80%] rounded-2xl p-4 ${
                     isSystem
-                      ? 'bg-gray-100 dark:bg-gray-700 text-center w-full max-w-none'
+                      ? 'bg-gray-100 dark:bg-gray-700 text-center w-full max-w-none text-sm'
                       : isArtist
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm'
                       : message.is_internal
-                      ? 'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-500'
-                      : 'bg-gray-100 dark:bg-gray-700'
+                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 border-2 border-yellow-400 dark:border-yellow-600'
+                      : 'bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -244,13 +244,13 @@ export default function TicketDetailPage() {
                       {message.sender_name || 'Système'}
                     </span>
                     {message.is_internal && (
-                      <span className="text-xs bg-yellow-500 text-white px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-yellow-500 dark:bg-yellow-600 text-white px-2 py-0.5 rounded-full font-medium">
                         Note interne
                       </span>
                     )}
                   </div>
-                  <p className="whitespace-pre-wrap">{message.message}</p>
-                  <p className={`text-xs mt-2 ${isArtist ? 'text-blue-100' : 'text-gray-500'}`}>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.message}</p>
+                  <p className={`text-xs mt-2 ${isArtist ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
                     {formatTime(message.created_at)}
                   </p>
                 </div>
@@ -262,19 +262,26 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Reply Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <h3 className="font-semibold mb-4">Répondre</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+        <h3 className="font-semibold mb-3">Répondre</h3>
         <Textarea
           placeholder="Votre message..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           minRows={4}
           className="mb-4"
+          classNames={{
+            input: "rounded-xl",
+            inputWrapper: "rounded-xl border-gray-200 dark:border-gray-700"
+          }}
         />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <Checkbox
             isSelected={isInternal}
             onValueChange={setIsInternal}
+            classNames={{
+              label: "text-sm"
+            }}
           >
             Note interne (invisible pour l'artiste)
           </Checkbox>
@@ -283,6 +290,7 @@ export default function TicketDetailPage() {
             onClick={handleSendMessage}
             isLoading={sending}
             isDisabled={!newMessage.trim()}
+            className="rounded-xl"
           >
             Envoyer
           </Button>

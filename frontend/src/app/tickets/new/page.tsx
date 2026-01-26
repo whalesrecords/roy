@@ -100,10 +100,10 @@ export default function NewTicketPage() {
         <h1 className="text-3xl font-bold">Nouveau ticket</h1>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
         {/* Error */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
             <p className="text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
@@ -118,13 +118,16 @@ export default function NewTicketPage() {
             value={artistSearch}
             onChange={(e) => setArtistSearch(e.target.value)}
             className="mb-4"
+            classNames={{
+              inputWrapper: "rounded-xl"
+            }}
             startContent={
               <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             }
           />
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg max-h-60 overflow-y-auto p-2">
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl max-h-60 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900">
             {loadingArtists ? (
               <p className="text-center text-gray-500 py-4">Chargement...</p>
             ) : filteredArtists.length === 0 ? (
@@ -134,7 +137,7 @@ export default function NewTicketPage() {
                 {filteredArtists.map((artist) => (
                   <div
                     key={artist.id}
-                    className="flex items-center gap-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer"
+                    className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors"
                     onClick={() => handleArtistToggle(artist.id)}
                   >
                     <Checkbox
