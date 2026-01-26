@@ -13,6 +13,9 @@ from app.models.label_settings import LabelSettings
 from app.models.match_suggestion import MatchSuggestion, MatchMethod, MatchStatus
 from app.models.artist_profile import ArtistProfile
 from app.models.notification import Notification, NotificationType
+from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
+from app.models.ticket_message import TicketMessage, MessageSender
+from app.models.ticket_participant import TicketParticipant
 
 __all__ = [
     # Import models
@@ -50,4 +53,12 @@ __all__ = [
     # Notifications
     "Notification",
     "NotificationType",
+    # Tickets
+    "Ticket",
+    "TicketStatus",
+    "TicketCategory",
+    "TicketPriority",
+    "TicketMessage",
+    "MessageSender",
+    "TicketParticipant",
 ]

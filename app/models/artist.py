@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.models.statement import Statement
     from app.models.track_artist_link import TrackArtistLink
     from app.models.artist_profile import ArtistProfile
+    from app.models.ticket import Ticket
 
 
 class Artist(Base):
@@ -94,6 +95,11 @@ class Artist(Base):
         "ArtistProfile",
         back_populates="artist",
         uselist=False,
+        cascade="all, delete-orphan",
+    )
+    tickets: Mapped[List["Ticket"]] = relationship(
+        "Ticket",
+        back_populates="artist",
         cascade="all, delete-orphan",
     )
 

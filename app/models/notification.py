@@ -16,6 +16,12 @@ class NotificationType(str, Enum):
     PROFILE_UPDATE = "profile_update"  # Artist updated their profile
     PAYMENT_REQUEST = "payment_request"  # Artist requested payment
     NEW_ARTIST = "new_artist"  # New artist registered
+    # Ticket notifications
+    TICKET_CREATED = "ticket_created"  # New ticket created by artist
+    TICKET_MESSAGE = "ticket_message"  # New message in ticket
+    TICKET_UPDATED = "ticket_updated"  # Ticket status/priority updated
+    TICKET_RESOLVED = "ticket_resolved"  # Ticket marked as resolved
+    TICKET_CLOSED = "ticket_closed"  # Ticket closed
 
 
 class Notification(Base):
