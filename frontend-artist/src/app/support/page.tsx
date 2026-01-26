@@ -142,9 +142,14 @@ export default function SupportPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <SelectItem key="">All</SelectItem>
-            {CATEGORY_OPTIONS.map((cat) => (
-              <SelectItem key={cat.key}>{cat.label}</SelectItem>
-            ))}
+            <SelectItem key="payment">Payments</SelectItem>
+            <SelectItem key="profile">Profile</SelectItem>
+            <SelectItem key="technical">Technical</SelectItem>
+            <SelectItem key="royalties">Royalties</SelectItem>
+            <SelectItem key="contracts">Contracts</SelectItem>
+            <SelectItem key="catalog">Catalog</SelectItem>
+            <SelectItem key="general">General</SelectItem>
+            <SelectItem key="other">Other</SelectItem>
           </Select>
         </div>
       </div>
@@ -242,11 +247,14 @@ export default function SupportPage() {
                 selectedKeys={[category]}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                {CATEGORY_OPTIONS.map((cat) => (
-                  <SelectItem key={cat.key}>
-                    {cat.icon} {cat.label}
-                  </SelectItem>
-                ))}
+                <SelectItem key="payment">💰 Payments</SelectItem>
+                <SelectItem key="profile">👤 Profile</SelectItem>
+                <SelectItem key="technical">⚙️ Technical</SelectItem>
+                <SelectItem key="royalties">📊 Royalties</SelectItem>
+                <SelectItem key="contracts">📄 Contracts</SelectItem>
+                <SelectItem key="catalog">🎵 Catalog</SelectItem>
+                <SelectItem key="general">💬 General</SelectItem>
+                <SelectItem key="other">❓ Other</SelectItem>
               </Select>
               <Input
                 label="Subject"

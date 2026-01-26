@@ -156,11 +156,14 @@ export default function NewTicketPage() {
             selectedKeys={[category]}
             onChange={(e) => setCategory(e.target.value)}
           >
-            {CATEGORY_OPTIONS.map((cat) => (
-              <SelectItem key={cat.key}>
-                {cat.icon} {cat.label}
-              </SelectItem>
-            ))}
+            <SelectItem key="payment">💰 Paiements</SelectItem>
+            <SelectItem key="profile">👤 Profil</SelectItem>
+            <SelectItem key="technical">⚙️ Technique</SelectItem>
+            <SelectItem key="royalties">📊 Royalties</SelectItem>
+            <SelectItem key="contracts">📄 Contrats</SelectItem>
+            <SelectItem key="catalog">🎵 Catalogue</SelectItem>
+            <SelectItem key="general">💬 Général</SelectItem>
+            <SelectItem key="other">❓ Autre</SelectItem>
           </Select>
         </div>
 
@@ -171,9 +174,10 @@ export default function NewTicketPage() {
             selectedKeys={[priority]}
             onChange={(e) => setPriority(e.target.value)}
           >
-            {PRIORITY_OPTIONS.map((p) => (
-              <SelectItem key={p.key}>{p.label}</SelectItem>
-            ))}
+            <SelectItem key="low">Basse</SelectItem>
+            <SelectItem key="medium">Moyenne</SelectItem>
+            <SelectItem key="high">Haute</SelectItem>
+            <SelectItem key="urgent">Urgente</SelectItem>
           </Select>
         </div>
 
