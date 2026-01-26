@@ -240,3 +240,218 @@ async def send_profile_update_notification(
         subject=f"Profil mis a jour - {artist_name}",
         html=html,
     )
+
+
+async def send_ticket_created_notification(
+    ticket_number: str,
+    artist_name: str,
+    subject: str,
+    category: str,
+    message: str,
+    ticket_url: str,
+) -> bool:
+    """
+    Send email to admin when artist creates a ticket.
+
+    Args:
+        ticket_number: Ticket number (e.g., TKT-001234)
+        artist_name: Name of the artist
+        subject: Ticket subject
+        category: Ticket category
+        message: First message content
+        ticket_url: URL to view ticket in admin
+
+    Returns:
+        True if email was sent successfully
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #3b82f6; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0;">Nouveau ticket - {ticket_number}</h1>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px; color: #333;">
+                <strong>{artist_name}</strong> a cree un nouveau ticket de support.
+            </p>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+                <p style="margin: 0;"><strong>Categorie:</strong> {category}</p>
+                <p style="margin: 10px 0 0 0;"><strong>Sujet:</strong> {subject}</p>
+            </div>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #666; white-space: pre-wrap;">{message}</p>
+            </div>
+
+            <p style="margin-top: 20px;">
+                <a href="{ticket_url}" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Voir le ticket
+                </a>
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                Cet email a ete envoye automatiquement depuis l'Espace Artiste Whales Records.
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+
+    return await send_email(
+        to=ADMIN_EMAIL,
+        subject=f"Nouveau ticket - {ticket_number} - {artist_name}",
+        html=html,
+    )
+
+
+async def send_ticket_message_notification(
+    ticket_number: str,
+    subject: str,
+    sender_name: str,
+    message: str,
+    recipient_emails: List[str],
+    ticket_url: str,
+) -> bool:
+    """
+    Send email when new message is added to ticket.
+
+    Args:
+        ticket_number: Ticket number
+        subject: Ticket subject
+        sender_name: Name of message sender
+        message: Message content
+        recipient_emails: List of recipient emails
+        ticket_url: URL to view ticket
+
+    Returns:
+        True if email was sent successfully
+    """
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #10b981; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0;">Nouveau message - {ticket_number}</h1>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px; color: #333;">
+                <strong>{sender_name}</strong> a repondu au ticket <strong>{ticket_number}</strong>
+            </p>
+
+            <p style="color: #666; font-size: 14px;">Sujet: {subject}</p>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #666; white-space: pre-wrap;">{message}</p>
+            </div>
+
+            <p style="margin-top: 20px;">
+                <a href="{ticket_url}" style="background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Repondre
+                </a>
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                Cet email a ete envoye automatiquement depuis l'Espace Artiste Whales Records.
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+
+    return await send_email(
+        to=recipient_emails,
+        subject=f"Nouveau message - {ticket_number}",
+        html=html,
+    )
+
+
+async def send_ticket_status_notification(
+    ticket_number: str,
+    subject: str,
+    old_status: str,
+    new_status: str,
+    artist_emails: List[str],
+    ticket_url: str,
+) -> bool:
+    """
+    Send email when ticket status changes.
+
+    Args:
+        ticket_number: Ticket number
+        subject: Ticket subject
+        old_status: Previous status
+        new_status: New status
+        artist_emails: List of artist emails
+        ticket_url: URL to view ticket
+
+    Returns:
+        True if email was sent successfully
+    """
+    status_labels = {
+        "open": "Ouvert",
+        "in_progress": "En cours",
+        "resolved": "Resolu",
+        "closed": "Ferme",
+    }
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: #f59e0b; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0;">Statut mis a jour - {ticket_number}</h1>
+        </div>
+
+        <div style="background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px;">
+            <p style="font-size: 16px; color: #333;">
+                Le statut de votre ticket a ete mis a jour.
+            </p>
+
+            <p style="color: #666; font-size: 14px;">Sujet: {subject}</p>
+
+            <div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0;">
+                    <span style="color: #999; text-decoration: line-through;">{status_labels.get(old_status, old_status)}</span>
+                    →
+                    <strong style="color: #10b981;">{status_labels.get(new_status, new_status)}</strong>
+                </p>
+            </div>
+
+            <p style="margin-top: 20px;">
+                <a href="{ticket_url}" style="background: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                    Voir le ticket
+                </a>
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+
+            <p style="font-size: 12px; color: #999; text-align: center;">
+                Cet email a ete envoye automatiquement depuis l'Espace Artiste Whales Records.
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+
+    return await send_email(
+        to=artist_emails,
+        subject=f"Ticket {ticket_number} - {status_labels.get(new_status, new_status)}",
+        html=html,
+    )

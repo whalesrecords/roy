@@ -27,6 +27,9 @@ from app.models.statement import Statement
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.artist_profile import ArtistProfile
 from app.models.notification import Notification, NotificationType
+from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
+from app.models.ticket_message import TicketMessage, MessageSender
+from app.models.ticket_participant import TicketParticipant
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -1520,6 +1523,490 @@ async def mark_all_notifications_read(
     await db.commit()
 
     return {"message": "Toutes les notifications marquees comme lues"}
+
+
+# ============ Tickets / Support ============
+
+class TicketCreateRequest(BaseModel):
+    """Create a new support ticket."""
+    subject: str
+    category: str
+    message: str
+
+
+class TicketMessageCreate(BaseModel):
+    """Add a message to a ticket."""
+    message: str
+
+
+class TicketMessageResponse(BaseModel):
+    """Ticket message response."""
+    id: str
+    message: str
+    sender_type: str
+    sender_name: Optional[str]
+    is_internal: bool
+    created_at: str
+
+
+class TicketResponse(BaseModel):
+    """Ticket list item response."""
+    id: str
+    ticket_number: str
+    subject: str
+    category: str
+    category_label: str
+    status: str
+    status_label: str
+    priority: str
+    unread_count: int
+    last_message_at: str
+    created_at: str
+
+
+class TicketDetailResponse(BaseModel):
+    """Detailed ticket response with messages."""
+    id: str
+    ticket_number: str
+    subject: str
+    category: str
+    category_label: str
+    status: str
+    status_label: str
+    priority: str
+    priority_label: str
+    messages: List[TicketMessageResponse]
+    participants: List[str]  # Artist names
+    created_at: str
+    updated_at: str
+    resolved_at: Optional[str]
+
+
+# Category labels
+CATEGORY_LABELS = {
+    "payment": "Paiements",
+    "profile": "Profil",
+    "technical": "Technique",
+    "royalties": "Royalties",
+    "contracts": "Contrats",
+    "catalog": "Catalogue",
+    "general": "Général",
+    "other": "Autre",
+}
+
+# Status labels
+STATUS_LABELS = {
+    "open": "Ouvert",
+    "in_progress": "En cours",
+    "resolved": "Résolu",
+    "closed": "Fermé",
+}
+
+# Priority labels
+PRIORITY_LABELS = {
+    "low": "Basse",
+    "medium": "Moyenne",
+    "high": "Haute",
+    "urgent": "Urgente",
+}
+
+
+async def verify_artist_access_to_ticket(
+    ticket_id: uuid.UUID,
+    artist_id: uuid.UUID,
+    db: AsyncSession,
+) -> Ticket:
+    """Verify artist has access to ticket (creator or participant)."""
+    result = await db.execute(
+        select(Ticket)
+        .outerjoin(TicketParticipant)
+        .where(
+            and_(
+                Ticket.id == ticket_id,
+                (
+                    (Ticket.artist_id == artist_id) |
+                    (TicketParticipant.artist_id == artist_id)
+                )
+            )
+        )
+    )
+    ticket = result.scalar_one_or_none()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket non trouvé")
+    return ticket
+
+
+@router.get("/tickets", response_model=List[TicketResponse])
+async def get_my_tickets(
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all tickets for the current artist (creator or participant)."""
+    # Query tickets where artist is creator OR participant
+    query = (
+        select(Ticket)
+        .outerjoin(TicketParticipant)
+        .where(
+            (Ticket.artist_id == artist.id) |
+            (TicketParticipant.artist_id == artist.id)
+        )
+    )
+
+    # Apply filters
+    if status:
+        query = query.where(Ticket.status == status)
+    if category:
+        query = query.where(Ticket.category == category)
+
+    # Order by last activity
+    query = query.order_by(Ticket.last_message_at.desc()).distinct()
+
+    result = await db.execute(query)
+    tickets = result.scalars().all()
+
+    # Calculate unread count for each ticket
+    response = []
+    for ticket in tickets:
+        # Get participant record for this artist
+        participant_result = await db.execute(
+            select(TicketParticipant).where(
+                and_(
+                    TicketParticipant.ticket_id == ticket.id,
+                    TicketParticipant.artist_id == artist.id,
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+
+        # Count unread messages (messages after last_read_at)
+        unread_count = 0
+        if participant:
+            last_read = participant.last_read_at or datetime.min
+            messages_result = await db.execute(
+                select(func.count(TicketMessage.id)).where(
+                    and_(
+                        TicketMessage.ticket_id == ticket.id,
+                        TicketMessage.created_at > last_read,
+                        TicketMessage.is_internal == False,
+                    )
+                )
+            )
+            unread_count = messages_result.scalar() or 0
+
+        response.append({
+            "id": str(ticket.id),
+            "ticket_number": ticket.ticket_number,
+            "subject": ticket.subject,
+            "category": ticket.category,
+            "category_label": CATEGORY_LABELS.get(ticket.category, ticket.category),
+            "status": ticket.status,
+            "status_label": STATUS_LABELS.get(ticket.status, ticket.status),
+            "priority": ticket.priority,
+            "unread_count": unread_count,
+            "last_message_at": ticket.last_message_at.isoformat(),
+            "created_at": ticket.created_at.isoformat(),
+        })
+
+    return response
+
+
+@router.post("/tickets", response_model=TicketDetailResponse)
+async def create_ticket(
+    data: TicketCreateRequest,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new support ticket."""
+    from sqlalchemy import text
+    from app.services.email_service import send_ticket_created_notification
+
+    # Generate ticket number using sequence
+    ticket_num_result = await db.execute(text("SELECT nextval('ticket_number_seq')"))
+    ticket_num = ticket_num_result.scalar()
+    ticket_number = f"TKT-{ticket_num:06d}"
+
+    # Create ticket
+    ticket = Ticket(
+        ticket_number=ticket_number,
+        subject=data.subject,
+        category=data.category,
+        status=TicketStatus.OPEN.value,
+        priority=TicketPriority.MEDIUM.value,
+        artist_id=artist.id,
+        last_message_at=datetime.utcnow(),
+    )
+    db.add(ticket)
+    await db.flush()
+
+    # Create first message
+    message = TicketMessage(
+        ticket_id=ticket.id,
+        message=data.message,
+        sender_type=MessageSender.ARTIST.value,
+        sender_id=str(artist.id),
+        sender_name=artist.name,
+    )
+    db.add(message)
+
+    # Add artist as participant
+    participant = TicketParticipant(
+        ticket_id=ticket.id,
+        artist_id=artist.id,
+        last_read_at=datetime.utcnow(),
+    )
+    db.add(participant)
+
+    await db.commit()
+    await db.refresh(ticket)
+
+    # Create notification for admin
+    notification = Notification(
+        notification_type=NotificationType.TICKET_CREATED.value,
+        artist_id=artist.id,
+        title=f"Nouveau ticket - {ticket_number}",
+        message=f"{artist.name}: {data.subject}",
+        data=json.dumps({
+            "ticket_id": str(ticket.id),
+            "ticket_number": ticket_number,
+            "category": data.category,
+        }),
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Send email to admin
+    try:
+        ticket_url = f"https://admin.whalesrecords.com/tickets/{ticket.id}"
+        await send_ticket_created_notification(
+            ticket_number=ticket_number,
+            artist_name=artist.name,
+            subject=data.subject,
+            category=CATEGORY_LABELS.get(data.category, data.category),
+            message=data.message,
+            ticket_url=ticket_url,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send ticket email: {e}")
+
+    # Return ticket detail
+    return {
+        "id": str(ticket.id),
+        "ticket_number": ticket_number,
+        "subject": data.subject,
+        "category": data.category,
+        "category_label": CATEGORY_LABELS.get(data.category, data.category),
+        "status": ticket.status,
+        "status_label": STATUS_LABELS.get(ticket.status, ticket.status),
+        "priority": ticket.priority,
+        "priority_label": PRIORITY_LABELS.get(ticket.priority, ticket.priority),
+        "messages": [{
+            "id": str(message.id),
+            "message": data.message,
+            "sender_type": MessageSender.ARTIST.value,
+            "sender_name": artist.name,
+            "is_internal": False,
+            "created_at": message.created_at.isoformat(),
+        }],
+        "participants": [artist.name],
+        "created_at": ticket.created_at.isoformat(),
+        "updated_at": ticket.updated_at.isoformat(),
+        "resolved_at": None,
+    }
+
+
+@router.get("/tickets/{ticket_id}", response_model=TicketDetailResponse)
+async def get_ticket_detail(
+    ticket_id: str,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get ticket details with full message history."""
+    ticket = await verify_artist_access_to_ticket(
+        uuid.UUID(ticket_id),
+        artist.id,
+        db,
+    )
+
+    # Get all messages (excluding internal notes)
+    messages_result = await db.execute(
+        select(TicketMessage)
+        .where(
+            and_(
+                TicketMessage.ticket_id == ticket.id,
+                TicketMessage.is_internal == False,
+            )
+        )
+        .order_by(TicketMessage.created_at)
+    )
+    messages = messages_result.scalars().all()
+
+    # Get participants
+    participants_result = await db.execute(
+        select(Artist)
+        .join(TicketParticipant)
+        .where(TicketParticipant.ticket_id == ticket.id)
+    )
+    participants = participants_result.scalars().all()
+
+    # Update last_read_at for this artist
+    participant_result = await db.execute(
+        select(TicketParticipant).where(
+            and_(
+                TicketParticipant.ticket_id == ticket.id,
+                TicketParticipant.artist_id == artist.id,
+            )
+        )
+    )
+    participant = participant_result.scalar_one_or_none()
+    if participant:
+        participant.last_read_at = datetime.utcnow()
+        await db.commit()
+
+    return {
+        "id": str(ticket.id),
+        "ticket_number": ticket.ticket_number,
+        "subject": ticket.subject,
+        "category": ticket.category,
+        "category_label": CATEGORY_LABELS.get(ticket.category, ticket.category),
+        "status": ticket.status,
+        "status_label": STATUS_LABELS.get(ticket.status, ticket.status),
+        "priority": ticket.priority,
+        "priority_label": PRIORITY_LABELS.get(ticket.priority, ticket.priority),
+        "messages": [
+            {
+                "id": str(m.id),
+                "message": m.message,
+                "sender_type": m.sender_type,
+                "sender_name": m.sender_name,
+                "is_internal": m.is_internal,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ],
+        "participants": [p.name for p in participants],
+        "created_at": ticket.created_at.isoformat(),
+        "updated_at": ticket.updated_at.isoformat(),
+        "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+    }
+
+
+@router.post("/tickets/{ticket_id}/messages", response_model=TicketMessageResponse)
+async def add_ticket_message(
+    ticket_id: str,
+    data: TicketMessageCreate,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a message to a ticket."""
+    from app.services.email_service import send_ticket_message_notification
+
+    ticket = await verify_artist_access_to_ticket(
+        uuid.UUID(ticket_id),
+        artist.id,
+        db,
+    )
+
+    # Create message
+    message = TicketMessage(
+        ticket_id=ticket.id,
+        message=data.message,
+        sender_type=MessageSender.ARTIST.value,
+        sender_id=str(artist.id),
+        sender_name=artist.name,
+    )
+    db.add(message)
+
+    # Update ticket last_message_at
+    ticket.last_message_at = datetime.utcnow()
+
+    # If ticket was resolved, reopen it
+    if ticket.status == TicketStatus.RESOLVED.value:
+        ticket.status = TicketStatus.IN_PROGRESS.value
+        ticket.resolved_at = None
+
+    await db.commit()
+    await db.refresh(message)
+
+    # Create notification for admin
+    notification = Notification(
+        notification_type=NotificationType.TICKET_MESSAGE.value,
+        artist_id=artist.id,
+        title=f"Nouveau message - {ticket.ticket_number}",
+        message=f"{artist.name} a répondu au ticket {ticket.ticket_number}",
+        data=json.dumps({
+            "ticket_id": str(ticket.id),
+            "ticket_number": ticket.ticket_number,
+        }),
+    )
+    db.add(notification)
+    await db.commit()
+
+    # Send email to admin
+    try:
+        ticket_url = f"https://admin.whalesrecords.com/tickets/{ticket.id}"
+        await send_ticket_message_notification(
+            ticket_number=ticket.ticket_number,
+            subject=ticket.subject,
+            sender_name=artist.name,
+            message=data.message,
+            recipient_emails=["royalties@whalesrecords.com"],
+            ticket_url=ticket_url,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send message email: {e}")
+
+    return {
+        "id": str(message.id),
+        "message": message.message,
+        "sender_type": message.sender_type,
+        "sender_name": message.sender_name,
+        "is_internal": message.is_internal,
+        "created_at": message.created_at.isoformat(),
+    }
+
+
+@router.put("/tickets/{ticket_id}/close")
+async def close_ticket(
+    ticket_id: str,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Close a ticket (artist confirms resolution)."""
+    ticket = await verify_artist_access_to_ticket(
+        uuid.UUID(ticket_id),
+        artist.id,
+        db,
+    )
+
+    # Only the creator can close the ticket
+    if ticket.artist_id != artist.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Seul le créateur du ticket peut le fermer"
+        )
+
+    ticket.status = TicketStatus.CLOSED.value
+    ticket.closed_at = datetime.utcnow()
+
+    await db.commit()
+
+    # Create notification for admin
+    notification = Notification(
+        notification_type=NotificationType.TICKET_CLOSED.value,
+        artist_id=artist.id,
+        title=f"Ticket fermé - {ticket.ticket_number}",
+        message=f"{artist.name} a fermé le ticket {ticket.ticket_number}",
+        data=json.dumps({
+            "ticket_id": str(ticket.id),
+            "ticket_number": ticket.ticket_number,
+        }),
+    )
+    db.add(notification)
+    await db.commit()
+
+    return {"message": "Ticket fermé avec succès"}
 
 
 # ============ Batch Create Auth Accounts ============
