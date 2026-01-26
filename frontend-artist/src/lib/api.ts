@@ -252,3 +252,89 @@ export async function requestPayment(statementId: string, message?: string): Pro
     body: JSON.stringify({ statement_id: statementId, message }),
   });
 }
+
+// ============ Tickets ============
+
+export interface TicketMessage {
+  id: string;
+  message: string;
+  sender_type: 'artist' | 'admin' | 'system';
+  sender_name: string | null;
+  is_internal: boolean;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  category: string;
+  category_label: string;
+  status: string;
+  status_label: string;
+  priority: string;
+  unread_count: number;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface TicketDetail {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  category: string;
+  category_label: string;
+  status: string;
+  status_label: string;
+  priority: string;
+  priority_label: string;
+  messages: TicketMessage[];
+  participants: string[];
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface CreateTicketRequest {
+  subject: string;
+  category: string;
+  message: string;
+}
+
+export async function getMyTickets(params?: {
+  status?: string;
+  category?: string;
+}): Promise<Ticket[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.status) queryParams.set('status', params.status);
+  if (params?.category) queryParams.set('category', params.category);
+
+  const query = queryParams.toString();
+  return fetchApi<Ticket[]>(`/artist-portal/tickets${query ? `?${query}` : ''}`);
+}
+
+export async function getMyTicketDetail(ticketId: string): Promise<TicketDetail> {
+  return fetchApi<TicketDetail>(`/artist-portal/tickets/${ticketId}`);
+}
+
+export async function createMyTicket(data: CreateTicketRequest): Promise<TicketDetail> {
+  return fetchApi<TicketDetail>('/artist-portal/tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addMyTicketMessage(ticketId: string, message: string): Promise<TicketMessage> {
+  return fetchApi<TicketMessage>(`/artist-portal/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function closeMyTicket(ticketId: string): Promise<void> {
+  await fetchApi(`/artist-portal/tickets/${ticketId}/close`, {
+    method: 'PUT',
+  });
+}

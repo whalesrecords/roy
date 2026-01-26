@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, getStatements, ArtistDashboard, QuarterlyRevenue, LabelSettings, Statement, requestPayment } from '@/lib/api';
+import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, getStatements, getMyTickets, ArtistDashboard, QuarterlyRevenue, LabelSettings, Statement, requestPayment } from '@/lib/api';
 
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
@@ -18,10 +18,15 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [requestingPayment, setRequestingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [unreadTickets, setUnreadTickets] = useState(0);
 
   useEffect(() => {
     if (artist) {
       loadDashboard();
+      loadUnreadTickets();
+      // Auto-refresh unread tickets every 30 seconds
+      const interval = setInterval(loadUnreadTickets, 30000);
+      return () => clearInterval(interval);
     }
   }, [artist]);
 
@@ -41,6 +46,16 @@ export default function DashboardPage() {
       setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUnreadTickets = async () => {
+    try {
+      const tickets = await getMyTickets();
+      const unreadCount = tickets.filter(t => t.unread_count > 0).length;
+      setUnreadTickets(unreadCount);
+    } catch (err) {
+      // Silently fail for unread count
     }
   };
 
@@ -358,6 +373,29 @@ export default function DashboardPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
+
+          <Link
+            href="/support"
+            className="flex items-center gap-4 p-4 bg-background border border-divider rounded-2xl hover:border-primary/50 transition-colors relative"
+          >
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Support</p>
+              <p className="text-sm text-secondary-500">Get help from the label</p>
+            </div>
+            {unreadTickets > 0 && (
+              <span className="absolute top-2 right-2 px-2 py-0.5 bg-danger text-white text-xs font-bold rounded-full">
+                {unreadTickets}
+              </span>
+            )}
+            <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
 
         {/* Label Logo */}
@@ -393,11 +431,14 @@ export default function DashboardPage() {
             </svg>
             <span className="text-xs font-medium">Stats</span>
           </Link>
-          <Link href="/payments" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
+          <Link href="/support" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors relative">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
             </svg>
-            <span className="text-xs font-medium">Payments</span>
+            {unreadTickets > 0 && (
+              <span className="absolute top-1 right-2 w-2 h-2 bg-danger rounded-full" />
+            )}
+            <span className="text-xs font-medium">Support</span>
           </Link>
           <Link href="/settings" className="flex flex-col items-center gap-1 px-4 py-2 text-secondary-500 hover:text-primary transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
