@@ -6,7 +6,6 @@ import BottomNav from '@/components/layout/BottomNav';
 import { Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPromoStats, getArtistPromoSubmissions, PromoStats, PromoSubmission } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 
 // Source labels with colors
 const SOURCE_LABELS: Record<string, { label: string; emoji: string; color: string }> = {

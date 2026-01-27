@@ -6,7 +6,6 @@ import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPayments, getStatements, requestPayment, ArtistPayment, Statement } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 
 export default function PaymentsPage() {
   const { artist, loading: authLoading } = useAuth();

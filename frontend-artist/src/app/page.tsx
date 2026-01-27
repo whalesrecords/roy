@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
 import { useTheme } from '@/contexts/ThemeContext';
-import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistDashboard, getQuarterlyRevenue, getLabelSettings, getStatements, getMyTickets, ArtistDashboard, QuarterlyRevenue, LabelSettings, Statement, requestPayment } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
