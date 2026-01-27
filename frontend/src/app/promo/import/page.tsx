@@ -2,9 +2,18 @@
 
 import { useState } from 'react';
 import { Tab, Tabs } from '@heroui/react';
+import { useRouter } from 'next/navigation';
+import SubmitHubUploadFlow from '@/components/promo/SubmitHubUploadFlow';
+import GrooverUploadFlow from '@/components/promo/GrooverUploadFlow';
+import ManualPromoForm from '@/components/promo/ManualPromoForm';
 
 export default function PromoImportPage() {
   const [selected, setSelected] = useState<string>('submithub');
+  const router = useRouter();
+
+  const handleSuccess = () => {
+    router.push('/promo/submissions');
+  };
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -32,12 +41,7 @@ export default function PromoImportPage() {
               Exportez votre historique de soumissions depuis SubmitHub et importez le CSV ici.
             </p>
 
-            <div className="space-y-4">
-              {/* TODO: Add SubmitHub upload form */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <p className="text-gray-500">Coming soon: SubmitHub upload</p>
-              </div>
-            </div>
+            <SubmitHubUploadFlow onSuccess={handleSuccess} />
           </div>
         </Tab>
 
@@ -48,12 +52,7 @@ export default function PromoImportPage() {
               Exportez votre historique de campagnes depuis Groover et importez le CSV ici.
             </p>
 
-            <div className="space-y-4">
-              {/* TODO: Add Groover upload form */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <p className="text-gray-500">Coming soon: Groover upload</p>
-              </div>
-            </div>
+            <GrooverUploadFlow onSuccess={handleSuccess} />
           </div>
         </Tab>
 
@@ -64,12 +63,7 @@ export default function PromoImportPage() {
               Ajoutez manuellement un lien promo qui n'est ni sur SubmitHub ni sur Groover.
             </p>
 
-            <div className="space-y-4">
-              {/* TODO: Add manual form */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                <p className="text-gray-500">Coming soon: Manual form</p>
-              </div>
-            </div>
+            <ManualPromoForm onSuccess={handleSuccess} />
           </div>
         </Tab>
       </Tabs>
