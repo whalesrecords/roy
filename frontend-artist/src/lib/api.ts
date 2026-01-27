@@ -338,3 +338,65 @@ export async function closeMyTicket(ticketId: string): Promise<void> {
     method: 'PUT',
   });
 }
+
+
+// ============ Promo API ============
+
+export interface PromoStats {
+  total_submissions: number;
+  total_listens: number;
+  total_approvals: number;
+  total_shares: number;
+  total_playlists: number;
+  by_source: Record<string, number>;
+}
+
+export interface PromoSubmission {
+  id: string;
+  song_title: string;
+  source: string;
+  outlet_name: string | null;
+  influencer_name: string | null;
+  action: string | null;
+  decision: string | null;
+  feedback: string | null;
+  submitted_at: string | null;
+  responded_at: string | null;
+  campaign_url: string | null;
+  sharing_link: string | null;
+  release_upc: string | null;
+  track_isrc: string | null;
+}
+
+export async function getArtistPromoStats(): Promise<PromoStats> {
+  return fetchApi<PromoStats>('/artist-portal/promo/stats');
+}
+
+export async function getArtistPromoSubmissions(params?: {
+  source?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PromoSubmission[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.source) queryParams.set('source', params.source);
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.offset) queryParams.set('offset', params.offset.toString());
+
+  const query = queryParams.toString();
+  return fetchApi<PromoSubmission[]>(`/artist-portal/promo/submissions${query ? `?${query}` : ''}`);
+}
+
+export interface CreateManualPromoRequest {
+  song_title: string;
+  outlet_name: string;
+  link?: string;
+  notes?: string;
+}
+
+export async function createManualPromoSubmission(data: CreateManualPromoRequest): Promise<PromoSubmission> {
+  return fetchApi<PromoSubmission>('/artist-portal/promo/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
