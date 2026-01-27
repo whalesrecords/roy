@@ -22,6 +22,8 @@ class ImportSource(str, Enum):
     CDBABY = "cdbaby"
     BANDCAMP = "bandcamp"
     SQUARESPACE = "squarespace"
+    SUBMITHUB = "submithub"
+    GROOVER = "groover"
     OTHER = "other"
 
 

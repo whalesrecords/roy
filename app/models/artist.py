@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from app.models.track_artist_link import TrackArtistLink
     from app.models.artist_profile import ArtistProfile
     from app.models.ticket import Ticket
+    from app.models.promo_submission import PromoSubmission
+    from app.models.promo_campaign import PromoCampaign
 
 
 class Artist(Base):
@@ -99,6 +101,16 @@ class Artist(Base):
     )
     tickets: Mapped[List["Ticket"]] = relationship(
         "Ticket",
+        back_populates="artist",
+        cascade="all, delete-orphan",
+    )
+    promo_submissions: Mapped[List["PromoSubmission"]] = relationship(
+        "PromoSubmission",
+        back_populates="artist",
+        cascade="all, delete-orphan",
+    )
+    promo_campaigns: Mapped[List["PromoCampaign"]] = relationship(
+        "PromoCampaign",
         back_populates="artist",
         cascade="all, delete-orphan",
     )

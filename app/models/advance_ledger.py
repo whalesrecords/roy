@@ -39,6 +39,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.artist import Artist
     from app.models.royalty_run import RoyaltyRun
+    from app.models.promo_submission import PromoSubmission
 
 
 class LedgerEntryType(str, Enum):
@@ -129,6 +130,14 @@ class AdvanceLedgerEntry(Base):
         index=True,
     )
 
+    # Optional reference to promo submission (for promo expenses)
+    promo_submission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("promo_submissions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Expense category (for advances)
     category: Mapped[str] = mapped_column(
         String(50),
@@ -165,6 +174,10 @@ class AdvanceLedgerEntry(Base):
     royalty_run: Mapped["RoyaltyRun"] = relationship(
         "RoyaltyRun",
         back_populates="recoupment_entries",
+    )
+    promo_submission: Mapped["PromoSubmission"] = relationship(
+        "PromoSubmission",
+        back_populates="advance_ledger_entry",
     )
 
     def __repr__(self) -> str:

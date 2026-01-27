@@ -16,6 +16,8 @@ from app.models.notification import Notification, NotificationType
 from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
 from app.models.ticket_message import TicketMessage, MessageSender
 from app.models.ticket_participant import TicketParticipant
+from app.models.promo_submission import PromoSubmission, PromoSource, SubmitHubAction
+from app.models.promo_campaign import PromoCampaign, CampaignStatus
 
 __all__ = [
     # Import models
@@ -61,4 +63,10 @@ __all__ = [
     "TicketMessage",
     "MessageSender",
     "TicketParticipant",
+    # Promo
+    "PromoSubmission",
+    "PromoSource",
+    "SubmitHubAction",
+    "PromoCampaign",
+    "CampaignStatus",
 ]
