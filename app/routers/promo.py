@@ -49,6 +49,44 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
     return x_admin_token
 
 
+async def match_artist_by_name(
+    artist_name: str,
+    db: AsyncSession,
+) -> Optional[UUID]:
+    """
+    Match artist name to existing artist in database.
+
+    Returns:
+        artist_id or None if no match
+    """
+    if not artist_name:
+        return None
+
+    # First: exact match (case-insensitive)
+    result = await db.execute(
+        select(Artist)
+        .where(func.lower(Artist.name) == func.lower(artist_name.strip()))
+    )
+    artist = result.scalar_one_or_none()
+    if artist:
+        return artist.id
+
+    # Second: try partial match (artist name contains or is contained in database name)
+    result = await db.execute(
+        select(Artist)
+        .where(or_(
+            func.lower(Artist.name).contains(func.lower(artist_name.strip())),
+            func.lower(artist_name.strip()).contains(func.lower(Artist.name))
+        ))
+    )
+    artist = result.scalar_one_or_none()
+    if artist:
+        return artist.id
+
+    # TODO: Implement fuzzy matching with Levenshtein distance for better matching
+    return None
+
+
 async def match_song_to_catalog(
     song_title: str,
     artist_id: UUID,
@@ -93,7 +131,7 @@ async def analyze_submithub_csv(
 ) -> SubmitHubAnalyzeResponse:
     """
     Analyze a SubmitHub CSV file before importing.
-    Returns column detection, sample rows, and warnings.
+    Returns column detection, sample rows, artist detection, and warnings.
     """
     content = await file.read()
     parser = SubmitHubParser()
@@ -111,6 +149,7 @@ async def analyze_submithub_csv(
     for row in result.rows[:5]:
         sample_rows.append({
             "song_title": row.song_title,
+            "artist_name": row.artist_name,
             "outlet_name": row.outlet_name,
             "action": row.action,
             "feedback": row.feedback[:100] + "..." if row.feedback and len(row.feedback) > 100 else row.feedback,
@@ -122,12 +161,23 @@ async def analyze_submithub_csv(
     if result.errors:
         warnings.append(f"{len(result.errors)} rows had parsing errors")
 
+    # Detect unique artists from parsed rows
+    artists_found = set()
+    for row in result.rows:
+        if row.artist_name:
+            artists_found.add(row.artist_name)
+
+    if not artists_found:
+        warnings.append("No artist names detected in campaign URLs")
+
     # Detect columns from first row
     columns_detected = []
     if result.rows:
         first_row = result.rows[0]
         if first_row.song_title:
             columns_detected.append("Song")
+        if first_row.artist_name:
+            columns_detected.append("Artist (from URL)")
         if first_row.outlet_name:
             columns_detected.append("Outlet")
         if first_row.action:
@@ -148,38 +198,45 @@ async def analyze_submithub_csv(
         sample_rows=sample_rows,
         columns_detected=columns_detected,
         warnings=warnings,
+        artists_found=list(artists_found),
     )
 
 
 @router.post("/import/submithub", response_model=ImportSubmitHubResponse)
 async def import_submithub_csv(
     file: Annotated[UploadFile, File()],
-    artist_id: Annotated[str, Form()],
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Annotated[Optional[str], Form()] = None,
     campaign_name: Annotated[Optional[str], Form()] = None,
     budget: Annotated[Optional[str], Form()] = None,
 ) -> ImportSubmitHubResponse:
     """
     Import SubmitHub CSV file.
+
+    If artist_id is provided, all submissions go to that artist.
+    Otherwise, artist names are extracted from campaign URLs and matched automatically.
+
     Creates PromoSubmissions, optionally creates PromoCampaign, and links to catalog.
     """
-    # Validate artist exists
-    try:
-        artist_uuid = UUID(artist_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid artist_id format",
-        )
+    # Validate artist if provided
+    artist_uuid = None
+    if artist_id:
+        try:
+            artist_uuid = UUID(artist_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid artist_id format",
+            )
 
-    result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
-    artist = result.scalar_one_or_none()
-    if not artist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artist not found",
-        )
+        result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
+        artist = result.scalar_one_or_none()
+        if not artist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Artist not found",
+            )
 
     # Parse CSV
     content = await file.read()
@@ -193,9 +250,9 @@ async def import_submithub_csv(
             detail=f"Failed to parse CSV: {str(e)}",
         )
 
-    # Create campaign if name provided
+    # Create campaign if name provided (only if single artist)
     campaign = None
-    if campaign_name:
+    if campaign_name and artist_uuid:
         campaign = PromoCampaign(
             artist_id=artist_uuid,
             name=campaign_name,
@@ -212,10 +269,26 @@ async def import_submithub_csv(
     matched_songs = []
     unmatched_songs = []
     errors = []
+    artists_not_found = set()
 
     for row in parse_result.rows:
+        # Determine which artist this submission belongs to
+        row_artist_id = artist_uuid  # Use provided artist if set
+
+        if not row_artist_id and row.artist_name:
+            # Try to match artist by name
+            row_artist_id = await match_artist_by_name(row.artist_name, db)
+            if not row_artist_id:
+                artists_not_found.add(row.artist_name)
+                errors.append(f"Row {row.row_number}: Artist '{row.artist_name}' not found in database")
+                continue  # Skip this row
+
+        if not row_artist_id:
+            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from campaign URL")
+            continue
+
         # Match song to catalog
-        track_isrc, release_upc = await match_song_to_catalog(row.song_title, artist_uuid, db)
+        track_isrc, release_upc = await match_song_to_catalog(row.song_title, row_artist_id, db)
 
         match_info = SongMatch(
             song_title=row.song_title,
@@ -229,7 +302,6 @@ async def import_submithub_csv(
         else:
             unmatched_songs.append(row.song_title)
 
-        # Create submission
         # Parse dates (already in ISO format from parser)
         submitted_at = None
         if row.sent_date:
@@ -246,7 +318,7 @@ async def import_submithub_csv(
                 pass
 
         submission = PromoSubmission(
-            artist_id=artist_uuid,
+            artist_id=row_artist_id,
             release_upc=release_upc,
             track_isrc=track_isrc,
             song_title=row.song_title,
@@ -624,6 +696,136 @@ async def get_promo_stats(
         total_approvals=total_approvals,
         total_playlists=total_playlists,
     )
+
+
+@router.post("/import/submithub/batch", response_model=List[ImportSubmitHubResponse])
+async def import_submithub_batch(
+    files: Annotated[List[UploadFile], File()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    budget: Annotated[Optional[str], Form()] = None,
+) -> List[ImportSubmitHubResponse]:
+    """
+    Import multiple SubmitHub CSV files at once.
+
+    Artist names are extracted from campaign URLs and matched automatically.
+    Useful for importing data from multiple artists in one go.
+    """
+    results = []
+
+    for file in files:
+        try:
+            # Parse CSV
+            content = await file.read()
+            parser = SubmitHubParser()
+
+            try:
+                parse_result = parser.parse(content)
+            except Exception as e:
+                results.append(ImportSubmitHubResponse(
+                    created_count=0,
+                    matched_songs=[],
+                    unmatched_songs=[],
+                    errors=[f"Failed to parse {file.filename}: {str(e)}"],
+                ))
+                continue
+
+            # Process rows
+            submissions = []
+            matched_songs = []
+            unmatched_songs = []
+            errors = []
+            artists_not_found = set()
+
+            for row in parse_result.rows:
+                # Try to match artist by name
+                row_artist_id = None
+                if row.artist_name:
+                    row_artist_id = await match_artist_by_name(row.artist_name, db)
+                    if not row_artist_id:
+                        artists_not_found.add(row.artist_name)
+                        continue  # Skip this row
+
+                if not row_artist_id:
+                    errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from campaign URL")
+                    continue
+
+                # Match song to catalog
+                track_isrc, release_upc = await match_song_to_catalog(row.song_title, row_artist_id, db)
+
+                match_info = SongMatch(
+                    song_title=row.song_title,
+                    track_isrc=track_isrc,
+                    release_upc=release_upc,
+                    match_confidence="exact" if track_isrc or release_upc else "none",
+                )
+
+                if track_isrc or release_upc:
+                    matched_songs.append(match_info)
+                else:
+                    unmatched_songs.append(row.song_title)
+
+                # Parse dates
+                submitted_at = None
+                if row.sent_date:
+                    try:
+                        submitted_at = date.fromisoformat(row.sent_date)
+                    except (ValueError, TypeError):
+                        pass
+
+                responded_at = None
+                if row.received_date:
+                    try:
+                        responded_at = date.fromisoformat(row.received_date)
+                    except (ValueError, TypeError):
+                        pass
+
+                submission = PromoSubmission(
+                    artist_id=row_artist_id,
+                    release_upc=release_upc,
+                    track_isrc=track_isrc,
+                    song_title=row.song_title,
+                    source=PromoSource.SUBMITHUB,
+                    campaign_url=row.campaign_url,
+                    outlet_name=row.outlet_name,
+                    outlet_type=row.outlet_type,
+                    action=row.action,
+                    listen_time=row.listen_time,
+                    feedback=row.feedback,
+                    submitted_at=submitted_at,
+                    responded_at=responded_at,
+                )
+                submissions.append(submission)
+
+            # Batch insert
+            if submissions:
+                db.add_all(submissions)
+
+            # Add errors for artists not found
+            if artists_not_found:
+                errors.append(f"Artists not found in database: {', '.join(artists_not_found)}")
+
+            # Collect parse errors
+            for err in parse_result.errors:
+                errors.append(f"Row {err.row_number}: {err.error}")
+
+            results.append(ImportSubmitHubResponse(
+                created_count=len(submissions),
+                matched_songs=matched_songs,
+                unmatched_songs=unmatched_songs,
+                errors=errors,
+            ))
+
+        except Exception as e:
+            results.append(ImportSubmitHubResponse(
+                created_count=0,
+                matched_songs=[],
+                unmatched_songs=[],
+                errors=[f"Error processing {file.filename}: {str(e)}"],
+            ))
+
+    await db.commit()
+    return results
 
 
 @router.delete("/submissions/{submission_id}")

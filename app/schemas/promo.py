@@ -61,6 +61,7 @@ class SubmitHubAnalyzeResponse(BaseModel):
     sample_rows: List[dict]
     columns_detected: List[str]
     warnings: List[str] = Field(default_factory=list)
+    artists_found: List[str] = Field(default_factory=list)
 
 
 class GrooverAnalyzeResponse(BaseModel):

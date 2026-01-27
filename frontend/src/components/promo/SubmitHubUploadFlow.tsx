@@ -13,6 +13,7 @@ type Step = 'upload' | 'preview' | 'importing' | 'done';
 export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowProps) {
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedArtistId, setSelectedArtistId] = useState<string>('');
   const [campaignName, setCampaignName] = useState<string>('');
@@ -22,6 +23,7 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+  const [batchMode, setBatchMode] = useState(false);
 
   // Load artists on mount
   useEffect(() => {

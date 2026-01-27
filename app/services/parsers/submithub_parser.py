@@ -29,6 +29,7 @@ class SubmitHubRow:
     """Raw parsed row from SubmitHub CSV."""
     row_number: int
     song_title: str
+    artist_name: Optional[str]  # Extracted from campaign URL
     campaign_url: Optional[str]
     outlet_name: str
     outlet_type: Optional[str]
@@ -59,13 +60,16 @@ class SubmitHubParseResult:
 COLUMN_MAPPINGS = {
     "song": ["song", "song title", "track", "track name", "title"],
     "campaign_url": ["campaign url", "campaign_url", "url", "link"],
+    "campaign_date": ["campaign date", "campaign_date", "date"],
     "outlet": ["outlet", "outlet name", "curator", "blog"],
     "outlet_type": ["outlet type", "outlet_type", "type", "category"],
     "action": ["action", "status", "result", "response"],
+    "action_timestamp": ["action timestamp", "action_timestamp", "timestamp"],
     "feedback": ["feedback", "comment", "notes", "review"],
+    "additional_notes": ["additional notes", "additional_notes", "notes"],
     "sent": ["sent", "submitted", "submission date", "date sent"],
     "received": ["received", "response date", "date received", "replied"],
-    "listen_time": ["listen time", "listen_time", "listened for", "duration"],
+    "listen_time": ["listen time", "listen_time", "listened for", "duration", "listen time (seconds)"],
 }
 
 
@@ -181,6 +185,34 @@ def _parse_date(date_str: str) -> Optional[str]:
     return date_str
 
 
+def _extract_info_from_campaign_url(url: str) -> tuple[Optional[str], Optional[str]]:
+    """Extract artist name and song title from SubmitHub campaign URL.
+
+    Expected format: https://www.submithub.com/by/artist-name/song-title
+
+    Returns:
+        (artist_name, song_title) or (None, None) if parsing fails
+    """
+    if not url:
+        return None, None
+
+    # Parse URL pattern: /by/{artist}/{song}
+    pattern = r'/by/([^/]+)/([^/?]+)'
+    match = re.search(pattern, url)
+
+    if match:
+        artist_slug = match.group(1)
+        song_slug = match.group(2)
+
+        # Convert slug to readable format: "artist-name" -> "Artist Name"
+        artist_name = artist_slug.replace('-', ' ').replace('_', ' ').title()
+        song_title = song_slug.replace('-', ' ').replace('_', ' ').title()
+
+        return artist_name, song_title
+
+    return None, None
+
+
 class SubmitHubParser:
     """Parser for SubmitHub CSV files."""
 
@@ -193,17 +225,32 @@ class SubmitHubParser:
             self._column_indices[field_name] = _find_column_index(headers, field_name)
 
         # Validate required columns
-        required = ["song", "outlet", "action"]
+        # "song" is optional if we have "campaign_url" (we can extract it from URL)
+        required = ["outlet", "action"]
         missing = [f for f in required if self._column_indices.get(f) is None]
         if missing:
             raise ValueError(f"Missing required columns: {missing}. Available columns: {headers}")
 
+        # Check that we have either "song" OR "campaign_url"
+        if self._column_indices.get("song") is None and self._column_indices.get("campaign_url") is None:
+            raise ValueError(f"Missing both 'song' and 'campaign_url' columns. Need at least one. Available columns: {headers}")
+
     def _parse_row(self, row: List[str], row_number: int) -> SubmitHubRow:
         """Parse a single CSV row into a SubmitHubRow."""
 
+        # Get campaign URL (might be needed to extract song/artist)
+        campaign_url = _get_value(row, self._column_indices.get("campaign_url")) or None
+
+        # Try to get song title from column, or extract from URL
         song_title = _get_value(row, self._column_indices.get("song"))
+        artist_name = None
+
+        if not song_title and campaign_url:
+            # Extract from campaign URL
+            artist_name, song_title = _extract_info_from_campaign_url(campaign_url)
+
         if not song_title:
-            raise ValueError("Missing song title")
+            raise ValueError("Missing song title (not in CSV column nor extractable from campaign URL)")
 
         outlet_name = _get_value(row, self._column_indices.get("outlet"))
         if not outlet_name:
@@ -215,20 +262,30 @@ class SubmitHubParser:
         listen_time_raw = _get_value(row, self._column_indices.get("listen_time"))
         listen_time = _parse_listen_time(listen_time_raw)
 
-        sent_date_raw = _get_value(row, self._column_indices.get("sent"))
+        # Try to get dates from multiple possible columns
+        sent_date_raw = _get_value(row, self._column_indices.get("sent")) or _get_value(row, self._column_indices.get("campaign_date"))
         sent_date = _parse_date(sent_date_raw)
 
-        received_date_raw = _get_value(row, self._column_indices.get("received"))
+        received_date_raw = _get_value(row, self._column_indices.get("received")) or _get_value(row, self._column_indices.get("action_timestamp"))
         received_date = _parse_date(received_date_raw)
+
+        # Combine feedback and additional notes
+        feedback = _get_value(row, self._column_indices.get("feedback")) or None
+        additional_notes = _get_value(row, self._column_indices.get("additional_notes")) or None
+        if feedback and additional_notes:
+            feedback = f"{feedback}\n\nAdditional notes: {additional_notes}"
+        elif additional_notes:
+            feedback = additional_notes
 
         return SubmitHubRow(
             row_number=row_number,
             song_title=song_title,
-            campaign_url=_get_value(row, self._column_indices.get("campaign_url")) or None,
+            artist_name=artist_name,
+            campaign_url=campaign_url,
             outlet_name=outlet_name,
             outlet_type=_get_value(row, self._column_indices.get("outlet_type")) or None,
             action=action,
-            feedback=_get_value(row, self._column_indices.get("feedback")) or None,
+            feedback=feedback,
             sent_date=sent_date,
             received_date=received_date,
             listen_time=listen_time,
