@@ -30,6 +30,8 @@ from app.models.notification import Notification, NotificationType
 from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
 from app.models.ticket_message import TicketMessage, MessageSender
 from app.models.ticket_participant import TicketParticipant
+from app.models.promo_submission import PromoSubmission, PromoSource
+from app.models.promo_campaign import PromoCampaign
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -2099,3 +2101,177 @@ async def create_auth_batch(
         "created_accounts": created,
         "errors": errors,
     }
+
+
+# ============ Promo Endpoints ============
+
+class PromoStatsResponse(BaseModel):
+    """Artist promo stats."""
+    total_submissions: int
+    total_listens: int
+    total_approvals: int
+    total_shares: int
+    total_playlists: int
+    by_source: dict
+
+
+class PromoSubmissionResponse(BaseModel):
+    """Single promo submission for artist view."""
+    id: str
+    song_title: str
+    source: str
+    outlet_name: Optional[str] = None
+    influencer_name: Optional[str] = None
+    action: Optional[str] = None
+    decision: Optional[str] = None
+    feedback: Optional[str] = None
+    submitted_at: Optional[str] = None
+    responded_at: Optional[str] = None
+    campaign_url: Optional[str] = None
+    sharing_link: Optional[str] = None
+    release_upc: Optional[str] = None
+    track_isrc: Optional[str] = None
+
+
+class PromoSubmissionCreate(BaseModel):
+    """Create manual promo submission."""
+    song_title: str
+    outlet_name: str
+    link: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.get("/promo/stats")
+async def get_artist_promo_stats(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+) -> PromoStatsResponse:
+    """Get promo stats for current artist."""
+
+    result = await db.execute(
+        select(PromoSubmission).where(PromoSubmission.artist_id == artist.id)
+    )
+    submissions = result.scalars().all()
+
+    total_submissions = len(submissions)
+    total_listens = 0
+    total_approvals = 0
+    total_shares = 0
+    total_playlists = 0
+    by_source = {}
+
+    for sub in submissions:
+        # By source
+        source_key = sub.source.value if hasattr(sub.source, 'value') else str(sub.source)
+        by_source[source_key] = by_source.get(source_key, 0) + 1
+
+        # Count actions (SubmitHub)
+        if sub.action:
+            if sub.action == "listen":
+                total_listens += 1
+            elif sub.action == "approved":
+                total_approvals += 1
+            elif sub.action == "shared":
+                total_shares += 1
+
+        # Count decisions (Groover)
+        if sub.decision:
+            if "playlist" in sub.decision.lower() or "added" in sub.decision.lower():
+                total_playlists += 1
+            elif "approved" in sub.decision.lower() or "accepted" in sub.decision.lower():
+                total_approvals += 1
+
+    return PromoStatsResponse(
+        total_submissions=total_submissions,
+        total_listens=total_listens,
+        total_approvals=total_approvals,
+        total_shares=total_shares,
+        total_playlists=total_playlists,
+        by_source=by_source,
+    )
+
+
+@router.get("/promo/submissions")
+async def get_artist_promo_submissions(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+    source: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> List[PromoSubmissionResponse]:
+    """Get promo submissions for current artist."""
+
+    query = select(PromoSubmission).where(
+        PromoSubmission.artist_id == artist.id
+    ).order_by(PromoSubmission.submitted_at.desc())
+
+    if source:
+        try:
+            promo_source = PromoSource(source.lower())
+            query = query.where(PromoSubmission.source == promo_source)
+        except ValueError:
+            pass  # Ignore invalid source filter
+
+    query = query.limit(limit).offset(offset)
+    result = await db.execute(query)
+    submissions = result.scalars().all()
+
+    return [
+        PromoSubmissionResponse(
+            id=str(sub.id),
+            song_title=sub.song_title,
+            source=sub.source.value if hasattr(sub.source, 'value') else str(sub.source),
+            outlet_name=sub.outlet_name,
+            influencer_name=sub.influencer_name,
+            action=sub.action,
+            decision=sub.decision,
+            feedback=sub.feedback,
+            submitted_at=sub.submitted_at.isoformat() if sub.submitted_at else None,
+            responded_at=sub.responded_at.isoformat() if sub.responded_at else None,
+            campaign_url=sub.campaign_url,
+            sharing_link=sub.sharing_link,
+            release_upc=sub.release_upc,
+            track_isrc=sub.track_isrc,
+        )
+        for sub in submissions
+    ]
+
+
+@router.post("/promo/manual")
+async def create_manual_promo_submission(
+    data: PromoSubmissionCreate,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+) -> PromoSubmissionResponse:
+    """Create a manual promo submission."""
+
+    submission = PromoSubmission(
+        artist_id=artist.id,
+        song_title=data.song_title,
+        source=PromoSource.MANUAL,
+        outlet_name=data.outlet_name,
+        campaign_url=data.link,
+        feedback=data.notes,
+        submitted_at=datetime.utcnow().date(),
+    )
+
+    db.add(submission)
+    await db.commit()
+    await db.refresh(submission)
+
+    return PromoSubmissionResponse(
+        id=str(submission.id),
+        song_title=submission.song_title,
+        source=submission.source.value if hasattr(submission.source, 'value') else str(submission.source),
+        outlet_name=submission.outlet_name,
+        influencer_name=submission.influencer_name,
+        action=submission.action,
+        decision=submission.decision,
+        feedback=submission.feedback,
+        submitted_at=submission.submitted_at.isoformat() if submission.submitted_at else None,
+        responded_at=submission.responded_at.isoformat() if submission.responded_at else None,
+        campaign_url=submission.campaign_url,
+        sharing_link=submission.sharing_link,
+        release_upc=submission.release_upc,
+        track_isrc=submission.track_isrc,
+    )

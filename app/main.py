@@ -23,6 +23,7 @@ from app.routers.contracts import router as contracts_router
 from app.routers.invoice_import import router as invoice_import_router
 from app.routers.artist_portal import router as artist_portal_router
 from app.routers.tickets import router as tickets_router
+from app.routers.promo import router as promo_router
 
 
 @asynccontextmanager
@@ -100,6 +101,7 @@ app.include_router(contracts_router)
 app.include_router(invoice_import_router)
 app.include_router(artist_portal_router)
 app.include_router(tickets_router)
+app.include_router(promo_router)
 
 
 @app.get("/health")
