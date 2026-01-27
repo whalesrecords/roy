@@ -18,6 +18,7 @@ from app.core.database import get_db
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+from app.models.statement import Statement, StatementStatus
 from pydantic import BaseModel as PydanticBaseModel
 from app.schemas.royalties import (
     ArtistCreate,
@@ -1529,6 +1530,24 @@ async def create_payment(
     )
     db.add(entry)
     await db.flush()
+
+    # If statement_id provided, mark the statement as paid
+    if data.statement_id:
+        stmt_result = await db.execute(
+            select(Statement)
+            .where(Statement.id == data.statement_id)
+            .where(Statement.artist_id == artist_id)
+        )
+        statement = stmt_result.scalar_one_or_none()
+
+        if statement:
+            statement.status = StatementStatus.PAID
+            statement.paid_at = dt.utcnow()
+            await db.flush()
+        else:
+            logger.warning(f"Statement {data.statement_id} not found for artist {artist_id}")
+
+    await db.commit()
 
     return AdvanceLedgerEntryResponse(
         id=entry.id,

@@ -350,6 +350,16 @@ export async function createStatement(artistId: string, data: StatementCreate): 
   });
 }
 
+export interface StatementsListResponse {
+  artist_id: string;
+  statements: StatementCreated[];
+  total_count: number;
+}
+
+export async function getArtistStatements(artistId: string): Promise<StatementsListResponse> {
+  return fetchApi<StatementsListResponse>(`/artists/${artistId}/statements`);
+}
+
 // Catalog (from imports)
 export interface CatalogArtist {
   artist_name: string;
@@ -779,7 +789,8 @@ export async function createPayment(
   amount: number,
   currency: string,
   description?: string,
-  paymentDate?: string
+  paymentDate?: string,
+  statementId?: string
 ): Promise<AdvanceEntry> {
   return fetchApi<AdvanceEntry>(`/artists/${artistId}/payments`, {
     method: 'POST',
@@ -790,6 +801,7 @@ export async function createPayment(
       currency,
       description,
       payment_date: paymentDate,
+      statement_id: statementId,
     }),
   });
 }

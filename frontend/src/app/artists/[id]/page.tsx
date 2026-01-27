@@ -40,6 +40,7 @@ import {
   getCachedTrackArtworks,
   getLabelSettings,
   createStatement,
+  getArtistStatements,
   generateAccessCode,
   createArtistAuth,
   CatalogRelease,
@@ -763,13 +764,31 @@ export default function ArtistDetailPage() {
 
     setMarkingAsPaid(true);
     try {
-      // Create payment entry with period description
+      // Find the statement for this period to mark it as paid
+      let statementId: string | undefined;
+      try {
+        const { statements } = await getArtistStatements(artistId);
+        // Find statement matching the period that is finalized but not paid
+        const matchingStmt = statements.find(stmt =>
+          stmt.period_start === royaltyResult.period_start &&
+          stmt.period_end === royaltyResult.period_end &&
+          stmt.status === 'finalized'
+        );
+        if (matchingStmt) {
+          statementId = matchingStmt.id;
+        }
+      } catch (err) {
+        console.warn('Could not find statement to mark as paid:', err);
+      }
+
+      // Create payment entry with period description and statement_id
       await createPayment(
         artistId,
         remaining, // Use remaining amount after paid quarters
         'EUR',
         `Paiement ${period.label.split(' (')[0]}`, // "Q3 2024" or "2024"
-        new Date().toISOString().split('T')[0]
+        new Date().toISOString().split('T')[0],
+        statementId
       );
       // Reload data to show the new payment
       await loadData();

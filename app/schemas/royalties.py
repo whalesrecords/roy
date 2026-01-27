@@ -248,6 +248,7 @@ class PaymentCreate(BaseModel):
     currency: str = Field(default="EUR")
     description: Optional[str] = Field(default=None, description="Payment description/reference")
     payment_date: Optional[date] = Field(default=None, description="Date of payment (defaults to today)")
+    statement_id: Optional[UUID] = Field(default=None, description="Statement ID to mark as paid")
 
 
 class PaymentUpdate(BaseModel):
