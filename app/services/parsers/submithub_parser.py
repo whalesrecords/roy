@@ -309,8 +309,17 @@ class SubmitHubParser:
 
         result = SubmitHubParseResult()
 
+        # Detect delimiter (comma, semicolon, or tab)
+        sample = content[:2000] if len(content) > 2000 else content
+        sniffer = csv.Sniffer()
+        try:
+            delimiter = sniffer.sniff(sample).delimiter
+        except csv.Error:
+            # Default to comma if detection fails
+            delimiter = ','
+
         # Use csv.reader for robust parsing
-        reader = csv.reader(io.StringIO(content))
+        reader = csv.reader(io.StringIO(content), delimiter=delimiter)
 
         try:
             headers = next(reader)
@@ -362,7 +371,16 @@ class SubmitHubParser:
             except UnicodeDecodeError:
                 content = content.decode("latin-1")
 
-        reader = csv.reader(io.StringIO(content))
+        # Detect delimiter (comma, semicolon, or tab)
+        sample = content[:2000] if len(content) > 2000 else content
+        sniffer = csv.Sniffer()
+        try:
+            delimiter = sniffer.sniff(sample).delimiter
+        except csv.Error:
+            # Default to comma if detection fails
+            delimiter = ','
+
+        reader = csv.reader(io.StringIO(content), delimiter=delimiter)
 
         try:
             headers = next(reader)
