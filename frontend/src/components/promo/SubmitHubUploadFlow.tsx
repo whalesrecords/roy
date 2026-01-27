@@ -75,11 +75,7 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
       return;
     }
 
-    if (!selectedArtistId) {
-      setError('Veuillez sélectionner un artiste');
-      return;
-    }
-
+    // Artist selection is now optional - will be extracted from filename
     try {
       setLoading(true);
       setError(null);
@@ -95,13 +91,18 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
   };
 
   const handleImport = async () => {
-    if (!file || !selectedArtistId) return;
+    if (!file) return;
 
     try {
       setLoading(true);
       setError(null);
       setStep('importing');
-      const result = await importSubmitHubCSV(file, selectedArtistId, campaignName || undefined, budget || undefined);
+      const result = await importSubmitHubCSV(
+        file,
+        selectedArtistId || undefined,
+        campaignName || undefined,
+        budget || undefined
+      );
       setImportResult(result);
       setStep('done');
     } catch (err: any) {
@@ -126,17 +127,27 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
   if (step === 'upload') {
     return (
       <div className="space-y-6">
-        {/* Artist selection */}
+        {/* Info box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Format du fichier:</strong> Nommez votre CSV <code className="bg-blue-100 px-1 rounded">Nom Artiste - Titre Chanson.csv</code>
+          </p>
+          <p className="text-xs text-blue-700 mt-1">
+            Exemple: <code className="bg-blue-100 px-1 rounded">Jonathan Fitas - Radiance.csv</code>
+          </p>
+        </div>
+
+        {/* Artist selection (optional) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Artiste
+            Artiste <span className="text-gray-500 text-xs">(optionnel - auto-détecté depuis le nom du fichier)</span>
           </label>
           <select
             value={selectedArtistId}
             onChange={(e) => setSelectedArtistId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">Sélectionner un artiste</option>
+            <option value="">Auto-détection depuis le nom du fichier</option>
             {artists.map((artist) => (
               <option key={artist.id} value={artist.id}>
                 {artist.name}
@@ -229,7 +240,7 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
         <div className="flex justify-end">
           <button
             onClick={handleAnalyze}
-            disabled={loading || !file || !selectedArtistId}
+            disabled={loading || !file}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Spinner size="sm" color="white" />}

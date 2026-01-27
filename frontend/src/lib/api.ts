@@ -1435,13 +1435,13 @@ export async function analyzeSubmitHubCSV(file: File): Promise<SubmitHubAnalyzeR
 
 export async function importSubmitHubCSV(
   file: File,
-  artistId: string,
+  artistId?: string,
   campaignName?: string,
   budget?: string
 ): Promise<ImportSubmitHubResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('artist_id', artistId);
+  if (artistId) formData.append('artist_id', artistId);
   if (campaignName) formData.append('campaign_name', campaignName);
   if (budget) formData.append('budget', budget);
 
@@ -1463,13 +1463,13 @@ export async function analyzeGrooverCSV(file: File): Promise<GrooverAnalyzeRespo
 
 export async function importGrooverCSV(
   file: File,
-  artistId: string,
+  artistId?: string,
   campaignName?: string,
   budget?: string
 ): Promise<ImportGrooverResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('artist_id', artistId);
+  if (artistId) formData.append('artist_id', artistId);
   if (campaignName) formData.append('campaign_name', campaignName);
   if (budget) formData.append('budget', budget);
 

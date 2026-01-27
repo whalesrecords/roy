@@ -73,11 +73,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
       return;
     }
 
-    if (!selectedArtistId) {
-      setError('Veuillez sélectionner un artiste');
-      return;
-    }
-
+    // Artist selection is now optional - will be extracted from CSV "Band" column
     try {
       setLoading(true);
       setError(null);
@@ -93,13 +89,18 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
   };
 
   const handleImport = async () => {
-    if (!file || !selectedArtistId) return;
+    if (!file) return;
 
     try {
       setLoading(true);
       setError(null);
       setStep('importing');
-      const result = await importGrooverCSV(file, selectedArtistId, campaignName || undefined, budget || undefined);
+      const result = await importGrooverCSV(
+        file,
+        selectedArtistId || undefined,
+        campaignName || undefined,
+        budget || undefined
+      );
       setImportResult(result);
       setStep('done');
     } catch (err: any) {
@@ -124,17 +125,24 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
   if (step === 'upload') {
     return (
       <div className="space-y-6">
-        {/* Artist selection */}
+        {/* Info box */}
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <p className="text-sm text-purple-800">
+            <strong>Auto-détection:</strong> L'artiste et le titre sont extraits depuis les colonnes "Band" et "Track" du CSV Groover
+          </p>
+        </div>
+
+        {/* Artist selection (optional) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Artiste
+            Artiste <span className="text-gray-500 text-xs">(optionnel - auto-détecté depuis le CSV)</span>
           </label>
           <select
             value={selectedArtistId}
             onChange={(e) => setSelectedArtistId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           >
-            <option value="">Sélectionner un artiste</option>
+            <option value="">Auto-détection depuis le CSV</option>
             {artists.map((artist) => (
               <option key={artist.id} value={artist.id}>
                 {artist.name}
@@ -227,7 +235,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
         <div className="flex justify-end">
           <button
             onClick={handleAnalyze}
-            disabled={loading || !file || !selectedArtistId}
+            disabled={loading || !file}
             className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Spinner size="sm" color="white" />}
