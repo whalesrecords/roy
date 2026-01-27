@@ -123,6 +123,32 @@ async def match_song_to_catalog(
     return None, None
 
 
+def extract_artist_song_from_filename(filename: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Extract artist name and song title from SubmitHub filename.
+
+    Expected format: "Artist Name - Song Title.csv"
+
+    Returns:
+        (artist_name, song_title) or (None, None) if parsing fails
+    """
+    if not filename:
+        return None, None
+
+    # Remove .csv extension
+    name_without_ext = filename.replace('.csv', '').strip()
+
+    # Split by " - " (space-dash-space)
+    if ' - ' in name_without_ext:
+        parts = name_without_ext.split(' - ', 1)  # Split only on first occurrence
+        if len(parts) == 2:
+            artist_name = parts[0].strip()
+            song_title = parts[1].strip()
+            return artist_name, song_title
+
+    return None, None
+
+
 @router.post("/import/submithub/analyze", response_model=SubmitHubAnalyzeResponse)
 async def analyze_submithub_csv(
     file: Annotated[UploadFile, File()],
@@ -132,7 +158,12 @@ async def analyze_submithub_csv(
     """
     Analyze a SubmitHub CSV file before importing.
     Returns column detection, sample rows, artist detection, and warnings.
+
+    Artist and song title are extracted from the filename format: "Artist Name - Song Title.csv"
     """
+    # Extract artist and song from filename
+    artist_name, song_title = extract_artist_song_from_filename(file.filename or "")
+
     content = await file.read()
     parser = SubmitHubParser()
 
@@ -143,6 +174,12 @@ async def analyze_submithub_csv(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {str(e)}",
         )
+
+    # Override artist/song from filename if extracted
+    if artist_name and song_title:
+        for row in result.rows:
+            row.artist_name = artist_name
+            row.song_title = song_title
 
     # Get sample rows (first 5)
     sample_rows = []
@@ -161,23 +198,24 @@ async def analyze_submithub_csv(
     if result.errors:
         warnings.append(f"{len(result.errors)} rows had parsing errors")
 
-    # Detect unique artists from parsed rows
-    artists_found = set()
-    for row in result.rows:
-        if row.artist_name:
-            artists_found.add(row.artist_name)
+    if not artist_name:
+        warnings.append("Could not extract artist name from filename (expected format: 'Artist Name - Song Title.csv')")
+    if not song_title:
+        warnings.append("Could not extract song title from filename (expected format: 'Artist Name - Song Title.csv')")
 
-    if not artists_found:
-        warnings.append("No artist names detected in campaign URLs")
+    # Detect unique artists
+    artists_found = set()
+    if artist_name:
+        artists_found.add(artist_name)
 
     # Detect columns from first row
     columns_detected = []
     if result.rows:
         first_row = result.rows[0]
         if first_row.song_title:
-            columns_detected.append("Song")
+            columns_detected.append("Song (from filename)")
         if first_row.artist_name:
-            columns_detected.append("Artist (from URL)")
+            columns_detected.append("Artist (from filename)")
         if first_row.outlet_name:
             columns_detected.append("Outlet")
         if first_row.action:
@@ -238,6 +276,9 @@ async def import_submithub_csv(
                 detail="Artist not found",
             )
 
+    # Extract artist and song from filename
+    filename_artist, filename_song = extract_artist_song_from_filename(file.filename or "")
+
     # Parse CSV
     content = await file.read()
     parser = SubmitHubParser()
@@ -249,6 +290,12 @@ async def import_submithub_csv(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse CSV: {str(e)}",
         )
+
+    # Override artist/song from filename for all rows
+    if filename_artist and filename_song:
+        for row in parse_result.rows:
+            row.artist_name = filename_artist
+            row.song_title = filename_song
 
     # Create campaign if name provided (only if single artist)
     campaign = None
@@ -284,7 +331,7 @@ async def import_submithub_csv(
                 continue  # Skip this row
 
         if not row_artist_id:
-            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from campaign URL")
+            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from filename")
             continue
 
         # Match song to catalog
@@ -715,6 +762,9 @@ async def import_submithub_batch(
 
     for file in files:
         try:
+            # Extract artist and song from filename
+            filename_artist, filename_song = extract_artist_song_from_filename(file.filename or "")
+
             # Parse CSV
             content = await file.read()
             parser = SubmitHubParser()
@@ -729,6 +779,12 @@ async def import_submithub_batch(
                     errors=[f"Failed to parse {file.filename}: {str(e)}"],
                 ))
                 continue
+
+            # Override artist/song from filename for all rows
+            if filename_artist and filename_song:
+                for row in parse_result.rows:
+                    row.artist_name = filename_artist
+                    row.song_title = filename_song
 
             # Process rows
             submissions = []
@@ -747,7 +803,7 @@ async def import_submithub_batch(
                         continue  # Skip this row
 
                 if not row_artist_id:
-                    errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from campaign URL")
+                    errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from filename")
                     continue
 
                 # Match song to catalog
