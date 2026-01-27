@@ -482,32 +482,38 @@ async def analyze_groover_csv(
 @router.post("/import/groover", response_model=ImportGrooverResponse)
 async def import_groover_csv(
     file: Annotated[UploadFile, File()],
-    artist_id: Annotated[str, Form()],
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Annotated[Optional[str], Form()] = None,
     campaign_name: Annotated[Optional[str], Form()] = None,
     budget: Annotated[Optional[str], Form()] = None,
 ) -> ImportGrooverResponse:
     """
     Import Groover CSV file.
+
+    If artist_id is provided, all submissions go to that artist.
+    Otherwise, artist names are extracted from band column and matched automatically.
+
     Creates PromoSubmissions, optionally creates PromoCampaign, and links to catalog.
     """
-    # Validate artist exists
-    try:
-        artist_uuid = UUID(artist_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid artist_id format",
-        )
+    # Validate artist if provided
+    artist_uuid = None
+    if artist_id:
+        try:
+            artist_uuid = UUID(artist_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid artist_id format",
+            )
 
-    result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
-    artist = result.scalar_one_or_none()
-    if not artist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artist not found",
-        )
+        result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
+        artist = result.scalar_one_or_none()
+        if not artist:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Artist not found",
+            )
 
     # Parse CSV
     content = await file.read()
@@ -521,9 +527,9 @@ async def import_groover_csv(
             detail=f"Failed to parse CSV: {str(e)}",
         )
 
-    # Create campaign if name provided
+    # Create campaign if name provided (only if single artist)
     campaign = None
-    if campaign_name:
+    if campaign_name and artist_uuid:
         campaign = PromoCampaign(
             artist_id=artist_uuid,
             name=campaign_name,
@@ -540,10 +546,26 @@ async def import_groover_csv(
     matched_songs = []
     unmatched_songs = []
     errors = []
+    artists_not_found = set()
 
     for row in parse_result.rows:
+        # Determine which artist this submission belongs to
+        row_artist_id = artist_uuid  # Use provided artist if set
+
+        if not row_artist_id and row.band_name:
+            # Try to match artist by name
+            row_artist_id = await match_artist_by_name(row.band_name, db)
+            if not row_artist_id:
+                artists_not_found.add(row.band_name)
+                errors.append(f"Row {row.row_number}: Artist '{row.band_name}' not found in database")
+                continue  # Skip this row
+
+        if not row_artist_id:
+            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from CSV")
+            continue
+
         # Match song to catalog
-        track_isrc, release_upc = await match_song_to_catalog(row.track_title, artist_uuid, db)
+        track_isrc, release_upc = await match_song_to_catalog(row.track_title, row_artist_id, db)
 
         match_info = SongMatch(
             song_title=row.track_title,
@@ -574,7 +596,7 @@ async def import_groover_csv(
                 pass
 
         submission = PromoSubmission(
-            artist_id=artist_uuid,
+            artist_id=row_artist_id,
             release_upc=release_upc,
             track_isrc=track_isrc,
             song_title=row.track_title,
@@ -594,8 +616,8 @@ async def import_groover_csv(
     # Batch insert
     db.add_all(submissions)
 
-    # Create advance ledger entry if budget specified
-    if budget and campaign:
+    # Create advance ledger entry if budget specified (only if single artist)
+    if budget and campaign and artist_uuid:
         ledger_entry = AdvanceLedgerEntry(
             artist_id=artist_uuid,
             category=ExpenseCategory.GROOVER.value,
@@ -611,6 +633,10 @@ async def import_groover_csv(
     # Collect parse errors
     for err in parse_result.errors:
         errors.append(f"Row {err.row_number}: {err.error}")
+
+    # Add artist not found errors
+    if artists_not_found:
+        errors.append(f"Artists not found in database: {', '.join(sorted(artists_not_found))}")
 
     return ImportGrooverResponse(
         created_count=len(submissions),
