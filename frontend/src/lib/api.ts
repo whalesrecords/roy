@@ -1341,3 +1341,167 @@ export async function deleteTicket(ticketId: string): Promise<void> {
     method: 'DELETE',
   });
 }
+
+
+// ============ Promo API ============
+
+export interface PromoSubmission {
+  id: string;
+  artist_id: string;
+  release_upc: string | null;
+  track_isrc: string | null;
+  song_title: string;
+  source: string;
+  campaign_id: string | null;
+  campaign_url: string | null;
+  outlet_name: string | null;
+  outlet_type: string | null;
+  action: string | null;
+  listen_time: number | null;
+  influencer_name: string | null;
+  influencer_type: string | null;
+  decision: string | null;
+  sharing_link: string | null;
+  feedback: string | null;
+  submitted_at: string | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubmitHubAnalyzeResponse {
+  total_rows: number;
+  sample_rows: any[];
+  columns_detected: string[];
+  warnings: string[];
+}
+
+export interface GrooverAnalyzeResponse {
+  total_rows: number;
+  sample_rows: any[];
+  columns_detected: string[];
+  warnings: string[];
+}
+
+export interface SongMatch {
+  song_title: string;
+  track_isrc: string | null;
+  release_upc: string | null;
+  match_confidence: string;
+}
+
+export interface ImportSubmitHubResponse {
+  created_count: number;
+  matched_songs: SongMatch[];
+  unmatched_songs: string[];
+  campaign_id: string | null;
+  errors: string[];
+}
+
+export interface ImportGrooverResponse {
+  created_count: number;
+  matched_songs: SongMatch[];
+  unmatched_songs: string[];
+  campaign_id: string | null;
+  errors: string[];
+}
+
+export interface PromoStats {
+  total_submissions: number;
+  by_source: Record<string, number>;
+  by_action: Record<string, number>;
+  by_decision: Record<string, number>;
+  total_listens: number;
+  total_approvals: number;
+  total_playlists: number;
+}
+
+export interface PromoSubmissionsListResponse {
+  submissions: PromoSubmission[];
+  total_count: number;
+  page: number;
+  page_size: number;
+}
+
+export async function analyzeSubmitHubCSV(file: File): Promise<SubmitHubAnalyzeResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return fetchApi<SubmitHubAnalyzeResponse>('/promo/import/submithub/analyze', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function importSubmitHubCSV(
+  file: File,
+  artistId: string,
+  campaignName?: string,
+  budget?: string
+): Promise<ImportSubmitHubResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('artist_id', artistId);
+  if (campaignName) formData.append('campaign_name', campaignName);
+  if (budget) formData.append('budget', budget);
+
+  return fetchApi<ImportSubmitHubResponse>('/promo/import/submithub', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function analyzeGrooverCSV(file: File): Promise<GrooverAnalyzeResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return fetchApi<GrooverAnalyzeResponse>('/promo/import/groover/analyze', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function importGrooverCSV(
+  file: File,
+  artistId: string,
+  campaignName?: string,
+  budget?: string
+): Promise<ImportGrooverResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('artist_id', artistId);
+  if (campaignName) formData.append('campaign_name', campaignName);
+  if (budget) formData.append('budget', budget);
+
+  return fetchApi<ImportGrooverResponse>('/promo/import/groover', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function getPromoSubmissions(params?: {
+  artist_id?: string;
+  source?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PromoSubmissionsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.artist_id) queryParams.set('artist_id', params.artist_id);
+  if (params?.source) queryParams.set('source', params.source);
+  if (params?.limit) queryParams.set('limit', params.limit.toString());
+  if (params?.offset) queryParams.set('offset', params.offset.toString());
+
+  const query = queryParams.toString();
+  return fetchApi<PromoSubmissionsListResponse>(`/promo/submissions${query ? `?${query}` : ''}`);
+}
+
+export async function getPromoStats(artistId?: string): Promise<PromoStats> {
+  const query = artistId ? `?artist_id=${artistId}` : '';
+  return fetchApi<PromoStats>(`/promo/stats${query}`);
+}
+
+export async function deletePromoSubmission(submissionId: string): Promise<void> {
+  await fetchApi(`/promo/submissions/${submissionId}`, {
+    method: 'DELETE',
+  });
+}
