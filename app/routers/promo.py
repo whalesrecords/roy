@@ -177,11 +177,13 @@ async def analyze_submithub_csv(
             detail=f"Failed to parse CSV: {str(e)}",
         )
 
-    # Override artist/song from filename if extracted
-    if artist_name and song_title:
+    # Use filename artist/song as fallback only if row doesn't have them
+    if artist_name or song_title:
         for row in result.rows:
-            row.artist_name = artist_name
-            row.song_title = song_title
+            if artist_name and not row.artist_name:
+                row.artist_name = artist_name
+            if song_title and (not row.song_title or row.song_title == "Unknown"):
+                row.song_title = song_title
 
     # Get sample rows (first 5)
     sample_rows = []
@@ -294,11 +296,13 @@ async def import_submithub_csv(
                 detail=f"Failed to parse CSV: {str(e)}",
             )
 
-        # Override artist/song from filename for all rows
-        if filename_artist and filename_song:
+        # Use filename artist/song as fallback only if row doesn't have them
+        if filename_artist or filename_song:
             for row in parse_result.rows:
-                row.artist_name = filename_artist
-                row.song_title = filename_song
+                if filename_artist and not row.artist_name:
+                    row.artist_name = filename_artist
+                if filename_song and (not row.song_title or row.song_title == "Unknown"):
+                    row.song_title = filename_song
 
         # Create campaign if name provided (only if single artist)
         campaign = None
