@@ -353,14 +353,16 @@ async def import_submithub_csv(
         submitted_at = None
         if row.sent_date:
             try:
-                submitted_at = date.fromisoformat(row.sent_date)
+                parsed_date = date.fromisoformat(row.sent_date)
+                submitted_at = datetime.combine(parsed_date, datetime.min.time())
             except (ValueError, TypeError):
                 pass
 
         responded_at = None
         if row.received_date:
             try:
-                responded_at = date.fromisoformat(row.received_date)
+                parsed_date = date.fromisoformat(row.received_date)
+                responded_at = datetime.combine(parsed_date, datetime.min.time())
             except (ValueError, TypeError):
                 pass
 
@@ -584,14 +586,16 @@ async def import_groover_csv(
         submitted_at = None
         if row.sent_date:
             try:
-                submitted_at = date.fromisoformat(row.sent_date)
+                parsed_date = date.fromisoformat(row.sent_date)
+                submitted_at = datetime.combine(parsed_date, datetime.min.time())
             except (ValueError, TypeError):
                 pass
 
         responded_at = None
         if row.answer_date:
             try:
-                responded_at = date.fromisoformat(row.answer_date)
+                parsed_date = date.fromisoformat(row.answer_date)
+                responded_at = datetime.combine(parsed_date, datetime.min.time())
             except (ValueError, TypeError):
                 pass
 
@@ -851,14 +855,16 @@ async def import_submithub_batch(
                 submitted_at = None
                 if row.sent_date:
                     try:
-                        submitted_at = date.fromisoformat(row.sent_date)
+                        parsed_date = date.fromisoformat(row.sent_date)
+                        submitted_at = datetime.combine(parsed_date, datetime.min.time())
                     except (ValueError, TypeError):
                         pass
 
                 responded_at = None
                 if row.received_date:
                     try:
-                        responded_at = date.fromisoformat(row.received_date)
+                        parsed_date = date.fromisoformat(row.received_date)
+                        responded_at = datetime.combine(parsed_date, datetime.min.time())
                     except (ValueError, TypeError):
                         pass
 
