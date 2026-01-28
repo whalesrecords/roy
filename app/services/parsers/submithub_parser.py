@@ -225,15 +225,12 @@ class SubmitHubParser:
             self._column_indices[field_name] = _find_column_index(headers, field_name)
 
         # Validate required columns
-        # "song" is optional if we have "campaign_url" (we can extract it from URL)
         required = ["outlet", "action"]
         missing = [f for f in required if self._column_indices.get(f) is None]
         if missing:
             raise ValueError(f"Missing required columns: {missing}. Available columns: {headers}")
 
-        # Check that we have either "song" OR "campaign_url"
-        if self._column_indices.get("song") is None and self._column_indices.get("campaign_url") is None:
-            raise ValueError(f"Missing both 'song' and 'campaign_url' columns. Need at least one. Available columns: {headers}")
+        # Note: "song" column is now optional - we extract from filename or campaign URL
 
     def _parse_row(self, row: List[str], row_number: int) -> SubmitHubRow:
         """Parse a single CSV row into a SubmitHubRow."""
@@ -249,8 +246,9 @@ class SubmitHubParser:
             # Extract from campaign URL
             artist_name, song_title = _extract_info_from_campaign_url(campaign_url)
 
+        # If still no song title, use a placeholder - it will be filled from filename
         if not song_title:
-            raise ValueError("Missing song title (not in CSV column nor extractable from campaign URL)")
+            song_title = "Unknown"  # Will be overridden from filename in the API endpoint
 
         outlet_name = _get_value(row, self._column_indices.get("outlet"))
         if not outlet_name:
