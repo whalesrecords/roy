@@ -356,10 +356,13 @@ export interface PromoSubmission {
   song_title: string;
   source: string;
   outlet_name: string | null;
+  outlet_type: string | null;
   influencer_name: string | null;
+  influencer_type: string | null;
   action: string | null;
   decision: string | null;
   feedback: string | null;
+  listen_time: number | null;
   submitted_at: string | null;
   responded_at: string | null;
   campaign_url: string | null;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
-import { Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
+import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPromoStats, getArtistPromoSubmissions, PromoStats, PromoSubmission } from '@/lib/api';
 
@@ -31,8 +31,6 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>('all');
-  const [selectedSubmission, setSelectedSubmission] = useState<PromoSubmission | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
     if (artist) {
@@ -76,7 +74,6 @@ export default function MediaPage() {
   const hasData = stats && stats.total_submissions > 0;
 
   return (
-    <>
     <div className="min-h-screen bg-background safe-top safe-bottom">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
@@ -194,13 +191,10 @@ export default function MediaPage() {
                   const status = sub.action || sub.decision || 'Pending';
 
                   return (
-                    <button
+                    <Link
                       key={sub.id}
-                      onClick={() => {
-                        setSelectedSubmission(sub);
-                        onOpen();
-                      }}
-                      className="w-full bg-background border border-divider rounded-2xl p-4 text-left hover:border-primary/50 transition-colors"
+                      href={`/media/${sub.id}`}
+                      className="block w-full bg-background border border-divider rounded-2xl p-4 hover:border-primary/50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`w-12 h-12 bg-gradient-to-br ${sourceInfo?.color || 'from-gray-400 to-gray-500'} rounded-xl flex items-center justify-center text-2xl flex-shrink-0`}>
@@ -224,7 +218,7 @@ export default function MediaPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
-                    </button>
+                    </Link>
                   );
                 })
               )}
@@ -235,97 +229,5 @@ export default function MediaPage() {
 
       <BottomNav />
     </div>
-
-    {/* Submission Detail Modal */}
-    <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        size="2xl"
-      >
-        <ModalContent>
-              <ModalHeader className="flex flex-col gap-1">
-                <p className="text-lg font-bold">{selectedSubmission?.song_title}</p>
-                <p className="text-sm text-secondary-500 font-normal">
-                  {selectedSubmission?.outlet_name || selectedSubmission?.influencer_name}
-                </p>
-              </ModalHeader>
-              <ModalBody>
-                <div className="space-y-4">
-                  {/* Source */}
-                  <div>
-                    <p className="text-xs text-secondary-500 uppercase mb-1">Source</p>
-                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r ${SOURCE_LABELS[selectedSubmission?.source || '']?.color || 'from-gray-400 to-gray-500'} text-white text-sm font-medium`}>
-                      {SOURCE_LABELS[selectedSubmission?.source || '']?.emoji} {SOURCE_LABELS[selectedSubmission?.source || '']?.label}
-                    </span>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <p className="text-xs text-secondary-500 uppercase mb-1">Status</p>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getBadgeColor(selectedSubmission?.action || selectedSubmission?.decision || 'Pending')}`}>
-                      {selectedSubmission?.action || selectedSubmission?.decision || 'Pending'}
-                    </span>
-                  </div>
-
-                  {/* Dates */}
-                  {selectedSubmission?.submitted_at && (
-                    <div>
-                      <p className="text-xs text-secondary-500 uppercase mb-1">Submitted</p>
-                      <p className="text-sm text-foreground">
-                        {new Date(selectedSubmission.submitted_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Feedback */}
-                  {selectedSubmission?.feedback && (
-                    <div>
-                      <p className="text-xs text-secondary-500 uppercase mb-1">Feedback</p>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{selectedSubmission.feedback}</p>
-                    </div>
-                  )}
-
-                  {/* Links */}
-                  {(selectedSubmission?.campaign_url || selectedSubmission?.sharing_link) && (
-                    <div>
-                      <p className="text-xs text-secondary-500 uppercase mb-1">Links</p>
-                      <div className="space-y-2">
-                        {selectedSubmission.campaign_url && (
-                          <a
-                            href={selectedSubmission.campaign_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-sm text-primary hover:underline"
-                          >
-                            Campaign URL →
-                          </a>
-                        )}
-                        {selectedSubmission.sharing_link && (
-                          <a
-                            href={selectedSubmission.sharing_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block text-sm text-primary hover:underline"
-                          >
-                            Sharing Link →
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </ModalBody>
-              <ModalFooter>
-                <Button color="default" variant="light" onPress={onClose}>
-                  Close
-                </Button>
-              </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </>
   );
 }
