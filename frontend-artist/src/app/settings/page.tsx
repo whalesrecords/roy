@@ -127,14 +127,12 @@ export default function SettingsPage() {
             <h1 className="font-semibold text-foreground">Settings</h1>
             <p className="text-xs text-secondary-500">Contact and bank information</p>
           </div>
-          {/* Label Logo */}
-          {labelSettings?.label_logo_url && (
-            <img
-              src={labelSettings.label_logo_url}
-              alt={labelSettings.label_name || 'Label'}
-              className="h-8 w-auto"
-            />
-          )}
+          {/* App Logo */}
+          <img
+            src="/icon.svg"
+            alt="Artist Portal"
+            className="h-8 w-auto"
+          />
         </div>
       </header>
 
@@ -349,15 +347,13 @@ export default function SettingsPage() {
         </div>
 
         {/* Footer with logo */}
-        {labelSettings?.label_logo_url && (
-          <div className="mt-8 text-center">
-            <img
-              src={labelSettings.label_logo_url}
-              alt={labelSettings.label_name || 'Label'}
-              className="h-10 w-auto mx-auto opacity-50"
-            />
-          </div>
-        )}
+        <div className="mt-8 text-center">
+          <img
+            src="/icon.svg"
+            alt="Artist Portal"
+            className="h-10 w-auto mx-auto opacity-50"
+          />
+        </div>
       </main>
 
       <BottomNav />

@@ -399,16 +399,14 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Label Logo */}
-        {labelSettings?.label_logo_url && (
-          <div className="flex justify-center pt-4">
-            <img
-              src={labelSettings.label_logo_url}
-              alt={labelSettings.label_name || 'Label'}
-              className="h-12 object-contain opacity-50"
-            />
-          </div>
-        )}
+        {/* App Logo */}
+        <div className="flex justify-center pt-4">
+          <img
+            src="/icon.svg"
+            alt="Artist Portal"
+            className="h-12 object-contain opacity-50"
+          />
+        </div>
       </main>
 
       <BottomNav />
