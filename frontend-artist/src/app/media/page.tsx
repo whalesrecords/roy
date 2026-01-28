@@ -30,7 +30,8 @@ export default function MediaPage() {
   const [submissions, setSubmissions] = useState<PromoSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<string>('all');
+  const [selectedSourceTab, setSelectedSourceTab] = useState<string>('all');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<string>('all');
 
   useEffect(() => {
     if (artist) {
@@ -54,10 +55,37 @@ export default function MediaPage() {
     }
   };
 
+  const getSubmissionStatus = (sub: PromoSubmission): string => {
+    const status = (sub.action || sub.decision || '').toLowerCase();
+    if (status.includes('approved') || status.includes('accepted') || status.includes('added')) return 'approved';
+    if (status.includes('declined') || status.includes('rejected')) return 'declined';
+    if (status.includes('listen')) return 'listened';
+    return 'pending';
+  };
+
   const filteredSubmissions = submissions.filter(sub => {
-    if (selectedTab === 'all') return true;
-    return sub.source === selectedTab;
+    // Filter by source
+    if (selectedSourceTab !== 'all' && sub.source !== selectedSourceTab) {
+      return false;
+    }
+    // Filter by status
+    if (selectedStatusTab !== 'all') {
+      const status = getSubmissionStatus(sub);
+      if (status !== selectedStatusTab) {
+        return false;
+      }
+    }
+    return true;
   });
+
+  // Count submissions by status
+  const statusCounts = {
+    all: submissions.length,
+    approved: submissions.filter(s => getSubmissionStatus(s) === 'approved').length,
+    listened: submissions.filter(s => getSubmissionStatus(s) === 'listened').length,
+    declined: submissions.filter(s => getSubmissionStatus(s) === 'declined').length,
+    pending: submissions.filter(s => getSubmissionStatus(s) === 'pending').length,
+  };
 
   if (authLoading || loading) {
     return (
@@ -148,34 +176,94 @@ export default function MediaPage() {
               </div>
             </div>
 
+            {/* Status Filter Tabs */}
+            <div>
+              <p className="text-xs text-secondary-500 uppercase mb-2 px-1">Filter by Status</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setSelectedStatusTab('all')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedStatusTab === 'all'
+                      ? 'bg-primary text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  All ({statusCounts.all})
+                </button>
+                <button
+                  onClick={() => setSelectedStatusTab('approved')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedStatusTab === 'approved'
+                      ? 'bg-success text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  ✓ Approved ({statusCounts.approved})
+                </button>
+                <button
+                  onClick={() => setSelectedStatusTab('listened')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedStatusTab === 'listened'
+                      ? 'bg-primary text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  👂 Listened ({statusCounts.listened})
+                </button>
+                <button
+                  onClick={() => setSelectedStatusTab('declined')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedStatusTab === 'declined'
+                      ? 'bg-danger text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  ✗ Declined ({statusCounts.declined})
+                </button>
+                <button
+                  onClick={() => setSelectedStatusTab('pending')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedStatusTab === 'pending'
+                      ? 'bg-warning text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  ⏳ Pending ({statusCounts.pending})
+                </button>
+              </div>
+            </div>
+
             {/* Source Tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              <button
-                onClick={() => setSelectedTab('all')}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedTab === 'all'
-                    ? 'bg-primary text-white'
-                    : 'bg-content2 text-secondary-600 hover:bg-content3'
-                }`}
-              >
-                All ({submissions.length})
-              </button>
-              {Object.entries(stats?.by_source || {}).map(([source, count]) => {
-                const info = SOURCE_LABELS[source];
-                return (
-                  <button
-                    key={source}
-                    onClick={() => setSelectedTab(source)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                      selectedTab === source
-                        ? 'bg-primary text-white'
-                        : 'bg-content2 text-secondary-600 hover:bg-content3'
-                    }`}
-                  >
-                    {info?.emoji} {info?.label || source} ({count})
-                  </button>
-                );
-              })}
+            <div>
+              <p className="text-xs text-secondary-500 uppercase mb-2 px-1">Filter by Source</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                <button
+                  onClick={() => setSelectedSourceTab('all')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedSourceTab === 'all'
+                      ? 'bg-primary text-white'
+                      : 'bg-content2 text-secondary-600 hover:bg-content3'
+                  }`}
+                >
+                  All ({submissions.length})
+                </button>
+                {Object.entries(stats?.by_source || {}).map(([source, count]) => {
+                  const info = SOURCE_LABELS[source];
+                  return (
+                    <button
+                      key={source}
+                      onClick={() => setSelectedSourceTab(source)}
+                      className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                        selectedSourceTab === source
+                          ? 'bg-primary text-white'
+                          : 'bg-content2 text-secondary-600 hover:bg-content3'
+                      }`}
+                    >
+                      {info?.emoji} {info?.label || source} ({count})
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Submissions List */}
