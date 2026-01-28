@@ -224,41 +224,55 @@ async def list_expenses(
     # Build responses with scope titles
     responses = []
     for entry in entries:
-        scope_title = None
+        try:
+            scope_title = None
 
-        # Fetch scope title from transactions
-        if entry.scope == 'track' and entry.scope_id:
-            track_query = select(TransactionNormalized.track_title).where(
-                TransactionNormalized.isrc == entry.scope_id
-            ).limit(1)
-            track_result = await db.execute(track_query)
-            scope_title = track_result.scalar_one_or_none()
-        elif entry.scope == 'release' and entry.scope_id:
-            release_query = select(TransactionNormalized.release_title).where(
-                TransactionNormalized.upc == entry.scope_id
-            ).limit(1)
-            release_result = await db.execute(release_query)
-            scope_title = release_result.scalar_one_or_none()
+            # Fetch scope title from transactions
+            if entry.scope == 'track' and entry.scope_id:
+                track_query = select(TransactionNormalized.track_title).where(
+                    TransactionNormalized.isrc == entry.scope_id
+                ).limit(1)
+                track_result = await db.execute(track_query)
+                scope_title = track_result.scalar_one_or_none()
+            elif entry.scope == 'release' and entry.scope_id:
+                release_query = select(TransactionNormalized.release_title).where(
+                    TransactionNormalized.upc == entry.scope_id
+                ).limit(1)
+                release_result = await db.execute(release_query)
+                scope_title = release_result.scalar_one_or_none()
 
-        responses.append(ExpenseResponse(
-            id=str(entry.id),
-            artist_id=str(entry.artist_id) if entry.artist_id else None,
-            artist_name=entry.artist.name if entry.artist else None,
-            entry_type=entry.entry_type.value if hasattr(entry.entry_type, 'value') else str(entry.entry_type),
-            amount=str(entry.amount),
-            currency=entry.currency,
-            scope=entry.scope,
-            scope_id=entry.scope_id,
-            scope_title=scope_title,
-            category=entry.category,
-            category_label=CATEGORY_LABELS.get(entry.category, entry.category) if entry.category else None,
-            royalty_run_id=str(entry.royalty_run_id) if entry.royalty_run_id else None,
-            description=entry.description,
-            reference=entry.reference,
-            document_url=entry.document_url,
-            effective_date=entry.effective_date.isoformat(),
-            created_at=entry.created_at.isoformat(),
-        ))
+            # Safely get artist name
+            artist_name = None
+            try:
+                if entry.artist:
+                    artist_name = entry.artist.name
+            except Exception:
+                # If artist relationship fails to load, skip it
+                pass
+
+            responses.append(ExpenseResponse(
+                id=str(entry.id),
+                artist_id=str(entry.artist_id) if entry.artist_id else None,
+                artist_name=artist_name,
+                entry_type=entry.entry_type.value if hasattr(entry.entry_type, 'value') else str(entry.entry_type),
+                amount=str(entry.amount),
+                currency=entry.currency,
+                scope=entry.scope,
+                scope_id=entry.scope_id,
+                scope_title=scope_title,
+                category=entry.category,
+                category_label=CATEGORY_LABELS.get(entry.category, entry.category) if entry.category else None,
+                royalty_run_id=str(entry.royalty_run_id) if entry.royalty_run_id else None,
+                description=entry.description,
+                reference=entry.reference,
+                document_url=entry.document_url,
+                effective_date=entry.effective_date.isoformat(),
+                created_at=entry.created_at.isoformat(),
+            ))
+        except Exception as e:
+            # Log and skip problematic entries
+            print(f"Error processing expense entry {entry.id}: {e}")
+            continue
 
     return responses
 
