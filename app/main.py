@@ -107,4 +107,8 @@ app.include_router(promo_router)
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "version": "2026-01-28-v3-nullable-fix",
+        "git_commit": "844a54d"
+    }
