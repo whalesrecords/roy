@@ -250,7 +250,9 @@ export default function MediaPage() {
         }}
         size="lg"
         scrollBehavior="inside"
-        backdrop="blur"
+        backdrop="opaque"
+        isDismissable={false}
+        hideCloseButton={false}
       >
         <ModalContent>
           {(closeModal) => (
