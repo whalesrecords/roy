@@ -27,7 +27,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import String, DateTime, Numeric, ForeignKey, Text
 from sqlalchemy import Enum as SAEnum
@@ -167,15 +167,15 @@ class AdvanceLedgerEntry(Base):
     )
 
     # Relationships
-    artist: Mapped["Artist"] = relationship(
+    artist: Mapped[Optional["Artist"]] = relationship(
         "Artist",
         back_populates="advance_entries",
     )
-    royalty_run: Mapped["RoyaltyRun"] = relationship(
+    royalty_run: Mapped[Optional["RoyaltyRun"]] = relationship(
         "RoyaltyRun",
         back_populates="recoupment_entries",
     )
-    promo_submission: Mapped["PromoSubmission"] = relationship(
+    promo_submission: Mapped[Optional["PromoSubmission"]] = relationship(
         "PromoSubmission",
         back_populates="advance_ledger_entry",
     )
