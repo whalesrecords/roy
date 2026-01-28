@@ -32,6 +32,7 @@ export default function MediaPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSourceTab, setSelectedSourceTab] = useState<string>('all');
   const [selectedStatusTab, setSelectedStatusTab] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     if (artist) {
@@ -72,6 +73,16 @@ export default function MediaPage() {
     if (selectedStatusTab !== 'all') {
       const status = getSubmissionStatus(sub);
       if (status !== selectedStatusTab) {
+        return false;
+      }
+    }
+    // Filter by search query (song title, outlet, influencer)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesTitle = sub.song_title.toLowerCase().includes(query);
+      const matchesOutlet = sub.outlet_name?.toLowerCase().includes(query);
+      const matchesInfluencer = sub.influencer_name?.toLowerCase().includes(query);
+      if (!matchesTitle && !matchesOutlet && !matchesInfluencer) {
         return false;
       }
     }
@@ -174,6 +185,32 @@ export default function MediaPage() {
                 <p className="text-2xl font-bold text-foreground">{stats?.total_shares || 0}</p>
                 <p className="text-sm text-secondary-500">Shares</p>
               </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by song, outlet, or influencer..."
+                className="w-full pl-10 pr-4 py-3 bg-background border border-divider rounded-2xl text-foreground placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <svg className="w-5 h-5 text-secondary-400 hover:text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Status Filter Tabs */}
