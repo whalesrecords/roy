@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS document_url VARCHAR(500)",
             "ALTER TABLE artists ADD COLUMN IF NOT EXISTS access_code VARCHAR(20)",
             "ALTER TABLE artists ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
+            "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS promo_submission_id UUID",
         ]
         for sql in migrations:
             try:
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_tx_upc ON transactions_normalized(upc) WHERE upc IS NOT NULL",
             "CREATE INDEX IF NOT EXISTS idx_tx_artist_period ON transactions_normalized(artist_name, period_start, period_end)",
             "CREATE INDEX IF NOT EXISTS idx_tx_import_id ON transactions_normalized(import_id)",
+            "CREATE INDEX IF NOT EXISTS idx_advance_ledger_promo_submission ON advance_ledger(promo_submission_id) WHERE promo_submission_id IS NOT NULL",
         ]
         for idx_sql in indexes:
             await conn.execute(text(idx_sql))
@@ -109,6 +111,6 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "2026-01-28-v3-nullable-fix",
-        "git_commit": "844a54d"
+        "version": "2026-01-28-v4-promo-column",
+        "git_commit": "pending"
     }
