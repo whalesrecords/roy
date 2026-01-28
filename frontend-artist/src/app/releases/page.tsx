@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistReleases, ArtistRelease } from '@/lib/api';
