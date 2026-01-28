@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
+  // Use standalone only for Docker, not for Vercel
+  output: process.env.VERCEL ? undefined : 'standalone',
   // Optimize build performance
   swcMinify: true,
   compiler: {
