@@ -257,39 +257,40 @@ async def import_submithub_csv(
 
     Creates PromoSubmissions, optionally creates PromoCampaign, and links to catalog.
     """
-    # Validate artist if provided
-    artist_uuid = None
-    if artist_id:
+    try:
+        # Validate artist if provided
+        artist_uuid = None
+        if artist_id:
+            try:
+                artist_uuid = UUID(artist_id)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid artist_id format",
+                )
+
+            result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
+            artist = result.scalar_one_or_none()
+            if not artist:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Artist not found",
+                )
+
+        # Extract artist and song from filename
+        filename_artist, filename_song = extract_artist_song_from_filename(file.filename or "")
+
+        # Parse CSV
+        content = await file.read()
+        parser = SubmitHubParser()
+
         try:
-            artist_uuid = UUID(artist_id)
-        except ValueError:
+            parse_result = parser.parse(content)
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid artist_id format",
+                detail=f"Failed to parse CSV: {str(e)}",
             )
-
-        result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
-        artist = result.scalar_one_or_none()
-        if not artist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Artist not found",
-            )
-
-    # Extract artist and song from filename
-    filename_artist, filename_song = extract_artist_song_from_filename(file.filename or "")
-
-    # Parse CSV
-    content = await file.read()
-    parser = SubmitHubParser()
-
-    try:
-        parse_result = parser.parse(content)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse CSV: {str(e)}",
-        )
 
     # Override artist/song from filename for all rows
     if filename_artist and filename_song:
@@ -399,19 +400,36 @@ async def import_submithub_csv(
         )
         db.add(ledger_entry)
 
-    await db.commit()
+        await db.commit()
 
-    # Collect parse errors
-    for err in parse_result.errors:
-        errors.append(f"Row {err.row_number}: {err.error}")
+        # Collect parse errors
+        for err in parse_result.errors:
+            errors.append(f"Row {err.row_number}: {err.error}")
 
-    return ImportSubmitHubResponse(
-        created_count=len(submissions),
-        matched_songs=matched_songs,
-        unmatched_songs=unmatched_songs,
-        campaign_id=campaign.id if campaign else None,
-        errors=errors,
-    )
+        return ImportSubmitHubResponse(
+            created_count=len(submissions),
+            matched_songs=matched_songs,
+            unmatched_songs=unmatched_songs,
+            campaign_id=campaign.id if campaign else None,
+            errors=errors,
+        )
+
+    except HTTPException:
+        # Re-raise HTTPExceptions (already formatted)
+        raise
+    except Exception as e:
+        # Log the full exception for debugging
+        import traceback
+        print(f"Error in import_submithub_csv: {str(e)}")
+        print(traceback.format_exc())
+
+        # Rollback transaction
+        await db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error during import: {str(e)}",
+        )
 
 
 @router.post("/import/groover/analyze", response_model=GrooverAnalyzeResponse)
@@ -498,36 +516,37 @@ async def import_groover_csv(
 
     Creates PromoSubmissions, optionally creates PromoCampaign, and links to catalog.
     """
-    # Validate artist if provided
-    artist_uuid = None
-    if artist_id:
+    try:
+        # Validate artist if provided
+        artist_uuid = None
+        if artist_id:
+            try:
+                artist_uuid = UUID(artist_id)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid artist_id format",
+                )
+
+            result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
+            artist = result.scalar_one_or_none()
+            if not artist:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Artist not found",
+                )
+
+        # Parse CSV
+        content = await file.read()
+        parser = GrooverParser()
+
         try:
-            artist_uuid = UUID(artist_id)
-        except ValueError:
+            parse_result = parser.parse(content)
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid artist_id format",
+                detail=f"Failed to parse CSV: {str(e)}",
             )
-
-        result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
-        artist = result.scalar_one_or_none()
-        if not artist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Artist not found",
-            )
-
-    # Parse CSV
-    content = await file.read()
-    parser = GrooverParser()
-
-    try:
-        parse_result = parser.parse(content)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse CSV: {str(e)}",
-        )
 
     # Create campaign if name provided (only if single artist)
     campaign = None
@@ -632,23 +651,40 @@ async def import_groover_csv(
         )
         db.add(ledger_entry)
 
-    await db.commit()
+        await db.commit()
 
-    # Collect parse errors
-    for err in parse_result.errors:
-        errors.append(f"Row {err.row_number}: {err.error}")
+        # Collect parse errors
+        for err in parse_result.errors:
+            errors.append(f"Row {err.row_number}: {err.error}")
 
-    # Add artist not found errors
-    if artists_not_found:
-        errors.append(f"Artists not found in database: {', '.join(sorted(artists_not_found))}")
+        # Add artist not found errors
+        if artists_not_found:
+            errors.append(f"Artists not found in database: {', '.join(sorted(artists_not_found))}")
 
-    return ImportGrooverResponse(
-        created_count=len(submissions),
-        matched_songs=matched_songs,
-        unmatched_songs=unmatched_songs,
-        campaign_id=campaign.id if campaign else None,
-        errors=errors,
-    )
+        return ImportGrooverResponse(
+            created_count=len(submissions),
+            matched_songs=matched_songs,
+            unmatched_songs=unmatched_songs,
+            campaign_id=campaign.id if campaign else None,
+            errors=errors,
+        )
+
+    except HTTPException:
+        # Re-raise HTTPExceptions (already formatted)
+        raise
+    except Exception as e:
+        # Log the full exception for debugging
+        import traceback
+        print(f"Error in import_groover_csv: {str(e)}")
+        print(traceback.format_exc())
+
+        # Rollback transaction
+        await db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error during import: {str(e)}",
+        )
 
 
 @router.get("/submissions", response_model=PromoSubmissionsListResponse)
