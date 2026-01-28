@@ -40,11 +40,6 @@ export default function MediaPage() {
     }
   }, [artist]);
 
-  useEffect(() => {
-    console.log('Modal isOpen changed:', isOpen);
-    console.log('Selected submission:', selectedSubmission);
-  }, [isOpen, selectedSubmission]);
-
   const loadPromoData = async () => {
     try {
       setLoading(true);
@@ -202,11 +197,8 @@ export default function MediaPage() {
                     <button
                       key={sub.id}
                       onClick={() => {
-                        console.log('Clicked submission:', sub);
-                        console.log('Opening modal...');
                         setSelectedSubmission(sub);
                         onOpen();
-                        console.log('Modal isOpen:', isOpen);
                       }}
                       className="w-full bg-background border border-divider rounded-2xl p-4 text-left hover:border-primary/50 transition-colors"
                     >
@@ -247,24 +239,10 @@ export default function MediaPage() {
     {/* Submission Detail Modal */}
     <Modal
         isOpen={isOpen}
-        onClose={() => {
-          console.log('Closing modal');
-          setSelectedSubmission(null);
-          onClose();
-        }}
-        size="lg"
-        scrollBehavior="inside"
-        backdrop="opaque"
-        isDismissable={false}
-        hideCloseButton={false}
-        classNames={{
-          wrapper: 'z-[9999]',
-          backdrop: 'z-[9998]',
-        }}
+        onClose={onClose}
+        size="2xl"
       >
         <ModalContent>
-          {(closeModal) => (
-            <>
               <ModalHeader className="flex flex-col gap-1">
                 <p className="text-lg font-bold">{selectedSubmission?.song_title}</p>
                 <p className="text-sm text-secondary-500 font-normal">
@@ -342,12 +320,10 @@ export default function MediaPage() {
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button color="default" variant="light" onPress={closeModal}>
+                <Button color="default" variant="light" onPress={onClose}>
                   Close
                 </Button>
               </ModalFooter>
-            </>
-          )}
         </ModalContent>
       </Modal>
     </>
