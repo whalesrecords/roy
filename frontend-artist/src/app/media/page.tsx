@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
-import { Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
+import { Spinner, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPromoStats, getArtistPromoSubmissions, PromoStats, PromoSubmission } from '@/lib/api';
 
@@ -32,7 +32,7 @@ export default function MediaPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>('all');
   const [selectedSubmission, setSelectedSubmission] = useState<PromoSubmission | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
     if (artist) {
@@ -195,7 +195,10 @@ export default function MediaPage() {
                   return (
                     <button
                       key={sub.id}
-                      onClick={() => setSelectedSubmission(sub)}
+                      onClick={() => {
+                        setSelectedSubmission(sub);
+                        onOpen();
+                      }}
                       className="w-full bg-background border border-divider rounded-2xl p-4 text-left hover:border-primary/50 transition-colors"
                     >
                       <div className="flex items-start gap-3">
@@ -231,8 +234,8 @@ export default function MediaPage() {
 
       {/* Submission Detail Modal */}
       <Modal
-        isOpen={!!selectedSubmission}
-        onClose={() => setSelectedSubmission(null)}
+        isOpen={isOpen}
+        onClose={onClose}
         size="lg"
         scrollBehavior="inside"
       >
