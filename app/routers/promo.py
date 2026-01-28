@@ -292,113 +292,113 @@ async def import_submithub_csv(
                 detail=f"Failed to parse CSV: {str(e)}",
             )
 
-    # Override artist/song from filename for all rows
-    if filename_artist and filename_song:
+        # Override artist/song from filename for all rows
+        if filename_artist and filename_song:
+            for row in parse_result.rows:
+                row.artist_name = filename_artist
+                row.song_title = filename_song
+
+        # Create campaign if name provided (only if single artist)
+        campaign = None
+        if campaign_name and artist_uuid:
+            campaign = PromoCampaign(
+                artist_id=artist_uuid,
+                name=campaign_name,
+                source=PromoSource.SUBMITHUB,
+                budget=Decimal(budget) if budget else None,
+                status=CampaignStatus.ACTIVE,
+                started_at=datetime.utcnow().date(),
+            )
+            db.add(campaign)
+            await db.flush()
+
+        # Process rows
+        submissions = []
+        matched_songs = []
+        unmatched_songs = []
+        errors = []
+        artists_not_found = set()
+
         for row in parse_result.rows:
-            row.artist_name = filename_artist
-            row.song_title = filename_song
+            # Determine which artist this submission belongs to
+            row_artist_id = artist_uuid  # Use provided artist if set
 
-    # Create campaign if name provided (only if single artist)
-    campaign = None
-    if campaign_name and artist_uuid:
-        campaign = PromoCampaign(
-            artist_id=artist_uuid,
-            name=campaign_name,
-            source=PromoSource.SUBMITHUB,
-            budget=Decimal(budget) if budget else None,
-            status=CampaignStatus.ACTIVE,
-            started_at=datetime.utcnow().date(),
-        )
-        db.add(campaign)
-        await db.flush()
+            if not row_artist_id and row.artist_name:
+                # Try to match artist by name
+                row_artist_id = await match_artist_by_name(row.artist_name, db)
+                if not row_artist_id:
+                    artists_not_found.add(row.artist_name)
+                    errors.append(f"Row {row.row_number}: Artist '{row.artist_name}' not found in database")
+                    continue  # Skip this row
 
-    # Process rows
-    submissions = []
-    matched_songs = []
-    unmatched_songs = []
-    errors = []
-    artists_not_found = set()
-
-    for row in parse_result.rows:
-        # Determine which artist this submission belongs to
-        row_artist_id = artist_uuid  # Use provided artist if set
-
-        if not row_artist_id and row.artist_name:
-            # Try to match artist by name
-            row_artist_id = await match_artist_by_name(row.artist_name, db)
             if not row_artist_id:
-                artists_not_found.add(row.artist_name)
-                errors.append(f"Row {row.row_number}: Artist '{row.artist_name}' not found in database")
-                continue  # Skip this row
+                errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from filename")
+                continue
 
-        if not row_artist_id:
-            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from filename")
-            continue
+            # Match song to catalog
+            track_isrc, release_upc = await match_song_to_catalog(row.song_title, row_artist_id, db)
 
-        # Match song to catalog
-        track_isrc, release_upc = await match_song_to_catalog(row.song_title, row_artist_id, db)
+            match_info = SongMatch(
+                song_title=row.song_title,
+                track_isrc=track_isrc,
+                release_upc=release_upc,
+                match_confidence="exact" if track_isrc or release_upc else "none",
+            )
 
-        match_info = SongMatch(
-            song_title=row.song_title,
-            track_isrc=track_isrc,
-            release_upc=release_upc,
-            match_confidence="exact" if track_isrc or release_upc else "none",
-        )
+            if track_isrc or release_upc:
+                matched_songs.append(match_info)
+            else:
+                unmatched_songs.append(row.song_title)
 
-        if track_isrc or release_upc:
-            matched_songs.append(match_info)
-        else:
-            unmatched_songs.append(row.song_title)
+            # Parse dates (already in ISO format from parser)
+            submitted_at = None
+            if row.sent_date:
+                try:
+                    parsed_date = date.fromisoformat(row.sent_date)
+                    submitted_at = datetime.combine(parsed_date, datetime.min.time())
+                except (ValueError, TypeError):
+                    pass
 
-        # Parse dates (already in ISO format from parser)
-        submitted_at = None
-        if row.sent_date:
-            try:
-                parsed_date = date.fromisoformat(row.sent_date)
-                submitted_at = datetime.combine(parsed_date, datetime.min.time())
-            except (ValueError, TypeError):
-                pass
+            responded_at = None
+            if row.received_date:
+                try:
+                    parsed_date = date.fromisoformat(row.received_date)
+                    responded_at = datetime.combine(parsed_date, datetime.min.time())
+                except (ValueError, TypeError):
+                    pass
 
-        responded_at = None
-        if row.received_date:
-            try:
-                parsed_date = date.fromisoformat(row.received_date)
-                responded_at = datetime.combine(parsed_date, datetime.min.time())
-            except (ValueError, TypeError):
-                pass
+            submission = PromoSubmission(
+                artist_id=row_artist_id,
+                release_upc=release_upc,
+                track_isrc=track_isrc,
+                song_title=row.song_title,
+                source=PromoSource.SUBMITHUB,
+                campaign_id=campaign.id if campaign else None,
+                campaign_url=row.campaign_url,
+                outlet_name=row.outlet_name,
+                outlet_type=row.outlet_type,
+                action=row.action,
+                listen_time=row.listen_time,
+                feedback=row.feedback,
+                submitted_at=submitted_at,
+                responded_at=responded_at,
+            )
+            submissions.append(submission)
 
-        submission = PromoSubmission(
-            artist_id=row_artist_id,
-            release_upc=release_upc,
-            track_isrc=track_isrc,
-            song_title=row.song_title,
-            source=PromoSource.SUBMITHUB,
-            campaign_id=campaign.id if campaign else None,
-            campaign_url=row.campaign_url,
-            outlet_name=row.outlet_name,
-            outlet_type=row.outlet_type,
-            action=row.action,
-            listen_time=row.listen_time,
-            feedback=row.feedback,
-            submitted_at=submitted_at,
-            responded_at=responded_at,
-        )
-        submissions.append(submission)
+        # Batch insert
+        db.add_all(submissions)
 
-    # Batch insert
-    db.add_all(submissions)
-
-    # Create advance ledger entry if budget specified
-    if budget and campaign:
-        ledger_entry = AdvanceLedgerEntry(
-            artist_id=artist_uuid,
-            category=ExpenseCategory.SUBMITHUB.value,
-            amount=Decimal(budget),  # Positive amount (expense is an advance)
-            entry_type=LedgerEntryType.ADVANCE,
-            description=f"SubmitHub campaign: {campaign_name}",
-            effective_date=datetime.utcnow(),
-        )
-        db.add(ledger_entry)
+        # Create advance ledger entry if budget specified
+        if budget and campaign:
+            ledger_entry = AdvanceLedgerEntry(
+                artist_id=artist_uuid,
+                category=ExpenseCategory.SUBMITHUB.value,
+                amount=Decimal(budget),  # Positive amount (expense is an advance)
+                entry_type=LedgerEntryType.ADVANCE,
+                description=f"SubmitHub campaign: {campaign_name}",
+                effective_date=datetime.utcnow(),
+            )
+            db.add(ledger_entry)
 
         await db.commit()
 
@@ -548,108 +548,108 @@ async def import_groover_csv(
                 detail=f"Failed to parse CSV: {str(e)}",
             )
 
-    # Create campaign if name provided (only if single artist)
-    campaign = None
-    if campaign_name and artist_uuid:
-        campaign = PromoCampaign(
-            artist_id=artist_uuid,
-            name=campaign_name,
-            source=PromoSource.GROOVER,
-            budget=Decimal(budget) if budget else None,
-            status=CampaignStatus.ACTIVE,
-            started_at=datetime.utcnow().date(),
-        )
-        db.add(campaign)
-        await db.flush()
+        # Create campaign if name provided (only if single artist)
+        campaign = None
+        if campaign_name and artist_uuid:
+            campaign = PromoCampaign(
+                artist_id=artist_uuid,
+                name=campaign_name,
+                source=PromoSource.GROOVER,
+                budget=Decimal(budget) if budget else None,
+                status=CampaignStatus.ACTIVE,
+                started_at=datetime.utcnow().date(),
+            )
+            db.add(campaign)
+            await db.flush()
 
-    # Process rows
-    submissions = []
-    matched_songs = []
-    unmatched_songs = []
-    errors = []
-    artists_not_found = set()
+        # Process rows
+        submissions = []
+        matched_songs = []
+        unmatched_songs = []
+        errors = []
+        artists_not_found = set()
 
-    for row in parse_result.rows:
-        # Determine which artist this submission belongs to
-        row_artist_id = artist_uuid  # Use provided artist if set
+        for row in parse_result.rows:
+            # Determine which artist this submission belongs to
+            row_artist_id = artist_uuid  # Use provided artist if set
 
-        if not row_artist_id and row.band_name:
-            # Try to match artist by name
-            row_artist_id = await match_artist_by_name(row.band_name, db)
+            if not row_artist_id and row.band_name:
+                # Try to match artist by name
+                row_artist_id = await match_artist_by_name(row.band_name, db)
+                if not row_artist_id:
+                    artists_not_found.add(row.band_name)
+                    errors.append(f"Row {row.row_number}: Artist '{row.band_name}' not found in database")
+                    continue  # Skip this row
+
             if not row_artist_id:
-                artists_not_found.add(row.band_name)
-                errors.append(f"Row {row.row_number}: Artist '{row.band_name}' not found in database")
-                continue  # Skip this row
+                errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from CSV")
+                continue
 
-        if not row_artist_id:
-            errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from CSV")
-            continue
+            # Match song to catalog
+            track_isrc, release_upc = await match_song_to_catalog(row.track_title, row_artist_id, db)
 
-        # Match song to catalog
-        track_isrc, release_upc = await match_song_to_catalog(row.track_title, row_artist_id, db)
+            match_info = SongMatch(
+                song_title=row.track_title,
+                track_isrc=track_isrc,
+                release_upc=release_upc,
+                match_confidence="exact" if track_isrc or release_upc else "none",
+            )
 
-        match_info = SongMatch(
-            song_title=row.track_title,
-            track_isrc=track_isrc,
-            release_upc=release_upc,
-            match_confidence="exact" if track_isrc or release_upc else "none",
-        )
+            if track_isrc or release_upc:
+                matched_songs.append(match_info)
+            else:
+                unmatched_songs.append(row.track_title)
 
-        if track_isrc or release_upc:
-            matched_songs.append(match_info)
-        else:
-            unmatched_songs.append(row.track_title)
+            # Create submission
+            # Parse dates (already in ISO format from parser)
+            submitted_at = None
+            if row.sent_date:
+                try:
+                    parsed_date = date.fromisoformat(row.sent_date)
+                    submitted_at = datetime.combine(parsed_date, datetime.min.time())
+                except (ValueError, TypeError):
+                    pass
 
-        # Create submission
-        # Parse dates (already in ISO format from parser)
-        submitted_at = None
-        if row.sent_date:
-            try:
-                parsed_date = date.fromisoformat(row.sent_date)
-                submitted_at = datetime.combine(parsed_date, datetime.min.time())
-            except (ValueError, TypeError):
-                pass
+            responded_at = None
+            if row.answer_date:
+                try:
+                    parsed_date = date.fromisoformat(row.answer_date)
+                    responded_at = datetime.combine(parsed_date, datetime.min.time())
+                except (ValueError, TypeError):
+                    pass
 
-        responded_at = None
-        if row.answer_date:
-            try:
-                parsed_date = date.fromisoformat(row.answer_date)
-                responded_at = datetime.combine(parsed_date, datetime.min.time())
-            except (ValueError, TypeError):
-                pass
+            submission = PromoSubmission(
+                artist_id=row_artist_id,
+                release_upc=release_upc,
+                track_isrc=track_isrc,
+                song_title=row.track_title,
+                source=PromoSource.GROOVER,
+                campaign_id=campaign.id if campaign else None,
+                campaign_url=row.track_link,
+                influencer_name=row.influencer_name,
+                influencer_type=row.influencer_type,
+                decision=row.decision,
+                sharing_link=row.sharing_link,
+                feedback=row.feedback,
+                submitted_at=submitted_at,
+                responded_at=responded_at,
+            )
+            submissions.append(submission)
 
-        submission = PromoSubmission(
-            artist_id=row_artist_id,
-            release_upc=release_upc,
-            track_isrc=track_isrc,
-            song_title=row.track_title,
-            source=PromoSource.GROOVER,
-            campaign_id=campaign.id if campaign else None,
-            campaign_url=row.track_link,
-            influencer_name=row.influencer_name,
-            influencer_type=row.influencer_type,
-            decision=row.decision,
-            sharing_link=row.sharing_link,
-            feedback=row.feedback,
-            submitted_at=submitted_at,
-            responded_at=responded_at,
-        )
-        submissions.append(submission)
+        # Batch insert
+        db.add_all(submissions)
 
-    # Batch insert
-    db.add_all(submissions)
-
-    # Create advance ledger entry if budget specified (only if single artist)
-    if budget and campaign and artist_uuid:
-        ledger_entry = AdvanceLedgerEntry(
-            artist_id=artist_uuid,
-            category=ExpenseCategory.GROOVER.value,
-            amount=Decimal(budget),  # Positive amount (expense is an advance)
-            entry_type=LedgerEntryType.ADVANCE,
-            description=f"Groover campaign: {campaign_name}",
-            effective_date=datetime.utcnow(),
-        )
-        db.add(ledger_entry)
+        # Create advance ledger entry if budget specified (only if single artist)
+        if budget and campaign and artist_uuid:
+            ledger_entry = AdvanceLedgerEntry(
+                artist_id=artist_uuid,
+                category=ExpenseCategory.GROOVER.value,
+                amount=Decimal(budget),  # Positive amount (expense is an advance)
+                entry_type=LedgerEntryType.ADVANCE,
+                description=f"Groover campaign: {campaign_name}",
+                effective_date=datetime.utcnow(),
+            )
+            db.add(ledger_entry)
 
         await db.commit()
 
