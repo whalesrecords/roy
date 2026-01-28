@@ -178,38 +178,24 @@ export default function MediaDetailPage() {
           </div>
         )}
 
-        {/* Links */}
-        {(submission.campaign_url || submission.sharing_link) && (
+        {/* Sharing Links (YouTube, Playlists, etc.) */}
+        {submission.sharing_link && (
           <div className="bg-background border border-divider rounded-2xl p-6">
-            <p className="text-xs text-secondary-500 uppercase mb-3">Links</p>
-            <div className="space-y-3">
-              {submission.campaign_url && (
-                <a
-                  href={submission.campaign_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors"
-                >
-                  <span className="text-primary font-medium">Campaign URL</span>
-                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              )}
-              {submission.sharing_link && (
-                <a
-                  href={submission.sharing_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between p-3 bg-purple-500/10 rounded-xl hover:bg-purple-500/20 transition-colors"
-                >
-                  <span className="text-purple-600 font-medium">Sharing Link</span>
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              )}
-            </div>
+            <p className="text-xs text-secondary-500 uppercase mb-3">Link</p>
+            <a
+              href={submission.sharing_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl hover:from-purple-500/20 hover:to-pink-500/20 transition-colors"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-purple-600 font-medium mb-1">View Placement</p>
+                <p className="text-xs text-secondary-500 truncate">{submission.sharing_link}</p>
+              </div>
+              <svg className="w-6 h-6 text-purple-600 flex-shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
           </div>
         )}
 
