@@ -95,24 +95,26 @@ async def match_song_to_catalog(
     """
     Match song title to existing catalog (TrackArtwork or ReleaseArtwork).
 
+    Note: TrackArtwork and ReleaseArtwork don't have artist_id, so we match
+    only on title. This may return multiple matches if same title exists
+    for different artists, but we return the first match found.
+
     Returns:
         (track_isrc, release_upc) or (None, None) if no match
     """
-    # First: exact match on TrackArtwork.title
+    # First: exact match on TrackArtwork.name
     result = await db.execute(
         select(TrackArtwork)
-        .where(TrackArtwork.artist_id == artist_id)
-        .where(func.lower(TrackArtwork.title) == func.lower(song_title))
+        .where(func.lower(TrackArtwork.name) == func.lower(song_title))
     )
     track = result.scalar_one_or_none()
     if track:
         return track.isrc, track.release_upc
 
-    # Second: exact match on ReleaseArtwork.title
+    # Second: exact match on ReleaseArtwork.name
     result = await db.execute(
         select(ReleaseArtwork)
-        .where(ReleaseArtwork.artist_id == artist_id)
-        .where(func.lower(ReleaseArtwork.title) == func.lower(song_title))
+        .where(func.lower(ReleaseArtwork.name) == func.lower(song_title))
     )
     release = result.scalar_one_or_none()
     if release:
