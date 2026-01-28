@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
+import Link from 'next/link';
 import { getPlatformStats, PlatformStats } from '@/lib/api';
 import BottomNav from '@/components/layout/BottomNav';
 
