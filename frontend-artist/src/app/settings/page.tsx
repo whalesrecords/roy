@@ -6,9 +6,7 @@ import BottomNav from '@/components/layout/BottomNav';
 import { Spinner, Input, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getLabelSettings, LabelSettings } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 import { useLanguage } from '@/contexts/LanguageContext';
-import BottomNav from '@/components/layout/BottomNav';
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();

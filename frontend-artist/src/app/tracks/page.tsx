@@ -6,7 +6,6 @@ import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistTracks, ArtistTrack } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 
 export default function TracksPage() {
   const { artist, loading: authLoading } = useAuth();
