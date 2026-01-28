@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
 export default function Home() {
-  redirect('/imports');
+  // Redirect to login page (users should authenticate first)
+  redirect('/login');
 }
