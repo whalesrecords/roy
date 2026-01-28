@@ -855,3 +855,6 @@ Affiche:
    - Besoin d'aide dev additionnelle?
 
 **Voulez-vous que je commence à implémenter Phase 1 (Database multi-tenant)?** 🚀
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1b2xrZ2NuaXp3cmh6eWJlb21kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk2NjI0NjUsImV4cCI6MjAyNTIzODQ2NX0.oPvj_8NJKwBBmN7p_7jxaBZ-EE-MKYkHPMfvM_EuDSc
