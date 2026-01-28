@@ -81,6 +81,7 @@ export default function MediaPage() {
   const hasData = stats && stats.total_submissions > 0;
 
   return (
+    <>
     <div className="min-h-screen bg-background safe-top safe-bottom">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
@@ -240,8 +241,11 @@ export default function MediaPage() {
         )}
       </main>
 
-      {/* Submission Detail Modal */}
-      <Modal
+      <BottomNav />
+    </div>
+
+    {/* Submission Detail Modal */}
+    <Modal
         isOpen={isOpen}
         onClose={() => {
           console.log('Closing modal');
@@ -253,6 +257,10 @@ export default function MediaPage() {
         backdrop="opaque"
         isDismissable={false}
         hideCloseButton={false}
+        classNames={{
+          wrapper: 'z-[9999]',
+          backdrop: 'z-[9998]',
+        }}
       >
         <ModalContent>
           {(closeModal) => (
@@ -342,8 +350,6 @@ export default function MediaPage() {
           )}
         </ModalContent>
       </Modal>
-
-      <BottomNav />
-    </div>
+    </>
   );
 }
