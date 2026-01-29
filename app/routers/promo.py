@@ -51,12 +51,37 @@ async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
     return x_admin_token
 
 
+def normalize_artist_name(name: str) -> str:
+    """
+    Normalize artist name by removing accents and special characters.
+
+    Converts: ø -> o, æ -> ae, å -> a, etc.
+    """
+    import unicodedata
+    # Normalize unicode to NFD (decomposed form)
+    nfd = unicodedata.normalize('NFD', name)
+    # Remove combining characters (accents)
+    ascii_name = ''.join(c for c in nfd if not unicodedata.combining(c))
+    # Additional special character replacements
+    replacements = {
+        'ø': 'o', 'Ø': 'O',
+        'æ': 'ae', 'Æ': 'AE',
+        'å': 'a', 'Å': 'A',
+        'ł': 'l', 'Ł': 'L',
+    }
+    for old, new in replacements.items():
+        ascii_name = ascii_name.replace(old, new)
+    return ascii_name.strip()
+
+
 async def match_artist_by_name(
     artist_name: str,
     db: AsyncSession,
 ) -> Optional[UUID]:
     """
     Match artist name to existing artist in database.
+
+    Tries normalized matching to handle special characters like ø, æ, etc.
 
     Returns:
         artist_id or None if no match
@@ -73,7 +98,18 @@ async def match_artist_by_name(
     if artist:
         return artist.id
 
-    # Second: try partial match (artist name contains or is contained in database name)
+    # Second: normalized match (handle special characters)
+    normalized_input = normalize_artist_name(artist_name.strip()).lower()
+
+    # Get all artists and check normalized names
+    result = await db.execute(select(Artist))
+    all_artists = result.scalars().all()
+
+    for artist in all_artists:
+        if normalize_artist_name(artist.name).lower() == normalized_input:
+            return artist.id
+
+    # Third: try partial match (artist name contains or is contained in database name)
     result = await db.execute(
         select(Artist)
         .where(or_(
