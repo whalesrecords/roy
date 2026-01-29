@@ -125,6 +125,8 @@ export interface QuarterlyRevenue {
 export interface LabelSettings {
   label_name?: string;
   label_logo_url?: string;
+  logo_url?: string;
+  logo_base64?: string;
 }
 
 export interface Statement {
