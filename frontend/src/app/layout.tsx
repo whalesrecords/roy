@@ -16,8 +16,12 @@ const roboto = Roboto({
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Royalties Admin',
+  title: 'Whales Records - Admin',
   description: 'Gestion des imports et royalties',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

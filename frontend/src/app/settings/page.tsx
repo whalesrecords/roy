@@ -147,8 +147,8 @@ export default function SettingsPage() {
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-danger-100 flex items-center justify-center shrink-0">
+          <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-danger/20 flex items-center justify-center shrink-0">
               <svg className="w-4 h-4 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -158,8 +158,8 @@ export default function SettingsPage() {
         )}
 
         {success && (
-          <div className="bg-success-50 border border-success-200 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-success-100 flex items-center justify-center shrink-0">
+          <div className="bg-success/10 border border-success/20 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
               <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>

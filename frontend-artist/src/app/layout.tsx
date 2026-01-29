@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: 'Whales Records - Espace Artiste',
   description: 'Consultez vos revenus, statistiques et demandez vos paiements',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

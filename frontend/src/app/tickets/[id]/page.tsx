@@ -135,9 +135,9 @@ export default function TicketDetailPage() {
 
   if (!ticket) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-800 dark:text-red-200">Ticket non trouvé</p>
+      <div className="px-4 py-6 max-w-4xl mx-auto">
+        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
+          <p className="text-danger">Ticket non trouvé</p>
         </div>
       </div>
     );
@@ -146,20 +146,20 @@ export default function TicketDetailPage() {
   const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="px-4 py-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <Link href="/tickets" className="text-blue-500 hover:underline mb-2 inline-block">
+        <Link href="/tickets" className="text-primary hover:underline mb-2 inline-block">
           ← Retour aux tickets
         </Link>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">{categoryInfo?.icon}</span>
-              <span className="font-mono text-gray-500">{ticket.ticket_number}</span>
+              <span className="font-mono text-default-500">{ticket.ticket_number}</span>
             </div>
-            <h1 className="text-3xl font-bold mb-2">{ticket.subject}</h1>
-            <div className="flex items-center gap-4 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold mb-2">{ticket.subject}</h1>
+            <div className="flex items-center gap-4 text-sm text-default-500">
               <span>{ticket.category_label}</span>
               <span>Créé le {formatTime(ticket.created_at)}</span>
               {ticket.participants.length > 0 && (
@@ -174,7 +174,7 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Status & Priority Controls */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
+      <div className="bg-content1 rounded-2xl border border-divider p-4 mb-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Statut</label>
@@ -207,14 +207,14 @@ export default function TicketDetailPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
-          <p className="text-red-800 dark:text-red-200">{error}</p>
+        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 mb-6">
+          <p className="text-danger">{error}</p>
         </div>
       )}
 
       {/* Messages Thread */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <div className="bg-content1 rounded-2xl border border-divider overflow-hidden mb-6">
+        <div className="p-4 border-b border-divider bg-content2">
           <h2 className="font-semibold">Conversation</h2>
         </div>
         <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
@@ -231,12 +231,12 @@ export default function TicketDetailPage() {
                 <div
                   className={`max-w-[80%] rounded-2xl p-4 ${
                     isSystem
-                      ? 'bg-gray-100 dark:bg-gray-700 text-center w-full max-w-none text-sm'
+                      ? 'bg-content2 text-center w-full max-w-none text-sm'
                       : isArtist
-                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm'
+                      ? 'bg-gradient-to-br from-primary to-primary-600 text-white shadow-sm'
                       : message.is_internal
-                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30 border-2 border-yellow-400 dark:border-yellow-600'
-                      : 'bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                      ? 'bg-warning/10 border-2 border-warning'
+                      : 'bg-content2 border border-divider'
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2">
@@ -244,13 +244,13 @@ export default function TicketDetailPage() {
                       {message.sender_name || 'Système'}
                     </span>
                     {message.is_internal && (
-                      <span className="text-xs bg-yellow-500 dark:bg-yellow-600 text-white px-2 py-0.5 rounded-full font-medium">
+                      <span className="text-xs bg-warning text-white px-2 py-0.5 rounded-full font-medium">
                         Note interne
                       </span>
                     )}
                   </div>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.message}</p>
-                  <p className={`text-xs mt-2 ${isArtist ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <p className={`text-xs mt-2 ${isArtist ? 'text-primary-100' : 'text-default-500'}`}>
                     {formatTime(message.created_at)}
                   </p>
                 </div>
@@ -262,7 +262,7 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Reply Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-content1 rounded-2xl border border-divider p-4">
         <h3 className="font-semibold mb-3">Répondre</h3>
         <Textarea
           placeholder="Votre message..."
@@ -270,10 +270,6 @@ export default function TicketDetailPage() {
           onChange={(e) => setNewMessage(e.target.value)}
           minRows={4}
           className="mb-4"
-          classNames={{
-            input: "rounded-xl",
-            inputWrapper: "rounded-xl border-gray-200 dark:border-gray-700"
-          }}
         />
         <div className="flex items-center justify-between gap-4">
           <Checkbox
