@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner, Button, Textarea } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTicketDetail, addMyTicketMessage, closeMyTicket, TicketDetail } from '@/lib/api';
+import LabelLogo from '@/components/layout/LabelLogo';
 
 const CATEGORY_OPTIONS = [
   { key: 'payment', label: 'Payments', icon: '💰' },
@@ -144,6 +145,7 @@ export default function TicketDetailPage() {
             <p className="text-sm font-mono text-secondary-500">{ticket.ticket_number}</p>
             <h1 className="text-lg font-bold truncate">{ticket.subject}</h1>
           </div>
+          <LabelLogo className="h-7 w-auto max-w-[80px] object-contain" />
         </div>
       </header>
 

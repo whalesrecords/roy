@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Textarea, Select, SelectItem, useDisclosure } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTickets, createMyTicket, Ticket, CreateTicketRequest } from '@/lib/api';
+import LabelLogo from '@/components/layout/LabelLogo';
 
 const CATEGORY_OPTIONS = [
   { key: 'payment', label: 'Payments', icon: '💰' },
@@ -117,7 +118,10 @@ export default function SupportPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Support</h1>
+          <div className="flex items-center gap-3">
+            <LabelLogo className="h-8 w-auto max-w-[100px] object-contain" />
+            <h1 className="text-xl font-bold">Support</h1>
+          </div>
           <Button color="primary" size="md" onClick={onOpen}>
             + New Ticket
           </Button>

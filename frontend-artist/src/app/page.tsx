@@ -114,7 +114,14 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {data?.artist.artwork_url ? (
+            {/* Label Logo */}
+            {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
+              <img
+                src={labelSettings.logo_base64 || labelSettings.logo_url}
+                alt={labelSettings.label_name || 'Label'}
+                className="h-10 w-auto max-w-[120px] object-contain"
+              />
+            ) : data?.artist.artwork_url ? (
               <img
                 src={data.artist.artwork_url}
                 alt={artist.name}
@@ -129,7 +136,7 @@ export default function DashboardPage() {
             )}
             <div>
               <p className="font-semibold text-foreground">{artist.name}</p>
-              <p className="text-xs text-secondary-500">Artist Portal</p>
+              <p className="text-xs text-secondary-500">{labelSettings?.label_name || 'Artist Portal'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

@@ -127,12 +127,20 @@ export default function SettingsPage() {
             <h1 className="font-semibold text-foreground">Settings</h1>
             <p className="text-xs text-secondary-500">Contact and bank information</p>
           </div>
-          {/* App Logo */}
-          <img
-            src="/icon.svg"
-            alt="Artist Portal"
-            className="h-8 w-auto"
-          />
+          {/* Label Logo */}
+          {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
+            <img
+              src={labelSettings.logo_base64 || labelSettings.logo_url}
+              alt={labelSettings.label_name || 'Label'}
+              className="h-8 w-auto max-w-[100px] object-contain"
+            />
+          ) : (
+            <img
+              src="/icon.svg"
+              alt="Artist Portal"
+              className="h-8 w-auto"
+            />
+          )}
         </div>
       </header>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
+import LabelLogo from '@/components/layout/LabelLogo';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPromoStats, getArtistPromoSubmissions, PromoStats, PromoSubmission } from '@/lib/api';
@@ -144,9 +145,12 @@ export default function MediaPage() {
     <div className="min-h-screen bg-background safe-top safe-bottom">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3">
-          <h1 className="text-2xl font-bold text-foreground">Media & Promo</h1>
-          <p className="text-sm text-secondary-500">Track your promo campaigns</p>
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Media & Promo</h1>
+            <p className="text-sm text-secondary-500">Track your promo campaigns</p>
+          </div>
+          <LabelLogo className="h-8 w-auto max-w-[80px] object-contain" />
         </div>
       </header>
 

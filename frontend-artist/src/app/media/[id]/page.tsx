@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
+import LabelLogo from '@/components/layout/LabelLogo';
 import { Spinner } from '@heroui/react';
 import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
 
@@ -97,7 +98,8 @@ export default function MediaDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-2xl font-bold text-foreground">Media Details</h1>
+            <h1 className="text-xl font-bold text-foreground flex-1">Media Details</h1>
+            <LabelLogo className="h-7 w-auto max-w-[80px] object-contain" />
           </div>
         </header>
         <main className="px-4 py-6">
@@ -124,10 +126,11 @@ export default function MediaDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-foreground truncate">{submission.song_title}</h1>
             <p className="text-sm text-secondary-500 truncate">{outlet}</p>
           </div>
+          <LabelLogo className="h-7 w-auto max-w-[80px] object-contain" />
         </div>
       </header>
 
