@@ -369,6 +369,7 @@ export interface PromoSubmission {
   sharing_link: string | null;
   release_upc: string | null;
   track_isrc: string | null;
+  release_title: string | null;
 }
 
 export async function getArtistPromoStats(): Promise<PromoStats> {

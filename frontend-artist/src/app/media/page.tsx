@@ -89,6 +89,34 @@ export default function MediaPage() {
     return true;
   });
 
+  // Group submissions by release_title (album), then sort by song_title
+  type GroupedSubmissions = {
+    [releaseTitle: string]: PromoSubmission[];
+  };
+
+  const groupedSubmissions: GroupedSubmissions = filteredSubmissions.reduce((acc, sub) => {
+    const releaseTitle = sub.release_title || 'Unknown Album';
+    if (!acc[releaseTitle]) {
+      acc[releaseTitle] = [];
+    }
+    acc[releaseTitle].push(sub);
+    return acc;
+  }, {} as GroupedSubmissions);
+
+  // Sort albums alphabetically, and songs within each album
+  const sortedReleases = Object.keys(groupedSubmissions).sort((a, b) => {
+    // Put "Unknown Album" at the end
+    if (a === 'Unknown Album') return 1;
+    if (b === 'Unknown Album') return -1;
+    return a.localeCompare(b);
+  });
+
+  sortedReleases.forEach(releaseTitle => {
+    groupedSubmissions[releaseTitle].sort((a, b) =>
+      a.song_title.localeCompare(b.song_title)
+    );
+  });
+
   // Count submissions by status
   const statusCounts = {
     all: submissions.length,
@@ -303,49 +331,63 @@ export default function MediaPage() {
               </div>
             </div>
 
-            {/* Submissions List */}
-            <div className="space-y-3">
+            {/* Submissions List - Grouped by Album */}
+            <div className="space-y-6">
               {filteredSubmissions.length === 0 ? (
                 <div className="text-center py-8 text-secondary-500">
                   No submissions for this filter
                 </div>
               ) : (
-                filteredSubmissions.map((sub) => {
-                  const sourceInfo = SOURCE_LABELS[sub.source];
-                  const outlet = sub.outlet_name || sub.influencer_name || 'Unknown';
-                  const status = sub.action || sub.decision || 'Pending';
+                sortedReleases.map((releaseTitle) => (
+                  <div key={releaseTitle} className="space-y-3">
+                    {/* Album Header */}
+                    <div className="flex items-center gap-2 px-2">
+                      <div className="w-1 h-6 bg-primary rounded-full" />
+                      <h3 className="text-lg font-bold text-foreground">{releaseTitle}</h3>
+                      <span className="text-sm text-secondary-500">
+                        ({groupedSubmissions[releaseTitle].length})
+                      </span>
+                    </div>
 
-                  return (
-                    <Link
-                      key={sub.id}
-                      href={`/media/${sub.id}`}
-                      className="block w-full bg-background border border-divider rounded-2xl p-4 hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-12 h-12 bg-gradient-to-br ${sourceInfo?.color || 'from-gray-400 to-gray-500'} rounded-xl flex items-center justify-center text-2xl flex-shrink-0`}>
-                          {sourceInfo?.emoji || '📊'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground truncate">{sub.song_title}</p>
-                          <p className="text-sm text-secondary-500 truncate">{outlet}</p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getBadgeColor(status)}`}>
-                              {status}
-                            </span>
-                            {sub.submitted_at && (
-                              <span className="text-xs text-secondary-400">
-                                {new Date(sub.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                              </span>
-                            )}
+                    {/* Songs in this album */}
+                    {groupedSubmissions[releaseTitle].map((sub) => {
+                      const sourceInfo = SOURCE_LABELS[sub.source];
+                      const outlet = sub.outlet_name || sub.influencer_name || 'Unknown';
+                      const status = sub.action || sub.decision || 'Pending';
+
+                      return (
+                        <Link
+                          key={sub.id}
+                          href={`/media/${sub.id}`}
+                          className="block w-full bg-background border border-divider rounded-2xl p-4 hover:border-primary/50 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-12 h-12 bg-gradient-to-br ${sourceInfo?.color || 'from-gray-400 to-gray-500'} rounded-xl flex items-center justify-center text-2xl flex-shrink-0`}>
+                              {sourceInfo?.emoji || '📊'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground truncate">{sub.song_title}</p>
+                              <p className="text-sm text-secondary-500 truncate">{outlet}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getBadgeColor(status)}`}>
+                                  {status}
+                                </span>
+                                {sub.submitted_at && (
+                                  <span className="text-xs text-secondary-400">
+                                    {new Date(sub.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
                           </div>
-                        </div>
-                        <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </Link>
-                  );
-                })
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))
               )}
             </div>
           </>

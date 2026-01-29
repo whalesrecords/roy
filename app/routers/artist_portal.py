@@ -2121,16 +2121,20 @@ class PromoSubmissionResponse(BaseModel):
     song_title: str
     source: str
     outlet_name: Optional[str] = None
+    outlet_type: Optional[str] = None
     influencer_name: Optional[str] = None
+    influencer_type: Optional[str] = None
     action: Optional[str] = None
     decision: Optional[str] = None
     feedback: Optional[str] = None
+    listen_time: Optional[int] = None
     submitted_at: Optional[str] = None
     responded_at: Optional[str] = None
     campaign_url: Optional[str] = None
     sharing_link: Optional[str] = None
     release_upc: Optional[str] = None
     track_isrc: Optional[str] = None
+    release_title: Optional[str] = None
 
 
 class PromoSubmissionCreate(BaseModel):
@@ -2200,9 +2204,13 @@ async def get_artist_promo_submissions(
     offset: int = 0,
 ) -> List[PromoSubmissionResponse]:
     """Get promo submissions for current artist."""
+    from app.models.artwork import ReleaseArtwork
+    from sqlalchemy.orm import selectinload
 
     query = select(PromoSubmission).where(
         PromoSubmission.artist_id == artist.id
+    ).options(
+        selectinload(PromoSubmission.release_artwork)
     ).order_by(PromoSubmission.submitted_at.desc())
 
     if source:
@@ -2222,16 +2230,20 @@ async def get_artist_promo_submissions(
             song_title=sub.song_title,
             source=sub.source.value if hasattr(sub.source, 'value') else str(sub.source),
             outlet_name=sub.outlet_name,
+            outlet_type=sub.outlet_type,
             influencer_name=sub.influencer_name,
+            influencer_type=sub.influencer_type,
             action=sub.action,
             decision=sub.decision,
             feedback=sub.feedback,
+            listen_time=sub.listen_time,
             submitted_at=sub.submitted_at.isoformat() if sub.submitted_at else None,
             responded_at=sub.responded_at.isoformat() if sub.responded_at else None,
             campaign_url=sub.campaign_url,
             sharing_link=sub.sharing_link,
             release_upc=sub.release_upc,
             track_isrc=sub.track_isrc,
+            release_title=sub.release_artwork.title if sub.release_artwork else None,
         )
         for sub in submissions
     ]
