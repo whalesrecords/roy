@@ -22,6 +22,32 @@ const getBadgeColor = (status: string): string => {
   return 'bg-content2 text-foreground';
 };
 
+const parseSharingLinks = (sharingLink: string): { url: string; platform: string; emoji: string; color: string }[] => {
+  const urls = sharingLink.split(',').map(url => url.trim()).filter(url => url.length > 0);
+
+  return urls.map(url => {
+    if (url.includes('spotify.com')) {
+      return { url, platform: 'Spotify', emoji: '🎵', color: 'from-green-500 to-green-600' };
+    } else if (url.includes('apple.com') || url.includes('music.apple')) {
+      return { url, platform: 'Apple Music', emoji: '🍎', color: 'from-pink-500 to-red-500' };
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      return { url, platform: 'YouTube', emoji: '📺', color: 'from-red-500 to-red-600' };
+    } else if (url.includes('deezer.com')) {
+      return { url, platform: 'Deezer', emoji: '🎧', color: 'from-purple-500 to-purple-600' };
+    } else if (url.includes('soundcloud.com')) {
+      return { url, platform: 'SoundCloud', emoji: '☁️', color: 'from-orange-500 to-orange-600' };
+    } else if (url.includes('tidal.com')) {
+      return { url, platform: 'Tidal', emoji: '🌊', color: 'from-blue-500 to-blue-600' };
+    } else if (url.includes('instagram.com')) {
+      return { url, platform: 'Instagram', emoji: '📸', color: 'from-pink-500 to-purple-600' };
+    } else if (url.includes('tiktok.com')) {
+      return { url, platform: 'TikTok', emoji: '🎬', color: 'from-black to-gray-800' };
+    } else {
+      return { url, platform: 'Link', emoji: '🔗', color: 'from-gray-500 to-gray-600' };
+    }
+  });
+};
+
 export default function MediaDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -179,25 +205,38 @@ export default function MediaDetailPage() {
         )}
 
         {/* Sharing Links (YouTube, Playlists, etc.) */}
-        {submission.sharing_link && (
-          <div className="bg-background border border-divider rounded-2xl p-6">
-            <p className="text-xs text-secondary-500 uppercase mb-3">Link</p>
-            <a
-              href={submission.sharing_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl hover:from-purple-500/20 hover:to-pink-500/20 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-purple-600 font-medium mb-1">View Placement</p>
-                <p className="text-xs text-secondary-500 truncate">{submission.sharing_link}</p>
+        {submission.sharing_link && (() => {
+          const links = parseSharingLinks(submission.sharing_link);
+          return (
+            <div className="bg-background border border-divider rounded-2xl p-6">
+              <p className="text-xs text-secondary-500 uppercase mb-3">
+                {links.length > 1 ? 'Links' : 'Link'}
+              </p>
+              <div className="space-y-3">
+                {links.map((link, index) => (
+                  <a
+                    key={index}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl hover:from-purple-500/20 hover:to-pink-500/20 transition-colors"
+                  >
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r ${link.color} flex-shrink-0`}>
+                      <span className="text-xl">{link.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-medium">{link.platform}</p>
+                      <p className="text-xs text-secondary-500 truncate">{link.url}</p>
+                    </div>
+                    <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                ))}
               </div>
-              <svg className="w-6 h-6 text-purple-600 flex-shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {/* Listen Time (SubmitHub only) */}
         {submission.listen_time && (
