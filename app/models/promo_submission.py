@@ -111,7 +111,7 @@ class PromoSubmission(Base):
         nullable=True,
         index=True,
     )
-    sharing_link: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    sharing_link: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Common fields
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

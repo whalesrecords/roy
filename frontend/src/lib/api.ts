@@ -1367,6 +1367,30 @@ export interface PromoSubmission {
   responded_at: string | null;
   created_at: string;
   updated_at: string;
+  artist_name: string | null;
+  release_title: string | null;
+}
+
+export interface TrackSummary {
+  song_title: string;
+  artist_id: string;
+  artist_name: string;
+  release_title: string | null;
+  release_upc: string | null;
+  track_isrc: string | null;
+  total_submissions: number;
+  total_listened: number;
+  total_approved: number;
+  total_declined: number;
+  total_shared: number;
+  total_playlists: number;
+  sources: string[];
+  latest_submitted_at: string | null;
+}
+
+export interface TracksSummaryResponse {
+  tracks: TrackSummary[];
+  total_tracks: number;
 }
 
 export interface SubmitHubAnalyzeResponse {
@@ -1498,6 +1522,18 @@ export async function getPromoSubmissions(params?: {
 export async function getPromoStats(artistId?: string): Promise<PromoStats> {
   const query = artistId ? `?artist_id=${artistId}` : '';
   return fetchApi<PromoStats>(`/promo/stats${query}`);
+}
+
+export async function getTracksSummary(params?: {
+  artist_id?: string;
+  release_upc?: string;
+}): Promise<TracksSummaryResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.artist_id) queryParams.set('artist_id', params.artist_id);
+  if (params?.release_upc) queryParams.set('release_upc', params.release_upc);
+
+  const query = queryParams.toString();
+  return fetchApi<TracksSummaryResponse>(`/promo/tracks-summary${query ? `?${query}` : ''}`);
 }
 
 export async function deletePromoSubmission(submissionId: string): Promise<void> {

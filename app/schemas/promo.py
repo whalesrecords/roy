@@ -50,6 +50,8 @@ class PromoSubmissionResponse(PromoSubmissionBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    artist_name: Optional[str] = None
+    release_title: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -146,3 +148,27 @@ class PromoSubmissionsListResponse(BaseModel):
     total_count: int
     page: int
     page_size: int
+
+
+class TrackSummary(BaseModel):
+    """Summary of promo submissions for a single track."""
+    song_title: str
+    artist_id: UUID
+    artist_name: str
+    release_title: Optional[str] = None
+    release_upc: Optional[str] = None
+    track_isrc: Optional[str] = None
+    total_submissions: int
+    total_listened: int
+    total_approved: int
+    total_declined: int
+    total_shared: int
+    total_playlists: int
+    sources: List[str]
+    latest_submitted_at: Optional[datetime] = None
+
+
+class TracksSummaryResponse(BaseModel):
+    """Response for tracks summary."""
+    tracks: List[TrackSummary]
+    total_tracks: int

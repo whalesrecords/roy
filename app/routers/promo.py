@@ -31,6 +31,8 @@ from app.schemas.promo import (
     SongMatch,
     PromoCampaignCreate,
     PromoCampaignResponse,
+    TracksSummaryResponse,
+    TrackSummary,
 )
 from app.services.parsers.submithub_parser import SubmitHubParser, SubmitHubRow, ParseError as SubmitHubParseError
 from app.services.parsers.groover_parser import GrooverParser, GrooverRow, ParseError as GrooverParseError
@@ -706,8 +708,15 @@ async def list_promo_submissions(
     List all promo submissions (admin view).
     Supports filtering by artist_id and source.
     """
-    # Build query
-    query = select(PromoSubmission).order_by(PromoSubmission.submitted_at.desc())
+    from app.models.artist import Artist
+    from app.models.artwork import ReleaseArtwork
+    from sqlalchemy.orm import selectinload
+
+    # Build query with joins
+    query = select(PromoSubmission).options(
+        selectinload(PromoSubmission.artist),
+        selectinload(PromoSubmission.release_artwork)
+    ).order_by(PromoSubmission.submitted_at.desc())
 
     if artist_id:
         try:
@@ -744,11 +753,126 @@ async def list_promo_submissions(
     result = await db.execute(query)
     submissions = result.scalars().all()
 
+    # Build response with artist_name and release_title
+    submission_responses = []
+    for s in submissions:
+        response_data = PromoSubmissionResponse.model_validate(s).model_dump()
+        response_data['artist_name'] = s.artist.name if s.artist else None
+        response_data['release_title'] = s.release_artwork.title if s.release_artwork else None
+        submission_responses.append(PromoSubmissionResponse(**response_data))
+
     return PromoSubmissionsListResponse(
-        submissions=[PromoSubmissionResponse.model_validate(s) for s in submissions],
+        submissions=submission_responses,
         total_count=total_count,
         page=offset // limit + 1,
         page_size=limit,
+    )
+
+
+@router.get("/tracks-summary", response_model=TracksSummaryResponse)
+async def get_tracks_summary(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[str] = None,
+    release_upc: Optional[str] = None,
+) -> TracksSummaryResponse:
+    """
+    Get summary of promo submissions grouped by track.
+    Shows metrics per track (listened, approved, declined, shared, playlists).
+    """
+    from app.models.artist import Artist
+    from app.models.artwork import ReleaseArtwork
+    from sqlalchemy.orm import selectinload
+    from collections import defaultdict
+
+    # Build query
+    query = select(PromoSubmission).options(
+        selectinload(PromoSubmission.artist),
+        selectinload(PromoSubmission.release_artwork)
+    )
+
+    if artist_id:
+        try:
+            artist_uuid = UUID(artist_id)
+            query = query.where(PromoSubmission.artist_id == artist_uuid)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid artist_id format",
+            )
+
+    if release_upc:
+        query = query.where(PromoSubmission.release_upc == release_upc)
+
+    result = await db.execute(query)
+    submissions = result.scalars().all()
+
+    # Group by track (song_title + release_upc + artist_id)
+    tracks_data = defaultdict(lambda: {
+        'submissions': [],
+        'listened': 0,
+        'approved': 0,
+        'declined': 0,
+        'shared': 0,
+        'playlists': 0,
+        'sources': set(),
+        'latest_submitted_at': None,
+    })
+
+    for sub in submissions:
+        # Create unique key for track
+        key = (sub.song_title, sub.release_upc or 'no_release', sub.artist_id)
+        track = tracks_data[key]
+        track['submissions'].append(sub)
+        track['sources'].add(sub.source.value if hasattr(sub.source, 'value') else str(sub.source))
+
+        # Count actions/decisions
+        action = (sub.action or '').lower()
+        decision = (sub.decision or '').lower()
+
+        if 'listen' in action:
+            track['listened'] += 1
+        if 'approved' in action or 'approved' in decision or 'accepted' in decision:
+            track['approved'] += 1
+        if 'declined' in action or 'declined' in decision or 'rejected' in decision:
+            track['declined'] += 1
+        if 'shared' in action or 'shar' in decision:
+            track['shared'] += 1
+        if 'playlist' in decision or 'added' in decision:
+            track['playlists'] += 1
+
+        # Track latest submission date
+        if sub.submitted_at:
+            if track['latest_submitted_at'] is None or sub.submitted_at > track['latest_submitted_at']:
+                track['latest_submitted_at'] = sub.submitted_at
+
+    # Build response
+    track_summaries = []
+    for (song_title, release_upc_key, artist_id), track_data in tracks_data.items():
+        first_sub = track_data['submissions'][0]
+        track_summaries.append(TrackSummary(
+            song_title=song_title,
+            artist_id=artist_id,
+            artist_name=first_sub.artist.name if first_sub.artist else 'Unknown',
+            release_title=first_sub.release_artwork.title if first_sub.release_artwork else None,
+            release_upc=first_sub.release_upc,
+            track_isrc=first_sub.track_isrc,
+            total_submissions=len(track_data['submissions']),
+            total_listened=track_data['listened'],
+            total_approved=track_data['approved'],
+            total_declined=track_data['declined'],
+            total_shared=track_data['shared'],
+            total_playlists=track_data['playlists'],
+            sources=list(track_data['sources']),
+            latest_submitted_at=track_data['latest_submitted_at'],
+        ))
+
+    # Sort by latest submission date (most recent first)
+    track_summaries.sort(key=lambda x: x.latest_submitted_at or datetime.min, reverse=True)
+
+    return TracksSummaryResponse(
+        tracks=track_summaries,
+        total_tracks=len(track_summaries),
     )
 
 
