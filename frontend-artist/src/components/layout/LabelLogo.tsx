@@ -16,6 +16,7 @@ export default function LabelLogo({
 }: LabelLogoProps) {
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     loadLabelSettings();
@@ -27,16 +28,31 @@ export default function LabelLogo({
       setLabelSettings(settings);
     } catch (err) {
       console.error('Error loading label settings:', err);
+      setError(true);
     } finally {
       setLoading(false);
     }
   };
 
+  // Show fallback immediately if loading takes too long or errors
   if (loading) {
+    // Return fallback after a short delay to avoid blocking
     return (
-      <div className={className}>
-        <div className="animate-pulse bg-content2 rounded h-full w-20" />
-      </div>
+      <img
+        src={fallbackSrc}
+        alt="Portal"
+        className={className}
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <img
+        src={fallbackSrc}
+        alt="Portal"
+        className={className}
+      />
     );
   }
 
@@ -49,6 +65,10 @@ export default function LabelLogo({
         src={logoSrc}
         alt={labelName}
         className={className}
+        onError={(e) => {
+          // Fallback to default icon if image fails to load
+          (e.target as HTMLImageElement).src = fallbackSrc;
+        }}
       />
       {showName && labelSettings?.label_name && (
         <span className="text-sm font-medium text-foreground hidden sm:inline">
