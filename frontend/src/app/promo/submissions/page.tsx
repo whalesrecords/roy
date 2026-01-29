@@ -49,10 +49,10 @@ export default function PromoSubmissionsPage() {
           artist_id: selectedArtist || undefined,
           release_upc: selectedAlbum || undefined,
         }),
-        getArtists({ limit: 500 }),
+        getArtists(),
       ]);
       setTracks(tracksData.tracks);
-      setArtists(artistsData.artists);
+      setArtists(artistsData);
     } catch (err: any) {
       console.error('Error loading data:', err);
       setError(err.message || 'Failed to load data');
