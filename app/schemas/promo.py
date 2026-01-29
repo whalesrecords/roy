@@ -111,6 +111,50 @@ class PromoStatsResponse(BaseModel):
     total_playlists: int
 
 
+class ArtistPromoStats(BaseModel):
+    """Promo stats for a single artist."""
+    artist_id: UUID
+    artist_name: str
+    total_submissions: int
+    total_listened: int
+    total_approved: int
+    total_declined: int
+    total_shared: int
+    total_playlists: int
+    approval_rate: float  # percentage
+
+
+class AlbumPromoStats(BaseModel):
+    """Promo stats for a single album."""
+    release_upc: Optional[str]
+    release_title: str
+    artist_id: UUID
+    artist_name: str
+    total_submissions: int
+    total_listened: int
+    total_approved: int
+    total_declined: int
+    total_shared: int
+    total_playlists: int
+    approval_rate: float  # percentage
+
+
+class DetailedPromoStatsResponse(BaseModel):
+    """Detailed stats with breakdowns by artist and album."""
+    # Global stats
+    total_submissions: int
+    by_source: dict
+    by_action: dict
+    by_decision: dict
+    total_listens: int
+    total_approvals: int
+    total_playlists: int
+
+    # Breakdowns
+    by_artist: List["ArtistPromoStats"]
+    by_album: List["AlbumPromoStats"]
+
+
 class PromoCampaignCreate(BaseModel):
     """Schema for creating a promo campaign."""
     artist_id: UUID

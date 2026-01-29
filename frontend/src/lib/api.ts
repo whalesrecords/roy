@@ -1440,6 +1440,47 @@ export interface PromoStats {
   total_playlists: number;
 }
 
+export interface ArtistPromoStats {
+  artist_id: string;
+  artist_name: string;
+  total_submissions: number;
+  total_listened: number;
+  total_approved: number;
+  total_declined: number;
+  total_shared: number;
+  total_playlists: number;
+  approval_rate: number;
+}
+
+export interface AlbumPromoStats {
+  release_upc: string | null;
+  release_title: string;
+  artist_id: string;
+  artist_name: string;
+  total_submissions: number;
+  total_listened: number;
+  total_approved: number;
+  total_declined: number;
+  total_shared: number;
+  total_playlists: number;
+  approval_rate: number;
+}
+
+export interface DetailedPromoStats {
+  // Global stats
+  total_submissions: number;
+  by_source: Record<string, number>;
+  by_action: Record<string, number>;
+  by_decision: Record<string, number>;
+  total_listens: number;
+  total_approvals: number;
+  total_playlists: number;
+
+  // Breakdowns
+  by_artist: ArtistPromoStats[];
+  by_album: AlbumPromoStats[];
+}
+
 export interface PromoSubmissionsListResponse {
   submissions: PromoSubmission[];
   total_count: number;
@@ -1522,6 +1563,10 @@ export async function getPromoSubmissions(params?: {
 export async function getPromoStats(artistId?: string): Promise<PromoStats> {
   const query = artistId ? `?artist_id=${artistId}` : '';
   return fetchApi<PromoStats>(`/promo/stats${query}`);
+}
+
+export async function getDetailedPromoStats(): Promise<DetailedPromoStats> {
+  return fetchApi<DetailedPromoStats>('/promo/stats/detailed');
 }
 
 export async function getTracksSummary(params?: {

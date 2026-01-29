@@ -28,6 +28,9 @@ from app.schemas.promo import (
     PromoSubmissionsListResponse,
     PromoSubmissionResponse,
     PromoStatsResponse,
+    DetailedPromoStatsResponse,
+    ArtistPromoStats,
+    AlbumPromoStats,
     SongMatch,
     PromoCampaignCreate,
     PromoCampaignResponse,
@@ -974,6 +977,188 @@ async def get_promo_stats(
         total_listens=total_listens,
         total_approvals=total_approvals,
         total_playlists=total_playlists,
+    )
+
+
+@router.get("/stats/detailed", response_model=DetailedPromoStatsResponse)
+async def get_detailed_promo_stats(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> DetailedPromoStatsResponse:
+    """
+    Get detailed promo stats with breakdowns by artist and album.
+    """
+    from app.models.artist import Artist
+    from app.models.artwork import ReleaseArtwork
+    from sqlalchemy.orm import selectinload
+
+    # Load all submissions with related data
+    result = await db.execute(
+        select(PromoSubmission)
+        .options(
+            selectinload(PromoSubmission.artist),
+            selectinload(PromoSubmission.release_artwork)
+        )
+    )
+    submissions = result.scalars().all()
+
+    # Calculate global stats
+    total_submissions = len(submissions)
+    by_source = {}
+    by_action = {}
+    by_decision = {}
+    total_listens = 0
+    total_approvals = 0
+    total_playlists = 0
+
+    # Group by artist
+    artist_stats = {}
+    # Group by album
+    album_stats = {}
+
+    for sub in submissions:
+        # Global stats
+        source_key = sub.source.value if hasattr(sub.source, 'value') else str(sub.source)
+        by_source[source_key] = by_source.get(source_key, 0) + 1
+
+        if sub.action:
+            by_action[sub.action] = by_action.get(sub.action, 0) + 1
+            if sub.action == "listen":
+                total_listens += 1
+            elif sub.action == "approved":
+                total_approvals += 1
+
+        if sub.decision:
+            by_decision[sub.decision] = by_decision.get(sub.decision, 0) + 1
+            if "playlist" in sub.decision.lower():
+                total_playlists += 1
+
+        # By artist
+        artist_id = sub.artist_id
+        if artist_id not in artist_stats:
+            artist_stats[artist_id] = {
+                'artist_name': sub.artist.name if sub.artist else 'Unknown',
+                'total_submissions': 0,
+                'total_listened': 0,
+                'total_approved': 0,
+                'total_declined': 0,
+                'total_shared': 0,
+                'total_playlists': 0,
+            }
+
+        artist_stats[artist_id]['total_submissions'] += 1
+
+        if sub.action:
+            if sub.action == "listen":
+                artist_stats[artist_id]['total_listened'] += 1
+            elif sub.action == "approved":
+                artist_stats[artist_id]['total_approved'] += 1
+            elif sub.action == "declined":
+                artist_stats[artist_id]['total_declined'] += 1
+            elif sub.action == "shared":
+                artist_stats[artist_id]['total_shared'] += 1
+
+        if sub.decision:
+            if "playlist" in sub.decision.lower() or "added" in sub.decision.lower():
+                artist_stats[artist_id]['total_playlists'] += 1
+            elif "approved" in sub.decision.lower() or "accepted" in sub.decision.lower():
+                artist_stats[artist_id]['total_approved'] += 1
+            elif "declined" in sub.decision.lower() or "rejected" in sub.decision.lower():
+                artist_stats[artist_id]['total_declined'] += 1
+
+        # By album
+        if sub.release_artwork:
+            album_key = sub.release_upc or sub.release_artwork.upc
+            if album_key and album_key not in album_stats:
+                album_stats[album_key] = {
+                    'release_upc': album_key,
+                    'release_title': sub.release_artwork.title or 'Unknown Album',
+                    'artist_id': artist_id,
+                    'artist_name': sub.artist.name if sub.artist else 'Unknown',
+                    'total_submissions': 0,
+                    'total_listened': 0,
+                    'total_approved': 0,
+                    'total_declined': 0,
+                    'total_shared': 0,
+                    'total_playlists': 0,
+                }
+
+            if album_key:
+                album_stats[album_key]['total_submissions'] += 1
+
+                if sub.action:
+                    if sub.action == "listen":
+                        album_stats[album_key]['total_listened'] += 1
+                    elif sub.action == "approved":
+                        album_stats[album_key]['total_approved'] += 1
+                    elif sub.action == "declined":
+                        album_stats[album_key]['total_declined'] += 1
+                    elif sub.action == "shared":
+                        album_stats[album_key]['total_shared'] += 1
+
+                if sub.decision:
+                    if "playlist" in sub.decision.lower() or "added" in sub.decision.lower():
+                        album_stats[album_key]['total_playlists'] += 1
+                    elif "approved" in sub.decision.lower() or "accepted" in sub.decision.lower():
+                        album_stats[album_key]['total_approved'] += 1
+                    elif "declined" in sub.decision.lower() or "rejected" in sub.decision.lower():
+                        album_stats[album_key]['total_declined'] += 1
+
+    # Convert to response format
+    by_artist = []
+    for artist_id, stats in artist_stats.items():
+        approval_rate = (
+            (stats['total_approved'] / stats['total_submissions']) * 100
+            if stats['total_submissions'] > 0
+            else 0.0
+        )
+        by_artist.append(ArtistPromoStats(
+            artist_id=artist_id,
+            artist_name=stats['artist_name'],
+            total_submissions=stats['total_submissions'],
+            total_listened=stats['total_listened'],
+            total_approved=stats['total_approved'],
+            total_declined=stats['total_declined'],
+            total_shared=stats['total_shared'],
+            total_playlists=stats['total_playlists'],
+            approval_rate=round(approval_rate, 1),
+        ))
+
+    by_album = []
+    for album_upc, stats in album_stats.items():
+        approval_rate = (
+            (stats['total_approved'] / stats['total_submissions']) * 100
+            if stats['total_submissions'] > 0
+            else 0.0
+        )
+        by_album.append(AlbumPromoStats(
+            release_upc=stats['release_upc'],
+            release_title=stats['release_title'],
+            artist_id=stats['artist_id'],
+            artist_name=stats['artist_name'],
+            total_submissions=stats['total_submissions'],
+            total_listened=stats['total_listened'],
+            total_approved=stats['total_approved'],
+            total_declined=stats['total_declined'],
+            total_shared=stats['total_shared'],
+            total_playlists=stats['total_playlists'],
+            approval_rate=round(approval_rate, 1),
+        ))
+
+    # Sort by total submissions descending
+    by_artist.sort(key=lambda x: x.total_submissions, reverse=True)
+    by_album.sort(key=lambda x: x.total_submissions, reverse=True)
+
+    return DetailedPromoStatsResponse(
+        total_submissions=total_submissions,
+        by_source=by_source,
+        by_action=by_action,
+        by_decision=by_decision,
+        total_listens=total_listens,
+        total_approvals=total_approvals,
+        total_playlists=total_playlists,
+        by_artist=by_artist,
+        by_album=by_album,
     )
 
 
