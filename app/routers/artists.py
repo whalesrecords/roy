@@ -1547,6 +1547,24 @@ async def create_payment(
         else:
             logger.warning(f"Statement {data.statement_id} not found for artist {artist_id}")
 
+    # Create notification for artist
+    from app.models.artist_notification import ArtistNotification, ArtistNotificationType
+    import json
+
+    notification = ArtistNotification(
+        artist_id=artist_id,
+        notification_type=ArtistNotificationType.PAYMENT_RECEIVED,
+        title="Paiement reçu",
+        message=f"Un paiement de {data.amount} {data.currency} a été effectué. {data.description or ''}".strip(),
+        link="/payments" if not data.statement_id else f"/payments/{data.statement_id}",
+        data=json.dumps({
+            "amount": float(data.amount),
+            "currency": data.currency,
+            "statement_id": str(data.statement_id) if data.statement_id else None,
+        }),
+    )
+    db.add(notification)
+
     await db.commit()
 
     return AdvanceLedgerEntryResponse(

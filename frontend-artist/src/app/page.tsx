@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
+import NotificationBell from '@/components/layout/NotificationBell';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
@@ -132,6 +133,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full bg-content2 hover:bg-content3 transition-colors"

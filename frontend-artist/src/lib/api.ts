@@ -404,3 +404,46 @@ export async function createManualPromoSubmission(data: CreateManualPromoRequest
     body: JSON.stringify(data),
   });
 }
+
+
+// ============ Artist Notifications ============
+
+export interface ArtistNotification {
+  id: string;
+  notification_type: string;
+  title: string;
+  message: string | null;
+  link: string | null;
+  data: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export async function getArtistNotifications(params?: {
+  unread_only?: boolean;
+  limit?: number;
+}): Promise<ArtistNotification[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.unread_only) queryParams.set("unread_only", "true");
+  if (params?.limit) queryParams.set("limit", params.limit.toString());
+
+  const query = queryParams.toString();
+  return fetchApi<ArtistNotification[]>("/artist-portal/notifications" + (query ? "?" + query : ""));
+}
+
+export async function getUnreadNotificationsCount(): Promise<{ unread_count: number }> {
+  return fetchApi<{ unread_count: number }>("/artist-portal/notifications/unread-count");
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>("/artist-portal/notifications/" + notificationId + "/read", {
+    method: "PUT",
+  });
+}
+
+export async function markAllNotificationsAsRead(): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>("/artist-portal/notifications/mark-all-read", {
+    method: "PUT",
+  });
+}
+

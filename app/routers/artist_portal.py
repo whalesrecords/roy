@@ -27,6 +27,7 @@ from app.models.statement import Statement
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.artist_profile import ArtistProfile
 from app.models.notification import Notification, NotificationType
+from app.models.artist_notification import ArtistNotification, ArtistNotificationType
 from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
 from app.models.ticket_message import TicketMessage, MessageSender
 from app.models.ticket_participant import TicketParticipant
@@ -2287,3 +2288,118 @@ async def create_manual_promo_submission(
         release_upc=submission.release_upc,
         track_isrc=submission.track_isrc,
     )
+
+
+# ============ Artist Notifications ============
+
+class ArtistNotificationResponse(BaseModel):
+    """Artist notification for artist view."""
+    id: str
+    notification_type: str
+    title: str
+    message: Optional[str] = None
+    link: Optional[str] = None
+    data: Optional[str] = None
+    is_read: bool
+    created_at: str
+
+
+@router.get("/notifications")
+async def get_artist_notifications(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+    unread_only: bool = False,
+    limit: int = 50,
+) -> List[ArtistNotificationResponse]:
+    """Get notifications for current artist."""
+
+    query = select(ArtistNotification).where(
+        ArtistNotification.artist_id == artist.id
+    )
+
+    if unread_only:
+        query = query.where(ArtistNotification.is_read == False)
+
+    query = query.order_by(ArtistNotification.created_at.desc()).limit(limit)
+
+    result = await db.execute(query)
+    notifications = result.scalars().all()
+
+    return [
+        ArtistNotificationResponse(
+            id=str(notif.id),
+            notification_type=notif.notification_type,
+            title=notif.title,
+            message=notif.message,
+            link=notif.link,
+            data=notif.data,
+            is_read=notif.is_read,
+            created_at=notif.created_at.isoformat(),
+        )
+        for notif in notifications
+    ]
+
+
+@router.get("/notifications/unread-count")
+async def get_unread_notifications_count(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get count of unread notifications."""
+
+    result = await db.execute(
+        select(func.count())
+        .select_from(ArtistNotification)
+        .where(ArtistNotification.artist_id == artist.id)
+        .where(ArtistNotification.is_read == False)
+    )
+    count = result.scalar()
+
+    return {"unread_count": count or 0}
+
+
+@router.put("/notifications/{notification_id}/read")
+async def mark_notification_as_read(
+    notification_id: str,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Mark notification as read."""
+
+    try:
+        notif_uuid = uuid.UUID(notification_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid notification ID")
+
+    result = await db.execute(
+        select(ArtistNotification)
+        .where(ArtistNotification.id == notif_uuid)
+        .where(ArtistNotification.artist_id == artist.id)
+    )
+    notification = result.scalar_one_or_none()
+
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = True
+    await db.commit()
+
+    return {"message": "Notification marked as read"}
+
+
+@router.put("/notifications/mark-all-read")
+async def mark_all_notifications_as_read(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Mark all notifications as read."""
+
+    await db.execute(
+        ArtistNotification.__table__.update()
+        .where(ArtistNotification.artist_id == artist.id)
+        .where(ArtistNotification.is_read == False)
+        .values(is_read=True)
+    )
+    await db.commit()
+
+    return {"message": "All notifications marked as read"}
