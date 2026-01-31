@@ -35,11 +35,11 @@ class ArtistNotification(Base):
         default=uuid.uuid4,
     )
 
-    # Artist this notification is for
-    artist_id: Mapped[uuid.UUID] = mapped_column(
+    # Artist this notification is for (null = global message for all artists)
+    artist_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("artists.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 

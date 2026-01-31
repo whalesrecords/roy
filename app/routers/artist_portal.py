@@ -2427,10 +2427,14 @@ async def get_artist_notifications(
     unread_only: bool = False,
     limit: int = 50,
 ) -> List[ArtistNotificationResponse]:
-    """Get notifications for current artist."""
+    """Get notifications for current artist (specific + global admin messages)."""
+    from sqlalchemy import or_
 
     query = select(ArtistNotification).where(
-        ArtistNotification.artist_id == artist.id
+        or_(
+            ArtistNotification.artist_id == artist.id,
+            ArtistNotification.artist_id.is_(None)  # Global admin messages
+        )
     )
 
     if unread_only:
@@ -2461,12 +2465,18 @@ async def get_unread_notifications_count(
     artist: Artist = Depends(get_current_artist),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Get count of unread notifications."""
+    """Get count of unread notifications (specific + global)."""
+    from sqlalchemy import or_
 
     result = await db.execute(
         select(func.count())
         .select_from(ArtistNotification)
-        .where(ArtistNotification.artist_id == artist.id)
+        .where(
+            or_(
+                ArtistNotification.artist_id == artist.id,
+                ArtistNotification.artist_id.is_(None)  # Global admin messages
+            )
+        )
         .where(ArtistNotification.is_read == False)
     )
     count = result.scalar()
