@@ -119,6 +119,12 @@ export interface Artist {
   spotify_id?: string;
   image_url?: string;
   image_url_small?: string;
+  // Social media links
+  instagram_url?: string;
+  twitter_url?: string;
+  facebook_url?: string;
+  tiktok_url?: string;
+  youtube_url?: string;
   access_code?: string;
   email?: string;
   auth_user_id?: string;
