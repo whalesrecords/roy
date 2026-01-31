@@ -625,6 +625,8 @@ async def get_releases(
     db: AsyncSession = Depends(get_db),
 ):
     """Get artist's releases with revenue."""
+    from app.models.contract import Contract
+
     result = await db.execute(
         select(
             TransactionNormalized.upc,
@@ -652,10 +654,29 @@ async def get_releases(
     )
     artworks = {a.upc: a.image_url for a in artwork_result.scalars().all()}
 
+    # Get all contracts for this artist
+    contracts_result = await db.execute(
+        select(Contract).where(Contract.artist_id == artist.id)
+    )
+    contracts = contracts_result.scalars().all()
+
+    # Build contract lookup: UPC -> artist_share
+    contract_shares = {}
+    catalog_share = 0.5  # Default fallback
+
+    for contract in contracts:
+        if contract.scope == "catalog":
+            catalog_share = float(contract.artist_share) / 100.0
+        elif contract.scope == "release" and contract.scope_id:
+            contract_shares[contract.scope_id] = float(contract.artist_share) / 100.0
+
     releases = []
     for row in rows:
         gross = float(row.gross or 0)
-        net = gross * 0.5  # Default 50% share
+        # Use release-specific contract if exists, otherwise catalog default
+        artist_share = contract_shares.get(row.upc, catalog_share)
+        net = gross * artist_share
+
         releases.append({
             "upc": row.upc,
             "title": row.release_title or "Unknown",
@@ -676,9 +697,12 @@ async def get_tracks(
     db: AsyncSession = Depends(get_db),
 ):
     """Get artist's tracks with revenue."""
+    from app.models.contract import Contract
+
     result = await db.execute(
         select(
             TransactionNormalized.isrc,
+            TransactionNormalized.upc,
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
             func.sum(TransactionNormalized.gross_amount).label("gross"),
@@ -692,6 +716,7 @@ async def get_tracks(
         )
         .group_by(
             TransactionNormalized.isrc,
+            TransactionNormalized.upc,
             TransactionNormalized.track_title,
             TransactionNormalized.release_title,
         )
@@ -707,10 +732,38 @@ async def get_tracks(
     )
     artworks = {a.isrc: a.image_url for a in artwork_result.scalars().all()}
 
+    # Get all contracts for this artist
+    contracts_result = await db.execute(
+        select(Contract).where(Contract.artist_id == artist.id)
+    )
+    contracts = contracts_result.scalars().all()
+
+    # Build contract lookup hierarchies
+    track_contracts = {}  # ISRC -> artist_share
+    release_contracts = {}  # UPC -> artist_share
+    catalog_share = 0.5  # Default fallback
+
+    for contract in contracts:
+        if contract.scope == "catalog":
+            catalog_share = float(contract.artist_share) / 100.0
+        elif contract.scope == "release" and contract.scope_id:
+            release_contracts[contract.scope_id] = float(contract.artist_share) / 100.0
+        elif contract.scope == "track" and contract.scope_id:
+            track_contracts[contract.scope_id] = float(contract.artist_share) / 100.0
+
     tracks = []
     for row in rows:
         gross = float(row.gross or 0)
-        net = gross * 0.5  # Default 50% share
+
+        # Contract hierarchy: track-specific > release-specific > catalog default
+        artist_share = catalog_share
+        if row.isrc in track_contracts:
+            artist_share = track_contracts[row.isrc]
+        elif row.upc and row.upc in release_contracts:
+            artist_share = release_contracts[row.upc]
+
+        net = gross * artist_share
+
         tracks.append({
             "isrc": row.isrc,
             "title": row.track_title or "Unknown",
