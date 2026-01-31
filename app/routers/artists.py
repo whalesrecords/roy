@@ -459,9 +459,9 @@ async def update_artist(
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> ArtistResponse:
     """
-    Update artist details including Spotify link.
+    Update artist details including Spotify link and social media.
 
-    Accepts: name, external_id, spotify_id, image_url, image_url_small
+    Accepts: name, external_id, spotify_id, image_url, image_url_small, instagram_url, twitter_url, facebook_url, tiktok_url, youtube_url
     """
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -485,6 +485,17 @@ async def update_artist(
         artist.image_url = data["image_url"]
     if "image_url_small" in data:
         artist.image_url_small = data["image_url_small"]
+    # Social media links
+    if "instagram_url" in data:
+        artist.instagram_url = data["instagram_url"]
+    if "twitter_url" in data:
+        artist.twitter_url = data["twitter_url"]
+    if "facebook_url" in data:
+        artist.facebook_url = data["facebook_url"]
+    if "tiktok_url" in data:
+        artist.tiktok_url = data["tiktok_url"]
+    if "youtube_url" in data:
+        artist.youtube_url = data["youtube_url"]
 
     await db.flush()
 
@@ -496,6 +507,11 @@ async def update_artist(
         spotify_id=artist.spotify_id,
         image_url=artist.image_url,
         image_url_small=artist.image_url_small,
+        instagram_url=artist.instagram_url,
+        twitter_url=artist.twitter_url,
+        facebook_url=artist.facebook_url,
+        tiktok_url=artist.tiktok_url,
+        youtube_url=artist.youtube_url,
         created_at=artist.created_at,
     )
 

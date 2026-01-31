@@ -247,6 +247,28 @@ export async function updateProfile(data: Partial<ArtistProfile>): Promise<Artis
   });
 }
 
+// Social Media Types
+export interface SocialMedia {
+  instagram_url?: string;
+  twitter_url?: string;
+  facebook_url?: string;
+  tiktok_url?: string;
+  youtube_url?: string;
+}
+
+// Social Media API Functions
+export async function getSocialMedia(): Promise<SocialMedia> {
+  return fetchApi<SocialMedia>('/artist-portal/social-media');
+}
+
+export async function updateSocialMedia(data: Partial<SocialMedia>): Promise<SocialMedia> {
+  return fetchApi<SocialMedia>('/artist-portal/social-media', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
 export async function requestPayment(statementId: string, message?: string): Promise<{ message: string; statement_id: string }> {
   return fetchApi('/artist-portal/request-payment', {
     method: 'POST',
