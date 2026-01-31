@@ -5,16 +5,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/layout/BottomNav';
 import { Spinner, Input, Button } from '@heroui/react';
 import Link from 'next/link';
-import { getProfile, updateProfile, ArtistProfile, getLabelSettings, LabelSettings } from '@/lib/api';
+import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [profile, setProfile] = useState<ArtistProfile>({});
+  const [socialMedia, setSocialMedia] = useState<SocialMedia>({});
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingSocial, setSavingSocial] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -35,6 +37,14 @@ export default function SettingsPage() {
     vat_number: '',
   });
 
+  const [socialData, setSocialData] = useState<SocialMedia>({
+    instagram_url: '',
+    twitter_url: '',
+    facebook_url: '',
+    tiktok_url: '',
+    youtube_url: '',
+  });
+
   useEffect(() => {
     if (artist) {
       loadData();
@@ -43,11 +53,13 @@ export default function SettingsPage() {
 
   const loadData = async () => {
     try {
-      const [profileData, settings] = await Promise.all([
+      const [profileData, socialData, settings] = await Promise.all([
         getProfile(),
+        getSocialMedia(),
         getLabelSettings(),
       ]);
       setProfile(profileData);
+      setSocialMedia(socialData);
       setLabelSettings(settings);
       setFormData({
         email: profileData.email || '',
@@ -63,6 +75,13 @@ export default function SettingsPage() {
         bic: profileData.bic || '',
         siret: profileData.siret || '',
         vat_number: profileData.vat_number || '',
+      });
+      setSocialData({
+        instagram_url: socialData.instagram_url || '',
+        twitter_url: socialData.twitter_url || '',
+        facebook_url: socialData.facebook_url || '',
+        tiktok_url: socialData.tiktok_url || '',
+        youtube_url: socialData.youtube_url || '',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Loading error');
@@ -99,6 +118,36 @@ export default function SettingsPage() {
 
   const handleChange = (field: keyof ArtistProfile, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSocialChange = (field: keyof SocialMedia, value: string) => {
+    setSocialData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSocialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setSavingSocial(true);
+
+    try {
+      // Only send fields that have values
+      const dataToSend: Partial<SocialMedia> = {};
+      Object.entries(socialData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          dataToSend[key as keyof SocialMedia] = value.trim() || '';
+        }
+      });
+
+      const updated = await updateSocialMedia(dataToSend);
+      setSocialMedia(updated);
+      setSuccess('Social media links updated successfully');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save error');
+    } finally {
+      setSavingSocial(false);
+    }
   };
 
   if (authLoading || loading) {
@@ -292,7 +341,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Submit Button */}
+          {/* Submit Button for Profile */}
           <Button
             type="submit"
             color="primary"
@@ -301,6 +350,113 @@ export default function SettingsPage() {
             isLoading={saving}
           >
             {saving ? 'Saving...' : 'Save changes'}
+          </Button>
+        </form>
+
+        {/* Social Media Section - Separate form */}
+        <form onSubmit={handleSocialSubmit} className="space-y-6 mt-6">
+          <section className="bg-background border border-divider rounded-2xl p-4">
+            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Social Media
+            </h2>
+            <p className="text-xs text-secondary-500 mb-4">
+              Share your social media profiles with your label
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Instagram</label>
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
+                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  <input
+                    type="url"
+                    placeholder="https://instagram.com/yourname"
+                    value={socialData.instagram_url}
+                    onChange={(e) => handleSocialChange('instagram_url', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Twitter / X</label>
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
+                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                  <input
+                    type="url"
+                    placeholder="https://twitter.com/yourname"
+                    value={socialData.twitter_url}
+                    onChange={(e) => handleSocialChange('twitter_url', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Facebook</label>
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
+                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  <input
+                    type="url"
+                    placeholder="https://facebook.com/yourname"
+                    value={socialData.facebook_url}
+                    onChange={(e) => handleSocialChange('facebook_url', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">TikTok</label>
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
+                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
+                  </svg>
+                  <input
+                    type="url"
+                    placeholder="https://tiktok.com/@yourname"
+                    value={socialData.tiktok_url}
+                    onChange={(e) => handleSocialChange('tiktok_url', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">YouTube</label>
+                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
+                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <input
+                    type="url"
+                    placeholder="https://youtube.com/@yourname"
+                    value={socialData.youtube_url}
+                    onChange={(e) => handleSocialChange('youtube_url', e.target.value)}
+                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Submit Button for Social Media */}
+          <Button
+            type="submit"
+            color="primary"
+            className="w-full"
+            size="lg"
+            isLoading={savingSocial}
+          >
+            {savingSocial ? 'Saving...' : 'Save social media'}
           </Button>
 
           {/* Info notice */}

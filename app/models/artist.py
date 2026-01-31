@@ -55,6 +55,13 @@ class Artist(Base):
     image_url: Mapped[str] = mapped_column(String(500), nullable=True)
     image_url_small: Mapped[str] = mapped_column(String(500), nullable=True)
 
+    # Social media links
+    instagram_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    twitter_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    facebook_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    tiktok_url: Mapped[str] = mapped_column(String(500), nullable=True)
+    youtube_url: Mapped[str] = mapped_column(String(500), nullable=True)
+
     # Artist portal access
     access_code: Mapped[str] = mapped_column(String(20), nullable=True, unique=True)
     email: Mapped[str] = mapped_column(String(255), nullable=True, unique=True, index=True)

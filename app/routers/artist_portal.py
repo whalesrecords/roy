@@ -1227,6 +1227,24 @@ class ArtistProfileUpdate(BaseModel):
     vat_number: Optional[str] = None
 
 
+class SocialMediaUpdate(BaseModel):
+    """Update social media links."""
+    instagram_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    tiktok_url: Optional[str] = None
+    youtube_url: Optional[str] = None
+
+
+class SocialMediaResponse(BaseModel):
+    """Social media links response."""
+    instagram_url: Optional[str] = None
+    twitter_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    tiktok_url: Optional[str] = None
+    youtube_url: Optional[str] = None
+
+
 class PaymentRequestBody(BaseModel):
     statement_id: str
     message: Optional[str] = None
@@ -1360,6 +1378,51 @@ async def update_profile(
         bic=profile.bic,
         siret=profile.siret,
         vat_number=profile.vat_number,
+    )
+
+
+@router.get("/social-media", response_model=SocialMediaResponse)
+async def get_social_media(
+    artist: Artist = Depends(get_current_artist),
+):
+    """Get artist social media links."""
+    return SocialMediaResponse(
+        instagram_url=artist.instagram_url,
+        twitter_url=artist.twitter_url,
+        facebook_url=artist.facebook_url,
+        tiktok_url=artist.tiktok_url,
+        youtube_url=artist.youtube_url,
+    )
+
+
+@router.put("/social-media", response_model=SocialMediaResponse)
+async def update_social_media(
+    data: SocialMediaUpdate,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update artist social media links."""
+    # Update fields
+    if data.instagram_url is not None:
+        artist.instagram_url = data.instagram_url or None
+    if data.twitter_url is not None:
+        artist.twitter_url = data.twitter_url or None
+    if data.facebook_url is not None:
+        artist.facebook_url = data.facebook_url or None
+    if data.tiktok_url is not None:
+        artist.tiktok_url = data.tiktok_url or None
+    if data.youtube_url is not None:
+        artist.youtube_url = data.youtube_url or None
+
+    await db.commit()
+    await db.refresh(artist)
+
+    return SocialMediaResponse(
+        instagram_url=artist.instagram_url,
+        twitter_url=artist.twitter_url,
+        facebook_url=artist.facebook_url,
+        tiktok_url=artist.tiktok_url,
+        youtube_url=artist.youtube_url,
     )
 
 
