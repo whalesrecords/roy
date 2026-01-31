@@ -666,9 +666,9 @@ async def get_releases(
 
     for contract in contracts:
         if contract.scope == "catalog":
-            catalog_share = float(contract.artist_share) / 100.0
+            catalog_share = float(contract.artist_share)
         elif contract.scope == "release" and contract.scope_id:
-            contract_shares[contract.scope_id] = float(contract.artist_share) / 100.0
+            contract_shares[contract.scope_id] = float(contract.artist_share)
 
     releases = []
     for row in rows:
@@ -745,11 +745,11 @@ async def get_tracks(
 
     for contract in contracts:
         if contract.scope == "catalog":
-            catalog_share = float(contract.artist_share) / 100.0
+            catalog_share = float(contract.artist_share)
         elif contract.scope == "release" and contract.scope_id:
-            release_contracts[contract.scope_id] = float(contract.artist_share) / 100.0
+            release_contracts[contract.scope_id] = float(contract.artist_share)
         elif contract.scope == "track" and contract.scope_id:
-            track_contracts[contract.scope_id] = float(contract.artist_share) / 100.0
+            track_contracts[contract.scope_id] = float(contract.artist_share)
 
     tracks = []
     for row in rows:
