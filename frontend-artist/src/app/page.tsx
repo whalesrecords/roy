@@ -408,13 +408,21 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* App Logo */}
+        {/* Label Logo */}
         <div className="flex justify-center pt-4">
-          <img
-            src="/icon.svg"
-            alt="Artist Portal"
-            className="h-12 object-contain opacity-50"
-          />
+          {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
+            <img
+              src={labelSettings.logo_base64 || labelSettings.logo_url}
+              alt={labelSettings.label_name || 'Label'}
+              className="h-12 object-contain opacity-50"
+            />
+          ) : (
+            <img
+              src="/icon.svg"
+              alt="Artist Portal"
+              className="h-12 object-contain opacity-50"
+            />
+          )}
         </div>
       </main>
 

@@ -113,8 +113,8 @@ export default function StatementDetailPage() {
         {labelSettings?.label_name && (
           <div className="flex items-center gap-3 p-3 bg-content2 rounded-xl">
             <img
-              src="/icon.svg"
-              alt="Artist Portal"
+              src={labelSettings.logo_base64 || labelSettings.logo_url || '/icon.svg'}
+              alt={labelSettings.label_name}
               className="h-10 w-auto object-contain"
             />
             <span className="font-medium text-foreground">{labelSettings.label_name}</span>
