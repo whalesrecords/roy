@@ -12,9 +12,16 @@ const roboto = Roboto({
   weight: ['100', '300', '400', '500', '700', '900'],
 });
 
+// Force dynamic rendering for all pages (requires authentication)
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
-  title: 'Royalties Admin',
+  title: 'Whales Records - SignFlow',
   description: 'Gestion des imports et royalties',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

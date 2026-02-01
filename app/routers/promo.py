@@ -797,7 +797,7 @@ async def list_promo_submissions(
     for s in submissions:
         response_data = PromoSubmissionResponse.model_validate(s).model_dump()
         response_data['artist_name'] = s.artist.name if s.artist else None
-        response_data['release_title'] = s.release_artwork.title if s.release_artwork else None
+        response_data['release_title'] = s.release_artwork.name if s.release_artwork else None
         submission_responses.append(PromoSubmissionResponse(**response_data))
 
     return PromoSubmissionsListResponse(
@@ -893,7 +893,7 @@ async def get_tracks_summary(
             song_title=song_title,
             artist_id=artist_id,
             artist_name=first_sub.artist.name if first_sub.artist else 'Unknown',
-            release_title=first_sub.release_artwork.title if first_sub.release_artwork else None,
+            release_title=first_sub.release_artwork.name if first_sub.release_artwork else None,
             release_upc=first_sub.release_upc,
             track_isrc=first_sub.track_isrc,
             total_submissions=len(track_data['submissions']),
@@ -1072,7 +1072,7 @@ async def get_detailed_promo_stats(
             if album_key and album_key not in album_stats:
                 album_stats[album_key] = {
                     'release_upc': album_key,
-                    'release_title': sub.release_artwork.title or 'Unknown Album',
+                    'release_title': sub.release_artwork.name or 'Unknown Album',
                     'artist_id': artist_id,
                     'artist_name': sub.artist.name if sub.artist else 'Unknown',
                     'total_submissions': 0,
