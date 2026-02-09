@@ -366,6 +366,8 @@ async def import_submithub_csv(
         errors = []
         artists_not_found = set()
 
+        skipped_duplicates = 0
+
         for row in parse_result.rows:
             # Determine which artist this submission belongs to
             row_artist_id = artist_uuid  # Use provided artist if set
@@ -380,6 +382,18 @@ async def import_submithub_csv(
 
             if not row_artist_id:
                 errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from filename")
+                continue
+
+            # Check for duplicate submission
+            dup_query = select(PromoSubmission).where(
+                PromoSubmission.artist_id == row_artist_id,
+                PromoSubmission.source == PromoSource.SUBMITHUB,
+                PromoSubmission.song_title == row.song_title,
+                PromoSubmission.outlet_name == row.outlet_name,
+            )
+            dup_result = await db.execute(dup_query)
+            if dup_result.scalar_one_or_none():
+                skipped_duplicates += 1
                 continue
 
             # Match song to catalog
@@ -453,8 +467,12 @@ async def import_submithub_csv(
         for err in parse_result.errors:
             errors.append(f"Row {err.row_number}: {err.error}")
 
+        if skipped_duplicates:
+            errors.append(f"{skipped_duplicates} duplicate submission(s) skipped")
+
         return ImportSubmitHubResponse(
             created_count=len(submissions),
+            skipped_duplicates=skipped_duplicates,
             matched_songs=matched_songs,
             unmatched_songs=unmatched_songs,
             campaign_id=campaign.id if campaign else None,
@@ -616,6 +634,8 @@ async def import_groover_csv(
         errors = []
         artists_not_found = set()
 
+        skipped_duplicates = 0
+
         for row in parse_result.rows:
             # Determine which artist this submission belongs to
             row_artist_id = artist_uuid  # Use provided artist if set
@@ -630,6 +650,18 @@ async def import_groover_csv(
 
             if not row_artist_id:
                 errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from CSV")
+                continue
+
+            # Check for duplicate submission
+            dup_query = select(PromoSubmission).where(
+                PromoSubmission.artist_id == row_artist_id,
+                PromoSubmission.source == PromoSource.GROOVER,
+                PromoSubmission.song_title == row.track_title,
+                PromoSubmission.influencer_name == row.influencer_name,
+            )
+            dup_result = await db.execute(dup_query)
+            if dup_result.scalar_one_or_none():
+                skipped_duplicates += 1
                 continue
 
             # Match song to catalog
@@ -708,8 +740,12 @@ async def import_groover_csv(
         if artists_not_found:
             errors.append(f"Artists not found in database: {', '.join(sorted(artists_not_found))}")
 
+        if skipped_duplicates:
+            errors.append(f"{skipped_duplicates} duplicate submission(s) skipped")
+
         return ImportGrooverResponse(
             created_count=len(submissions),
+            skipped_duplicates=skipped_duplicates,
             matched_songs=matched_songs,
             unmatched_songs=unmatched_songs,
             campaign_id=campaign.id if campaign else None,

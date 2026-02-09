@@ -218,6 +218,7 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <Input
                 label="Email"
+                labelPlacement="outside"
                 type="email"
                 placeholder="your@email.com"
                 value={formData.email}
@@ -225,6 +226,7 @@ export default function SettingsPage() {
               />
               <Input
                 label="Phone"
+                labelPlacement="outside"
                 type="tel"
                 placeholder="+1 234 567 8900"
                 value={formData.phone}
@@ -245,12 +247,14 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <Input
                 label="Address line 1"
+                labelPlacement="outside"
                 placeholder="123 Music Street"
                 value={formData.address_line1}
                 onChange={(e) => handleChange('address_line1', e.target.value)}
               />
               <Input
                 label="Address line 2"
+                labelPlacement="outside"
                 placeholder="Apartment, building..."
                 value={formData.address_line2}
                 onChange={(e) => handleChange('address_line2', e.target.value)}
@@ -258,12 +262,14 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   label="Postal code"
+                  labelPlacement="outside"
                   placeholder="10001"
                   value={formData.postal_code}
                   onChange={(e) => handleChange('postal_code', e.target.value)}
                 />
                 <Input
                   label="City"
+                  labelPlacement="outside"
                   placeholder="New York"
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
@@ -271,6 +277,7 @@ export default function SettingsPage() {
               </div>
               <Input
                 label="Country"
+                labelPlacement="outside"
                 placeholder="United States"
                 value={formData.country}
                 onChange={(e) => handleChange('country', e.target.value)}
@@ -289,24 +296,28 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <Input
                 label="Account holder"
+                labelPlacement="outside"
                 placeholder="Full name or business name"
                 value={formData.account_holder}
                 onChange={(e) => handleChange('account_holder', e.target.value)}
               />
               <Input
                 label="Bank name"
+                labelPlacement="outside"
                 placeholder="Bank of America"
                 value={formData.bank_name}
                 onChange={(e) => handleChange('bank_name', e.target.value)}
               />
               <Input
                 label="IBAN"
+                labelPlacement="outside"
                 placeholder="US12 3456 7890 1234 5678 9012 345"
                 value={formData.iban}
                 onChange={(e) => handleChange('iban', e.target.value)}
               />
               <Input
                 label="BIC / SWIFT"
+                labelPlacement="outside"
                 placeholder="BOFAUS3N"
                 value={formData.bic}
                 onChange={(e) => handleChange('bic', e.target.value)}
@@ -328,12 +339,14 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <Input
                 label="Business ID / SIRET"
+                labelPlacement="outside"
                 placeholder="123 456 789 00012"
                 value={formData.siret}
                 onChange={(e) => handleChange('siret', e.target.value)}
               />
               <Input
                 label="VAT number"
+                labelPlacement="outside"
                 placeholder="US123456789"
                 value={formData.vat_number}
                 onChange={(e) => handleChange('vat_number', e.target.value)}

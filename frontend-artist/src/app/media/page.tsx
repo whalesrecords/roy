@@ -77,13 +77,14 @@ export default function MediaPage() {
         return false;
       }
     }
-    // Filter by search query (song title, outlet, influencer)
+    // Filter by search query (song title, release title, outlet, influencer)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       const matchesTitle = sub.song_title.toLowerCase().includes(query);
+      const matchesRelease = sub.release_title?.toLowerCase().includes(query);
       const matchesOutlet = sub.outlet_name?.toLowerCase().includes(query);
       const matchesInfluencer = sub.influencer_name?.toLowerCase().includes(query);
-      if (!matchesTitle && !matchesOutlet && !matchesInfluencer) {
+      if (!matchesTitle && !matchesRelease && !matchesOutlet && !matchesInfluencer) {
         return false;
       }
     }
@@ -230,7 +231,7 @@ export default function MediaPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by song, outlet, or influencer..."
+                placeholder="Search by title, album, outlet, or influencer..."
                 className="w-full pl-10 pr-4 py-3 bg-background border border-divider rounded-2xl text-foreground placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
               {searchQuery && (
