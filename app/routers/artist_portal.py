@@ -153,7 +153,8 @@ class QuarterlyRevenueResponse(BaseModel):
 
 class LabelSettingsResponse(BaseModel):
     label_name: Optional[str] = None
-    label_logo_url: Optional[str] = None
+    logo_url: Optional[str] = None
+    logo_base64: Optional[str] = None
 
 
 class StatementResponse(BaseModel):
@@ -1057,11 +1058,12 @@ async def get_label_settings(
     settings = result.scalar_one_or_none()
 
     if not settings:
-        return {"label_name": None, "label_logo_url": None}
+        return {"label_name": None, "logo_url": None, "logo_base64": None}
 
     return {
         "label_name": settings.label_name,
-        "label_logo_url": settings.logo_base64 or settings.logo_url,
+        "logo_url": settings.logo_url,
+        "logo_base64": settings.logo_base64,
     }
 
 
@@ -2360,7 +2362,7 @@ async def get_artist_promo_submissions(
             sharing_link=sub.sharing_link,
             release_upc=sub.release_upc,
             track_isrc=sub.track_isrc,
-            release_title=sub.release_artwork.title if sub.release_artwork else None,
+            release_title=sub.release_artwork.name if sub.release_artwork else None,
         )
         for sub in submissions
     ]

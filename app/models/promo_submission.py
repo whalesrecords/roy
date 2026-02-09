@@ -95,7 +95,7 @@ class PromoSubmission(Base):
 
     # SubmitHub specific fields
     outlet_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    outlet_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # blog, playlist, radio, etc.
+    outlet_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # blog, playlist, radio, etc.
     action: Mapped[Optional[str]] = mapped_column(
         String(50),
         nullable=True,
@@ -105,9 +105,9 @@ class PromoSubmission(Base):
 
     # Groover specific fields
     influencer_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
-    influencer_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # playlist, feedback-only, social-media-sharing
+    influencer_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # playlist, feedback-only, social-media-sharing
     decision: Mapped[Optional[str]] = mapped_column(
-        String(100),
+        String(500),
         nullable=True,
         index=True,
     )
