@@ -2360,7 +2360,7 @@ async def get_artist_promo_submissions(
             sharing_link=sub.sharing_link,
             release_upc=sub.release_upc,
             track_isrc=sub.track_isrc,
-            release_title=sub.release_artwork.title if sub.release_artwork else None,
+            release_title=sub.release_artwork.name if sub.release_artwork else None,
         )
         for sub in submissions
     ]
