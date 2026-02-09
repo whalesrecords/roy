@@ -85,6 +85,7 @@ class SongMatch(BaseModel):
 class ImportSubmitHubResponse(BaseModel):
     """Response for SubmitHub import."""
     created_count: int
+    skipped_duplicates: int = 0
     matched_songs: List[SongMatch]
     unmatched_songs: List[str]
     campaign_id: Optional[UUID] = None
@@ -94,6 +95,7 @@ class ImportSubmitHubResponse(BaseModel):
 class ImportGrooverResponse(BaseModel):
     """Response for Groover import."""
     created_count: int
+    skipped_duplicates: int = 0
     matched_songs: List[SongMatch]
     unmatched_songs: List[str]
     campaign_id: Optional[UUID] = None
