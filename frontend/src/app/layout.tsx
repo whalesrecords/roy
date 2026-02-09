@@ -12,9 +12,6 @@ const roboto = Roboto({
   weight: ['100', '300', '400', '500', '700', '900'],
 });
 
-// Force dynamic rendering for all pages (requires authentication)
-export const dynamic = 'force-dynamic';
-
 export const metadata: Metadata = {
   title: 'Whales Records - Admin',
   description: 'Gestion des imports et royalties',
