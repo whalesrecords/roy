@@ -5,9 +5,6 @@ import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
-// Force dynamic rendering for all pages (requires authentication)
-export const dynamic = 'force-dynamic';
-
 export const metadata: Metadata = {
   title: 'Whales Records - Espace Artiste',
   description: 'Consultez vos revenus, statistiques et demandez vos paiements',
