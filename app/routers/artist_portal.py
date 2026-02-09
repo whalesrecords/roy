@@ -2319,7 +2319,7 @@ async def get_artist_promo_submissions(
     artist: Artist = Depends(get_current_artist),
     db: AsyncSession = Depends(get_db),
     source: Optional[str] = None,
-    limit: int = 100,
+    limit: int = 5000,
     offset: int = 0,
 ) -> List[PromoSubmissionResponse]:
     """Get promo submissions for current artist."""
