@@ -362,6 +362,23 @@ async def create_import(
                 raw_data=err.raw_data,
             ))
 
+        # Pre-build UPC lookup from existing transactions (artist_name + release_title -> UPC)
+        upc_lookup_query = (
+            select(
+                TransactionNormalized.artist_name,
+                TransactionNormalized.release_title,
+                TransactionNormalized.upc,
+            )
+            .where(TransactionNormalized.upc.isnot(None))
+            .where(TransactionNormalized.release_title.isnot(None))
+            .distinct()
+        )
+        upc_lookup_result = await db.execute(upc_lookup_query)
+        upc_map: dict[tuple[str, str], str] = {}
+        for row_upc in upc_lookup_result:
+            key = (row_upc.artist_name.lower().strip(), row_upc.release_title.lower().strip())
+            upc_map[key] = row_upc.upc
+
         # Normalize and create transactions
         for row in result.rows:
             try:
@@ -371,6 +388,12 @@ async def create_import(
                     fallback_period_start=period_start,
                     fallback_period_end=period_end,
                 )
+                # Auto-match UPC from existing catalog
+                if not transaction.upc and transaction.artist_name and transaction.release_title:
+                    lookup_key = (transaction.artist_name.lower().strip(), transaction.release_title.lower().strip())
+                    if lookup_key in upc_map:
+                        transaction.upc = upc_map[lookup_key]
+
                 transactions.append(transaction)
                 gross_total += transaction.gross_amount
             except Exception as e:
@@ -1004,3 +1027,79 @@ async def get_artist_tracks(
         })
 
     return tracks
+
+
+@router.get("/catalog/unlinked-releases")
+async def get_unlinked_releases(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+):
+    """
+    Get releases without UPC (e.g. from Squarespace imports).
+    These can be linked to existing UPCs via the link-upc endpoint.
+    """
+    from sqlalchemy import func
+
+    result = await db.execute(
+        select(
+            TransactionNormalized.artist_name,
+            TransactionNormalized.release_title,
+            TransactionNormalized.store_name,
+            func.count().label("transaction_count"),
+            func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+        )
+        .where(TransactionNormalized.upc.is_(None))
+        .where(TransactionNormalized.release_title.isnot(None))
+        .group_by(
+            TransactionNormalized.artist_name,
+            TransactionNormalized.release_title,
+            TransactionNormalized.store_name,
+        )
+        .order_by(TransactionNormalized.artist_name)
+    )
+    rows = result.all()
+
+    return [
+        {
+            "artist_name": row.artist_name,
+            "release_title": row.release_title,
+            "store_name": row.store_name,
+            "transaction_count": row.transaction_count,
+            "total_gross": str(row.total_gross or 0),
+        }
+        for row in rows
+    ]
+
+
+@router.post("/catalog/link-upc")
+async def link_upc_to_transactions(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_name: str = Form(...),
+    release_title: str = Form(...),
+    upc: str = Form(...),
+):
+    """
+    Link a UPC to all transactions matching artist_name + release_title that don't have a UPC.
+    Used to merge Squarespace (physical) releases with Tunecore (digital) releases.
+    """
+    from sqlalchemy import update, func
+
+    # Update all matching transactions
+    stmt = (
+        update(TransactionNormalized)
+        .where(func.lower(TransactionNormalized.artist_name) == artist_name.lower().strip())
+        .where(func.lower(TransactionNormalized.release_title) == release_title.lower().strip())
+        .where(TransactionNormalized.upc.is_(None))
+        .values(upc=upc.strip())
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    return {
+        "success": True,
+        "updated_count": result.rowcount,
+        "artist_name": artist_name,
+        "release_title": release_title,
+        "upc": upc.strip(),
+    }

@@ -398,6 +398,14 @@ export async function getArtistReleases(artistName: string): Promise<CatalogRele
   return fetchApi<CatalogRelease[]>(`/imports/catalog/artists/${encodeURIComponent(artistName)}/releases`);
 }
 
+export async function linkUpcToRelease(artistName: string, releaseTitle: string, upc: string): Promise<{ success: boolean; updated_count: number }> {
+  const formData = new FormData();
+  formData.append('artist_name', artistName);
+  formData.append('release_title', releaseTitle);
+  formData.append('upc', upc);
+  return fetchApi('/imports/catalog/link-upc', { method: 'POST', body: formData });
+}
+
 export async function getArtistTracks(artistName: string): Promise<CatalogTrack[]> {
   return fetchApi<CatalogTrack[]>(`/imports/catalog/artists/${encodeURIComponent(artistName)}/tracks`);
 }

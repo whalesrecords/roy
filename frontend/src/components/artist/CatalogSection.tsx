@@ -14,6 +14,7 @@ import {
   CatalogTrack,
   SpotifyAlbumResult,
   CatalogReleaseMetadata,
+  linkUpcToRelease,
 } from '@/lib/api';
 
 interface SpotifyAlbum {
@@ -979,8 +980,28 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                         {release.release_date && (
                           <span className="text-xs">{release.release_date}</span>
                         )}
-                        {release.upc && (
+                        {release.upc ? (
                           <span className="font-mono text-xs">UPC: {release.upc}</span>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const upc = prompt(`Entrer le UPC pour "${release.release_title}" :`);
+                              if (upc && upc.trim()) {
+                                linkUpcToRelease(artistName, release.release_title, upc.trim())
+                                  .then((res) => {
+                                    if (res.success) {
+                                      alert(`UPC lié ! ${res.updated_count} transaction(s) mises à jour. Rechargez la page.`);
+                                      window.location.reload();
+                                    }
+                                  })
+                                  .catch((err) => alert(`Erreur: ${err.message}`));
+                              }
+                            }}
+                            className="font-mono text-xs text-warning-600 bg-warning-100 px-2 py-0.5 rounded hover:bg-warning-200 transition-colors"
+                          >
+                            + Lier UPC
+                          </button>
                         )}
                         <span>{release.track_count} track{release.track_count > 1 ? 's' : ''}</span>
                         {release.label && (
