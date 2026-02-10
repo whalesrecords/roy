@@ -73,9 +73,20 @@ class ContractParty(Base):
     label_name: Mapped[str] = mapped_column(String(200), nullable=True)
 
     # Share percentage (0.0000 to 1.0000, i.e., 0% to 100%)
+    # share_percentage = default / streams rate
     share_percentage: Mapped[Decimal] = mapped_column(
         Numeric(precision=5, scale=4),  # 0.0000 to 1.0000
         nullable=False,
+    )
+    # Physical sales rate (CD, vinyl, K7) - if NULL, uses share_percentage
+    share_physical: Mapped[Decimal] = mapped_column(
+        Numeric(precision=5, scale=4),
+        nullable=True,
+    )
+    # Digital sales rate (downloads, Bandcamp digital) - if NULL, uses share_percentage
+    share_digital: Mapped[Decimal] = mapped_column(
+        Numeric(precision=5, scale=4),
+        nullable=True,
     )
 
     # Timestamps

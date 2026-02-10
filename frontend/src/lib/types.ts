@@ -152,6 +152,8 @@ export interface ContractParty {
   artist_id?: string;
   label_name?: string;
   share_percentage: string;
+  share_physical?: string | null;
+  share_digital?: string | null;
   created_at?: string;
 }
 

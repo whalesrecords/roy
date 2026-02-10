@@ -10,7 +10,7 @@ from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -1006,7 +1006,10 @@ async def list_contracts(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> List[ContractResponse]:
-    """List all contracts for an artist."""
+    """List all contracts for an artist (including contracts where they are a party)."""
+    from sqlalchemy.orm import selectinload
+    from app.models.contract_party import ContractParty as ContractPartyModel
+
     # Verify artist exists
     result = await db.execute(
         select(Artist).where(Artist.id == artist_id)
@@ -1017,28 +1020,25 @@ async def list_contracts(
             detail=f"Artist {artist_id} not found",
         )
 
+    # Find contracts where artist is primary OR appears as a party
     result = await db.execute(
         select(Contract)
-        .where(Contract.artist_id == artist_id)
+        .options(selectinload(Contract.parties))
+        .where(
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            )
+        )
         .order_by(Contract.start_date.desc())
     )
-    contracts = result.scalars().all()
+    contracts = result.unique().scalars().all()
 
-    return [
-        ContractResponse(
-            id=contract.id,
-            artist_id=contract.artist_id,
-            scope=contract.scope.value,
-            scope_id=contract.scope_id,
-            artist_share=contract.artist_share,
-            label_share=contract.label_share,
-            start_date=contract.start_date,
-            end_date=contract.end_date,
-            description=contract.description,
-            created_at=contract.created_at,
-        )
-        for contract in contracts
-    ]
+    return contracts
 
 
 @router.put("/{artist_id}/contracts/{contract_id}", response_model=ContractResponse)
@@ -1478,13 +1478,22 @@ async def get_advance_balance(
     total_gross_revenues = Decimal(str(revenue_result.scalar()))
 
     # Get catalog contract for default share, or use 50%
+    # Include contracts where artist is primary OR appears as a party
+    from app.models.contract_party import ContractParty as ContractPartyModel
     contract_result = await db.execute(
         select(Contract).options(selectinload(Contract.parties)).where(
-            Contract.artist_id == artist_id,
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            ),
             Contract.scope == ContractScope.CATALOG,
         )
     )
-    catalog_contract = contract_result.scalar_one_or_none()
+    catalog_contract = contract_result.unique().scalars().first()
     # Use individual artist's party share (not total of all artists)
     artist_share = Decimal("0.5")  # Default
     if catalog_contract:
@@ -1770,6 +1779,16 @@ from app.models.transaction import TransactionNormalized
 from app.models.contract import ContractScope
 
 
+class AlbumSourceBreakdown(BaseModel):
+    """Revenue breakdown by source within an album (streams vs physical vs digital)."""
+    source: str  # e.g. "tunecore", "bandcamp", "squarespace"
+    source_label: str  # e.g. "TuneCore", "Bandcamp", "Squarespace"
+    sale_type: str  # "stream", "cd", "vinyl", "k7", "digital", "physical", "other"
+    gross: str
+    artist_royalties: str
+    quantity: int  # streams or units sold
+
+
 class AlbumRoyalty(BaseModel):
     """Royalty breakdown for a single album."""
     release_title: str
@@ -1785,6 +1804,7 @@ class AlbumRoyalty(BaseModel):
     recoupable: str = "0"       # Amount deducted from this album
     net_payable: str = "0"      # Net after scoped advance deduction
     included_in_upc: Optional[str] = None  # If this single is included in an album's recoupment
+    sources: list[AlbumSourceBreakdown] = []  # Breakdown by source within this album
 
 
 class SourceBreakdown(BaseModel):
@@ -1847,7 +1867,9 @@ async def calculate_artist_royalties(
         )
 
     # Get all contracts for this artist (valid in the period)
+    # Include contracts where artist is primary OR appears as a party
     from sqlalchemy import and_, or_
+    from app.models.contract_party import ContractParty as ContractPartyModel
     validity_condition = and_(
         Contract.start_date <= period_end,
         or_(
@@ -1857,11 +1879,18 @@ async def calculate_artist_royalties(
     )
     contract_result = await db.execute(
         select(Contract).options(selectinload(Contract.parties)).where(
-            Contract.artist_id == artist_id,
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            ),
             validity_condition,
         )
     )
-    contracts = contract_result.scalars().all()
+    contracts = contract_result.unique().scalars().all()
 
     # Index contracts for fast lookup
     track_contracts = {c.scope_id: c for c in contracts if c.scope == ContractScope.TRACK and c.scope_id}
@@ -1888,6 +1917,7 @@ async def calculate_artist_royalties(
             TransactionNormalized.gross_amount,
             TransactionNormalized.quantity,
             TransactionNormalized.artist_name,
+            TransactionNormalized.physical_format,
             Import.source,
         )
         .join(Import, TransactionNormalized.import_id == Import.id)
@@ -1907,18 +1937,23 @@ async def calculate_artist_royalties(
     sources_data: dict = {}  # source -> {data}
 
     # Build release_title -> UPC and ISRC -> UPC mappings from transactions that have both
-    # This allows Bandcamp tracks (without UPC) to inherit UPC from other sources
-    release_title_to_upc: dict[str, str] = {}
+    # This allows Bandcamp/Squarespace tracks (without UPC) to inherit UPC from other sources
+    # Case-insensitive matching for release_title
+    release_title_to_upc: dict[str, str] = {}  # lowercase title -> UPC
+    release_title_original: dict[str, str] = {}  # lowercase title -> original title
     isrc_to_upc: dict[str, str] = {}
     for tx in transactions:
         if tx.upc and tx.release_title:
-            if tx.release_title not in release_title_to_upc:
-                release_title_to_upc[tx.release_title] = tx.upc
+            key = tx.release_title.strip().lower()
+            if key not in release_title_to_upc:
+                release_title_to_upc[key] = tx.upc
+                release_title_original[key] = tx.release_title
         if tx.upc and tx.isrc:
             if tx.isrc not in isrc_to_upc:
                 isrc_to_upc[tx.isrc] = tx.upc
 
-    # Source labels mapping
+    # Source labels and sale type mapping
+    # TuneCore/Believe/CDBaby = streams, Bandcamp/Squarespace = physical/digital
     source_labels = {
         "tunecore": "TuneCore",
         "believe": "Believe",
@@ -1926,16 +1961,38 @@ async def calculate_artist_royalties(
         "believe_fr": "Believe FR",
         "cdbaby": "CD Baby",
         "bandcamp": "Bandcamp",
+        "squarespace": "Squarespace",
         "other": "Autre",
     }
+    # Sources that are streaming platforms (quantity = streams)
+    stream_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
+    # Sources that are physical/digital sales (quantity = units sold)
+    physical_sources = {"bandcamp", "squarespace"}
+
+    def get_sale_type(source: str, physical_format: str | None) -> str:
+        """Determine sale type from source and physical_format."""
+        if source in stream_sources:
+            return "stream"
+        fmt = (physical_format or "").lower().strip()
+        if "vinyl" in fmt or "lp" in fmt:
+            return "vinyl"
+        if "cd" in fmt:
+            return "cd"
+        if "k7" in fmt or "cassette" in fmt or "tape" in fmt:
+            return "k7"
+        if "digital" in fmt or "download" in fmt:
+            return "digital"
+        if source in physical_sources:
+            return "digital"  # Default for Bandcamp/Squarespace
+        return "other"
 
     for tx in transactions:
-        # Try to get UPC: direct > from ISRC mapping > from release_title mapping > UNKNOWN
+        # Try to get UPC: direct > from ISRC mapping > from release_title (case-insensitive) > UNKNOWN
         upc = tx.upc
         if not upc and tx.isrc:
             upc = isrc_to_upc.get(tx.isrc)
         if not upc and tx.release_title:
-            upc = release_title_to_upc.get(tx.release_title)
+            upc = release_title_to_upc.get(tx.release_title.strip().lower())
         upc = upc or "UNKNOWN"
         source = tx.source.value.lower() if tx.source else "other"
 
@@ -1949,6 +2006,7 @@ async def calculate_artist_royalties(
                 "artist_royalties": Decimal("0"),
                 "label_royalties": Decimal("0"),
                 "streams": 0,
+                "album_sources": {},  # source_key -> {gross, artist_royalties, quantity, source, sale_type}
             }
 
         # Initialize source data
@@ -1995,6 +2053,18 @@ async def calculate_artist_royalties(
         elif catalog_contract:
             contract = catalog_contract
 
+        # Track per-album source breakdown (stream vs physical/digital)
+        sale_type = get_sale_type(source, getattr(tx, 'physical_format', None))
+
+        # Map sale_type to share category: stream→default, physical→share_physical, digital→share_digital
+        def _pick_share(party, st: str) -> Decimal:
+            """Pick the appropriate share for a party based on sale type."""
+            if st in ("cd", "vinyl", "k7", "physical") and party.share_physical is not None:
+                return party.share_physical
+            if st == "digital" and party.share_digital is not None:
+                return party.share_digital
+            return party.share_percentage
+
         # Apply contract split (use THIS artist's individual share, not total)
         if contract:
             # Look for this specific artist's party in the contract
@@ -2005,7 +2075,7 @@ async def calculate_artist_royalties(
                         this_artist_party = p
                         break
             if this_artist_party:
-                artist_share = this_artist_party.share_percentage
+                artist_share = _pick_share(this_artist_party, sale_type)
             else:
                 # Fallback to legacy total artist_share (single-artist contracts)
                 artist_share = contract.artist_share
@@ -2017,6 +2087,20 @@ async def calculate_artist_royalties(
         album["label_royalties"] += amount * label_share
         src["artist_royalties"] += amount * artist_share
         src["label_royalties"] += amount * label_share
+        album_src_key = f"{source}_{sale_type}"
+        if album_src_key not in album["album_sources"]:
+            album["album_sources"][album_src_key] = {
+                "source": source,
+                "source_label": source_labels.get(source, source.capitalize()),
+                "sale_type": sale_type,
+                "gross": Decimal("0"),
+                "artist_royalties": Decimal("0"),
+                "quantity": 0,
+            }
+        asrc = album["album_sources"][album_src_key]
+        asrc["gross"] += amount
+        asrc["artist_royalties"] += amount * artist_share
+        asrc["quantity"] += tx.quantity or 0
 
     # Calculate totals
     total_gross = sum(a["gross"] for a in albums_data.values())
@@ -2304,6 +2388,21 @@ async def calculate_artist_royalties(
             recoupable=str(a.get("recoupable", Decimal("0"))),
             net_payable=str(a.get("net_payable", a["artist_royalties"])),
             included_in_upc=included_in,
+            sources=[
+                AlbumSourceBreakdown(
+                    source=asrc["source"],
+                    source_label=asrc["source_label"],
+                    sale_type=asrc["sale_type"],
+                    gross=str(asrc["gross"]),
+                    artist_royalties=str(asrc["artist_royalties"]),
+                    quantity=asrc["quantity"],
+                )
+                for asrc in sorted(
+                    a.get("album_sources", {}).values(),
+                    key=lambda x: x["gross"],
+                    reverse=True,
+                )
+            ],
         ))
 
     # Build sources list

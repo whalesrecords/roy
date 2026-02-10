@@ -898,40 +898,86 @@ async def get_artist_releases(
             TransactionNormalized.upc,
             TransactionNormalized.physical_format,
             TransactionNormalized.store_name,
-            func.count(distinct(TransactionNormalized.isrc)).label('track_count'),
-            func.sum(TransactionNormalized.gross_amount).label('total_gross'),
-            func.sum(TransactionNormalized.quantity).label('total_streams'),
+            TransactionNormalized.isrc,
+            TransactionNormalized.gross_amount,
+            TransactionNormalized.quantity,
         )
         .where(where_clause)
-        .group_by(
-            TransactionNormalized.release_title,
-            TransactionNormalized.upc,
-            TransactionNormalized.physical_format,
-            TransactionNormalized.store_name,
-        )
-        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
     )
     rows = result.all()
 
-    # Build UPC mapping: for each release_title, find the first non-UNKNOWN UPC
-    upc_mapping = {}
-    for row in rows:
-        if row.release_title and row.upc and row.upc != "UNKNOWN":
-            if row.release_title not in upc_mapping:
-                upc_mapping[row.release_title] = row.upc
+    # Group by release_title (case-insensitive) - same album across sources = one entry
+    # Each release has multiple sources (TuneCore streams, Bandcamp CD, etc.)
+    releases_map: dict[str, dict] = {}  # lowercase title -> release data
 
-    return [
-        {
-            "release_title": row.release_title or "(Sans album)",
-            "upc": upc_mapping.get(row.release_title, row.upc) if row.upc == "UNKNOWN" else row.upc,
-            "physical_format": row.physical_format,
-            "store_name": row.store_name,
-            "track_count": row.track_count or 0,
-            "total_gross": str(row.total_gross or 0),
-            "total_streams": row.total_streams or 0,
+    for row in rows:
+        title = row.release_title or "(Sans album)"
+        key = title.strip().lower()
+
+        if key not in releases_map:
+            releases_map[key] = {
+                "release_title": title,
+                "upc": None,  # Will be set to the best UPC
+                "tracks": set(),
+                "total_gross": 0,
+                "total_streams": 0,
+                "sources_map": {},  # source_key -> source data
+            }
+
+        release = releases_map[key]
+
+        # Prefer a real UPC over None/UNKNOWN
+        if row.upc and (not release["upc"] or release["upc"] == "UNKNOWN"):
+            release["upc"] = row.upc
+
+        # Accumulate totals
+        release["total_gross"] += float(row.gross_amount or 0)
+        release["total_streams"] += row.quantity or 0
+        if row.isrc:
+            release["tracks"].add(row.isrc)
+
+        # Track per-source data
+        store = row.store_name or "Inconnu"
+        fmt = row.physical_format or ""
+        src_key = f"{store}|{fmt}"
+        if src_key not in release["sources_map"]:
+            release["sources_map"][src_key] = {
+                "store_name": store,
+                "physical_format": fmt if fmt else None,
+                "gross": 0,
+                "quantity": 0,
+                "track_count": set(),
+            }
+        src = release["sources_map"][src_key]
+        src["gross"] += float(row.gross_amount or 0)
+        src["quantity"] += row.quantity or 0
+        if row.isrc:
+            src["track_count"].add(row.isrc)
+
+    # Build response - sorted by total_gross desc
+    response = []
+    for release in sorted(releases_map.values(), key=lambda x: x["total_gross"], reverse=True):
+        sources = [
+            {
+                "store_name": s["store_name"],
+                "physical_format": s["physical_format"],
+                "gross": str(round(s["gross"], 2)),
+                "quantity": s["quantity"],
+                "track_count": len(s["track_count"]),
+            }
+            for s in sorted(release["sources_map"].values(), key=lambda x: x["gross"], reverse=True)
+        ]
+        response.append({
+            "release_title": release["release_title"],
+            "upc": release["upc"] or "UNKNOWN",
+            "track_count": len(release["tracks"]),
+            "total_gross": str(round(release["total_gross"], 2)),
+            "total_streams": release["total_streams"],
             "currency": "EUR",
-        }
-        for row in rows
+            "sources": sources,
+        })
+
+    return response
     ]
 
 

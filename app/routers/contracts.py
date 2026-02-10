@@ -165,6 +165,8 @@ async def create_contract(
             artist_id=party_data.artist_id,
             label_name=party_data.label_name,
             share_percentage=party_data.share_percentage,
+            share_physical=party_data.share_physical,
+            share_digital=party_data.share_digital,
         )
         db.add(party)
 
@@ -239,6 +241,8 @@ async def update_contract(
                 artist_id=party_data.artist_id,
                 label_name=party_data.label_name,
                 share_percentage=party_data.share_percentage,
+                share_physical=party_data.share_physical,
+                share_digital=party_data.share_digital,
             )
             db.add(party)
 

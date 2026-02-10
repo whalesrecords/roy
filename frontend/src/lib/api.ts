@@ -370,15 +370,25 @@ export interface CatalogArtist {
   currency: string;
 }
 
+export interface CatalogReleaseSource {
+  store_name: string;
+  physical_format?: string | null;
+  gross: string;
+  quantity: number;
+  track_count: number;
+}
+
 export interface CatalogRelease {
   release_title: string;
   upc: string;
-  physical_format?: string;
-  store_name?: string;
   track_count: number;
   total_gross: string;
   total_streams: number;
   currency: string;
+  sources?: CatalogReleaseSource[];  // Per-source breakdown
+  // Legacy fields (kept for backwards compat during transition)
+  physical_format?: string;
+  store_name?: string;
 }
 
 export interface CatalogTrack {
@@ -587,6 +597,15 @@ export async function batchRefreshReleases(upcs: string[]): Promise<{
 
 // Artist royalty calculation
 
+export interface AlbumSourceBreakdown {
+  source: string;
+  source_label: string;
+  sale_type: string;  // "stream", "cd", "vinyl", "k7", "digital", "other"
+  gross: string;
+  artist_royalties: string;
+  quantity: number;
+}
+
 export interface AlbumRoyalty {
   release_title: string;
   upc: string;
@@ -601,6 +620,7 @@ export interface AlbumRoyalty {
   recoupable: string;       // Amount deducted from this album
   net_payable: string;      // Net after scoped advance deduction
   included_in_upc?: string; // If this single is included in an album's recoupment
+  sources?: AlbumSourceBreakdown[];  // Per-source breakdown (stream vs physical)
 }
 
 export interface SourceBreakdown {

@@ -48,6 +48,42 @@ logger = logging.getLogger(__name__)
 DEFAULT_ARTIST_SHARE = Decimal("0.5")
 DEFAULT_LABEL_SHARE = Decimal("0.5")
 
+# Sources that represent streaming platforms
+_STREAM_SOURCES = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
+_PHYSICAL_SOURCES = {"bandcamp", "squarespace"}
+
+
+def _get_sale_type(source: str, physical_format: str | None) -> str:
+    """Determine sale type from source and physical_format."""
+    if source in _STREAM_SOURCES:
+        return "stream"
+    fmt = (physical_format or "").lower().strip()
+    if "vinyl" in fmt or "lp" in fmt:
+        return "physical"
+    if "cd" in fmt:
+        return "physical"
+    if "k7" in fmt or "cassette" in fmt or "tape" in fmt:
+        return "physical"
+    if "digital" in fmt or "download" in fmt:
+        return "digital"
+    if source in _PHYSICAL_SOURCES:
+        return "digital"  # Default for Bandcamp/Squarespace without format
+    return "other"
+
+
+def _get_party_share(party, sale_type: str) -> Decimal:
+    """Get the appropriate share for a party based on sale type.
+
+    - stream → share_percentage (default)
+    - physical (CD, vinyl, K7) → share_physical if set, else share_percentage
+    - digital (downloads) → share_digital if set, else share_percentage
+    """
+    if sale_type == "physical" and party.share_physical is not None:
+        return party.share_physical
+    if sale_type == "digital" and party.share_digital is not None:
+        return party.share_digital
+    return party.share_percentage
+
 
 @dataclass
 class ArtistResult:
@@ -391,6 +427,9 @@ class RoyaltyCalculator:
                             contract = catalog_contracts.get(artist.id)
 
                         # Determine splits from contract (use THIS artist's individual share)
+                        # Pick the right share based on sale type (stream/physical/digital)
+                        tx_source = tx.source.value.lower() if tx.source else "other"
+                        tx_sale_type = _get_sale_type(tx_source, getattr(tx, 'physical_format', None))
                         if contract:
                             this_party = None
                             if contract.parties:
@@ -398,7 +437,7 @@ class RoyaltyCalculator:
                                     if p.party_type == "artist" and p.artist_id == artist.id:
                                         this_party = p
                                         break
-                            contract_artist_share = this_party.share_percentage if this_party else contract.artist_share
+                            contract_artist_share = _get_party_share(this_party, tx_sale_type) if this_party else contract.artist_share
                             contract_label_share = contract.label_share
                         else:
                             contract_artist_share = DEFAULT_ARTIST_SHARE
@@ -480,6 +519,9 @@ class RoyaltyCalculator:
                         contract = catalog_contracts.get(artist.id)
 
                     # Determine splits (use THIS artist's individual share)
+                    # Pick the right share based on sale type (stream/physical/digital)
+                    tx_source = tx.source.value.lower() if tx.source else "other"
+                    tx_sale_type = _get_sale_type(tx_source, getattr(tx, 'physical_format', None))
                     if contract:
                         this_party = None
                         if contract.parties:
@@ -487,7 +529,7 @@ class RoyaltyCalculator:
                                 if p.party_type == "artist" and p.artist_id == artist.id:
                                     this_party = p
                                     break
-                        artist_share = this_party.share_percentage if this_party else contract.artist_share
+                        artist_share = _get_party_share(this_party, tx_sale_type) if this_party else contract.artist_share
                         label_share = contract.label_share
                     else:
                         artist_share = DEFAULT_ARTIST_SHARE
