@@ -19,10 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add share_physical column (nullable, uses share_percentage as fallback)
-    op.add_column('contract_parties', sa.Column('share_physical', sa.Numeric(precision=5, scale=4), nullable=True))
-    # Add share_digital column (nullable, uses share_percentage as fallback)
-    op.add_column('contract_parties', sa.Column('share_digital', sa.Numeric(precision=5, scale=4), nullable=True))
+    # Use raw SQL with IF NOT EXISTS for idempotency
+    op.execute("ALTER TABLE contract_parties ADD COLUMN IF NOT EXISTS share_physical NUMERIC(5,4)")
+    op.execute("ALTER TABLE contract_parties ADD COLUMN IF NOT EXISTS share_digital NUMERIC(5,4)")
 
 
 def downgrade() -> None:
