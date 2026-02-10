@@ -1051,13 +1051,13 @@ export default function ArtistDetailPage() {
           .label-info .legal { color: #6b7280; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 120px; }
           h1 { font-size: 24px; margin-bottom: 8px; color: #111827; font-weight: 700; }
-          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 2px solid #5584ff; padding-bottom: 8px; color: #111827; font-weight: 600; }
+          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 12px; border-bottom: 2px solid #6E56CF; padding-bottom: 8px; color: #111827; font-weight: 600; }
           .period { color: #6b7280; font-size: 14px; margin-bottom: 24px; padding: 8px 16px; background: #f3f4f6; border-radius: 20px; display: inline-block; }
           .summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
           .summary-item { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e5e7eb; }
           .summary-item label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px; }
           .summary-item value { font-size: 18px; font-weight: 600; color: #111827; }
-          .highlight { background: linear-gradient(135deg, #5584ff10 0%, #22c55e10 100%) !important; border: 1px solid #22c55e30 !important; }
+          .highlight { background: linear-gradient(135deg, #6E56CF10 0%, #22c55e10 100%) !important; border: 1px solid #22c55e30 !important; }
           table { width: 100%; border-collapse: collapse; font-size: 14px; }
           th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
           th { background: #f8fafc; font-weight: 600; color: #374151; }
@@ -1511,25 +1511,25 @@ export default function ArtistDetailPage() {
           .label-info .legal { color: #6b7280; font-size: 10px; margin-top: 4px; }
           .main-content { margin-top: 100px; }
           h1 { font-size: 28px; margin-bottom: 8px; color: #111827; font-weight: 700; }
-          .artist-name { font-size: 22px; color: #5584ff; font-weight: 600; margin-bottom: 4px; }
+          .artist-name { font-size: 22px; color: #6E56CF; font-weight: 600; margin-bottom: 4px; }
           .period { color: #6b7280; font-size: 14px; margin-bottom: 32px; padding: 8px 16px; background: #f3f4f6; border-radius: 20px; display: inline-block; }
           .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 32px; background: #fafafa; border-radius: 16px; overflow: hidden; }
           .summary-table td { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
           .summary-table .label { color: #6b7280; font-size: 14px; }
           .summary-table .value { text-align: right; font-size: 16px; font-weight: 600; color: #111827; }
-          .net-row td { border-bottom: none; padding-top: 20px; background: linear-gradient(135deg, #5584ff10 0%, #5584ff05 100%); }
+          .net-row td { border-bottom: none; padding-top: 20px; background: linear-gradient(135deg, #6E56CF10 0%, #6E56CF05 100%); }
           .net-row .label { font-size: 18px; font-weight: 700; color: #111827; }
           .net-row .value { font-size: 26px; font-weight: 700; color: #22c55e; }
-          .contact-section { margin-top: 40px; padding: 28px; background: linear-gradient(135deg, #5584ff08 0%, #5584ff15 100%); border-radius: 20px; text-align: center; border: 1px solid #5584ff20; }
+          .contact-section { margin-top: 40px; padding: 28px; background: linear-gradient(135deg, #6E56CF08 0%, #6E56CF15 100%); border-radius: 20px; text-align: center; border: 1px solid #6E56CF20; }
           .contact-section h3 { margin: 0 0 8px 0; font-size: 18px; color: #111827; font-weight: 600; }
           .contact-section p { margin: 0 0 20px 0; font-size: 14px; color: #6b7280; }
-          .contact-btn { display: inline-block; padding: 14px 36px; background: #5584ff; color: white; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 14px rgba(85, 132, 255, 0.35); }
+          .contact-btn { display: inline-block; padding: 14px 36px; background: #6E56CF; color: white; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 14px rgba(110, 86, 207, 0.35); }
           .contact-btn:hover { background: #4070e8; }
           .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; }
           .footer-logo { max-width: 100px; max-height: 40px; margin: 0 auto 8px; display: block; opacity: 0.7; }
           .footer-text { font-size: 10px; color: #9ca3af; }
           @media print {
-            .contact-btn { background: #5584ff !important; -webkit-print-color-adjust: exact; }
+            .contact-btn { background: #6E56CF !important; -webkit-print-color-adjust: exact; }
             body { padding: 20px; }
           }
         </style>
