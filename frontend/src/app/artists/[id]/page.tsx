@@ -237,6 +237,7 @@ export default function ArtistDetailPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [editContractShare, setEditContractShare] = useState('0.5');
   const [editContractStartDate, setEditContractStartDate] = useState('');
+  const [editContractParties, setEditContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number}>>([]);
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [contractParties, setContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number}>>([]);
   const [savingContract, setSavingContract] = useState(false);
@@ -347,7 +348,7 @@ export default function ArtistDetailPage() {
       return;
     }
     const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
-    if (totalShare !== 100) {
+    if (Math.abs(totalShare - 100) > 0.01) {
       setError('Le total des parts doit être égal à 100%');
       return;
     }
@@ -402,7 +403,7 @@ export default function ArtistDetailPage() {
       return;
     }
     const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
-    if (totalShare !== 100) {
+    if (Math.abs(totalShare - 100) > 0.01) {
       setError('Le total des parts doit être égal à 100%');
       return;
     }
@@ -675,19 +676,40 @@ export default function ArtistDetailPage() {
     const { artistShare } = getContractShares(contract);
     setEditContractShare(artistShare > 0 ? String(artistShare) : '0.5');
     setEditContractStartDate(contract.start_date);
+    // Load existing parties
+    if (contract.parties && contract.parties.length > 0) {
+      setEditContractParties(contract.parties.map(p => ({
+        id: p.id,
+        party_type: p.party_type as 'artist' | 'label',
+        artist_id: p.artist_id,
+        label_name: p.label_name,
+        share_percentage: parseFloat(String(p.share_percentage)) * 100,
+      })));
+    } else {
+      setEditContractParties([
+        { party_type: 'artist', artist_id: artistId, share_percentage: artistShare * 100 },
+        { party_type: 'label', label_name: 'Whales Records', share_percentage: (1 - artistShare) * 100 },
+      ]);
+    }
   };
 
   const handleUpdateContract = async () => {
     if (!editingContract || !editingContract.id || !editContractStartDate) return;
+    const totalShare = editContractParties.reduce((sum, p) => sum + p.share_percentage, 0);
+    if (Math.abs(totalShare - 100) > 0.01) {
+      setError('Le total des parts doit être égal à 100%');
+      return;
+    }
     setSavingContract(true);
     try {
-      const share = parseFloat(editContractShare);
       await updateContract(editingContract.id, {
         start_date: editContractStartDate,
-        parties: [
-          { party_type: 'artist' as const, artist_id: artistId, share_percentage: share.toString() },
-          { party_type: 'label' as const, label_name: 'Whales Records', share_percentage: (1 - share).toString() },
-        ],
+        parties: editContractParties.map(p => ({
+          party_type: p.party_type,
+          artist_id: p.artist_id,
+          label_name: p.label_name,
+          share_percentage: String(p.share_percentage / 100),
+        })),
       });
       setEditingContract(null);
       loadData();
@@ -918,7 +940,7 @@ export default function ArtistDetailPage() {
         album.track_count.toString(),
         album.streams.toString(),
         `${album.gross} ${royaltyResult.currency}`,
-        `${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%`,
+        `${formatPercent(parseFloat(album.artist_share || '0'))}%`,
         `${album.artist_royalties} ${royaltyResult.currency}`,
         advanceBalance > 0 ? `${advanceBalance} ${royaltyResult.currency}` : '-',
         recoupable > 0 ? `${recoupable} ${royaltyResult.currency}` : '-',
@@ -1170,7 +1192,7 @@ export default function ArtistDetailPage() {
                 <td>${album.track_count}</td>
                 <td class="right">${formatNumber(album.streams)}</td>
                 <td class="right">${isIncludedInAlbum ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.gross)}</span>` : formatCurrency(album.gross)}</td>
-                <td class="right">${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%</td>
+                <td class="right">${formatPercent(parseFloat(album.artist_share || '0'))}%</td>
                 <td class="right">${(hasAdvance || isIncludedInAlbum) ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
                 <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
                 <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${isIncludedInAlbum ? '-' : formatCurrency(netPayable.toString())}</td>
@@ -1618,6 +1640,12 @@ export default function ArtistDetailPage() {
 
   const formatNumber = (value: number) => {
     return value.toLocaleString('fr-FR');
+  };
+
+  // Format percentage: show decimals only if needed (50% vs 33.33%)
+  const formatPercent = (decimal: number) => {
+    const pct = decimal * 100;
+    return pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2).replace(/0+$/, '');
   };
 
   // Group releases by UPC (or release_title if no UPC)
@@ -2120,7 +2148,7 @@ export default function ArtistDetailPage() {
                               )}
                               {!isIncludedInAlbum && (
                                 <p className="text-xs text-secondary-500">
-                                  {(parseFloat(album.artist_share || '0') * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                                  {formatPercent(parseFloat(album.artist_share || '0'))}% de {formatCurrency(album.gross, royaltyResult.currency)}
                                 </p>
                               )}
                             </div>
@@ -2257,7 +2285,7 @@ export default function ArtistDetailPage() {
                     <p className="font-medium text-foreground">
                       {(() => {
                         const { artistShare, labelShare } = getContractShares(catalogContract);
-                        return `${(artistShare * 100).toFixed(0)}% artiste / ${(labelShare * 100).toFixed(0)}% label`;
+                        return `${formatPercent(artistShare)}% artiste / ${formatPercent(labelShare)}% label`;
                       })()}
                     </p>
                     <p className="text-sm text-secondary-500">
@@ -2432,7 +2460,7 @@ export default function ArtistDetailPage() {
                           {contract ? (
                             <div className="flex items-center gap-1">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
-                                {(getContractShares(contract).artistShare * 100).toFixed(0)}%
+                                {formatPercent(getContractShares(contract).artistShare)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
@@ -2460,7 +2488,7 @@ export default function ArtistDetailPage() {
                             </div>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
-                              {(getContractShares(catalogContract).artistShare * 100).toFixed(0)}% (défaut)
+                              {formatPercent(getContractShares(catalogContract).artistShare)}% (défaut)
                             </span>
                           ) : (
                             <Button
@@ -2589,7 +2617,7 @@ export default function ArtistDetailPage() {
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
-                              {(getContractShares(trackContract).artistShare * 100).toFixed(0)}%
+                              {formatPercent(getContractShares(trackContract).artistShare)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
@@ -2621,7 +2649,7 @@ export default function ArtistDetailPage() {
                               ? 'bg-success/10 text-success-700'
                               : 'bg-content2 text-secondary-600'
                           }`}>
-                            {(getContractShares(effectiveContract).artistShare * 100).toFixed(0)}%
+                            {formatPercent(getContractShares(effectiveContract).artistShare)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
@@ -3654,22 +3682,122 @@ export default function ArtistDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Part artiste (%)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="any"
-                  value={(parseFloat(editContractShare) * 100).toFixed(2).replace(/\.?0+$/, '')}
-                  onChange={(e) => setEditContractShare(String(parseFloat(e.target.value || '0') / 100))}
-                  className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
-                />
-                <div className="flex justify-between text-sm text-secondary-500 mt-2">
-                  <span>Artiste: {(parseFloat(editContractShare) * 100).toFixed(2)}%</span>
-                  <span>Label: {((1 - parseFloat(editContractShare)) * 100).toFixed(2)}%</span>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-secondary-700">
+                    Parties du contrat
+                  </label>
+                  <button
+                    onClick={() => {
+                      setEditContractParties([...editContractParties, {
+                        party_type: 'artist',
+                        artist_id: artist?.id,
+                        share_percentage: 0
+                      }]);
+                    }}
+                    className="text-sm text-primary hover:text-primary-600 font-medium"
+                  >
+                    + Ajouter une partie
+                  </button>
                 </div>
+
+                <div className="space-y-3 mb-3">
+                  {editContractParties.map((party, index) => (
+                    <div key={index} className="bg-content2 rounded-xl p-3">
+                      <div className="flex items-start gap-2 mb-2">
+                        <select
+                          value={party.party_type}
+                          onChange={(e) => {
+                            const newParties = [...editContractParties];
+                            newParties[index].party_type = e.target.value as 'artist' | 'label';
+                            if (e.target.value === 'artist') {
+                              newParties[index].artist_id = artist?.id;
+                              delete newParties[index].label_name;
+                            } else {
+                              newParties[index].label_name = '';
+                              delete newParties[index].artist_id;
+                            }
+                            setEditContractParties(newParties);
+                          }}
+                          className="flex-1 px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm"
+                        >
+                          <option value="artist">Artiste</option>
+                          <option value="label">Label</option>
+                        </select>
+                        <button
+                          onClick={() => {
+                            setEditContractParties(editContractParties.filter((_, i) => i !== index));
+                          }}
+                          className="p-2 text-danger hover:bg-danger-50 rounded-xl"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {party.party_type === 'artist' ? (
+                        <select
+                          value={party.artist_id || ''}
+                          onChange={(e) => {
+                            const newParties = [...editContractParties];
+                            newParties[index].artist_id = e.target.value;
+                            setEditContractParties(newParties);
+                          }}
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm mb-2"
+                        >
+                          <option value="">Sélectionner un artiste</option>
+                          {allArtists.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Nom du label"
+                          value={party.label_name || ''}
+                          onChange={(e) => {
+                            const newParties = [...editContractParties];
+                            newParties[index].label_name = e.target.value;
+                            setEditContractParties(newParties);
+                          }}
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm mb-2"
+                        />
+                      )}
+
+                      <div>
+                        <label className="block text-xs text-secondary-500 mb-1">
+                          Part (%)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="any"
+                          value={party.share_percentage}
+                          onChange={(e) => {
+                            const newParties = [...editContractParties];
+                            newParties[index].share_percentage = parseFloat(e.target.value) || 0;
+                            setEditContractParties(newParties);
+                          }}
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {editContractParties.length > 0 && (
+                  <div className={`rounded-xl p-3 ${
+                    Math.abs(editContractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) <= 0.01
+                      ? 'bg-success-50 text-success-700'
+                      : 'bg-warning-50 text-warning-700'
+                  }`}>
+                    <p className="text-sm font-medium">
+                      Total: {editContractParties.reduce((sum, p) => sum + p.share_percentage, 0).toFixed(2)}%
+                      {Math.abs(editContractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01 && ' (doit être 100%)'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Input
@@ -3686,7 +3814,11 @@ export default function ArtistDetailPage() {
               <Button
                 onClick={handleUpdateContract}
                 loading={savingContract}
-                disabled={!editContractStartDate}
+                disabled={
+                  !editContractStartDate ||
+                  editContractParties.length === 0 ||
+                  Math.abs(editContractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01
+                }
                 className="flex-1"
               >
                 Enregistrer
