@@ -313,7 +313,7 @@ class RoyaltyCalculator:
                 ),
             )
             contract_result = await db.execute(
-                select(Contract).where(validity_condition)
+                select(Contract).options(selectinload(Contract.parties)).where(validity_condition)
             )
             all_contracts = contract_result.scalars().all()
 
@@ -390,9 +390,15 @@ class RoyaltyCalculator:
                         if contract is None:
                             contract = catalog_contracts.get(artist.id)
 
-                        # Determine splits from contract
+                        # Determine splits from contract (use THIS artist's individual share)
                         if contract:
-                            contract_artist_share = contract.artist_share
+                            this_party = None
+                            if contract.parties:
+                                for p in contract.parties:
+                                    if p.party_type == "artist" and p.artist_id == artist.id:
+                                        this_party = p
+                                        break
+                            contract_artist_share = this_party.share_percentage if this_party else contract.artist_share
                             contract_label_share = contract.label_share
                         else:
                             contract_artist_share = DEFAULT_ARTIST_SHARE
@@ -473,9 +479,15 @@ class RoyaltyCalculator:
                     if contract is None:
                         contract = catalog_contracts.get(artist.id)
 
-                    # Determine splits
+                    # Determine splits (use THIS artist's individual share)
                     if contract:
-                        artist_share = contract.artist_share
+                        this_party = None
+                        if contract.parties:
+                            for p in contract.parties:
+                                if p.party_type == "artist" and p.artist_id == artist.id:
+                                    this_party = p
+                                    break
+                        artist_share = this_party.share_percentage if this_party else contract.artist_share
                         label_share = contract.label_share
                     else:
                         artist_share = DEFAULT_ARTIST_SHARE
