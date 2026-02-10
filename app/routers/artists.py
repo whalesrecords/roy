@@ -2035,6 +2035,18 @@ async def calculate_artist_royalties(
         elif catalog_contract:
             contract = catalog_contract
 
+        # Track per-album source breakdown (stream vs physical/digital)
+        sale_type = get_sale_type(source, getattr(tx, 'physical_format', None))
+
+        # Map sale_type to share category: stream→default, physical→share_physical, digital→share_digital
+        def _pick_share(party, st: str) -> Decimal:
+            """Pick the appropriate share for a party based on sale type."""
+            if st in ("cd", "vinyl", "k7", "physical") and party.share_physical is not None:
+                return party.share_physical
+            if st == "digital" and party.share_digital is not None:
+                return party.share_digital
+            return party.share_percentage
+
         # Apply contract split (use THIS artist's individual share, not total)
         if contract:
             # Look for this specific artist's party in the contract
@@ -2045,7 +2057,7 @@ async def calculate_artist_royalties(
                         this_artist_party = p
                         break
             if this_artist_party:
-                artist_share = this_artist_party.share_percentage
+                artist_share = _pick_share(this_artist_party, sale_type)
             else:
                 # Fallback to legacy total artist_share (single-artist contracts)
                 artist_share = contract.artist_share
@@ -2057,9 +2069,6 @@ async def calculate_artist_royalties(
         album["label_royalties"] += amount * label_share
         src["artist_royalties"] += amount * artist_share
         src["label_royalties"] += amount * label_share
-
-        # Track per-album source breakdown (stream vs physical/digital)
-        sale_type = get_sale_type(source, getattr(tx, 'physical_format', None))
         album_src_key = f"{source}_{sale_type}"
         if album_src_key not in album["album_sources"]:
             album["album_sources"][album_src_key] = {

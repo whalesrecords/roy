@@ -248,9 +248,9 @@ export default function ArtistDetailPage() {
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [editContractShare, setEditContractShare] = useState('0.5');
   const [editContractStartDate, setEditContractStartDate] = useState('');
-  const [editContractParties, setEditContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number}>>([]);
+  const [editContractParties, setEditContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number; share_physical: number | null; share_digital: number | null}>>([]);
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
-  const [contractParties, setContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number}>>([]);
+  const [contractParties, setContractParties] = useState<Array<{id?: string; party_type: 'artist' | 'label'; artist_id?: string; label_name?: string; share_percentage: number; share_physical: number | null; share_digital: number | null}>>([]);
   const [savingContract, setSavingContract] = useState(false);
   const [deletingContractId, setDeletingContractId] = useState<string | null>(null);
 
@@ -377,6 +377,8 @@ export default function ArtistDetailPage() {
           artist_id: p.artist_id,
           label_name: p.label_name,
           share_percentage: String(p.share_percentage / 100), // Convert to decimal string
+          share_physical: p.share_physical != null ? String(p.share_physical / 100) : undefined,
+          share_digital: p.share_digital != null ? String(p.share_digital / 100) : undefined,
         })),
       });
 
@@ -431,6 +433,8 @@ export default function ArtistDetailPage() {
           artist_id: p.artist_id,
           label_name: p.label_name,
           share_percentage: String(p.share_percentage / 100), // Convert to decimal string
+          share_physical: p.share_physical != null ? String(p.share_physical / 100) : undefined,
+          share_digital: p.share_digital != null ? String(p.share_digital / 100) : undefined,
         })),
       });
 
@@ -695,11 +699,13 @@ export default function ArtistDetailPage() {
         artist_id: p.artist_id,
         label_name: p.label_name,
         share_percentage: parseFloat(String(p.share_percentage)) * 100,
+        share_physical: p.share_physical != null ? parseFloat(String(p.share_physical)) * 100 : null,
+        share_digital: p.share_digital != null ? parseFloat(String(p.share_digital)) * 100 : null,
       })));
     } else {
       setEditContractParties([
-        { party_type: 'artist', artist_id: artistId, share_percentage: artistShare * 100 },
-        { party_type: 'label', label_name: 'Whales Records', share_percentage: (1 - artistShare) * 100 },
+        { party_type: 'artist', artist_id: artistId, share_percentage: artistShare * 100, share_physical: null, share_digital: null },
+        { party_type: 'label', label_name: 'Whales Records', share_percentage: (1 - artistShare) * 100, share_physical: null, share_digital: null },
       ]);
     }
   };
@@ -720,6 +726,8 @@ export default function ArtistDetailPage() {
           artist_id: p.artist_id,
           label_name: p.label_name,
           share_percentage: String(p.share_percentage / 100),
+          share_physical: p.share_physical != null ? String(p.share_physical / 100) : undefined,
+          share_digital: p.share_digital != null ? String(p.share_digital / 100) : undefined,
         })),
       });
       setEditingContract(null);
@@ -2342,8 +2350,8 @@ export default function ArtistDetailPage() {
               <Button size="sm" onClick={() => {
                 setSelectedItem(null);
                 setContractParties([
-                  { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
-                  { party_type: 'label', label_name: '', share_percentage: 50 }
+                  { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
+                  { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
                 ]);
                 setShowContractForm(true);
               }}>
@@ -2384,15 +2392,24 @@ export default function ArtistDetailPage() {
                       </div>
                       {catContract.parties && catContract.parties.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {catContract.parties.map((p, i) => (
-                            <span key={i} className="text-xs text-secondary-500">
-                              {p.party_type === 'artist'
-                                ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
-                                : (p.label_name || 'Label')
-                              }: {formatPercent(parseFloat(String(p.share_percentage)))}%
-                              {i < catContract.parties!.length - 1 ? ' · ' : ''}
-                            </span>
-                          ))}
+                          {catContract.parties.map((p, i) => {
+                            const pct = formatPercent(parseFloat(String(p.share_percentage)));
+                            const physPct = p.share_physical != null ? formatPercent(parseFloat(String(p.share_physical))) : null;
+                            const digPct = p.share_digital != null ? formatPercent(parseFloat(String(p.share_digital))) : null;
+                            const hasDiff = (physPct && physPct !== pct) || (digPct && digPct !== pct);
+                            return (
+                              <span key={i} className="text-xs text-secondary-500">
+                                {p.party_type === 'artist'
+                                  ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
+                                  : (p.label_name || 'Label')
+                                }: {pct}%
+                                {hasDiff && (
+                                  <span className="text-secondary-400"> (phys: {physPct || pct}% / dig: {digPct || pct}%)</span>
+                                )}
+                                {i < catContract.parties!.length - 1 ? ' · ' : ''}
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2437,15 +2454,24 @@ export default function ArtistDetailPage() {
                     </div>
                     {hasContract && releaseContract?.parties && releaseContract.parties.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {releaseContract.parties.map((p, i) => (
-                          <span key={i} className="text-xs text-secondary-500">
-                            {p.party_type === 'artist'
-                              ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
-                              : (p.label_name || 'Label')
-                            }: {formatPercent(parseFloat(String(p.share_percentage)))}%
-                            {i < releaseContract.parties!.length - 1 ? ' · ' : ''}
-                          </span>
-                        ))}
+                        {releaseContract.parties.map((p, i) => {
+                          const pct = formatPercent(parseFloat(String(p.share_percentage)));
+                          const physPct = p.share_physical != null ? formatPercent(parseFloat(String(p.share_physical))) : null;
+                          const digPct = p.share_digital != null ? formatPercent(parseFloat(String(p.share_digital))) : null;
+                          const hasDiff = (physPct && physPct !== pct) || (digPct && digPct !== pct);
+                          return (
+                            <span key={i} className="text-xs text-secondary-500">
+                              {p.party_type === 'artist'
+                                ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
+                                : (p.label_name || 'Label')
+                              }: {pct}%
+                              {hasDiff && (
+                                <span className="text-secondary-400"> (phys: {physPct || pct}% / dig: {digPct || pct}%)</span>
+                              )}
+                              {i < releaseContract.parties!.length - 1 ? ' · ' : ''}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -3023,7 +3049,9 @@ export default function ArtistDetailPage() {
                       setContractParties([...contractParties, {
                         party_type: 'artist',
                         artist_id: artist?.id,
-                        share_percentage: 0
+                        share_percentage: 0,
+                        share_physical: null,
+                        share_digital: null,
                       }]);
                     }}
                     className="text-sm text-primary hover:text-primary-600 font-medium"
@@ -3104,23 +3132,65 @@ export default function ArtistDetailPage() {
                         />
                       )}
 
-                      <div>
-                        <label className="block text-xs text-secondary-500 mb-1">
-                          Part (%)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="any"
-                          value={party.share_percentage}
-                          onChange={(e) => {
-                            const newParties = [...contractParties];
-                            newParties[index].share_percentage = parseFloat(e.target.value) || 0;
-                            setContractParties(newParties);
-                          }}
-                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
-                        />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Streams (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...contractParties];
+                              const val = parseFloat(e.target.value) || 0;
+                              newParties[index].share_percentage = val;
+                              // Auto-copy to physical/digital if they were null or equal to old share
+                              if (newParties[index].share_physical === null) newParties[index].share_physical = val;
+                              if (newParties[index].share_digital === null) newParties[index].share_digital = val;
+                              setContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Physique (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_physical ?? party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...contractParties];
+                              newParties[index].share_physical = parseFloat(e.target.value) || 0;
+                              setContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Digital (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_digital ?? party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...contractParties];
+                              newParties[index].share_digital = parseFloat(e.target.value) || 0;
+                              setContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -3779,7 +3849,9 @@ export default function ArtistDetailPage() {
                       setEditContractParties([...editContractParties, {
                         party_type: 'artist',
                         artist_id: artist?.id,
-                        share_percentage: 0
+                        share_percentage: 0,
+                        share_physical: null,
+                        share_digital: null,
                       }]);
                     }}
                     className="text-sm text-primary hover:text-primary-600 font-medium"
@@ -3852,23 +3924,64 @@ export default function ArtistDetailPage() {
                         />
                       )}
 
-                      <div>
-                        <label className="block text-xs text-secondary-500 mb-1">
-                          Part (%)
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="any"
-                          value={party.share_percentage}
-                          onChange={(e) => {
-                            const newParties = [...editContractParties];
-                            newParties[index].share_percentage = parseFloat(e.target.value) || 0;
-                            setEditContractParties(newParties);
-                          }}
-                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
-                        />
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Streams (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...editContractParties];
+                              const val = parseFloat(e.target.value) || 0;
+                              newParties[index].share_percentage = val;
+                              if (newParties[index].share_physical === null) newParties[index].share_physical = val;
+                              if (newParties[index].share_digital === null) newParties[index].share_digital = val;
+                              setEditContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Physique (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_physical ?? party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...editContractParties];
+                              newParties[index].share_physical = parseFloat(e.target.value) || 0;
+                              setEditContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-secondary-500 mb-1">
+                            Digital (%)
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={party.share_digital ?? party.share_percentage}
+                            onChange={(e) => {
+                              const newParties = [...editContractParties];
+                              newParties[index].share_digital = parseFloat(e.target.value) || 0;
+                              setEditContractParties(newParties);
+                            }}
+                            className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}

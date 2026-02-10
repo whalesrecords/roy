@@ -12,7 +12,9 @@ class PartyBase(BaseModel):
     party_type: str = Field(..., description="Type of party: 'artist' or 'label'")
     artist_id: Optional[UUID] = Field(None, description="Artist ID if party_type is 'artist'")
     label_name: Optional[str] = Field(None, max_length=200, description="Label name if party_type is 'label'")
-    share_percentage: Decimal = Field(..., ge=0, le=1, description="Share percentage (0.0 to 1.0)")
+    share_percentage: Decimal = Field(..., ge=0, le=1, description="Share percentage (0.0 to 1.0) - default/streams rate")
+    share_physical: Optional[Decimal] = Field(None, ge=0, le=1, description="Physical sales rate (CD, vinyl, K7) - if null, uses share_percentage")
+    share_digital: Optional[Decimal] = Field(None, ge=0, le=1, description="Digital sales rate (downloads) - if null, uses share_percentage")
 
     @field_validator('share_percentage')
     @classmethod
@@ -37,6 +39,8 @@ class PartyCreate(PartyBase):
 class PartyUpdate(BaseModel):
     """Schema for updating a contract party."""
     share_percentage: Optional[Decimal] = Field(None, ge=0, le=1)
+    share_physical: Optional[Decimal] = Field(None, ge=0, le=1)
+    share_digital: Optional[Decimal] = Field(None, ge=0, le=1)
 
 
 class PartyResponse(PartyBase):
