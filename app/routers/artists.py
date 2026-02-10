@@ -1036,7 +1036,7 @@ async def list_contracts(
         )
         .order_by(Contract.start_date.desc())
     )
-    contracts = result.scalars().unique().all()
+    contracts = result.unique().scalars().all()
 
     return contracts
 
@@ -1493,7 +1493,7 @@ async def get_advance_balance(
             Contract.scope == ContractScope.CATALOG,
         )
     )
-    catalog_contract = contract_result.scalars().unique().first()
+    catalog_contract = contract_result.unique().scalars().first()
     # Use individual artist's party share (not total of all artists)
     artist_share = Decimal("0.5")  # Default
     if catalog_contract:
@@ -1890,7 +1890,7 @@ async def calculate_artist_royalties(
             validity_condition,
         )
     )
-    contracts = contract_result.scalars().unique().all()
+    contracts = contract_result.unique().scalars().all()
 
     # Index contracts for fast lookup
     track_contracts = {c.scope_id: c for c in contracts if c.scope == ContractScope.TRACK and c.scope_id}
