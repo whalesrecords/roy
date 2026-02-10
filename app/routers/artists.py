@@ -31,6 +31,7 @@ from app.schemas.royalties import (
     PaymentCreate,
     PaymentUpdate,
 )
+from app.schemas.contracts import ContractListItem
 from app.models.transaction import TransactionNormalized
 
 logger = logging.getLogger(__name__)
@@ -1000,12 +1001,12 @@ async def create_contract(
     )
 
 
-@router.get("/{artist_id}/contracts", response_model=List[ContractResponse])
+@router.get("/{artist_id}/contracts", response_model=List[ContractListItem])
 async def list_contracts(
     artist_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
-) -> List[ContractResponse]:
+):
     """List all contracts for an artist (including contracts where they are a party)."""
     from sqlalchemy.orm import selectinload
     from app.models.contract_party import ContractParty as ContractPartyModel

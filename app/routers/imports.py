@@ -978,7 +978,6 @@ async def get_artist_releases(
         })
 
     return response
-    ]
 
 
 @router.get("/catalog/artists/{artist_name}/tracks")
