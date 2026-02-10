@@ -1218,7 +1218,7 @@ export default function ContractsPage() {
                           placeholder="0-100"
                           min={0}
                           max={100}
-                          step={0.1}
+                          step="any"
                           value={String(parseFloat(party.share_percentage || '0') * 100)}
                           onChange={(e) => handlePartyChange(index, 'share_percentage', String(parseFloat(e.target.value) / 100))}
                           className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-lg text-sm text-foreground text-center focus:outline-none focus:border-primary transition-colors"
