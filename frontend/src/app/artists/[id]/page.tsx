@@ -2367,6 +2367,12 @@ export default function ArtistDetailPage() {
               {contracts.map((contract) => {
                 const { artistShare, labelShare } = getContractShares(contract, artistId);
                 const scopeLabel = contract.scope === 'catalog' ? 'Catalogue' : contract.scope === 'release' ? 'Release' : 'Track';
+                // Resolve title from loaded releases/tracks
+                const scopeName = contract.scope === 'release' && contract.scope_id
+                  ? releases.find(r => r.upc === contract.scope_id)?.release_title
+                  : contract.scope === 'track' && contract.scope_id
+                    ? tracks.find(t => t.isrc === contract.scope_id)?.track_title
+                    : null;
                 return (
                   <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -2378,6 +2384,9 @@ export default function ArtistDetailPage() {
                         }`}>
                           {scopeLabel}
                         </span>
+                        {scopeName && (
+                          <span className="text-sm font-medium text-foreground truncate">{scopeName}</span>
+                        )}
                         {contract.scope_id && (
                           <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>
                         )}
