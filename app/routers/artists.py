@@ -1437,6 +1437,8 @@ async def get_advance_balance(
     Recoupments are calculated from actual revenues, not from ledger entries,
     to show what would have been recouped even without formal royalty runs.
     """
+    from sqlalchemy.orm import selectinload
+
     # Get artist
     result = await db.execute(
         select(Artist).where(Artist.id == artist_id)
@@ -1477,13 +1479,22 @@ async def get_advance_balance(
 
     # Get catalog contract for default share, or use 50%
     contract_result = await db.execute(
-        select(Contract).where(
+        select(Contract).options(selectinload(Contract.parties)).where(
             Contract.artist_id == artist_id,
             Contract.scope == ContractScope.CATALOG,
         )
     )
     catalog_contract = contract_result.scalar_one_or_none()
-    artist_share = catalog_contract.artist_share if catalog_contract else Decimal("0.5")
+    # Use individual artist's party share (not total of all artists)
+    artist_share = Decimal("0.5")  # Default
+    if catalog_contract:
+        this_party = None
+        if catalog_contract.parties:
+            for p in catalog_contract.parties:
+                if p.party_type == "artist" and str(p.artist_id) == str(artist_id):
+                    this_party = p
+                    break
+        artist_share = this_party.share_percentage if this_party else catalog_contract.artist_share
 
     # Calculate artist royalties from revenues
     total_artist_royalties = total_gross_revenues * artist_share
@@ -1895,14 +1906,17 @@ async def calculate_artist_royalties(
     albums_data: dict = {}  # upc -> {data}
     sources_data: dict = {}  # source -> {data}
 
-    # Build release_title -> UPC mapping from transactions that have both
+    # Build release_title -> UPC and ISRC -> UPC mappings from transactions that have both
     # This allows Bandcamp tracks (without UPC) to inherit UPC from other sources
     release_title_to_upc: dict[str, str] = {}
+    isrc_to_upc: dict[str, str] = {}
     for tx in transactions:
         if tx.upc and tx.release_title:
-            # Only map if we don't already have a mapping, or this UPC is more "valid"
             if tx.release_title not in release_title_to_upc:
                 release_title_to_upc[tx.release_title] = tx.upc
+        if tx.upc and tx.isrc:
+            if tx.isrc not in isrc_to_upc:
+                isrc_to_upc[tx.isrc] = tx.upc
 
     # Source labels mapping
     source_labels = {
@@ -1916,8 +1930,10 @@ async def calculate_artist_royalties(
     }
 
     for tx in transactions:
-        # Try to get UPC: direct > from release_title mapping > UNKNOWN
+        # Try to get UPC: direct > from ISRC mapping > from release_title mapping > UNKNOWN
         upc = tx.upc
+        if not upc and tx.isrc:
+            upc = isrc_to_upc.get(tx.isrc)
         if not upc and tx.release_title:
             upc = release_title_to_upc.get(tx.release_title)
         upc = upc or "UNKNOWN"
@@ -2176,8 +2192,10 @@ async def calculate_artist_royalties(
                     shared_isrcs = other_album["tracks"] & album_isrcs_for_release_advance
                     if shared_isrcs:
                         # This single contains some tracks from our album
-                        # Add its royalties to this album's royalties for recoupment calculation
+                        # Add its royalties AND gross to this album for recoupment + display
                         album["artist_royalties"] += other_album.get("artist_royalties", Decimal("0"))
+                        album["label_royalties"] += other_album.get("label_royalties", Decimal("0"))
+                        album["gross"] += other_album.get("gross", Decimal("0"))
                         # Also add historical revenues from the single
                         for isrc in shared_isrcs:
                             key = f"{other_upc}_{isrc}"
@@ -2199,7 +2217,7 @@ async def calculate_artist_royalties(
         # recoupable_this_period = min(this_period_artist_royalties, remaining_advance)
         album_recoupable = Decimal("0")
         if album_advance_balance > 0:
-            # Apply artist share to cumulative revenues for recoupment calculation
+            # Apply THIS artist's individual share for recoupment calculation
             artist_share = Decimal("0.5")  # Default
             contract = None
             if upc in release_contracts:
@@ -2207,7 +2225,14 @@ async def calculate_artist_royalties(
             elif catalog_contract:
                 contract = catalog_contract
             if contract:
-                artist_share = contract.artist_share
+                # Find this specific artist's party share
+                this_party = None
+                if contract.parties:
+                    for p in contract.parties:
+                        if p.party_type == "artist" and p.artist_id == artist_id:
+                            this_party = p
+                            break
+                artist_share = this_party.share_percentage if this_party else contract.artist_share
 
             # What was already recouped before this period
             already_recouped = min(album_historical_revenues * artist_share, album_advance_balance)
