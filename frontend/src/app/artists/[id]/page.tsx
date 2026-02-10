@@ -347,7 +347,7 @@ export default function ArtistDetailPage() {
       return;
     }
     const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
-    if (totalShare !== 100) {
+    if (Math.abs(totalShare - 100) > 0.01) {
       setError('Le total des parts doit être égal à 100%');
       return;
     }
@@ -402,7 +402,7 @@ export default function ArtistDetailPage() {
       return;
     }
     const totalShare = contractParties.reduce((sum, p) => sum + p.share_percentage, 0);
-    if (totalShare !== 100) {
+    if (Math.abs(totalShare - 100) > 0.01) {
       setError('Le total des parts doit être égal à 100%');
       return;
     }
@@ -918,7 +918,7 @@ export default function ArtistDetailPage() {
         album.track_count.toString(),
         album.streams.toString(),
         `${album.gross} ${royaltyResult.currency}`,
-        `${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%`,
+        `${formatPercent(parseFloat(album.artist_share || '0'))}%`,
         `${album.artist_royalties} ${royaltyResult.currency}`,
         advanceBalance > 0 ? `${advanceBalance} ${royaltyResult.currency}` : '-',
         recoupable > 0 ? `${recoupable} ${royaltyResult.currency}` : '-',
@@ -1170,7 +1170,7 @@ export default function ArtistDetailPage() {
                 <td>${album.track_count}</td>
                 <td class="right">${formatNumber(album.streams)}</td>
                 <td class="right">${isIncludedInAlbum ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.gross)}</span>` : formatCurrency(album.gross)}</td>
-                <td class="right">${(parseFloat(album.artist_share || '0') * 100).toFixed(0)}%</td>
+                <td class="right">${formatPercent(parseFloat(album.artist_share || '0'))}%</td>
                 <td class="right">${(hasAdvance || isIncludedInAlbum) ? `<span style="text-decoration: line-through; color: #999;">${formatCurrency(album.artist_royalties)}</span>` : formatCurrency(album.artist_royalties)}</td>
                 <td class="right" style="color: ${hasAdvance ? '#b45309' : '#999'};">${hasAdvance ? `-${formatCurrency(recoupable.toString())}` : '-'}</td>
                 <td class="right" style="font-weight: ${hasAdvance ? 'bold' : 'normal'};">${isIncludedInAlbum ? '-' : formatCurrency(netPayable.toString())}</td>
@@ -1618,6 +1618,12 @@ export default function ArtistDetailPage() {
 
   const formatNumber = (value: number) => {
     return value.toLocaleString('fr-FR');
+  };
+
+  // Format percentage: show decimals only if needed (50% vs 33.33%)
+  const formatPercent = (decimal: number) => {
+    const pct = decimal * 100;
+    return pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2).replace(/0+$/, '');
   };
 
   // Group releases by UPC (or release_title if no UPC)
@@ -2120,7 +2126,7 @@ export default function ArtistDetailPage() {
                               )}
                               {!isIncludedInAlbum && (
                                 <p className="text-xs text-secondary-500">
-                                  {(parseFloat(album.artist_share || '0') * 100).toFixed(0)}% de {formatCurrency(album.gross, royaltyResult.currency)}
+                                  {formatPercent(parseFloat(album.artist_share || '0'))}% de {formatCurrency(album.gross, royaltyResult.currency)}
                                 </p>
                               )}
                             </div>
@@ -2257,7 +2263,7 @@ export default function ArtistDetailPage() {
                     <p className="font-medium text-foreground">
                       {(() => {
                         const { artistShare, labelShare } = getContractShares(catalogContract);
-                        return `${(artistShare * 100).toFixed(0)}% artiste / ${(labelShare * 100).toFixed(0)}% label`;
+                        return `${formatPercent(artistShare)}% artiste / ${formatPercent(labelShare)}% label`;
                       })()}
                     </p>
                     <p className="text-sm text-secondary-500">
@@ -2432,7 +2438,7 @@ export default function ArtistDetailPage() {
                           {contract ? (
                             <div className="flex items-center gap-1">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
-                                {(getContractShares(contract).artistShare * 100).toFixed(0)}%
+                                {formatPercent(getContractShares(contract).artistShare)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
@@ -2460,7 +2466,7 @@ export default function ArtistDetailPage() {
                             </div>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
-                              {(getContractShares(catalogContract).artistShare * 100).toFixed(0)}% (défaut)
+                              {formatPercent(getContractShares(catalogContract).artistShare)}% (défaut)
                             </span>
                           ) : (
                             <Button
@@ -2589,7 +2595,7 @@ export default function ArtistDetailPage() {
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
-                              {(getContractShares(trackContract).artistShare * 100).toFixed(0)}%
+                              {formatPercent(getContractShares(trackContract).artistShare)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
@@ -2621,7 +2627,7 @@ export default function ArtistDetailPage() {
                               ? 'bg-success/10 text-success-700'
                               : 'bg-content2 text-secondary-600'
                           }`}>
-                            {(getContractShares(effectiveContract).artistShare * 100).toFixed(0)}%
+                            {formatPercent(getContractShares(effectiveContract).artistShare)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
