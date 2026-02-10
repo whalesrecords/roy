@@ -2135,7 +2135,7 @@ export default function ArtistDetailPage() {
                               </p>
                               {album.sources && album.sources.length > 1 && (
                                 <div className="flex flex-wrap gap-1.5 mt-1">
-                                  {album.sources.map((src: any, si: number) => {
+                                  {album.sources.map((src, si) => {
                                     const saleLabel = src.sale_type === 'stream' ? 'Streams'
                                       : src.sale_type === 'cd' ? 'CD'
                                       : src.sale_type === 'vinyl' ? 'Vinyl'

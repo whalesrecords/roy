@@ -587,6 +587,15 @@ export async function batchRefreshReleases(upcs: string[]): Promise<{
 
 // Artist royalty calculation
 
+export interface AlbumSourceBreakdown {
+  source: string;
+  source_label: string;
+  sale_type: string;  // "stream", "cd", "vinyl", "k7", "digital", "other"
+  gross: string;
+  artist_royalties: string;
+  quantity: number;
+}
+
 export interface AlbumRoyalty {
   release_title: string;
   upc: string;
@@ -601,6 +610,7 @@ export interface AlbumRoyalty {
   recoupable: string;       // Amount deducted from this album
   net_payable: string;      // Net after scoped advance deduction
   included_in_upc?: string; // If this single is included in an album's recoupment
+  sources?: AlbumSourceBreakdown[];  // Per-source breakdown (stream vs physical)
 }
 
 export interface SourceBreakdown {
