@@ -2337,13 +2337,74 @@ export default function ArtistDetailPage() {
           )}
         </div>
 
-        {/* Catalogue complet avec export Label Copy - REMOVED: Not needed, use Releases section instead */}
-        {/* {artist && (
-          <CatalogSection
-            artistName={artist.name}
-            artistSpotifyId={artist.spotify_id}
-          />
-        )} */}
+        {/* Tous les contrats */}
+        {contracts.length > 0 && (
+          <div className="bg-background rounded-2xl border border-divider shadow-sm">
+            <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
+              <div>
+                <h2 className="font-medium text-foreground">Tous les contrats ({contracts.length})</h2>
+                <p className="text-sm text-secondary-500">Contrats chargés depuis la page Contrats</p>
+              </div>
+              <a
+                href="/contracts"
+                className="text-sm text-primary hover:text-primary-600 font-medium"
+              >
+                Voir page Contrats →
+              </a>
+            </div>
+            <div className="divide-y divide-divider max-h-80 overflow-y-auto">
+              {contracts.map((contract) => {
+                const { artistShare, labelShare } = getContractShares(contract);
+                const scopeLabel = contract.scope === 'catalog' ? 'Catalogue' : contract.scope === 'release' ? 'Release' : 'Track';
+                return (
+                  <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+                          contract.scope === 'catalog' ? 'bg-secondary/10 text-secondary-700' :
+                          contract.scope === 'release' ? 'bg-success/10 text-success-700' :
+                          'bg-primary/10 text-primary-700'
+                        }`}>
+                          {scopeLabel}
+                        </span>
+                        {contract.scope_id && (
+                          <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>
+                        )}
+                      </div>
+                      {contract.parties && contract.parties.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {contract.parties.map((p, i) => (
+                            <span key={i} className="text-xs text-secondary-500">
+                              {p.party_type === 'artist'
+                                ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
+                                : (p.label_name || 'Label')
+                              }: {formatPercent(parseFloat(String(p.share_percentage)))}%
+                              {i < contract.parties!.length - 1 ? ' · ' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
+                        {formatPercent(artistShare)}% / {formatPercent(labelShare)}%
+                      </span>
+                      <button
+                        onClick={() => handleEditContract(contract)}
+                        className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
+                        title="Modifier"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Releases avec contrats */}
         <div className="bg-background rounded-2xl border border-divider shadow-sm">
@@ -2890,9 +2951,9 @@ export default function ArtistDetailPage() {
 
       {/* Contract Form Modal */}
       {showContractForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">
                   {selectedItem ? `Contrat: ${selectedItem.name}` : 'Contrat catalogue'}
@@ -2908,7 +2969,7 @@ export default function ArtistDetailPage() {
                 </button>
               </div>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
               {selectedItem && (
                 <div className="bg-content2 rounded-xl p-3">
                   <p className="text-sm text-secondary-500">
@@ -3088,7 +3149,7 @@ export default function ArtistDetailPage() {
                 )}
               </div>
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
+            <div className="p-4 sm:p-6 border-t border-divider flex gap-3 flex-shrink-0">
               <Button variant="secondary" onClick={() => {
                 setShowContractForm(false);
                 setSelectedItem(null);
@@ -3659,9 +3720,9 @@ export default function ArtistDetailPage() {
 
       {/* Edit Contract Modal */}
       {editingContract && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 overflow-y-auto">
+          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] flex flex-col">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider flex-shrink-0">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Modifier le contrat</h2>
                 <button onClick={() => setEditingContract(null)} className="p-2 -mr-2 text-secondary-500">
@@ -3671,7 +3732,7 @@ export default function ArtistDetailPage() {
                 </button>
               </div>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
               <div className="bg-content2 rounded-xl p-3">
                 <p className="text-sm text-secondary-500">
                   {editingContract.scope === 'catalog' ? 'Catalogue' : editingContract.scope === 'release' ? 'Release (UPC)' : 'Track (ISRC)'}
@@ -3807,7 +3868,7 @@ export default function ArtistDetailPage() {
                 onChange={(e) => setEditContractStartDate(e.target.value)}
               />
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
+            <div className="p-4 sm:p-6 border-t border-divider flex gap-3 flex-shrink-0">
               <Button variant="secondary" onClick={() => setEditingContract(null)} className="flex-1">
                 Annuler
               </Button>
