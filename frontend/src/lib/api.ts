@@ -370,15 +370,25 @@ export interface CatalogArtist {
   currency: string;
 }
 
+export interface CatalogReleaseSource {
+  store_name: string;
+  physical_format?: string | null;
+  gross: string;
+  quantity: number;
+  track_count: number;
+}
+
 export interface CatalogRelease {
   release_title: string;
   upc: string;
-  physical_format?: string;
-  store_name?: string;
   track_count: number;
   total_gross: string;
   total_streams: number;
   currency: string;
+  sources?: CatalogReleaseSource[];  // Per-source breakdown
+  // Legacy fields (kept for backwards compat during transition)
+  physical_format?: string;
+  store_name?: string;
 }
 
 export interface CatalogTrack {

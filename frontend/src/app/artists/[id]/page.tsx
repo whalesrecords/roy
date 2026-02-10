@@ -1659,34 +1659,18 @@ export default function ArtistDetailPage() {
     return pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2).replace(/0+$/, '');
   };
 
-  // Group releases by UPC (or release_title if no UPC)
-  const groupedReleases = releases.reduce((acc, release) => {
-    const key = release.upc || release.release_title;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(release);
-    return acc;
-  }, {} as Record<string, CatalogRelease[]>);
-
-  // Convert to array with aggregated data
-  const groupedReleasesArray = Object.entries(groupedReleases).map(([key, releases]) => {
-    const firstRelease = releases[0];
-    const totalGross = releases.reduce((sum, r) => sum + parseFloat(r.total_gross), 0);
-    const totalStreams = releases.reduce((sum, r) => sum + r.total_streams, 0);
-    const totalTracks = Math.max(...releases.map(r => r.track_count)); // Max track count
-
-    return {
-      key,
-      release_title: firstRelease.release_title,
-      upc: firstRelease.upc,
-      currency: firstRelease.currency,
-      total_gross: totalGross.toString(),
-      total_streams: totalStreams,
-      track_count: totalTracks,
-      sources: releases,
-    };
-  });
+  // Releases are already grouped by release_title from the backend
+  // Each release has a sources[] array with per-source breakdown
+  const groupedReleasesArray = releases.map((release) => ({
+    key: release.upc || release.release_title,
+    release_title: release.release_title,
+    upc: release.upc,
+    currency: release.currency,
+    total_gross: release.total_gross,
+    total_streams: release.total_streams,
+    track_count: release.track_count,
+    sources: release.sources || [],
+  }));
 
   if (loading) {
     return (
@@ -2597,22 +2581,23 @@ export default function ArtistDetailPage() {
                               )}
                             </div>
                           </button>
-                          {group.upc ? (
-                            <p className="text-xs text-secondary-400 font-mono">UPC: {group.upc}</p>
-                          ) : (
-                            <div className="flex flex-wrap items-center gap-2 text-xs">
-                              {group.sources[0].physical_format && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary/10 text-secondary-700 font-medium">
-                                  {group.sources[0].physical_format}
-                                </span>
-                              )}
-                              {group.sources[0].store_name && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary-700 font-medium">
-                                  {group.sources[0].store_name}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {group.upc && group.upc !== 'UNKNOWN' && (
+                              <p className="text-xs text-secondary-400 font-mono">UPC: {group.upc}</p>
+                            )}
+                            {group.sources.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {group.sources.map((s, si) => (
+                                  <span key={si} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    s.store_name?.toLowerCase() === 'bandcamp' || s.store_name?.toLowerCase() === 'squarespace'
+                                      ? 'bg-warning/10 text-warning-700' : 'bg-primary/10 text-primary-700'
+                                  }`}>
+                                    {s.store_name}{s.physical_format ? ` (${s.physical_format})` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           <p className="text-sm text-secondary-500">
                             {group.track_count} track{group.track_count > 1 ? 's' : ''} · {formatCurrency(group.total_gross, group.currency)}
                             {group.total_streams > 0 && (
@@ -2649,12 +2634,16 @@ export default function ArtistDetailPage() {
                       <div className="bg-content2 border-t border-divider px-4 py-2">
                         <div className="ml-15 pl-3 border-l-2 border-divider space-y-2">
                           {group.sources.map((source, sIdx) => {
+                            const isPhysical = source.store_name?.toLowerCase() === 'bandcamp' || source.store_name?.toLowerCase() === 'squarespace';
+                            const unitLabel = isPhysical ? 'vente' : 'stream';
                             return (
-                              <div key={`${source.store_name || source.physical_format}-${sIdx}`} className="flex items-center gap-3 py-2">
+                              <div key={`${source.store_name}-${source.physical_format}-${sIdx}`} className="flex items-center gap-3 py-2">
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     {source.store_name && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary-700 font-medium text-xs">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md font-medium text-xs ${
+                                        isPhysical ? 'bg-warning/10 text-warning-700' : 'bg-primary/10 text-primary-700'
+                                      }`}>
                                         {source.store_name}
                                       </span>
                                     )}
@@ -2670,10 +2659,10 @@ export default function ArtistDetailPage() {
                                 </div>
                                 <div className="flex items-center gap-2 text-right">
                                   <div>
-                                    <p className="text-sm font-medium text-secondary-700">{formatCurrency(source.total_gross, source.currency)}</p>
-                                    {source.total_streams > 0 && (
+                                    <p className="text-sm font-medium text-secondary-700">{formatCurrency(source.gross, group.currency)}</p>
+                                    {source.quantity > 0 && (
                                       <p className="text-xs text-secondary-400">
-                                        {formatNumber(source.total_streams)} {source.store_name && (source.store_name.toLowerCase() === 'bandcamp' || source.store_name.toLowerCase() === 'squarespace') ? 'vente' : 'stream'}{source.total_streams > 1 ? 's' : ''}
+                                        {formatNumber(source.quantity)} {unitLabel}{source.quantity > 1 ? 's' : ''}
                                       </p>
                                     )}
                                   </div>
