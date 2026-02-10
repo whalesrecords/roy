@@ -2367,6 +2367,12 @@ export default function ArtistDetailPage() {
               {contracts.map((contract) => {
                 const { artistShare, labelShare } = getContractShares(contract, artistId);
                 const scopeLabel = contract.scope === 'catalog' ? 'Catalogue' : contract.scope === 'release' ? 'Release' : 'Track';
+                // Resolve title from loaded releases/tracks
+                const scopeName = contract.scope === 'release' && contract.scope_id
+                  ? releases.find(r => r.upc === contract.scope_id)?.release_title
+                  : contract.scope === 'track' && contract.scope_id
+                    ? tracks.find(t => t.isrc === contract.scope_id)?.track_title
+                    : null;
                 return (
                   <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -2378,6 +2384,9 @@ export default function ArtistDetailPage() {
                         }`}>
                           {scopeLabel}
                         </span>
+                        {scopeName && (
+                          <span className="text-sm font-medium text-foreground truncate">{scopeName}</span>
+                        )}
                         {contract.scope_id && (
                           <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>
                         )}
@@ -2530,53 +2539,17 @@ export default function ArtistDetailPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {contract ? (
-                            <div className="flex items-center gap-1">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
-                                {formatPercent(getContractShares(contract, artistId).artistShare)}%
-                              </span>
-                              <button
-                                onClick={() => handleEditContract(contract)}
-                                className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
-                                title="Modifier"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => contract.id && handleDeleteContract(contract.id)}
-                                disabled={deletingContractId === contract.id}
-                                className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
-                                title="Supprimer"
-                              >
-                                {deletingContractId === contract.id ? (
-                                  <div className="w-3.5 h-3.5 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
+                              {formatPercent(getContractShares(contract, artistId).artistShare)}%
+                            </span>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
                               {formatPercent(getContractShares(catalogContract, artistId).artistShare)}% (défaut)
                             </span>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                setSelectedItem({ type: 'release', id: group.upc, name: group.release_title });
-                                setContractParties([
-                                  { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
-                                  { party_type: 'label', label_name: '', share_percentage: 50 }
-                                ]);
-                                setShowContractForm(true);
-                              }}
-                            >
-                              Définir %
-                            </Button>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
+                              Aucun contrat
+                            </span>
                           )}
                         </div>
                       </div>
@@ -2687,34 +2660,9 @@ export default function ArtistDetailPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {isSpecific && trackContract ? (
-                          <div className="flex items-center gap-1">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
-                              {formatPercent(getContractShares(trackContract, artistId).artistShare)}%
-                            </span>
-                            <button
-                              onClick={() => handleEditContract(trackContract)}
-                              className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
-                              title="Modifier"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => trackContract.id && handleDeleteContract(trackContract.id)}
-                              disabled={deletingContractId === trackContract.id}
-                              className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors"
-                              title="Supprimer"
-                            >
-                              {deletingContractId === trackContract.id ? (
-                                <div className="w-3.5 h-3.5 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              )}
-                            </button>
-                          </div>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
+                            {formatPercent(getContractShares(trackContract, artistId).artistShare)}%
+                          </span>
                         ) : effectiveContract ? (
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                             isReleaseLevel
@@ -2725,20 +2673,9 @@ export default function ArtistDetailPage() {
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
-                              setContractParties([
-                                { party_type: 'artist', artist_id: artist?.id, share_percentage: 50 },
-                                { party_type: 'label', label_name: '', share_percentage: 50 }
-                              ]);
-                              setShowContractForm(true);
-                            }}
-                          >
-                            Définir %
-                          </Button>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
+                            Aucun contrat
+                          </span>
                         )}
                       </div>
                     </div>
