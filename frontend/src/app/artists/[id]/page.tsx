@@ -2990,20 +2990,20 @@ export default function ArtistDetailPage() {
 
                       <div>
                         <label className="block text-xs text-secondary-500 mb-1">
-                          Part: {party.share_percentage.toFixed(0)}%
+                          Part (%)
                         </label>
                         <input
-                          type="range"
+                          type="number"
                           min="0"
                           max="100"
-                          step="5"
+                          step="any"
                           value={party.share_percentage}
                           onChange={(e) => {
                             const newParties = [...contractParties];
-                            newParties[index].share_percentage = parseFloat(e.target.value);
+                            newParties[index].share_percentage = parseFloat(e.target.value) || 0;
                             setContractParties(newParties);
                           }}
-                          className="w-full h-2 bg-content3 rounded-xl appearance-none cursor-pointer"
+                          className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
                         />
                       </div>
                     </div>
@@ -3012,13 +3012,13 @@ export default function ArtistDetailPage() {
 
                 {contractParties.length > 0 && (
                   <div className={`rounded-xl p-3 ${
-                    contractParties.reduce((sum, p) => sum + p.share_percentage, 0) === 100
+                    Math.abs(contractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) <= 0.01
                       ? 'bg-success-50 text-success-700'
                       : 'bg-warning-50 text-warning-700'
                   }`}>
                     <p className="text-sm font-medium">
-                      Total: {contractParties.reduce((sum, p) => sum + p.share_percentage, 0).toFixed(0)}%
-                      {contractParties.reduce((sum, p) => sum + p.share_percentage, 0) !== 100 && ' (doit être 100%)'}
+                      Total: {contractParties.reduce((sum, p) => sum + p.share_percentage, 0).toFixed(2)}%
+                      {Math.abs(contractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01 && ' (doit être 100%)'}
                     </p>
                   </div>
                 )}
@@ -3074,7 +3074,7 @@ export default function ArtistDetailPage() {
                 disabled={
                   !contractStartDate ||
                   contractParties.length === 0 ||
-                  contractParties.reduce((sum, p) => sum + p.share_percentage, 0) !== 100
+                  Math.abs(contractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01
                 }
                 className="flex-1"
               >
@@ -3655,20 +3655,20 @@ export default function ArtistDetailPage() {
 
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Part artiste: {(parseFloat(editContractShare) * 100).toFixed(0)}%
+                  Part artiste (%)
                 </label>
                 <input
-                  type="range"
+                  type="number"
                   min="0"
-                  max="1"
-                  step="0.05"
-                  value={editContractShare}
-                  onChange={(e) => setEditContractShare(e.target.value)}
-                  className="w-full h-2 bg-content3 rounded-xl appearance-none cursor-pointer"
+                  max="100"
+                  step="any"
+                  value={(parseFloat(editContractShare) * 100).toFixed(2).replace(/\.?0+$/, '')}
+                  onChange={(e) => setEditContractShare(String(parseFloat(e.target.value || '0') / 100))}
+                  className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm text-center focus:outline-none focus:border-primary transition-colors"
                 />
                 <div className="flex justify-between text-sm text-secondary-500 mt-2">
-                  <span>Artiste: {(parseFloat(editContractShare) * 100).toFixed(0)}%</span>
-                  <span>Label: {((1 - parseFloat(editContractShare)) * 100).toFixed(0)}%</span>
+                  <span>Artiste: {(parseFloat(editContractShare) * 100).toFixed(2)}%</span>
+                  <span>Label: {((1 - parseFloat(editContractShare)) * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
