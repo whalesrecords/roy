@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import String, DateTime, Numeric, ForeignKey, CheckConstraint
 from sqlalchemy import Enum as SAEnum
@@ -79,12 +79,12 @@ class ContractParty(Base):
         nullable=False,
     )
     # Physical sales rate (CD, vinyl, K7) - if NULL, uses share_percentage
-    share_physical: Mapped[Decimal] = mapped_column(
+    share_physical: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=5, scale=4),
         nullable=True,
     )
     # Digital sales rate (downloads, Bandcamp digital) - if NULL, uses share_percentage
-    share_digital: Mapped[Decimal] = mapped_column(
+    share_digital: Mapped[Optional[Decimal]] = mapped_column(
         Numeric(precision=5, scale=4),
         nullable=True,
     )

@@ -27,5 +27,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Run migrations then start server
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# Run migrations then start server (migration failure should not prevent startup)
+CMD ["sh", "-c", "alembic upgrade head || echo 'WARNING: Migration failed, continuing...'; uvicorn app.main:app --host 0.0.0.0 --port 8000"]
