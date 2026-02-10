@@ -1770,6 +1770,16 @@ from app.models.transaction import TransactionNormalized
 from app.models.contract import ContractScope
 
 
+class AlbumSourceBreakdown(BaseModel):
+    """Revenue breakdown by source within an album (streams vs physical vs digital)."""
+    source: str  # e.g. "tunecore", "bandcamp", "squarespace"
+    source_label: str  # e.g. "TuneCore", "Bandcamp", "Squarespace"
+    sale_type: str  # "stream", "cd", "vinyl", "k7", "digital", "physical", "other"
+    gross: str
+    artist_royalties: str
+    quantity: int  # streams or units sold
+
+
 class AlbumRoyalty(BaseModel):
     """Royalty breakdown for a single album."""
     release_title: str
@@ -1785,6 +1795,7 @@ class AlbumRoyalty(BaseModel):
     recoupable: str = "0"       # Amount deducted from this album
     net_payable: str = "0"      # Net after scoped advance deduction
     included_in_upc: Optional[str] = None  # If this single is included in an album's recoupment
+    sources: list[AlbumSourceBreakdown] = []  # Breakdown by source within this album
 
 
 class SourceBreakdown(BaseModel):
@@ -1888,6 +1899,7 @@ async def calculate_artist_royalties(
             TransactionNormalized.gross_amount,
             TransactionNormalized.quantity,
             TransactionNormalized.artist_name,
+            TransactionNormalized.physical_format,
             Import.source,
         )
         .join(Import, TransactionNormalized.import_id == Import.id)
@@ -1907,18 +1919,23 @@ async def calculate_artist_royalties(
     sources_data: dict = {}  # source -> {data}
 
     # Build release_title -> UPC and ISRC -> UPC mappings from transactions that have both
-    # This allows Bandcamp tracks (without UPC) to inherit UPC from other sources
-    release_title_to_upc: dict[str, str] = {}
+    # This allows Bandcamp/Squarespace tracks (without UPC) to inherit UPC from other sources
+    # Case-insensitive matching for release_title
+    release_title_to_upc: dict[str, str] = {}  # lowercase title -> UPC
+    release_title_original: dict[str, str] = {}  # lowercase title -> original title
     isrc_to_upc: dict[str, str] = {}
     for tx in transactions:
         if tx.upc and tx.release_title:
-            if tx.release_title not in release_title_to_upc:
-                release_title_to_upc[tx.release_title] = tx.upc
+            key = tx.release_title.strip().lower()
+            if key not in release_title_to_upc:
+                release_title_to_upc[key] = tx.upc
+                release_title_original[key] = tx.release_title
         if tx.upc and tx.isrc:
             if tx.isrc not in isrc_to_upc:
                 isrc_to_upc[tx.isrc] = tx.upc
 
-    # Source labels mapping
+    # Source labels and sale type mapping
+    # TuneCore/Believe/CDBaby = streams, Bandcamp/Squarespace = physical/digital
     source_labels = {
         "tunecore": "TuneCore",
         "believe": "Believe",
@@ -1926,16 +1943,38 @@ async def calculate_artist_royalties(
         "believe_fr": "Believe FR",
         "cdbaby": "CD Baby",
         "bandcamp": "Bandcamp",
+        "squarespace": "Squarespace",
         "other": "Autre",
     }
+    # Sources that are streaming platforms (quantity = streams)
+    stream_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
+    # Sources that are physical/digital sales (quantity = units sold)
+    physical_sources = {"bandcamp", "squarespace"}
+
+    def get_sale_type(source: str, physical_format: str | None) -> str:
+        """Determine sale type from source and physical_format."""
+        if source in stream_sources:
+            return "stream"
+        fmt = (physical_format or "").lower().strip()
+        if "vinyl" in fmt or "lp" in fmt:
+            return "vinyl"
+        if "cd" in fmt:
+            return "cd"
+        if "k7" in fmt or "cassette" in fmt or "tape" in fmt:
+            return "k7"
+        if "digital" in fmt or "download" in fmt:
+            return "digital"
+        if source in physical_sources:
+            return "digital"  # Default for Bandcamp/Squarespace
+        return "other"
 
     for tx in transactions:
-        # Try to get UPC: direct > from ISRC mapping > from release_title mapping > UNKNOWN
+        # Try to get UPC: direct > from ISRC mapping > from release_title (case-insensitive) > UNKNOWN
         upc = tx.upc
         if not upc and tx.isrc:
             upc = isrc_to_upc.get(tx.isrc)
         if not upc and tx.release_title:
-            upc = release_title_to_upc.get(tx.release_title)
+            upc = release_title_to_upc.get(tx.release_title.strip().lower())
         upc = upc or "UNKNOWN"
         source = tx.source.value.lower() if tx.source else "other"
 
@@ -1949,6 +1988,7 @@ async def calculate_artist_royalties(
                 "artist_royalties": Decimal("0"),
                 "label_royalties": Decimal("0"),
                 "streams": 0,
+                "album_sources": {},  # source_key -> {gross, artist_royalties, quantity, source, sale_type}
             }
 
         # Initialize source data
@@ -2017,6 +2057,23 @@ async def calculate_artist_royalties(
         album["label_royalties"] += amount * label_share
         src["artist_royalties"] += amount * artist_share
         src["label_royalties"] += amount * label_share
+
+        # Track per-album source breakdown (stream vs physical/digital)
+        sale_type = get_sale_type(source, getattr(tx, 'physical_format', None))
+        album_src_key = f"{source}_{sale_type}"
+        if album_src_key not in album["album_sources"]:
+            album["album_sources"][album_src_key] = {
+                "source": source,
+                "source_label": source_labels.get(source, source.capitalize()),
+                "sale_type": sale_type,
+                "gross": Decimal("0"),
+                "artist_royalties": Decimal("0"),
+                "quantity": 0,
+            }
+        asrc = album["album_sources"][album_src_key]
+        asrc["gross"] += amount
+        asrc["artist_royalties"] += amount * artist_share
+        asrc["quantity"] += tx.quantity or 0
 
     # Calculate totals
     total_gross = sum(a["gross"] for a in albums_data.values())
@@ -2304,6 +2361,21 @@ async def calculate_artist_royalties(
             recoupable=str(a.get("recoupable", Decimal("0"))),
             net_payable=str(a.get("net_payable", a["artist_royalties"])),
             included_in_upc=included_in,
+            sources=[
+                AlbumSourceBreakdown(
+                    source=asrc["source"],
+                    source_label=asrc["source_label"],
+                    sale_type=asrc["sale_type"],
+                    gross=str(asrc["gross"]),
+                    artist_royalties=str(asrc["artist_royalties"]),
+                    quantity=asrc["quantity"],
+                )
+                for asrc in sorted(
+                    a.get("album_sources", {}).values(),
+                    key=lambda x: x["gross"],
+                    reverse=True,
+                )
+            ],
         ))
 
     # Build sources list

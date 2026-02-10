@@ -2130,8 +2130,29 @@ export default function ArtistDetailPage() {
                               </p>
                               <p className="text-xs text-secondary-400 font-mono">UPC: {album.upc}</p>
                               <p className="text-xs text-secondary-500">
-                                {album.track_count} track{album.track_count > 1 ? 's' : ''} · {formatNumber(album.streams)} streams
+                                {album.track_count} track{album.track_count > 1 ? 's' : ''}
+                                {album.streams > 0 && ` · ${formatNumber(album.streams)} streams`}
                               </p>
+                              {album.sources && album.sources.length > 1 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {album.sources.map((src: any, si: number) => {
+                                    const saleLabel = src.sale_type === 'stream' ? 'Streams'
+                                      : src.sale_type === 'cd' ? 'CD'
+                                      : src.sale_type === 'vinyl' ? 'Vinyl'
+                                      : src.sale_type === 'k7' ? 'K7'
+                                      : src.sale_type === 'digital' ? 'Digital'
+                                      : src.sale_type;
+                                    return (
+                                      <span key={si} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                        src.sale_type === 'stream' ? 'bg-primary/10 text-primary-700' : 'bg-warning/10 text-warning-700'
+                                      }`}>
+                                        {src.source_label} ({saleLabel}): {formatCurrency(src.gross, royaltyResult.currency)}
+                                        {src.sale_type === 'stream' ? ` · ${formatNumber(src.quantity)} streams` : src.quantity > 0 ? ` · ${src.quantity} ventes` : ''}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               {isIncludedInAlbum && parentAlbum && (
                                 <p className="text-xs text-warning-700 mt-1 font-medium">
                                   ⚠️ Inclus dans "{parentAlbum.release_title}"
@@ -2348,58 +2369,44 @@ export default function ArtistDetailPage() {
           )}
         </div>
 
-        {/* Tous les contrats */}
-        {contracts.length > 0 && (
-          <div className="bg-background rounded-2xl border border-divider shadow-sm">
-            <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
-              <div>
-                <h2 className="font-medium text-foreground">Tous les contrats ({contracts.length})</h2>
-                <p className="text-sm text-secondary-500">Contrats chargés depuis la page Contrats</p>
-              </div>
-              <a
-                href="/contracts"
-                className="text-sm text-primary hover:text-primary-600 font-medium"
-              >
-                Voir page Contrats →
-              </a>
+        {/* Tous les contrats - shows ALL releases + existing contracts */}
+        <div className="bg-background rounded-2xl border border-divider shadow-sm">
+          <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
+            <div>
+              <h2 className="font-medium text-foreground">Tous les contrats</h2>
+              <p className="text-sm text-secondary-500">
+                {contracts.length} contrat{contracts.length !== 1 ? 's' : ''} · {releases.length} release{releases.length !== 1 ? 's' : ''}
+              </p>
             </div>
-            <div className="divide-y divide-divider max-h-80 overflow-y-auto">
-              {contracts.map((contract) => {
-                const { artistShare, labelShare } = getContractShares(contract, artistId);
-                const scopeLabel = contract.scope === 'catalog' ? 'Catalogue' : contract.scope === 'release' ? 'Release' : 'Track';
-                // Resolve title from loaded releases/tracks
-                const scopeName = contract.scope === 'release' && contract.scope_id
-                  ? releases.find(r => r.upc === contract.scope_id)?.release_title
-                  : contract.scope === 'track' && contract.scope_id
-                    ? tracks.find(t => t.isrc === contract.scope_id)?.track_title
-                    : null;
+            <a
+              href="/contracts"
+              className="text-sm text-primary hover:text-primary-600 font-medium"
+            >
+              Voir page Contrats →
+            </a>
+          </div>
+          <div className="divide-y divide-divider max-h-[500px] overflow-y-auto">
+            {/* Catalog contract */}
+            {(() => {
+              const catContract = contracts.find(c => c.scope === 'catalog');
+              if (catContract) {
+                const { artistShare, labelShare } = getContractShares(catContract, artistId);
                 return (
-                  <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="px-4 py-3 flex items-center justify-between gap-3 bg-content2/30">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
-                          contract.scope === 'catalog' ? 'bg-secondary/10 text-secondary-700' :
-                          contract.scope === 'release' ? 'bg-success/10 text-success-700' :
-                          'bg-primary/10 text-primary-700'
-                        }`}>
-                          {scopeLabel}
-                        </span>
-                        {scopeName && (
-                          <span className="text-sm font-medium text-foreground truncate">{scopeName}</span>
-                        )}
-                        {contract.scope_id && (
-                          <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>
-                        )}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary/10 text-secondary-700">Catalogue</span>
+                        <span className="text-sm font-medium text-foreground">Contrat par défaut</span>
                       </div>
-                      {contract.parties && contract.parties.length > 0 && (
+                      {catContract.parties && catContract.parties.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {contract.parties.map((p, i) => (
+                          {catContract.parties.map((p, i) => (
                             <span key={i} className="text-xs text-secondary-500">
                               {p.party_type === 'artist'
                                 ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
                                 : (p.label_name || 'Label')
                               }: {formatPercent(parseFloat(String(p.share_percentage)))}%
-                              {i < contract.parties!.length - 1 ? ' · ' : ''}
+                              {i < catContract.parties!.length - 1 ? ' · ' : ''}
                             </span>
                           ))}
                         </div>
@@ -2409,22 +2416,105 @@ export default function ArtistDetailPage() {
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
                         {formatPercent(artistShare)}% / {formatPercent(labelShare)}%
                       </span>
-                      <button
-                        onClick={() => handleEditContract(contract)}
-                        className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors"
-                        title="Modifier"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                      <button onClick={() => handleEditContract(catContract)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
                     </div>
                   </div>
                 );
-              })}
-            </div>
+              }
+              return null;
+            })()}
+
+            {/* All releases - with or without contract */}
+            {releases.map((release) => {
+              const releaseContract = contracts.find(c => c.scope === 'release' && c.scope_id === release.upc);
+              const catContract = contracts.find(c => c.scope === 'catalog');
+              const hasContract = !!releaseContract;
+              const effectiveContract = releaseContract || catContract;
+              const shares = effectiveContract ? getContractShares(effectiveContract, artistId) : null;
+
+              return (
+                <div key={release.upc} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+                        hasContract ? 'bg-success/10 text-success-700' : 'bg-warning/10 text-warning-700'
+                      }`}>
+                        Release
+                      </span>
+                      <span className="text-sm font-medium text-foreground truncate">{release.release_title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs font-mono text-secondary-400">UPC: {release.upc}</span>
+                      {release.store_name && (
+                        <span className="text-xs text-secondary-400">· {release.store_name}</span>
+                      )}
+                    </div>
+                    {hasContract && releaseContract?.parties && releaseContract.parties.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {releaseContract.parties.map((p, i) => (
+                          <span key={i} className="text-xs text-secondary-500">
+                            {p.party_type === 'artist'
+                              ? (allArtists.find(a => a.id === p.artist_id)?.name || 'Artiste')
+                              : (p.label_name || 'Label')
+                            }: {formatPercent(parseFloat(String(p.share_percentage)))}%
+                            {i < releaseContract.parties!.length - 1 ? ' · ' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {hasContract ? (
+                      <>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
+                          {shares ? `${formatPercent(shares.artistShare)}%` : '-'}
+                        </span>
+                        <button onClick={() => handleEditContract(releaseContract!)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                      </>
+                    ) : shares ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
+                        {formatPercent(shares.artistShare)}% (catalogue)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
+                        Aucun contrat
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Track-level contracts (not shown as releases) */}
+            {contracts.filter(c => c.scope === 'track').map((contract) => {
+              const { artistShare, labelShare } = getContractShares(contract, artistId);
+              const trackName = tracks.find(t => t.isrc === contract.scope_id)?.track_title;
+              return (
+                <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary-700">Track</span>
+                      {trackName && <span className="text-sm font-medium text-foreground truncate">{trackName}</span>}
+                      {contract.scope_id && <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
+                      {formatPercent(artistShare)}%
+                    </span>
+                    <button onClick={() => handleEditContract(contract)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* Releases avec contrats */}
         <div className="bg-background rounded-2xl border border-divider shadow-sm">
