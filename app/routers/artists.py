@@ -1845,7 +1845,7 @@ async def calculate_artist_royalties(
         ),
     )
     contract_result = await db.execute(
-        select(Contract).where(
+        select(Contract).options(selectinload(Contract.parties)).where(
             Contract.artist_id == artist_id,
             validity_condition,
         )
@@ -1979,9 +1979,20 @@ async def calculate_artist_royalties(
         elif catalog_contract:
             contract = catalog_contract
 
-        # Apply contract split (artist vs label)
+        # Apply contract split (use THIS artist's individual share, not total)
         if contract:
-            artist_share = contract.artist_share
+            # Look for this specific artist's party in the contract
+            this_artist_party = None
+            if contract.parties:
+                for p in contract.parties:
+                    if p.party_type == "artist" and p.artist_id == artist_id:
+                        this_artist_party = p
+                        break
+            if this_artist_party:
+                artist_share = this_artist_party.share_percentage
+            else:
+                # Fallback to legacy total artist_share (single-artist contracts)
+                artist_share = contract.artist_share
             label_share = contract.label_share
         else:
             artist_share = Decimal("0.5")

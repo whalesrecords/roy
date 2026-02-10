@@ -103,7 +103,8 @@ function generatePeriods(): Period[] {
 const PERIODS = generatePeriods();
 
 // Helper to calculate shares from contract parties
-function getContractShares(contract: Contract): { artistShare: number; labelShare: number } {
+// If forArtistId is provided, returns only that artist's individual share (not total of all artists)
+function getContractShares(contract: Contract, forArtistId?: string): { artistShare: number; labelShare: number } {
   if (!contract.parties || contract.parties.length === 0) {
     // Fallback to old fields if parties not available
     return {
@@ -111,9 +112,19 @@ function getContractShares(contract: Contract): { artistShare: number; labelShar
       labelShare: parseFloat(contract.label_share || '0'),
     };
   }
-  const artistShare = contract.parties
-    .filter(p => p.party_type === 'artist')
-    .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
+  let artistShare: number;
+  if (forArtistId) {
+    // Find this specific artist's share
+    const thisParty = contract.parties.find(
+      p => p.party_type === 'artist' && p.artist_id === forArtistId
+    );
+    artistShare = thisParty ? parseFloat(thisParty.share_percentage || '0') : 0;
+  } else {
+    // Total of all artist parties
+    artistShare = contract.parties
+      .filter(p => p.party_type === 'artist')
+      .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
+  }
   const labelShare = contract.parties
     .filter(p => p.party_type === 'label')
     .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
@@ -673,7 +684,7 @@ export default function ArtistDetailPage() {
 
   const handleEditContract = (contract: Contract) => {
     setEditingContract(contract);
-    const { artistShare } = getContractShares(contract);
+    const { artistShare } = getContractShares(contract, artistId);
     setEditContractShare(artistShare > 0 ? String(artistShare) : '0.5');
     setEditContractStartDate(contract.start_date);
     // Load existing parties
@@ -2284,7 +2295,7 @@ export default function ArtistDetailPage() {
                   <div>
                     <p className="font-medium text-foreground">
                       {(() => {
-                        const { artistShare, labelShare } = getContractShares(catalogContract);
+                        const { artistShare, labelShare } = getContractShares(catalogContract, artistId);
                         return `${formatPercent(artistShare)}% artiste / ${formatPercent(labelShare)}% label`;
                       })()}
                     </p>
@@ -2354,7 +2365,7 @@ export default function ArtistDetailPage() {
             </div>
             <div className="divide-y divide-divider max-h-80 overflow-y-auto">
               {contracts.map((contract) => {
-                const { artistShare, labelShare } = getContractShares(contract);
+                const { artistShare, labelShare } = getContractShares(contract, artistId);
                 const scopeLabel = contract.scope === 'catalog' ? 'Catalogue' : contract.scope === 'release' ? 'Release' : 'Track';
                 return (
                   <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
@@ -2521,7 +2532,7 @@ export default function ArtistDetailPage() {
                           {contract ? (
                             <div className="flex items-center gap-1">
                               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
-                                {formatPercent(getContractShares(contract).artistShare)}%
+                                {formatPercent(getContractShares(contract, artistId).artistShare)}%
                               </span>
                               <button
                                 onClick={() => handleEditContract(contract)}
@@ -2549,7 +2560,7 @@ export default function ArtistDetailPage() {
                             </div>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
-                              {formatPercent(getContractShares(catalogContract).artistShare)}% (défaut)
+                              {formatPercent(getContractShares(catalogContract, artistId).artistShare)}% (défaut)
                             </span>
                           ) : (
                             <Button
@@ -2678,7 +2689,7 @@ export default function ArtistDetailPage() {
                         {isSpecific && trackContract ? (
                           <div className="flex items-center gap-1">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
-                              {formatPercent(getContractShares(trackContract).artistShare)}%
+                              {formatPercent(getContractShares(trackContract, artistId).artistShare)}%
                             </span>
                             <button
                               onClick={() => handleEditContract(trackContract)}
@@ -2710,7 +2721,7 @@ export default function ArtistDetailPage() {
                               ? 'bg-success/10 text-success-700'
                               : 'bg-content2 text-secondary-600'
                           }`}>
-                            {formatPercent(getContractShares(effectiveContract).artistShare)}%
+                            {formatPercent(getContractShares(effectiveContract, artistId).artistShare)}%
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
