@@ -10,7 +10,7 @@ from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -1006,7 +1006,10 @@ async def list_contracts(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> List[ContractResponse]:
-    """List all contracts for an artist."""
+    """List all contracts for an artist (including contracts where they are a party)."""
+    from sqlalchemy.orm import selectinload
+    from app.models.contract_party import ContractParty as ContractPartyModel
+
     # Verify artist exists
     result = await db.execute(
         select(Artist).where(Artist.id == artist_id)
@@ -1017,28 +1020,25 @@ async def list_contracts(
             detail=f"Artist {artist_id} not found",
         )
 
+    # Find contracts where artist is primary OR appears as a party
     result = await db.execute(
         select(Contract)
-        .where(Contract.artist_id == artist_id)
+        .options(selectinload(Contract.parties))
+        .where(
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            )
+        )
         .order_by(Contract.start_date.desc())
     )
-    contracts = result.scalars().all()
+    contracts = result.scalars().unique().all()
 
-    return [
-        ContractResponse(
-            id=contract.id,
-            artist_id=contract.artist_id,
-            scope=contract.scope.value,
-            scope_id=contract.scope_id,
-            artist_share=contract.artist_share,
-            label_share=contract.label_share,
-            start_date=contract.start_date,
-            end_date=contract.end_date,
-            description=contract.description,
-            created_at=contract.created_at,
-        )
-        for contract in contracts
-    ]
+    return contracts
 
 
 @router.put("/{artist_id}/contracts/{contract_id}", response_model=ContractResponse)
@@ -1478,13 +1478,22 @@ async def get_advance_balance(
     total_gross_revenues = Decimal(str(revenue_result.scalar()))
 
     # Get catalog contract for default share, or use 50%
+    # Include contracts where artist is primary OR appears as a party
+    from app.models.contract_party import ContractParty as ContractPartyModel
     contract_result = await db.execute(
         select(Contract).options(selectinload(Contract.parties)).where(
-            Contract.artist_id == artist_id,
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            ),
             Contract.scope == ContractScope.CATALOG,
         )
     )
-    catalog_contract = contract_result.scalar_one_or_none()
+    catalog_contract = contract_result.scalars().unique().first()
     # Use individual artist's party share (not total of all artists)
     artist_share = Decimal("0.5")  # Default
     if catalog_contract:
@@ -1858,7 +1867,9 @@ async def calculate_artist_royalties(
         )
 
     # Get all contracts for this artist (valid in the period)
+    # Include contracts where artist is primary OR appears as a party
     from sqlalchemy import and_, or_
+    from app.models.contract_party import ContractParty as ContractPartyModel
     validity_condition = and_(
         Contract.start_date <= period_end,
         or_(
@@ -1868,11 +1879,18 @@ async def calculate_artist_royalties(
     )
     contract_result = await db.execute(
         select(Contract).options(selectinload(Contract.parties)).where(
-            Contract.artist_id == artist_id,
+            or_(
+                Contract.artist_id == artist_id,
+                Contract.id.in_(
+                    select(ContractPartyModel.contract_id).where(
+                        ContractPartyModel.artist_id == artist_id
+                    )
+                )
+            ),
             validity_condition,
         )
     )
-    contracts = contract_result.scalars().all()
+    contracts = contract_result.scalars().unique().all()
 
     # Index contracts for fast lookup
     track_contracts = {c.scope_id: c for c in contracts if c.scope == ContractScope.TRACK and c.scope_id}
