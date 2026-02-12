@@ -363,6 +363,10 @@ def normalize_bandcamp_row(
 
     if parsed_date_to:
         period_end = parsed_date_to
+    elif parsed_date_from:
+        # Single sale date: use same date as start and end
+        # so it matches any period that includes this date
+        period_end = parsed_date_from
     else:
         period_end = fallback_period_end
 
