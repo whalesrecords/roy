@@ -918,6 +918,7 @@ async def get_artist_releases(
             releases_map[key] = {
                 "release_title": title,
                 "upc": None,  # Will be set to the best UPC
+                "upc_source": None,  # Track which source provided the UPC
                 "tracks": set(),
                 "total_gross": 0,
                 "total_streams": 0,
@@ -926,9 +927,18 @@ async def get_artist_releases(
 
         release = releases_map[key]
 
-        # Prefer a real UPC over None/UNKNOWN
-        if row.upc and (not release["upc"] or release["upc"] == "UNKNOWN"):
+        # Prefer authoritative UPC (TuneCore/Believe/CDBaby) over Bandcamp/Squarespace
+        auth_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
+        row_source = (row.store_name or "").lower().replace(" ", "")
+        # Map store_name to source key
+        source_key_map = {"tunecore": "tunecore", "bandcamp": "bandcamp", "squarespace": "squarespace"}
+        row_src = next((v for k, v in source_key_map.items() if k in row_source), row_source)
+        row_is_auth = row_src in auth_sources
+        existing_is_auth = release["upc_source"] in auth_sources if release["upc_source"] else False
+
+        if row.upc and (not release["upc"] or release["upc"] == "UNKNOWN" or (row_is_auth and not existing_is_auth)):
             release["upc"] = row.upc
+            release["upc_source"] = row_src
 
         # Accumulate totals
         release["total_gross"] += float(row.gross_amount or 0)

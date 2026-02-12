@@ -1924,14 +1924,24 @@ async def calculate_artist_royalties(
     # Build release_title -> UPC and ISRC -> UPC mappings from transactions that have both
     # This allows Bandcamp/Squarespace tracks (without UPC) to inherit UPC from other sources
     # Case-insensitive matching for release_title
+    # PRIORITY: TuneCore/Believe/CDBaby UPCs are authoritative (distributors assign correct UPCs)
+    # Bandcamp/Squarespace UPCs should be overridden if a distributor UPC exists for the same title
+    authoritative_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
     release_title_to_upc: dict[str, str] = {}  # lowercase title -> UPC
+    release_title_upc_source: dict[str, str] = {}  # lowercase title -> source that provided UPC
     release_title_original: dict[str, str] = {}  # lowercase title -> original title
     isrc_to_upc: dict[str, str] = {}
     for tx in transactions:
         if tx.upc and tx.release_title:
             key = tx.release_title.strip().lower()
-            if key not in release_title_to_upc:
+            tx_source = tx.source.value.lower() if tx.source else "other"
+            existing_source = release_title_upc_source.get(key)
+            # Always prefer authoritative source UPCs over non-authoritative
+            is_authoritative = tx_source in authoritative_sources
+            existing_is_authoritative = existing_source in authoritative_sources if existing_source else False
+            if key not in release_title_to_upc or (is_authoritative and not existing_is_authoritative):
                 release_title_to_upc[key] = tx.upc
+                release_title_upc_source[key] = tx_source
                 release_title_original[key] = tx.release_title
         if tx.upc and tx.isrc:
             if tx.isrc not in isrc_to_upc:
@@ -1972,14 +1982,25 @@ async def calculate_artist_royalties(
         return "other"
 
     for tx in transactions:
-        # Try to get UPC: direct > from ISRC mapping > from release_title (case-insensitive) > UNKNOWN
-        upc = tx.upc
-        if not upc and tx.isrc:
-            upc = isrc_to_upc.get(tx.isrc)
-        if not upc and tx.release_title:
-            upc = release_title_to_upc.get(tx.release_title.strip().lower())
-        upc = upc or "UNKNOWN"
+        # Try to get UPC: authoritative title match > direct > from ISRC > from title > UNKNOWN
+        # For non-authoritative sources (Bandcamp/Squarespace), always prefer the
+        # authoritative UPC (TuneCore/Believe) if the same title exists
         source = tx.source.value.lower() if tx.source else "other"
+        title_key = tx.release_title.strip().lower() if tx.release_title else None
+        authoritative_upc = release_title_to_upc.get(title_key) if title_key else None
+        authoritative_src = release_title_upc_source.get(title_key) if title_key else None
+
+        if source not in authoritative_sources and authoritative_upc and authoritative_src in authoritative_sources:
+            # Non-authoritative source (Bandcamp/Squarespace): use the authoritative UPC
+            upc = authoritative_upc
+        else:
+            # Authoritative source or no override available: use direct UPC
+            upc = tx.upc
+            if not upc and tx.isrc:
+                upc = isrc_to_upc.get(tx.isrc)
+            if not upc and title_key:
+                upc = release_title_to_upc.get(title_key)
+        upc = upc or "UNKNOWN"
 
         # Initialize album data
         if upc not in albums_data:
