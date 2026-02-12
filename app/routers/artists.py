@@ -275,7 +275,6 @@ async def list_artists_with_summary(
         )
         artist_links = links_result.scalars().all()
         linked_isrcs = {link.isrc for link in artist_links}
-        link_shares = {link.isrc: link.share_percent for link in artist_links}
 
         # Build query for transactions
         if linked_isrcs:
@@ -296,22 +295,8 @@ async def list_artists_with_summary(
         )
         row = tx_result.first()
 
-        # Calculate collaboration-adjusted gross
-        total_gross = Decimal("0")
-        if row and row.total_gross:
-            # Get detailed transactions to apply shares correctly
-            detail_result = await db.execute(
-                select(
-                    TransactionNormalized.artist_name,
-                    TransactionNormalized.isrc,
-                    TransactionNormalized.gross_amount,
-                ).where(where_clause)
-            )
-            for tx in detail_result.all():
-                if tx.artist_name == artist.name:
-                    total_gross += tx.gross_amount or Decimal("0")
-                elif tx.isrc and tx.isrc in link_shares:
-                    total_gross += (tx.gross_amount or Decimal("0")) * link_shares[tx.isrc]
+        # Calculate total gross (full amount - contract % handles splits)
+        total_gross = row.total_gross or Decimal("0") if row else Decimal("0")
 
         summary.append({
             "id": str(artist.id),
@@ -1905,7 +1890,6 @@ async def calculate_artist_royalties(
     )
     artist_links = links_result.scalars().all()
     linked_isrcs = {link.isrc for link in artist_links}
-    link_shares = {link.isrc: link.share_percent for link in artist_links}
 
     # Get transactions grouped by album with source info
     # Include transactions where artist_name matches OR ISRC is in track-artist links
@@ -2025,17 +2009,9 @@ async def calculate_artist_royalties(
         album = albums_data[upc]
         src = sources_data[source]
 
-        # Determine if this is a collaboration transaction
-        # If artist_name doesn't match but ISRC is in linked_isrcs, apply share_percent
+        # The gross amount for this transaction (full amount, contract % handles the split)
         base_amount = tx.gross_amount or Decimal("0")
-        collab_share = Decimal("1")  # Default: 100% if not a collab
-
-        if tx.artist_name != artist.name and tx.isrc and tx.isrc in link_shares:
-            # This is a collaboration - apply the artist's share from track-artist link
-            collab_share = link_shares[tx.isrc]
-
-        # The amount this artist gets from this transaction
-        amount = base_amount * collab_share
+        amount = base_amount
 
         album["tracks"].add(tx.isrc)
         album["gross"] += amount
