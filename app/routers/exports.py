@@ -119,7 +119,7 @@ async def _compute_all_artists_royalties(
             .join(Import, TransactionNormalized.import_id == Import.id)
             .where(
                 or_(
-                    TransactionNormalized.artist_name == artist.name,
+                    func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
                     TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
                 ),
                 TransactionNormalized.period_start >= period_start,
