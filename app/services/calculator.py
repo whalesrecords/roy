@@ -414,8 +414,8 @@ class RoyaltyCalculator:
                         if artist_id_set and artist.id not in artist_id_set:
                             continue
 
-                        # Calculate this artist's share of the gross
-                        artist_portion = amount_base * link.share_percent
+                        # Use full gross - the contract party % handles the split
+                        artist_portion = amount_base
 
                         # Find applicable contract for THIS artist
                         contract = None
@@ -458,9 +458,9 @@ class RoyaltyCalculator:
                             release_title=tx.release_title,
                             isrc=tx.isrc,
                             upc=tx.upc,
-                            gross_amount=tx.gross_amount * link.share_percent,
+                            gross_amount=tx.gross_amount,
                             original_currency=tx.currency,
-                            amount_base=artist_portion,
+                            amount_base=amount_base,
                             fx_rate=fx_rate,
                             artist_share=contract_artist_share,
                             label_share=contract_label_share,
