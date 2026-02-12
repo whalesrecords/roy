@@ -1614,3 +1614,27 @@ export async function deletePromoSubmission(submissionId: string): Promise<void>
     method: 'DELETE',
   });
 }
+
+// Export functions
+export function getExportCsvUrl(periodStart: string, periodEnd: string): string {
+  return `${API_BASE}/exports/royalties/csv?period_start=${periodStart}&period_end=${periodEnd}`;
+}
+
+export function getExportPdfUrl(periodStart: string, periodEnd: string): string {
+  return `${API_BASE}/exports/royalties/pdf?period_start=${periodStart}&period_end=${periodEnd}`;
+}
+
+export async function downloadExport(url: string, filename: string): Promise<void> {
+  const res = await fetch(url, {
+    headers: { 'X-Admin-Token': ADMIN_TOKEN },
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
