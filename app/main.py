@@ -48,6 +48,10 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE artists ADD COLUMN IF NOT EXISTS access_code VARCHAR(20)",
             "ALTER TABLE artists ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
             "ALTER TABLE advance_ledger ADD COLUMN IF NOT EXISTS promo_submission_id UUID",
+            # Fix Bandcamp transactions: when period_end != period_start, set period_end = period_start
+            # (each Bandcamp sale is a single date, period_end was wrongly set to the import's period_end)
+            """UPDATE transactions_normalized SET period_end = period_start
+               WHERE store_name = 'Bandcamp' AND period_end != period_start""",
         ]
         for sql in migrations:
             try:
