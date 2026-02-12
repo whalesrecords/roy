@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardBody, CardHeader, Spinner, Divider } from '@heroui/react';
 import Button from '@/components/ui/Button';
 import { RoyaltyRun, ROYALTY_STATUS_LABELS, Artist, ImportRecord } from '@/lib/types';
-import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, getArtists, getImports } from '@/lib/api';
+import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, getArtists, getImports, getExportCsvUrl, getExportPdfUrl, downloadExport } from '@/lib/api';
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
@@ -26,6 +26,8 @@ export default function RoyaltiesPage() {
   const [creating, setCreating] = useState(false);
   const [locking, setLocking] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -52,6 +54,39 @@ export default function RoyaltiesPage() {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    if (!periodStart || !periodEnd) return;
+    setExportingCsv(true);
+    try {
+      const url = getExportCsvUrl(periodStart, periodEnd);
+      await downloadExport(url, `royalties_${periodStart}_${periodEnd}.csv`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur export CSV');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!periodStart || !periodEnd) return;
+    setExportingPdf(true);
+    try {
+      const url = getExportPdfUrl(periodStart, periodEnd);
+      // Open PDF in new tab for print
+      const res = await fetch(url, {
+        headers: { 'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '' },
+      });
+      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur export PDF');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -233,6 +268,93 @@ export default function RoyaltiesPage() {
               </CardBody>
             </Card>
           </div>
+        )}
+
+        {/* Export section */}
+        {!loading && canCalculate && (
+          <Card>
+            <CardBody className="p-4 space-y-3">
+              <h3 className="font-medium text-foreground">Exporter un rapport</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-secondary-500 mb-1">Debut</label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-secondary-500 mb-1">Fin</label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              {/* Quick period buttons from imports */}
+              {imports.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {imports
+                    .filter((imp, idx, arr) =>
+                      arr.findIndex(i =>
+                        i.period_start === imp.period_start && i.period_end === imp.period_end
+                      ) === idx
+                    )
+                    .slice(0, 6)
+                    .map((imp) => (
+                      <button
+                        key={`exp-${imp.id}`}
+                        onClick={() => {
+                          if (imp.period_start) setPeriodStart(imp.period_start);
+                          if (imp.period_end) setPeriodEnd(imp.period_end);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+                          periodStart === imp.period_start && periodEnd === imp.period_end
+                            ? 'bg-primary text-white'
+                            : 'bg-content2 text-secondary-600 hover:bg-content3'
+                        }`}
+                      >
+                        {formatDate(imp.period_start)}
+                      </button>
+                    ))}
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleExportCsv}
+                  disabled={!periodStart || !periodEnd || exportingCsv}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-content2 hover:bg-content3 disabled:opacity-40 rounded-xl text-sm font-medium text-foreground transition-colors"
+                >
+                  {exportingCsv ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )}
+                  CSV
+                </button>
+                <button
+                  onClick={handleExportPdf}
+                  disabled={!periodStart || !periodEnd || exportingPdf}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-content2 hover:bg-content3 disabled:opacity-40 rounded-xl text-sm font-medium text-foreground transition-colors"
+                >
+                  {exportingPdf ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                  PDF
+                </button>
+              </div>
+            </CardBody>
+          </Card>
         )}
 
         {/* Runs list grouped by year */}

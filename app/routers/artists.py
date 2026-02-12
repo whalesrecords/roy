@@ -276,14 +276,14 @@ async def list_artists_with_summary(
         artist_links = links_result.scalars().all()
         linked_isrcs = {link.isrc for link in artist_links}
 
-        # Build query for transactions
+        # Build query for transactions (case-insensitive artist name matching)
         if linked_isrcs:
             where_clause = or_(
-                TransactionNormalized.artist_name == artist.name,
+                func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
                 TransactionNormalized.isrc.in_(linked_isrcs),
             )
         else:
-            where_clause = TransactionNormalized.artist_name == artist.name
+            where_clause = func.lower(TransactionNormalized.artist_name) == artist.name.lower()
 
         # Get aggregated data
         tx_result = await db.execute(
@@ -1458,7 +1458,7 @@ async def get_advance_balance(
     # Get total gross revenues for this artist
     revenue_result = await db.execute(
         select(func.coalesce(func.sum(TransactionNormalized.gross_amount), 0)).where(
-            TransactionNormalized.artist_name == artist.name,
+            func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
         )
     )
     total_gross_revenues = Decimal(str(revenue_result.scalar()))
@@ -1908,7 +1908,7 @@ async def calculate_artist_royalties(
         .join(Import, TransactionNormalized.import_id == Import.id)
         .where(
             or_(
-                TransactionNormalized.artist_name == artist.name,
+                func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
                 TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
             ),
             TransactionNormalized.period_start >= period_start,
@@ -2175,7 +2175,7 @@ async def calculate_artist_royalties(
             .join(Import, TransactionNormalized.import_id == Import.id)
             .where(
                 or_(
-                    TransactionNormalized.artist_name == artist.name,
+                    func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
                     TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
                 ),
                 TransactionNormalized.period_end <= period_end,
@@ -2201,7 +2201,7 @@ async def calculate_artist_royalties(
                 .join(Import, TransactionNormalized.import_id == Import.id)
                 .where(
                     or_(
-                        TransactionNormalized.artist_name == artist.name,
+                        func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
                         TransactionNormalized.isrc.in_(linked_isrcs) if linked_isrcs else False,
                     ),
                     TransactionNormalized.period_end < period_start,
