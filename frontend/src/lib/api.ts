@@ -416,6 +416,14 @@ export async function linkUpcToRelease(artistName: string, releaseTitle: string,
   return fetchApi('/imports/catalog/link-upc', { method: 'POST', body: formData });
 }
 
+export async function mergeRelease(artistName: string, sourceUpc: string, targetUpc: string): Promise<{ success: boolean; updated_count: number }> {
+  const formData = new FormData();
+  formData.append('artist_name', artistName);
+  formData.append('source_upc', sourceUpc);
+  formData.append('target_upc', targetUpc);
+  return fetchApi('/imports/catalog/merge-release', { method: 'POST', body: formData });
+}
+
 export async function getArtistTracks(artistName: string): Promise<CatalogTrack[]> {
   return fetchApi<CatalogTrack[]>(`/imports/catalog/artists/${encodeURIComponent(artistName)}/tracks`);
 }

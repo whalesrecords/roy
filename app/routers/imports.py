@@ -23,7 +23,7 @@ from app.schemas.imports import (
     MappingResponse,
 )
 from app.models.transaction import TransactionNormalized
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
 from app.services.parsers.squarespace import SquarespaceParser
@@ -1130,12 +1130,12 @@ async def link_upc_to_transactions(
     """
     from sqlalchemy import update, func
 
-    # Update all matching transactions
+    # Update all matching transactions that have no UPC or UNKNOWN UPC
     stmt = (
         update(TransactionNormalized)
         .where(func.lower(TransactionNormalized.artist_name) == artist_name.lower().strip())
         .where(func.lower(TransactionNormalized.release_title) == release_title.lower().strip())
-        .where(TransactionNormalized.upc.is_(None))
+        .where(or_(TransactionNormalized.upc.is_(None), TransactionNormalized.upc == ""))
         .values(upc=upc.strip())
     )
     result = await db.execute(stmt)
@@ -1147,4 +1147,36 @@ async def link_upc_to_transactions(
         "artist_name": artist_name,
         "release_title": release_title,
         "upc": upc.strip(),
+    }
+
+
+@router.post("/catalog/merge-release")
+async def merge_release_upc(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_name: str = Form(...),
+    source_upc: str = Form(...),
+    target_upc: str = Form(...),
+):
+    """
+    Merge transactions from source_upc into target_upc.
+    Used when the same album appears under different UPCs from different sources
+    (e.g., Bandcamp has no UPC but TuneCore has one).
+    """
+    from sqlalchemy import update, func
+
+    stmt = (
+        update(TransactionNormalized)
+        .where(func.lower(TransactionNormalized.artist_name) == artist_name.lower().strip())
+        .where(TransactionNormalized.upc == source_upc.strip())
+        .values(upc=target_upc.strip())
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    return {
+        "success": True,
+        "updated_count": result.rowcount,
+        "source_upc": source_upc,
+        "target_upc": target_upc,
     }
