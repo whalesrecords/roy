@@ -174,6 +174,8 @@ export default function ArtistDetailPage() {
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [uploadingContract, setUploadingContract] = useState(false);
   const [creatingContract, setCreatingContract] = useState(false);
+  const [contractTrackMode, setContractTrackMode] = useState(false);
+  const [contractSelectedTracks, setContractSelectedTracks] = useState<string[]>([]);
 
   // Advance form
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -374,32 +376,60 @@ export default function ArtistDetailPage() {
 
     setCreatingContract(true);
     try {
-      const contract = await createContract({
-        artist_id: artistId,
-        scope: selectedItem.type,
-        scope_id: selectedItem.id,
-        start_date: contractStartDate,
-        end_date: contractEndDate || undefined,
-        parties: contractParties.map(p => ({
-          party_type: p.party_type,
-          artist_id: p.artist_id,
-          label_name: p.label_name,
-          share_percentage: String(p.share_percentage / 100), // Convert to decimal string
-          share_physical: p.share_physical != null ? String(p.share_physical / 100) : undefined,
-          share_digital: p.share_digital != null ? String(p.share_digital / 100) : undefined,
-        })),
-      });
+      const partiesPayload = contractParties.map(p => ({
+        party_type: p.party_type,
+        artist_id: p.artist_id,
+        label_name: p.label_name,
+        share_percentage: String(p.share_percentage / 100),
+        share_physical: p.share_physical != null ? String(p.share_physical / 100) : undefined,
+        share_digital: p.share_digital != null ? String(p.share_digital / 100) : undefined,
+      }));
 
-      // Upload PDF if provided
-      if (contractFile && contract.id) {
-        setUploadingContract(true);
-        try {
-          await uploadContractDocument(contract.id, contractFile);
-        } catch (uploadErr) {
-          console.error('Failed to upload contract document:', uploadErr);
-          setError('Contrat créé mais échec upload PDF');
-        } finally {
-          setUploadingContract(false);
+      // If track mode with selected tracks, create one contract per track
+      if (contractTrackMode && contractSelectedTracks.length > 0 && selectedItem.type === 'release') {
+        let lastContract: any = null;
+        for (const isrc of contractSelectedTracks) {
+          const trackInfo = tracks.find(t => t.isrc === isrc);
+          lastContract = await createContract({
+            artist_id: artistId,
+            scope: 'track',
+            scope_id: isrc,
+            start_date: contractStartDate,
+            end_date: contractEndDate || undefined,
+            description: trackInfo ? `Track: ${trackInfo.track_title}` : undefined,
+            parties: partiesPayload,
+          });
+
+          // Upload PDF to each track contract if provided
+          if (contractFile && lastContract.id) {
+            try {
+              await uploadContractDocument(lastContract.id, contractFile);
+            } catch (uploadErr) {
+              console.error('Failed to upload contract document:', uploadErr);
+            }
+          }
+        }
+      } else {
+        // Standard: create one contract for release or track
+        const contract = await createContract({
+          artist_id: artistId,
+          scope: selectedItem.type,
+          scope_id: selectedItem.id,
+          start_date: contractStartDate,
+          end_date: contractEndDate || undefined,
+          parties: partiesPayload,
+        });
+
+        if (contractFile && contract.id) {
+          setUploadingContract(true);
+          try {
+            await uploadContractDocument(contract.id, contractFile);
+          } catch (uploadErr) {
+            console.error('Failed to upload contract document:', uploadErr);
+            setError('Contrat créé mais échec upload PDF');
+          } finally {
+            setUploadingContract(false);
+          }
         }
       }
 
@@ -409,6 +439,8 @@ export default function ArtistDetailPage() {
       setContractStartDate('');
       setContractEndDate('');
       setContractFile(null);
+      setContractTrackMode(false);
+      setContractSelectedTracks([]);
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -500,6 +532,8 @@ export default function ArtistDetailPage() {
       { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
       { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
     ]);
+    setContractTrackMode(false);
+    setContractSelectedTracks([]);
     setShowContractForm(true);
   };
 
@@ -3112,6 +3146,8 @@ export default function ArtistDetailPage() {
                   setShowContractForm(false);
                   setSelectedItem(null);
                   setContractParties([]);
+                  setContractTrackMode(false);
+                  setContractSelectedTracks([]);
                 }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3123,10 +3159,71 @@ export default function ArtistDetailPage() {
               {selectedItem && (
                 <div className="bg-content2 rounded-xl p-3">
                   <p className="text-sm text-secondary-500">
-                    {selectedItem.type === 'release' ? 'Release (UPC)' : 'Track (ISRC)'}
+                    {contractTrackMode && contractSelectedTracks.length > 0
+                      ? `${contractSelectedTracks.length} track${contractSelectedTracks.length > 1 ? 's' : ''} sélectionnée${contractSelectedTracks.length > 1 ? 's' : ''}`
+                      : selectedItem.type === 'release' ? 'Release (UPC)' : 'Track (ISRC)'}
                   </p>
                   <p className="font-medium text-foreground">{selectedItem.name}</p>
                   <p className="text-xs text-secondary-400 font-mono mt-1">{selectedItem.id}</p>
+                </div>
+              )}
+              {/* Track selection option for release contracts */}
+              {selectedItem && selectedItem.type === 'release' && (
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={contractTrackMode}
+                      onChange={(e) => {
+                        setContractTrackMode(e.target.checked);
+                        if (!e.target.checked) setContractSelectedTracks([]);
+                      }}
+                      className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-secondary-700">Appliquer à des tracks spécifiques</span>
+                  </label>
+                  {contractTrackMode && (() => {
+                    const releaseTracks = getTracksForRelease(selectedItem.name);
+                    return releaseTracks.length > 0 ? (
+                      <div className="mt-2 space-y-1 max-h-48 overflow-y-auto border border-default-200 rounded-xl p-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (contractSelectedTracks.length === releaseTracks.length) {
+                              setContractSelectedTracks([]);
+                            } else {
+                              setContractSelectedTracks(releaseTracks.map(t => t.isrc));
+                            }
+                          }}
+                          className="text-xs text-primary hover:text-primary-600 font-medium mb-1"
+                        >
+                          {contractSelectedTracks.length === releaseTracks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                        </button>
+                        {releaseTracks.map((track) => (
+                          <label key={track.isrc} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-content2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={contractSelectedTracks.includes(track.isrc)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
+                                } else {
+                                  setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-foreground truncate">{track.track_title}</p>
+                              <p className="text-xs text-secondary-400 font-mono">{track.isrc}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-secondary-400 italic">Aucune track trouvée pour cette release</p>
+                    );
+                  })()}
                 </div>
               )}
               {!selectedItem && (
@@ -3348,6 +3445,8 @@ export default function ArtistDetailPage() {
                 setShowContractForm(false);
                 setSelectedItem(null);
                 setContractParties([]);
+                setContractTrackMode(false);
+                setContractSelectedTracks([]);
               }} className="flex-1">
                 Annuler
               </Button>
@@ -3357,11 +3456,14 @@ export default function ArtistDetailPage() {
                 disabled={
                   !contractStartDate ||
                   contractParties.length === 0 ||
-                  Math.abs(contractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01
+                  Math.abs(contractParties.reduce((sum, p) => sum + p.share_percentage, 0) - 100) > 0.01 ||
+                  (contractTrackMode && contractSelectedTracks.length === 0)
                 }
                 className="flex-1"
               >
-                Créer
+                {contractTrackMode && contractSelectedTracks.length > 0
+                  ? `Créer ${contractSelectedTracks.length} contrat${contractSelectedTracks.length > 1 ? 's' : ''}`
+                  : 'Créer'}
               </Button>
             </div>
           </div>
