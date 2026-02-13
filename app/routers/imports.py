@@ -1091,13 +1091,33 @@ async def get_release_tracks(
     _token: Annotated[str, Depends(verify_admin_token)],
 ) -> list[dict]:
     """
-    Get all tracks for a release by UPC, regardless of artist.
-    Useful for compilation/remix albums where each track has a different artist.
+    Get all tracks for a release by UPC or release_title, regardless of artist.
+    First finds the release_title from UPC, then queries by both UPC and release_title
+    to catch tracks from sources that may not have the correct UPC (e.g. Bandcamp).
     """
-    from sqlalchemy import func, and_
+    from sqlalchemy import func, and_, or_
     from urllib.parse import unquote
 
     decoded_upc = unquote(upc).strip()
+
+    # First, find the release_title(s) associated with this UPC
+    title_result = await db.execute(
+        select(TransactionNormalized.release_title)
+        .where(
+            TransactionNormalized.upc == decoded_upc,
+            TransactionNormalized.release_title.isnot(None),
+        )
+        .group_by(TransactionNormalized.release_title)
+    )
+    release_titles = [row[0] for row in title_result.all()]
+
+    # Build WHERE clause: match by UPC OR by release_title (case-insensitive)
+    conditions = [TransactionNormalized.upc == decoded_upc]
+    if release_titles:
+        for title in release_titles:
+            conditions.append(
+                func.lower(TransactionNormalized.release_title) == title.lower()
+            )
 
     result = await db.execute(
         select(
@@ -1108,7 +1128,7 @@ async def get_release_tracks(
             func.sum(TransactionNormalized.quantity).label('total_streams'),
         )
         .where(and_(
-            TransactionNormalized.upc == decoded_upc,
+            or_(*conditions),
             TransactionNormalized.track_title.isnot(None),
             TransactionNormalized.isrc.isnot(None),
         ))
@@ -1121,16 +1141,22 @@ async def get_release_tracks(
     )
     rows = result.all()
 
-    return [
-        {
+    # Deduplicate by ISRC (keep first occurrence)
+    seen_isrcs: set[str] = set()
+    tracks = []
+    for row in rows:
+        if row.isrc in seen_isrcs:
+            continue
+        seen_isrcs.add(row.isrc)
+        tracks.append({
             "track_title": row.track_title or "(Sans titre)",
             "isrc": row.isrc,
             "artist_name": row.artist_name,
             "total_gross": str(row.total_gross or Decimal("0")),
             "total_streams": row.total_streams or 0,
-        }
-        for row in rows
-    ]
+        })
+
+    return tracks
 
 
 @router.get("/catalog/unlinked-releases")
