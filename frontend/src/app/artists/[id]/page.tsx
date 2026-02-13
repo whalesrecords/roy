@@ -52,7 +52,7 @@ import {
   mergeRelease,
   linkUpcToRelease,
   getReleaseTracks,
-  ReleaseTrack
+  ReleaseTrack,
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -178,6 +178,7 @@ export default function ArtistDetailPage() {
   const [creatingContract, setCreatingContract] = useState(false);
   const [contractTrackMode, setContractTrackMode] = useState(false);
   const [contractSelectedTracks, setContractSelectedTracks] = useState<string[]>([]);
+  const [contractTrackFilter, setContractTrackFilter] = useState('');
   const [contractReleaseTracks, setContractReleaseTracks] = useState<ReleaseTrack[]>([]);
   const [loadingReleaseTracks, setLoadingReleaseTracks] = useState(false);
 
@@ -450,6 +451,7 @@ export default function ArtistDetailPage() {
       setContractFile(null);
       setContractTrackMode(false);
       setContractSelectedTracks([]);
+      setContractTrackFilter('');
       setContractReleaseTracks([]);
       loadData();
     } catch (err) {
@@ -3158,6 +3160,7 @@ export default function ArtistDetailPage() {
                   setContractParties([]);
                   setContractTrackMode(false);
                   setContractSelectedTracks([]);
+                  setContractTrackFilter('');
                   setContractReleaseTracks([]);
                 }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3190,6 +3193,7 @@ export default function ArtistDetailPage() {
                         setContractTrackMode(checked);
                         if (!checked) {
                           setContractSelectedTracks([]);
+                          setContractTrackFilter('');
                           setContractReleaseTracks([]);
                         } else if (selectedItem.id && selectedItem.id !== 'UNKNOWN') {
                           setLoadingReleaseTracks(true);
@@ -3208,52 +3212,93 @@ export default function ArtistDetailPage() {
                     />
                     <span className="text-sm text-secondary-700">Appliquer à des tracks spécifiques</span>
                   </label>
-                  {contractTrackMode && (
-                    loadingReleaseTracks ? (
-                      <p className="mt-2 text-xs text-secondary-400 italic">Chargement des tracks...</p>
-                    ) : contractReleaseTracks.length > 0 ? (
-                      <div className="mt-2 space-y-1 max-h-48 overflow-y-auto border border-default-200 rounded-xl p-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (contractSelectedTracks.length === contractReleaseTracks.length) {
-                              setContractSelectedTracks([]);
-                            } else {
-                              setContractSelectedTracks(contractReleaseTracks.map(t => t.isrc));
-                            }
-                          }}
-                          className="text-xs text-primary hover:text-primary-600 font-medium mb-1"
-                        >
-                          {contractSelectedTracks.length === contractReleaseTracks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-                        </button>
-                        {contractReleaseTracks.map((track) => (
-                          <label key={track.isrc} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-content2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={contractSelectedTracks.includes(track.isrc)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
-                                } else {
-                                  setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-foreground truncate">{track.track_title}</p>
-                              <p className="text-xs text-secondary-400">
-                                <span className="font-mono">{track.isrc}</span>
-                                {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
-                              </p>
+                  {contractTrackMode && (() => {
+                    if (loadingReleaseTracks) {
+                      return <p className="mt-2 text-xs text-secondary-400 italic">Chargement des tracks...</p>;
+                    }
+
+                    // Apply search filter
+                    const filter = contractTrackFilter.toLowerCase();
+                    const filtered = filter
+                      ? contractReleaseTracks.filter(t =>
+                          t.track_title.toLowerCase().includes(filter) ||
+                          (t.isrc || '').toLowerCase().includes(filter) ||
+                          (t.artist_name || '').toLowerCase().includes(filter)
+                        )
+                      : contractReleaseTracks;
+
+                    // Only tracks with ISRC can be selected
+                    const selectableIsrcs = filtered.filter(t => t.isrc).map(t => t.isrc!);
+
+                    return (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          placeholder="Rechercher une track..."
+                          value={contractTrackFilter}
+                          onChange={(e) => setContractTrackFilter(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-background border border-default-200 rounded-lg text-sm mb-2 focus:outline-none focus:border-primary"
+                        />
+                        {filtered.length > 0 ? (
+                          <div className="space-y-1 max-h-56 overflow-y-auto border border-default-200 rounded-xl p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-secondary-400">{filtered.length} track{filtered.length > 1 ? 's' : ''}</span>
+                              {selectableIsrcs.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const allSelected = selectableIsrcs.every(i => contractSelectedTracks.includes(i));
+                                    if (allSelected) {
+                                      setContractSelectedTracks(contractSelectedTracks.filter(i => !selectableIsrcs.includes(i)));
+                                    } else {
+                                      setContractSelectedTracks(Array.from(new Set([...contractSelectedTracks, ...selectableIsrcs])));
+                                    }
+                                  }}
+                                  className="text-xs text-primary hover:text-primary-600 font-medium"
+                                >
+                                  {selectableIsrcs.every(i => contractSelectedTracks.includes(i)) ? 'Tout désélectionner' : 'Tout sélectionner'}
+                                </button>
+                              )}
                             </div>
-                          </label>
-                        ))}
+                            {filtered.map((track, idx) => {
+                              const hasIsrc = !!track.isrc;
+                              return (
+                                <label key={track.isrc || `no-isrc-${idx}`} className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer ${hasIsrc ? 'hover:bg-content2' : 'opacity-40 cursor-not-allowed'}`}>
+                                  <input
+                                    type="checkbox"
+                                    disabled={!hasIsrc}
+                                    checked={hasIsrc && contractSelectedTracks.includes(track.isrc!)}
+                                    onChange={(e) => {
+                                      if (!track.isrc) return;
+                                      if (e.target.checked) {
+                                        setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
+                                      } else {
+                                        setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
+                                      }
+                                    }}
+                                    className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-foreground truncate">{track.track_title}</p>
+                                    <p className="text-xs text-secondary-400">
+                                      {hasIsrc ? (
+                                        <span className="font-mono">{track.isrc}</span>
+                                      ) : (
+                                        <span className="text-warning-500">Pas d'ISRC</span>
+                                      )}
+                                      {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
+                                    </p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-secondary-400 italic">Aucune track trouvée</p>
+                        )}
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-secondary-400 italic">Aucune track trouvée pour cette release</p>
-                    )
-                  )}
+                    );
+                  })()}
                 </div>
               )}
               {!selectedItem && (
@@ -3477,6 +3522,8 @@ export default function ArtistDetailPage() {
                 setContractParties([]);
                 setContractTrackMode(false);
                 setContractSelectedTracks([]);
+                setContractTrackFilter('');
+                setContractReleaseTracks([]);
               }} className="flex-1">
                 Annuler
               </Button>
