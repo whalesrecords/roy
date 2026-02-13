@@ -1084,6 +1084,55 @@ async def get_artist_tracks(
     return tracks
 
 
+@router.get("/catalog/releases/{upc}/tracks")
+async def get_release_tracks(
+    upc: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> list[dict]:
+    """
+    Get all tracks for a release by UPC, regardless of artist.
+    Useful for compilation/remix albums where each track has a different artist.
+    """
+    from sqlalchemy import func, and_
+    from urllib.parse import unquote
+
+    decoded_upc = unquote(upc).strip()
+
+    result = await db.execute(
+        select(
+            TransactionNormalized.track_title,
+            TransactionNormalized.isrc,
+            TransactionNormalized.artist_name,
+            func.sum(TransactionNormalized.gross_amount).label('total_gross'),
+            func.sum(TransactionNormalized.quantity).label('total_streams'),
+        )
+        .where(and_(
+            TransactionNormalized.upc == decoded_upc,
+            TransactionNormalized.track_title.isnot(None),
+            TransactionNormalized.isrc.isnot(None),
+        ))
+        .group_by(
+            TransactionNormalized.track_title,
+            TransactionNormalized.isrc,
+            TransactionNormalized.artist_name,
+        )
+        .order_by(TransactionNormalized.track_title)
+    )
+    rows = result.all()
+
+    return [
+        {
+            "track_title": row.track_title or "(Sans titre)",
+            "isrc": row.isrc,
+            "artist_name": row.artist_name,
+            "total_gross": str(row.total_gross or Decimal("0")),
+            "total_streams": row.total_streams or 0,
+        }
+        for row in rows
+    ]
+
+
 @router.get("/catalog/unlinked-releases")
 async def get_unlinked_releases(
     db: Annotated[AsyncSession, Depends(get_db)],

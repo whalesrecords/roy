@@ -428,6 +428,18 @@ export async function getArtistTracks(artistName: string): Promise<CatalogTrack[
   return fetchApi<CatalogTrack[]>(`/imports/catalog/artists/${encodeURIComponent(artistName)}/tracks`);
 }
 
+export interface ReleaseTrack {
+  track_title: string;
+  isrc: string;
+  artist_name: string;
+  total_gross: string;
+  total_streams: number;
+}
+
+export async function getReleaseTracks(upc: string): Promise<ReleaseTrack[]> {
+  return fetchApi<ReleaseTrack[]>(`/imports/catalog/releases/${encodeURIComponent(upc)}/tracks`);
+}
+
 // Import analysis
 export interface ImportAnalysis {
   period_start: string | null;
