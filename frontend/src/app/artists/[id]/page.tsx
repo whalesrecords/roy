@@ -53,6 +53,7 @@ import {
   linkUpcToRelease,
   getReleaseTracks,
   ReleaseTrack,
+  assignIsrcToTrack,
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -181,6 +182,8 @@ export default function ArtistDetailPage() {
   const [contractTrackFilter, setContractTrackFilter] = useState('');
   const [contractReleaseTracks, setContractReleaseTracks] = useState<ReleaseTrack[]>([]);
   const [loadingReleaseTracks, setLoadingReleaseTracks] = useState(false);
+  const [manualIsrcs, setManualIsrcs] = useState<Record<number, string>>({});
+  const [savingIsrc, setSavingIsrc] = useState<number | null>(null);
 
   // Advance form
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -453,6 +456,7 @@ export default function ArtistDetailPage() {
       setContractSelectedTracks([]);
       setContractTrackFilter('');
       setContractReleaseTracks([]);
+      setManualIsrcs({});
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -3162,6 +3166,7 @@ export default function ArtistDetailPage() {
                   setContractSelectedTracks([]);
                   setContractTrackFilter('');
                   setContractReleaseTracks([]);
+      setManualIsrcs({});
                 }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3195,6 +3200,7 @@ export default function ArtistDetailPage() {
                           setContractSelectedTracks([]);
                           setContractTrackFilter('');
                           setContractReleaseTracks([]);
+      setManualIsrcs({});
                         } else if (selectedItem.id && selectedItem.id !== 'UNKNOWN') {
                           setLoadingReleaseTracks(true);
                           try {
@@ -3203,6 +3209,7 @@ export default function ArtistDetailPage() {
                           } catch (err) {
                             console.error('Failed to load release tracks:', err);
                             setContractReleaseTracks([]);
+      setManualIsrcs({});
                           } finally {
                             setLoadingReleaseTracks(false);
                           }
@@ -3262,34 +3269,73 @@ export default function ArtistDetailPage() {
                             </div>
                             {filtered.map((track, idx) => {
                               const hasIsrc = !!track.isrc;
+                              const manualVal = manualIsrcs[idx] || '';
+                              const effectiveIsrc = track.isrc || (manualVal.length >= 5 ? manualVal : null);
                               return (
-                                <label key={track.isrc || `no-isrc-${idx}`} className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer ${hasIsrc ? 'hover:bg-content2' : 'opacity-40 cursor-not-allowed'}`}>
-                                  <input
-                                    type="checkbox"
-                                    disabled={!hasIsrc}
-                                    checked={hasIsrc && contractSelectedTracks.includes(track.isrc!)}
-                                    onChange={(e) => {
-                                      if (!track.isrc) return;
-                                      if (e.target.checked) {
-                                        setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
-                                      } else {
-                                        setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
-                                      }
-                                    }}
-                                    className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-foreground truncate">{track.track_title}</p>
-                                    <p className="text-xs text-secondary-400">
-                                      {hasIsrc ? (
-                                        <span className="font-mono">{track.isrc}</span>
-                                      ) : (
-                                        <span className="text-warning-500">Pas d'ISRC</span>
+                                <div key={track.isrc || `no-isrc-${idx}`} className={`p-1.5 rounded-lg ${hasIsrc ? 'hover:bg-content2' : ''}`}>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      disabled={!effectiveIsrc}
+                                      checked={!!effectiveIsrc && contractSelectedTracks.includes(effectiveIsrc)}
+                                      onChange={(e) => {
+                                        if (!effectiveIsrc) return;
+                                        if (e.target.checked) {
+                                          setContractSelectedTracks([...contractSelectedTracks, effectiveIsrc]);
+                                        } else {
+                                          setContractSelectedTracks(contractSelectedTracks.filter(i => i !== effectiveIsrc));
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm text-foreground truncate">{track.track_title}</p>
+                                      <p className="text-xs text-secondary-400">
+                                        {hasIsrc ? (
+                                          <span className="font-mono">{track.isrc}</span>
+                                        ) : (
+                                          <span className="text-warning-500">Pas d'ISRC</span>
+                                        )}
+                                        {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
+                                      </p>
+                                    </div>
+                                  </label>
+                                  {!hasIsrc && (
+                                    <div className="flex items-center gap-1 mt-1 ml-6">
+                                      <input
+                                        type="text"
+                                        placeholder="Entrer l'ISRC..."
+                                        value={manualVal}
+                                        onChange={(e) => setManualIsrcs({ ...manualIsrcs, [idx]: e.target.value.toUpperCase() })}
+                                        className="flex-1 px-2 py-1 text-xs font-mono bg-background border border-default-200 rounded-lg focus:outline-none focus:border-primary"
+                                      />
+                                      {manualVal.length >= 5 && (
+                                        <button
+                                          type="button"
+                                          disabled={savingIsrc === idx}
+                                          onClick={async () => {
+                                            setSavingIsrc(idx);
+                                            try {
+                                              await assignIsrcToTrack(track.track_title, track.artist_name, manualVal.trim());
+                                              // Update local state
+                                              const updated = [...contractReleaseTracks];
+                                              updated[contractReleaseTracks.indexOf(track)] = { ...track, isrc: manualVal.trim() };
+                                              setContractReleaseTracks(updated);
+                                              setManualIsrcs({ ...manualIsrcs, [idx]: '' });
+                                            } catch (err) {
+                                              console.error('Failed to save ISRC:', err);
+                                            } finally {
+                                              setSavingIsrc(null);
+                                            }
+                                          }}
+                                          className="px-2 py-1 text-xs bg-primary text-white rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                                        >
+                                          {savingIsrc === idx ? '...' : 'OK'}
+                                        </button>
                                       )}
-                                      {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
-                                    </p>
-                                  </div>
-                                </label>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
                           </div>
@@ -3524,6 +3570,7 @@ export default function ArtistDetailPage() {
                 setContractSelectedTracks([]);
                 setContractTrackFilter('');
                 setContractReleaseTracks([]);
+      setManualIsrcs({});
               }} className="flex-1">
                 Annuler
               </Button>

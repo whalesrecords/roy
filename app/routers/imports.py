@@ -1173,6 +1173,34 @@ async def get_release_tracks(
     ]
 
 
+@router.post("/catalog/tracks/assign-isrc")
+async def assign_isrc_to_track(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    track_title: str = Form(...),
+    artist_name: str = Form(...),
+    isrc: str = Form(...),
+) -> dict:
+    """
+    Assign an ISRC to transactions that match track_title + artist_name but have no ISRC.
+    """
+    from sqlalchemy import func, and_, update
+
+    stmt = (
+        update(TransactionNormalized)
+        .where(and_(
+            func.lower(TransactionNormalized.track_title) == track_title.strip().lower(),
+            func.lower(TransactionNormalized.artist_name) == artist_name.strip().lower(),
+            or_(TransactionNormalized.isrc.is_(None), TransactionNormalized.isrc == ""),
+        ))
+        .values(isrc=isrc.strip())
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    return {"success": True, "updated_count": result.rowcount, "isrc": isrc.strip()}
+
+
 @router.get("/catalog/unlinked-releases")
 async def get_unlinked_releases(
     db: Annotated[AsyncSession, Depends(get_db)],
