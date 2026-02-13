@@ -440,6 +440,14 @@ export async function getReleaseTracks(upc: string): Promise<ReleaseTrack[]> {
   return fetchApi<ReleaseTrack[]>(`/imports/catalog/releases/${encodeURIComponent(upc)}/tracks`);
 }
 
+export async function assignIsrcToTrack(trackTitle: string, artistName: string, isrc: string): Promise<{ success: boolean; updated_count: number; isrc: string }> {
+  const formData = new FormData();
+  formData.append('track_title', trackTitle);
+  formData.append('artist_name', artistName);
+  formData.append('isrc', isrc);
+  return fetchApi('/imports/catalog/tracks/assign-isrc', { method: 'POST', body: formData });
+}
+
 // Import analysis
 export interface ImportAnalysis {
   period_start: string | null;
