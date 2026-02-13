@@ -51,8 +51,6 @@ import {
   LabelSettings,
   mergeRelease,
   linkUpcToRelease,
-  getReleaseTracks,
-  ReleaseTrack
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -178,8 +176,7 @@ export default function ArtistDetailPage() {
   const [creatingContract, setCreatingContract] = useState(false);
   const [contractTrackMode, setContractTrackMode] = useState(false);
   const [contractSelectedTracks, setContractSelectedTracks] = useState<string[]>([]);
-  const [contractReleaseTracks, setContractReleaseTracks] = useState<ReleaseTrack[]>([]);
-  const [loadingReleaseTracks, setLoadingReleaseTracks] = useState(false);
+  const [contractTrackFilter, setContractTrackFilter] = useState('');
 
   // Advance form
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -398,7 +395,7 @@ export default function ArtistDetailPage() {
       if (contractTrackMode && contractSelectedTracks.length > 0 && selectedItem.type === 'release') {
         let lastContract: any = null;
         for (const isrc of contractSelectedTracks) {
-          const trackInfo = contractReleaseTracks.find(t => t.isrc === isrc);
+          const trackInfo = tracks.find(t => t.isrc === isrc);
           lastContract = await createContract({
             artist_id: artistId,
             scope: 'track',
@@ -450,7 +447,7 @@ export default function ArtistDetailPage() {
       setContractFile(null);
       setContractTrackMode(false);
       setContractSelectedTracks([]);
-      setContractReleaseTracks([]);
+      setContractTrackFilter('');
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -3158,7 +3155,7 @@ export default function ArtistDetailPage() {
                   setContractParties([]);
                   setContractTrackMode(false);
                   setContractSelectedTracks([]);
-                  setContractReleaseTracks([]);
+                  setContractTrackFilter('');
                 }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3185,75 +3182,99 @@ export default function ArtistDetailPage() {
                     <input
                       type="checkbox"
                       checked={contractTrackMode}
-                      onChange={async (e) => {
-                        const checked = e.target.checked;
-                        setContractTrackMode(checked);
-                        if (!checked) {
+                      onChange={(e) => {
+                        setContractTrackMode(e.target.checked);
+                        if (!e.target.checked) {
                           setContractSelectedTracks([]);
-                          setContractReleaseTracks([]);
-                        } else if (selectedItem.id && selectedItem.id !== 'UNKNOWN') {
-                          setLoadingReleaseTracks(true);
-                          try {
-                            const relTracks = await getReleaseTracks(selectedItem.id);
-                            setContractReleaseTracks(relTracks);
-                          } catch (err) {
-                            console.error('Failed to load release tracks:', err);
-                            setContractReleaseTracks([]);
-                          } finally {
-                            setLoadingReleaseTracks(false);
-                          }
+                          setContractTrackFilter('');
                         }
                       }}
                       className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
                     />
                     <span className="text-sm text-secondary-700">Appliquer à des tracks spécifiques</span>
                   </label>
-                  {contractTrackMode && (
-                    loadingReleaseTracks ? (
-                      <p className="mt-2 text-xs text-secondary-400 italic">Chargement des tracks...</p>
-                    ) : contractReleaseTracks.length > 0 ? (
-                      <div className="mt-2 space-y-1 max-h-48 overflow-y-auto border border-default-200 rounded-xl p-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (contractSelectedTracks.length === contractReleaseTracks.length) {
-                              setContractSelectedTracks([]);
-                            } else {
-                              setContractSelectedTracks(contractReleaseTracks.map(t => t.isrc));
-                            }
-                          }}
-                          className="text-xs text-primary hover:text-primary-600 font-medium mb-1"
-                        >
-                          {contractSelectedTracks.length === contractReleaseTracks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-                        </button>
-                        {contractReleaseTracks.map((track) => (
-                          <label key={track.isrc} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-content2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={contractSelectedTracks.includes(track.isrc)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
-                                } else {
-                                  setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-foreground truncate">{track.track_title}</p>
-                              <p className="text-xs text-secondary-400">
-                                <span className="font-mono">{track.isrc}</span>
-                                {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
-                              </p>
+                  {contractTrackMode && (() => {
+                    // All artist tracks with ISRC, sorted: current release first, then others
+                    const allWithIsrc = tracks.filter(t => t.isrc);
+                    const releaseName = selectedItem.name.toLowerCase();
+                    const fromRelease = allWithIsrc.filter(t => t.release_title?.toLowerCase() === releaseName);
+                    const fromOther = allWithIsrc.filter(t => t.release_title?.toLowerCase() !== releaseName);
+                    const sortedTracks = [...fromRelease, ...fromOther];
+
+                    // Apply search filter
+                    const filter = contractTrackFilter.toLowerCase();
+                    const filtered = filter
+                      ? sortedTracks.filter(t =>
+                          t.track_title.toLowerCase().includes(filter) ||
+                          t.isrc.toLowerCase().includes(filter) ||
+                          (t.release_title || '').toLowerCase().includes(filter)
+                        )
+                      : sortedTracks;
+
+                    return (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          placeholder="Rechercher une track..."
+                          value={contractTrackFilter}
+                          onChange={(e) => setContractTrackFilter(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-background border border-default-200 rounded-lg text-sm mb-2 focus:outline-none focus:border-primary"
+                        />
+                        {filtered.length > 0 ? (
+                          <div className="space-y-1 max-h-56 overflow-y-auto border border-default-200 rounded-xl p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-secondary-400">{filtered.length} track{filtered.length > 1 ? 's' : ''}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const filteredIsrcs = filtered.map(t => t.isrc);
+                                  const allSelected = filteredIsrcs.every(i => contractSelectedTracks.includes(i));
+                                  if (allSelected) {
+                                    setContractSelectedTracks(contractSelectedTracks.filter(i => !filteredIsrcs.includes(i)));
+                                  } else {
+                                    setContractSelectedTracks(Array.from(new Set([...contractSelectedTracks, ...filteredIsrcs])));
+                                  }
+                                }}
+                                className="text-xs text-primary hover:text-primary-600 font-medium"
+                              >
+                                {filtered.every(t => contractSelectedTracks.includes(t.isrc)) ? 'Tout désélectionner' : 'Tout sélectionner'}
+                              </button>
                             </div>
-                          </label>
-                        ))}
+                            {filtered.map((track) => {
+                              const isFromRelease = track.release_title?.toLowerCase() === releaseName;
+                              return (
+                                <label key={track.isrc} className={`flex items-center gap-2 p-1.5 rounded-lg hover:bg-content2 cursor-pointer ${!isFromRelease ? 'opacity-75' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={contractSelectedTracks.includes(track.isrc)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setContractSelectedTracks([...contractSelectedTracks, track.isrc]);
+                                      } else {
+                                        setContractSelectedTracks(contractSelectedTracks.filter(i => i !== track.isrc));
+                                      }
+                                    }}
+                                    className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm text-foreground truncate">{track.track_title}</p>
+                                    <p className="text-xs text-secondary-400">
+                                      <span className="font-mono">{track.isrc}</span>
+                                      {!isFromRelease && track.release_title && (
+                                        <span className="ml-2 text-secondary-300">· {track.release_title}</span>
+                                      )}
+                                    </p>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-secondary-400 italic">Aucune track trouvée</p>
+                        )}
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-secondary-400 italic">Aucune track trouvée pour cette release</p>
-                    )
-                  )}
+                    );
+                  })()}
                 </div>
               )}
               {!selectedItem && (
