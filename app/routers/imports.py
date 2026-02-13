@@ -1130,7 +1130,6 @@ async def get_release_tracks(
         .where(and_(
             or_(*conditions),
             TransactionNormalized.track_title.isnot(None),
-            TransactionNormalized.isrc.isnot(None),
         ))
         .group_by(
             TransactionNormalized.track_title,
@@ -1141,22 +1140,37 @@ async def get_release_tracks(
     )
     rows = result.all()
 
-    # Deduplicate by ISRC (keep first occurrence)
-    seen_isrcs: set[str] = set()
-    tracks = []
+    # Deduplicate: prefer rows with ISRC over rows without
+    # Group by (track_title, artist_name), keep the one with ISRC if available
+    track_key_map: dict[str, dict] = {}
     for row in rows:
-        if row.isrc in seen_isrcs:
-            continue
-        seen_isrcs.add(row.isrc)
-        tracks.append({
-            "track_title": row.track_title or "(Sans titre)",
-            "isrc": row.isrc,
-            "artist_name": row.artist_name,
-            "total_gross": str(row.total_gross or Decimal("0")),
-            "total_streams": row.total_streams or 0,
-        })
+        key = (row.track_title or "").strip().lower() + "|" + (row.artist_name or "").strip().lower()
+        existing = track_key_map.get(key)
+        if existing is None:
+            track_key_map[key] = {
+                "track_title": row.track_title or "(Sans titre)",
+                "isrc": row.isrc,
+                "artist_name": row.artist_name,
+                "total_gross": row.total_gross or Decimal("0"),
+                "total_streams": row.total_streams or 0,
+            }
+        else:
+            # Merge: prefer the one with ISRC, sum amounts
+            if row.isrc and not existing["isrc"]:
+                existing["isrc"] = row.isrc
+            existing["total_gross"] += row.total_gross or Decimal("0")
+            existing["total_streams"] += row.total_streams or 0
 
-    return tracks
+    return [
+        {
+            "track_title": t["track_title"],
+            "isrc": t["isrc"],
+            "artist_name": t["artist_name"],
+            "total_gross": str(t["total_gross"]),
+            "total_streams": t["total_streams"],
+        }
+        for t in track_key_map.values()
+    ]
 
 
 @router.get("/catalog/unlinked-releases")
