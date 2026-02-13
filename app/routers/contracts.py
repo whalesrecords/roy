@@ -137,48 +137,74 @@ async def create_contract(
             detail="scope_id must be null for catalog scope",
         )
 
-    # Create contract
-    contract = Contract(
-        artist_id=contract_data.artist_id,
-        scope=contract_data.scope,
-        scope_id=contract_data.scope_id,
-        start_date=contract_data.start_date,
-        end_date=contract_data.end_date,
-        description=contract_data.description,
-        # Legacy fields - calculate from parties
-        artist_share=sum(
-            p.share_percentage for p in contract_data.parties if p.party_type == "artist"
-        ),
-        label_share=sum(
-            p.share_percentage for p in contract_data.parties if p.party_type == "label"
-        ),
+    # Collect all artist IDs that need a contract (primary + secondary artists)
+    artist_ids_to_create = [contract_data.artist_id]
+    for party in contract_data.parties:
+        if (
+            party.party_type == "artist"
+            and party.artist_id
+            and party.artist_id != contract_data.artist_id
+        ):
+            # Check if this secondary artist already has a contract for the same scope/scope_id
+            existing = await db.execute(
+                select(Contract).where(
+                    Contract.artist_id == party.artist_id,
+                    Contract.scope == contract_data.scope,
+                    Contract.scope_id == contract_data.scope_id if contract_data.scope_id else Contract.scope_id.is_(None),
+                )
+            )
+            if not existing.scalar_one_or_none():
+                artist_ids_to_create.append(party.artist_id)
+
+    # Legacy fields - calculate from parties
+    artist_share_total = sum(
+        p.share_percentage for p in contract_data.parties if p.party_type == "artist"
+    )
+    label_share_total = sum(
+        p.share_percentage for p in contract_data.parties if p.party_type == "label"
     )
 
-    db.add(contract)
-    await db.flush()  # Get contract.id
-
-    # Create parties
-    for party_data in contract_data.parties:
-        party = ContractParty(
-            contract_id=contract.id,
-            party_type=party_data.party_type,
-            artist_id=party_data.artist_id,
-            label_name=party_data.label_name,
-            share_percentage=party_data.share_percentage,
-            share_physical=party_data.share_physical,
-            share_digital=party_data.share_digital,
+    primary_contract = None
+    for artist_id in artist_ids_to_create:
+        contract = Contract(
+            artist_id=artist_id,
+            scope=contract_data.scope,
+            scope_id=contract_data.scope_id,
+            start_date=contract_data.start_date,
+            end_date=contract_data.end_date,
+            description=contract_data.description,
+            artist_share=artist_share_total,
+            label_share=label_share_total,
         )
-        db.add(party)
+
+        db.add(contract)
+        await db.flush()
+
+        # Create parties (same for all mirror contracts)
+        for party_data in contract_data.parties:
+            party = ContractParty(
+                contract_id=contract.id,
+                party_type=party_data.party_type,
+                artist_id=party_data.artist_id,
+                label_name=party_data.label_name,
+                share_percentage=party_data.share_percentage,
+                share_physical=party_data.share_physical,
+                share_digital=party_data.share_digital,
+            )
+            db.add(party)
+
+        if primary_contract is None:
+            primary_contract = contract
 
     await db.commit()
-    await db.refresh(contract)
+    await db.refresh(primary_contract)
 
     # Load parties
-    query = select(Contract).options(selectinload(Contract.parties)).where(Contract.id == contract.id)
+    query = select(Contract).options(selectinload(Contract.parties)).where(Contract.id == primary_contract.id)
     result = await db.execute(query)
-    contract = result.scalar_one()
+    primary_contract = result.scalar_one()
 
-    return contract
+    return primary_contract
 
 
 @router.put("/{contract_id}", response_model=ContractResponse)
