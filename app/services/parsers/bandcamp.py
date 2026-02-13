@@ -20,10 +20,13 @@ Bandcamp CSV columns typically include:
 
 import csv
 import io
+import logging
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Dict, Iterator, List, Optional, Union
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -80,6 +83,10 @@ COLUMN_MAPPINGS = {
         "amount", "net", "item price"
     ],
     "gross_amount": ["gross revenue", "gross_revenue", "gross amount", "gross"],
+    "bandcamp_fee": [
+        "transaction fee", "bandcamp fee", "fee",
+        "revenue share", "commission", "platform fee",
+    ],
     "currency": ["currency", "currency code", "cur"],
     "region": ["region", "country", "country code", "buyer country", "location"],
     "upc": ["upc", "upc code", "upc/ean", "barcode"],
@@ -177,6 +184,29 @@ class BandcampParser:
         for field_name in COLUMN_MAPPINGS:
             self._column_indices[field_name] = _find_column_index(headers, field_name)
 
+        # Track which column name was actually matched for net_amount
+        # so we know if we need to subtract Bandcamp's fee
+        self._net_amount_is_gross = False
+        if self._column_indices.get("net_amount") is not None:
+            headers_lower = [h.lower().strip() for h in headers]
+            matched_header = headers_lower[self._column_indices["net_amount"]]
+            # These columns represent customer-paid amounts, NOT the net payout
+            gross_column_names = {
+                "sub total", "sub_total", "subtotal",
+                "item total", "item_total",
+                "amount", "item price",
+            }
+            if matched_header in gross_column_names:
+                self._net_amount_is_gross = True
+                has_fee = self._column_indices.get("bandcamp_fee") is not None
+                logger.warning(
+                    f"Bandcamp CSV: no 'net amount' column found, using '{matched_header}' instead. "
+                    f"Fee column {'found' if has_fee else 'NOT found'} — "
+                    f"{'will subtract fee' if has_fee else 'amounts may be gross, not net'}."
+                )
+            else:
+                logger.info(f"Bandcamp CSV: using '{matched_header}' column for net amount")
+
         # Validate required columns - be lenient
         required = ["net_amount"]  # Only amount is truly required
         missing = [f for f in required if self._column_indices.get(f) is None]
@@ -199,6 +229,15 @@ class BandcampParser:
 
         net_amount_str = _get_value(row, self._column_indices.get("net_amount"), "0")
         net_amount = _parse_decimal(net_amount_str)
+
+        # If the matched column is actually a gross amount (sub total, item total, etc.),
+        # subtract the Bandcamp fee to get the real net amount
+        if self._net_amount_is_gross and net_amount > 0:
+            fee_str = _get_value(row, self._column_indices.get("bandcamp_fee"), "")
+            if fee_str:
+                fee = _parse_decimal(fee_str)
+                net_amount = net_amount - abs(fee)  # fee may be positive or negative
+            # No fee column: cannot determine net, keep as-is (will be flagged)
 
         quantity_str = _get_value(row, self._column_indices.get("quantity"), "1")
         quantity = _parse_int(quantity_str)

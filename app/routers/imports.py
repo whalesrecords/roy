@@ -23,7 +23,7 @@ from app.schemas.imports import (
     MappingResponse,
 )
 from app.models.transaction import TransactionNormalized
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
 from app.services.parsers.squarespace import SquarespaceParser
@@ -918,6 +918,7 @@ async def get_artist_releases(
             releases_map[key] = {
                 "release_title": title,
                 "upc": None,  # Will be set to the best UPC
+                "upc_source": None,  # Track which source provided the UPC
                 "tracks": set(),
                 "total_gross": 0,
                 "total_streams": 0,
@@ -926,9 +927,18 @@ async def get_artist_releases(
 
         release = releases_map[key]
 
-        # Prefer a real UPC over None/UNKNOWN
-        if row.upc and (not release["upc"] or release["upc"] == "UNKNOWN"):
+        # Prefer authoritative UPC (TuneCore/Believe/CDBaby) over Bandcamp/Squarespace
+        auth_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
+        row_source = (row.store_name or "").lower().replace(" ", "")
+        # Map store_name to source key
+        source_key_map = {"tunecore": "tunecore", "bandcamp": "bandcamp", "squarespace": "squarespace"}
+        row_src = next((v for k, v in source_key_map.items() if k in row_source), row_source)
+        row_is_auth = row_src in auth_sources
+        existing_is_auth = release["upc_source"] in auth_sources if release["upc_source"] else False
+
+        if row.upc and (not release["upc"] or release["upc"] == "UNKNOWN" or (row_is_auth and not existing_is_auth)):
             release["upc"] = row.upc
+            release["upc_source"] = row_src
 
         # Accumulate totals
         release["total_gross"] += float(row.gross_amount or 0)
@@ -1130,12 +1140,12 @@ async def link_upc_to_transactions(
     """
     from sqlalchemy import update, func
 
-    # Update all matching transactions
+    # Update all matching transactions that have no UPC or UNKNOWN UPC
     stmt = (
         update(TransactionNormalized)
         .where(func.lower(TransactionNormalized.artist_name) == artist_name.lower().strip())
         .where(func.lower(TransactionNormalized.release_title) == release_title.lower().strip())
-        .where(TransactionNormalized.upc.is_(None))
+        .where(or_(TransactionNormalized.upc.is_(None), TransactionNormalized.upc == ""))
         .values(upc=upc.strip())
     )
     result = await db.execute(stmt)
@@ -1147,4 +1157,36 @@ async def link_upc_to_transactions(
         "artist_name": artist_name,
         "release_title": release_title,
         "upc": upc.strip(),
+    }
+
+
+@router.post("/catalog/merge-release")
+async def merge_release_upc(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_name: str = Form(...),
+    source_upc: str = Form(...),
+    target_upc: str = Form(...),
+):
+    """
+    Merge transactions from source_upc into target_upc.
+    Used when the same album appears under different UPCs from different sources
+    (e.g., Bandcamp has no UPC but TuneCore has one).
+    """
+    from sqlalchemy import update, func
+
+    stmt = (
+        update(TransactionNormalized)
+        .where(func.lower(TransactionNormalized.artist_name) == artist_name.lower().strip())
+        .where(TransactionNormalized.upc == source_upc.strip())
+        .values(upc=target_upc.strip())
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+
+    return {
+        "success": True,
+        "updated_count": result.rowcount,
+        "source_upc": source_upc,
+        "target_upc": target_upc,
     }

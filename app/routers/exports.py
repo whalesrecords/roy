@@ -131,14 +131,21 @@ async def _compute_all_artists_royalties(
         if not transactions:
             continue
 
-        # Build UPC mappings
+        # Build UPC mappings — prefer authoritative sources (TuneCore/Believe/CDBaby)
+        authoritative_sources = {"tunecore", "believe", "believe_uk", "believe_fr", "cdbaby"}
         release_title_to_upc: dict[str, str] = {}
+        release_title_upc_source: dict[str, str] = {}
         isrc_to_upc: dict[str, str] = {}
         for tx in transactions:
             if tx.upc and tx.release_title:
                 key = tx.release_title.strip().lower()
-                if key not in release_title_to_upc:
+                tx_source = tx.source.value.lower() if tx.source else "other"
+                existing_source = release_title_upc_source.get(key)
+                is_auth = tx_source in authoritative_sources
+                existing_is_auth = existing_source in authoritative_sources if existing_source else False
+                if key not in release_title_to_upc or (is_auth and not existing_is_auth):
                     release_title_to_upc[key] = tx.upc
+                    release_title_upc_source[key] = tx_source
             if tx.upc and tx.isrc:
                 if tx.isrc not in isrc_to_upc:
                     isrc_to_upc[tx.isrc] = tx.upc
@@ -170,13 +177,20 @@ async def _compute_all_artists_royalties(
         # Aggregate by UPC
         albums: dict[str, dict] = {}
         for tx in transactions:
-            upc = tx.upc
-            if not upc and tx.isrc:
-                upc = isrc_to_upc.get(tx.isrc)
-            if not upc and tx.release_title:
-                upc = release_title_to_upc.get(tx.release_title.strip().lower())
-            upc = upc or "UNKNOWN"
             source = tx.source.value.lower() if tx.source else "other"
+            title_key = tx.release_title.strip().lower() if tx.release_title else None
+            auth_upc = release_title_to_upc.get(title_key) if title_key else None
+            auth_src = release_title_upc_source.get(title_key) if title_key else None
+
+            if source not in authoritative_sources and auth_upc and auth_src in authoritative_sources:
+                upc = auth_upc
+            else:
+                upc = tx.upc
+                if not upc and tx.isrc:
+                    upc = isrc_to_upc.get(tx.isrc)
+                if not upc and title_key:
+                    upc = release_title_to_upc.get(title_key)
+            upc = upc or "UNKNOWN"
             amount = tx.gross_amount or Decimal("0")
 
             if upc not in albums:

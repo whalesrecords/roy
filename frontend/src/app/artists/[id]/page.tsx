@@ -48,7 +48,9 @@ import {
   ArtistRoyaltyCalculation,
   SpotifyAlbumResult,
   SpotifyTrackResult,
-  LabelSettings
+  LabelSettings,
+  mergeRelease,
+  linkUpcToRelease
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -218,6 +220,12 @@ export default function ArtistDetailPage() {
 
   // Expanded releases (to show tracks)
   const [expandedReleases, setExpandedReleases] = useState<Set<string>>(new Set());
+
+  // Merge release modal
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeSourceRelease, setMergeSourceRelease] = useState<{ title: string; upc: string } | null>(null);
+  const [mergeTargetUpc, setMergeTargetUpc] = useState('');
+  const [mergingRelease, setMergingRelease] = useState(false);
 
   // Edit advance
   const [editingAdvance, setEditingAdvance] = useState<AdvanceEntry | null>(null);
@@ -462,6 +470,43 @@ export default function ArtistDetailPage() {
     } finally {
       setCreatingContract(false);
     }
+  };
+
+  const handleMergeRelease = async () => {
+    if (!mergeSourceRelease || !mergeTargetUpc || !artist) return;
+    setMergingRelease(true);
+    try {
+      if (mergeSourceRelease.upc === 'UNKNOWN' || !mergeSourceRelease.upc) {
+        // Link by title (no UPC to merge from)
+        await linkUpcToRelease(artist.name, mergeSourceRelease.title, mergeTargetUpc);
+      } else {
+        // Merge UPC to UPC
+        await mergeRelease(artist.name, mergeSourceRelease.upc, mergeTargetUpc);
+      }
+      setShowMergeModal(false);
+      setMergeSourceRelease(null);
+      setMergeTargetUpc('');
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de fusion');
+    } finally {
+      setMergingRelease(false);
+    }
+  };
+
+  const openCreateContractForRelease = (upc: string, title: string) => {
+    setSelectedItem({ type: 'release', id: upc, name: title });
+    setContractParties([
+      { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
+      { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+    ]);
+    setShowContractForm(true);
+  };
+
+  const openMergeModal = (title: string, upc: string) => {
+    setMergeSourceRelease({ title, upc });
+    setMergeTargetUpc('');
+    setShowMergeModal(true);
   };
 
   const handleCreateAdvance = async () => {
@@ -2444,10 +2489,27 @@ export default function ArtistDetailPage() {
                       }`}>
                         Release
                       </span>
-                      <span className="text-sm font-medium text-foreground truncate">{release.release_title}</span>
+                      <span className={`text-sm font-medium truncate ${release.release_title === '(Sans album)' ? 'text-secondary-400 italic' : 'text-foreground'}`}>
+                        {release.release_title === '(Sans album)' ? 'Sans titre' : release.release_title}
+                      </span>
+                      {release.upc === 'UNKNOWN' && (
+                        <button
+                          onClick={() => openMergeModal(release.release_title, release.upc)}
+                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-warning/10 text-warning-700 hover:bg-warning/20 transition-colors"
+                          title="Fusionner avec une release existante"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                          Fusionner
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs font-mono text-secondary-400">UPC: {release.upc}</span>
+                      {release.upc !== 'UNKNOWN' && (
+                        <span className="text-xs font-mono text-secondary-400">UPC: {release.upc}</span>
+                      )}
+                      {release.upc === 'UNKNOWN' && (
+                        <span className="text-xs text-warning-600 italic">Pas de UPC</span>
+                      )}
                       {release.store_name && (
                         <span className="text-xs text-secondary-400">· {release.store_name}</span>
                       )}
@@ -2490,9 +2552,13 @@ export default function ArtistDetailPage() {
                         {formatPercent(shares.artistShare)}% (catalogue)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
-                        Aucun contrat
-                      </span>
+                      <button
+                        onClick={() => openCreateContractForRelease(release.upc, release.release_title)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700 hover:bg-primary/20 transition-colors"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        Créer contrat
+                      </button>
                     )}
                   </div>
                 </div>
@@ -2594,7 +2660,9 @@ export default function ArtistDetailPage() {
                             className="text-left w-full group"
                           >
                             <div className="flex items-center gap-2">
-                              <p className="font-medium text-foreground truncate group-hover:text-secondary-700">{group.release_title}</p>
+                              <p className={`font-medium truncate group-hover:text-secondary-700 ${
+                                group.release_title === '(Sans album)' ? 'text-secondary-400 italic' : 'text-foreground'
+                              }`}>{group.release_title === '(Sans album)' ? 'Sans titre' : group.release_title}</p>
                               {hasMultipleSources && (
                                 <svg
                                   className={`w-4 h-4 text-secondary-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -2638,7 +2706,7 @@ export default function ArtistDetailPage() {
                             )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           {contract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
                               {formatPercent(getContractShares(contract, artistId).artistShare)}%
@@ -2648,9 +2716,26 @@ export default function ArtistDetailPage() {
                               {formatPercent(getContractShares(catalogContract, artistId).artistShare)}% (défaut)
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
-                              Aucun contrat
-                            </span>
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openCreateContractForRelease(group.upc, group.release_title); }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700 hover:bg-primary/20 transition-colors"
+                                title="Créer un contrat pour cette release"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Contrat
+                              </button>
+                              {group.upc === 'UNKNOWN' && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); openMergeModal(group.release_title, group.upc); }}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700 hover:bg-warning/20 transition-colors"
+                                  title="Fusionner avec une release existante"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                  Fusionner
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -2778,9 +2863,21 @@ export default function ArtistDetailPage() {
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
-                            Aucun contrat
-                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
+                              setContractParties([
+                                { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
+                                { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                              ]);
+                              setShowContractForm(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700 hover:bg-primary/20 transition-colors"
+                            title="Créer un contrat pour ce track"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Contrat
+                          </button>
                         )}
                       </div>
                     </div>
@@ -3265,6 +3362,71 @@ export default function ArtistDetailPage() {
                 className="flex-1"
               >
                 Créer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Merge Release Modal */}
+      {showMergeModal && mergeSourceRelease && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
+            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">Fusionner la release</h2>
+                <button onClick={() => { setShowMergeModal(false); setMergeSourceRelease(null); }} className="p-2 -mr-2 text-secondary-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="bg-content2 rounded-xl p-3">
+                <p className="text-sm text-secondary-500">Release source</p>
+                <p className="font-medium text-foreground">{mergeSourceRelease.title}</p>
+                {mergeSourceRelease.upc !== 'UNKNOWN' && (
+                  <p className="text-xs text-secondary-400 font-mono mt-1">UPC: {mergeSourceRelease.upc}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Fusionner vers (UPC cible)
+                </label>
+                <select
+                  value={mergeTargetUpc}
+                  onChange={(e) => setMergeTargetUpc(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm"
+                >
+                  <option value="">Sélectionner une release...</option>
+                  {releases
+                    .filter(r => r.upc !== mergeSourceRelease.upc && r.upc !== 'UNKNOWN')
+                    .map(r => (
+                      <option key={r.upc} value={r.upc}>
+                        {r.release_title} (UPC: {r.upc})
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              <div className="bg-warning/5 rounded-xl p-3">
+                <p className="text-xs text-warning-700">
+                  Toutes les transactions de &quot;{mergeSourceRelease.title}&quot; seront rattachées à la release cible. Cette action est irréversible.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
+              <Button variant="secondary" onClick={() => { setShowMergeModal(false); setMergeSourceRelease(null); }} className="flex-1">
+                Annuler
+              </Button>
+              <Button
+                onClick={handleMergeRelease}
+                loading={mergingRelease}
+                disabled={!mergeTargetUpc}
+                className="flex-1"
+              >
+                Fusionner
               </Button>
             </div>
           </div>
