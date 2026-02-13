@@ -229,6 +229,9 @@ export default function ArtistDetailPage() {
   const [mergeTargetUpc, setMergeTargetUpc] = useState('');
   const [mergingRelease, setMergingRelease] = useState(false);
 
+  // Default label name from settings
+  const [defaultLabelName, setDefaultLabelName] = useState('');
+
   // Edit advance
   const [editingAdvance, setEditingAdvance] = useState<AdvanceEntry | null>(null);
   const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
@@ -270,13 +273,14 @@ export default function ArtistDetailPage() {
 
   const loadData = async () => {
     try {
-      const [artistData, contractsData, advancesData, balanceData, paymentsData, allArtistsData] = await Promise.all([
+      const [artistData, contractsData, advancesData, balanceData, paymentsData, allArtistsData, labelSettingsData] = await Promise.all([
         getArtist(artistId),
         getContracts(artistId),
         getAdvances(artistId),
         getAdvanceBalance(artistId),
         getPayments(artistId),
         getArtists(),
+        getLabelSettings().catch(() => null),
       ]);
       setArtist(artistData);
       setContracts(contractsData);
@@ -288,6 +292,7 @@ export default function ArtistDetailPage() {
       setTotalPayments(balanceData.total_payments || '0');
       setPayments(paymentsData);
       setAllArtists(allArtistsData);
+      if (labelSettingsData?.label_name) setDefaultLabelName(labelSettingsData.label_name);
 
       // Load catalog data for the artist
       if (artistData.name) {
@@ -530,7 +535,7 @@ export default function ArtistDetailPage() {
     setSelectedItem({ type: 'release', id: upc, name: title });
     setContractParties([
       { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-      { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+      { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
     ]);
     setContractTrackMode(false);
     setContractSelectedTracks([]);
@@ -2430,7 +2435,7 @@ export default function ArtistDetailPage() {
                 setSelectedItem(null);
                 setContractParties([
                   { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-                  { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                  { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
                 ]);
                 setShowContractForm(true);
               }}>
@@ -2902,7 +2907,7 @@ export default function ArtistDetailPage() {
                               setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
                               setContractParties([
                                 { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-                                { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                                { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
                               ]);
                               setShowContractForm(true);
                             }}
