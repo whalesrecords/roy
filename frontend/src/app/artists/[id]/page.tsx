@@ -50,7 +50,9 @@ import {
   SpotifyTrackResult,
   LabelSettings,
   mergeRelease,
-  linkUpcToRelease
+  linkUpcToRelease,
+  getReleaseTracks,
+  ReleaseTrack
 } from '@/lib/api';
 
 type ContractTab = 'releases' | 'tracks';
@@ -176,6 +178,8 @@ export default function ArtistDetailPage() {
   const [creatingContract, setCreatingContract] = useState(false);
   const [contractTrackMode, setContractTrackMode] = useState(false);
   const [contractSelectedTracks, setContractSelectedTracks] = useState<string[]>([]);
+  const [contractReleaseTracks, setContractReleaseTracks] = useState<ReleaseTrack[]>([]);
+  const [loadingReleaseTracks, setLoadingReleaseTracks] = useState(false);
 
   // Advance form
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -229,6 +233,9 @@ export default function ArtistDetailPage() {
   const [mergeTargetUpc, setMergeTargetUpc] = useState('');
   const [mergingRelease, setMergingRelease] = useState(false);
 
+  // Default label name from settings
+  const [defaultLabelName, setDefaultLabelName] = useState('');
+
   // Edit advance
   const [editingAdvance, setEditingAdvance] = useState<AdvanceEntry | null>(null);
   const [editAdvanceAmount, setEditAdvanceAmount] = useState('');
@@ -270,13 +277,14 @@ export default function ArtistDetailPage() {
 
   const loadData = async () => {
     try {
-      const [artistData, contractsData, advancesData, balanceData, paymentsData, allArtistsData] = await Promise.all([
+      const [artistData, contractsData, advancesData, balanceData, paymentsData, allArtistsData, labelSettingsData] = await Promise.all([
         getArtist(artistId),
         getContracts(artistId),
         getAdvances(artistId),
         getAdvanceBalance(artistId),
         getPayments(artistId),
         getArtists(),
+        getLabelSettings().catch(() => null),
       ]);
       setArtist(artistData);
       setContracts(contractsData);
@@ -288,6 +296,7 @@ export default function ArtistDetailPage() {
       setTotalPayments(balanceData.total_payments || '0');
       setPayments(paymentsData);
       setAllArtists(allArtistsData);
+      if (labelSettingsData?.label_name) setDefaultLabelName(labelSettingsData.label_name);
 
       // Load catalog data for the artist
       if (artistData.name) {
@@ -389,7 +398,7 @@ export default function ArtistDetailPage() {
       if (contractTrackMode && contractSelectedTracks.length > 0 && selectedItem.type === 'release') {
         let lastContract: any = null;
         for (const isrc of contractSelectedTracks) {
-          const trackInfo = tracks.find(t => t.isrc === isrc);
+          const trackInfo = contractReleaseTracks.find(t => t.isrc === isrc);
           lastContract = await createContract({
             artist_id: artistId,
             scope: 'track',
@@ -441,6 +450,7 @@ export default function ArtistDetailPage() {
       setContractFile(null);
       setContractTrackMode(false);
       setContractSelectedTracks([]);
+      setContractReleaseTracks([]);
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de création');
@@ -530,7 +540,7 @@ export default function ArtistDetailPage() {
     setSelectedItem({ type: 'release', id: upc, name: title });
     setContractParties([
       { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-      { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+      { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
     ]);
     setContractTrackMode(false);
     setContractSelectedTracks([]);
@@ -2430,7 +2440,7 @@ export default function ArtistDetailPage() {
                 setSelectedItem(null);
                 setContractParties([
                   { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-                  { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                  { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
                 ]);
                 setShowContractForm(true);
               }}>
@@ -2902,7 +2912,7 @@ export default function ArtistDetailPage() {
                               setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
                               setContractParties([
                                 { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
-                                { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                                { party_type: 'label', label_name: defaultLabelName, share_percentage: 50, share_physical: null, share_digital: null }
                               ]);
                               setShowContractForm(true);
                             }}
@@ -3148,6 +3158,7 @@ export default function ArtistDetailPage() {
                   setContractParties([]);
                   setContractTrackMode(false);
                   setContractSelectedTracks([]);
+                  setContractReleaseTracks([]);
                 }} className="p-2 -mr-2 text-secondary-500">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3174,32 +3185,48 @@ export default function ArtistDetailPage() {
                     <input
                       type="checkbox"
                       checked={contractTrackMode}
-                      onChange={(e) => {
-                        setContractTrackMode(e.target.checked);
-                        if (!e.target.checked) setContractSelectedTracks([]);
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        setContractTrackMode(checked);
+                        if (!checked) {
+                          setContractSelectedTracks([]);
+                          setContractReleaseTracks([]);
+                        } else if (selectedItem.id && selectedItem.id !== 'UNKNOWN') {
+                          setLoadingReleaseTracks(true);
+                          try {
+                            const relTracks = await getReleaseTracks(selectedItem.id);
+                            setContractReleaseTracks(relTracks);
+                          } catch (err) {
+                            console.error('Failed to load release tracks:', err);
+                            setContractReleaseTracks([]);
+                          } finally {
+                            setLoadingReleaseTracks(false);
+                          }
+                        }
                       }}
                       className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
                     />
                     <span className="text-sm text-secondary-700">Appliquer à des tracks spécifiques</span>
                   </label>
-                  {contractTrackMode && (() => {
-                    const releaseTracks = getTracksForRelease(selectedItem.name);
-                    return releaseTracks.length > 0 ? (
+                  {contractTrackMode && (
+                    loadingReleaseTracks ? (
+                      <p className="mt-2 text-xs text-secondary-400 italic">Chargement des tracks...</p>
+                    ) : contractReleaseTracks.length > 0 ? (
                       <div className="mt-2 space-y-1 max-h-48 overflow-y-auto border border-default-200 rounded-xl p-2">
                         <button
                           type="button"
                           onClick={() => {
-                            if (contractSelectedTracks.length === releaseTracks.length) {
+                            if (contractSelectedTracks.length === contractReleaseTracks.length) {
                               setContractSelectedTracks([]);
                             } else {
-                              setContractSelectedTracks(releaseTracks.map(t => t.isrc));
+                              setContractSelectedTracks(contractReleaseTracks.map(t => t.isrc));
                             }
                           }}
                           className="text-xs text-primary hover:text-primary-600 font-medium mb-1"
                         >
-                          {contractSelectedTracks.length === releaseTracks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                          {contractSelectedTracks.length === contractReleaseTracks.length ? 'Tout désélectionner' : 'Tout sélectionner'}
                         </button>
-                        {releaseTracks.map((track) => (
+                        {contractReleaseTracks.map((track) => (
                           <label key={track.isrc} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-content2 cursor-pointer">
                             <input
                               type="checkbox"
@@ -3215,15 +3242,18 @@ export default function ArtistDetailPage() {
                             />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-foreground truncate">{track.track_title}</p>
-                              <p className="text-xs text-secondary-400 font-mono">{track.isrc}</p>
+                              <p className="text-xs text-secondary-400">
+                                <span className="font-mono">{track.isrc}</span>
+                                {track.artist_name && <span className="ml-2 text-secondary-300">· {track.artist_name}</span>}
+                              </p>
                             </div>
                           </label>
                         ))}
                       </div>
                     ) : (
                       <p className="mt-2 text-xs text-secondary-400 italic">Aucune track trouvée pour cette release</p>
-                    );
-                  })()}
+                    )
+                  )}
                 </div>
               )}
               {!selectedItem && (
