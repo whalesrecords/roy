@@ -2863,9 +2863,21 @@ export default function ArtistDetailPage() {
                             {isReleaseLevel ? ' (release)' : ' (défaut)'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning-700">
-                            Aucun contrat
-                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedItem({ type: 'track', id: track.isrc, name: track.track_title });
+                              setContractParties([
+                                { party_type: 'artist', artist_id: artist?.id, share_percentage: 50, share_physical: null, share_digital: null },
+                                { party_type: 'label', label_name: '', share_percentage: 50, share_physical: null, share_digital: null }
+                              ]);
+                              setShowContractForm(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700 hover:bg-primary/20 transition-colors"
+                            title="Créer un contrat pour ce track"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                            Contrat
+                          </button>
                         )}
                       </div>
                     </div>
