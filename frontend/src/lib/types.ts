@@ -167,6 +167,7 @@ export interface Contract {
   start_date: string;
   end_date?: string;
   description?: string;
+  document_url?: string | null;
   created_at?: string;
   parties?: ContractParty[];
 }
