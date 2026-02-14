@@ -2512,6 +2512,15 @@ export default function ArtistDetailPage() {
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
                         {formatPercent(artistShare)}% / {formatPercent(labelShare)}%
                       </span>
+                      {catContract.document_url ? (
+                        <span className="text-success-600" title="Document uploadé">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </span>
+                      ) : (
+                        <span className="text-secondary-300" title="Pas de document">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </span>
+                      )}
                       <button onClick={() => handleEditContract(catContract)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
@@ -2593,6 +2602,15 @@ export default function ArtistDetailPage() {
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
                           {shares ? `${formatPercent(shares.artistShare)}%` : '-'}
                         </span>
+                        {releaseContract!.document_url ? (
+                          <span className="text-success-600" title="Document uploadé">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          </span>
+                        ) : (
+                          <span className="text-secondary-300" title="Pas de document">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          </span>
+                        )}
                         <button onClick={() => handleEditContract(releaseContract!)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
@@ -2632,6 +2650,15 @@ export default function ArtistDetailPage() {
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary-700">
                       {formatPercent(artistShare)}%
                     </span>
+                    {contract.document_url ? (
+                      <span className="text-success-600" title="Document uploadé">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </span>
+                    ) : (
+                      <span className="text-secondary-300" title="Pas de document">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </span>
+                    )}
                     <button onClick={() => handleEditContract(contract)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </button>
@@ -2710,6 +2737,9 @@ export default function ArtistDetailPage() {
                             className="text-left w-full group"
                           >
                             <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                contract ? 'bg-success-500' : catalogContract ? 'bg-warning-400' : 'bg-secondary-300'
+                              }`} title={contract ? 'Contrat spécifique' : catalogContract ? 'Contrat catalogue' : 'Pas de contrat'} />
                               <p className={`font-medium truncate group-hover:text-secondary-700 ${
                                 group.release_title === '(Sans album)' ? 'text-secondary-400 italic' : 'text-foreground'
                               }`}>{group.release_title === '(Sans album)' ? 'Sans titre' : group.release_title}</p>
@@ -2756,11 +2786,22 @@ export default function ArtistDetailPage() {
                             )}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
                           {contract ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
-                              {formatPercent(getContractShares(contract, artistId).artistShare)}%
-                            </span>
+                            <>
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success-700">
+                                {formatPercent(getContractShares(contract, artistId).artistShare)}%
+                              </span>
+                              {contract.document_url ? (
+                                <span className="text-success-600" title="Document uploadé">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </span>
+                              ) : (
+                                <span className="text-secondary-300" title="Pas de document">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </span>
+                              )}
+                            </>
                           ) : catalogContract ? (
                             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-content2 text-secondary-600">
                               {formatPercent(getContractShares(catalogContract, artistId).artistShare)}% (défaut)

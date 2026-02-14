@@ -137,6 +137,30 @@ async def create_contract(
             detail="scope_id must be null for catalog scope",
         )
 
+    # Check for duplicate contract (same artist + scope + scope_id)
+    duplicate_condition = [
+        Contract.artist_id == contract_data.artist_id,
+        Contract.scope == contract_data.scope,
+    ]
+    if contract_data.scope_id:
+        duplicate_condition.append(Contract.scope_id == contract_data.scope_id)
+    else:
+        duplicate_condition.append(Contract.scope_id.is_(None))
+
+    existing_result = await db.execute(
+        select(Contract).where(*duplicate_condition)
+    )
+    if existing_result.scalar_one_or_none():
+        scope_label = {
+            "track": f"track (ISRC: {contract_data.scope_id})",
+            "release": f"release (UPC: {contract_data.scope_id})",
+            "catalog": "catalogue",
+        }.get(contract_data.scope, contract_data.scope)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Un contrat existe déjà pour cet artiste sur ce {scope_label}. Modifiez le contrat existant.",
+        )
+
     # Collect all artist IDs that need a contract (primary + secondary artists)
     artist_ids_to_create = [contract_data.artist_id]
     for party in contract_data.parties:
