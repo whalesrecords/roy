@@ -59,6 +59,9 @@ frontend-artist/.next/
 frontend-artist/out/
 frontend-artist/.env*.local
 
+# Node (frontend-v2 - redesign copy)
+frontend-v2/
+
 # Desktop app (Tauri)
 desktop-app/node_modules/
 desktop-app/src-tauri/target/
