@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure smooth theme transitions */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Prevent flash of wrong theme */
+html,
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Subtle pastel background gradient like the Figma */
+body {
+  background-image:
+    radial-gradient(ellipse at top left, rgba(124, 92, 252, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at top right, rgba(52, 199, 89, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(255, 149, 0, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(124, 92, 252, 0.03) 0%, transparent 50%);
+  background-attachment: fixed;
+}
+
+html.dark body {
+  background-image: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 92, 252, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 92, 252, 0.4);
+}
+
+/* Smooth card hover transitions */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(124, 92, 252, 0.12);
+}
