@@ -3276,7 +3276,8 @@ export default function ArtistDetailPage() {
                       : contractReleaseTracks;
 
                     // Only tracks with ISRC can be selected
-                    const selectableIsrcs = filtered.filter(t => t.isrc).map(t => t.isrc!);
+                    const existingTrackIsrcs = new Set(contracts.filter(c => c.scope === 'track' && c.scope_id).map(c => c.scope_id!));
+                    const selectableIsrcs = filtered.filter(t => t.isrc && !existingTrackIsrcs.has(t.isrc)).map(t => t.isrc!);
 
                     return (
                       <div className="mt-2">
@@ -3312,15 +3313,17 @@ export default function ArtistDetailPage() {
                               const hasIsrc = !!track.isrc;
                               const manualVal = manualIsrcs[idx] || '';
                               const effectiveIsrc = track.isrc || (manualVal.length >= 5 ? manualVal : null);
+                              const alreadyHasContract = !!effectiveIsrc && existingTrackIsrcs.has(effectiveIsrc);
+                              const isDisabled = !effectiveIsrc || alreadyHasContract;
                               return (
-                                <div key={track.isrc || `no-isrc-${idx}`} className={`p-1.5 rounded-lg ${hasIsrc ? 'hover:bg-content2' : ''}`}>
-                                  <label className="flex items-center gap-2 cursor-pointer">
+                                <div key={track.isrc || `no-isrc-${idx}`} className={`p-1.5 rounded-lg ${isDisabled ? 'opacity-50' : 'hover:bg-content2'}`}>
+                                  <label className={`flex items-center gap-2 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                                     <input
                                       type="checkbox"
-                                      disabled={!effectiveIsrc}
-                                      checked={!!effectiveIsrc && contractSelectedTracks.includes(effectiveIsrc)}
+                                      disabled={isDisabled}
+                                      checked={!!effectiveIsrc && !alreadyHasContract && contractSelectedTracks.includes(effectiveIsrc)}
                                       onChange={(e) => {
-                                        if (!effectiveIsrc) return;
+                                        if (!effectiveIsrc || alreadyHasContract) return;
                                         if (e.target.checked) {
                                           setContractSelectedTracks([...contractSelectedTracks, effectiveIsrc]);
                                         } else {
@@ -3330,9 +3333,11 @@ export default function ArtistDetailPage() {
                                       className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
                                     />
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-foreground truncate">{track.track_title}</p>
+                                      <p className={`text-sm truncate ${alreadyHasContract ? 'text-secondary-400' : 'text-foreground'}`}>{track.track_title}</p>
                                       <p className="text-xs text-secondary-400">
-                                        {hasIsrc ? (
+                                        {alreadyHasContract ? (
+                                          <span className="text-success-600 font-medium">Contrat existant</span>
+                                        ) : hasIsrc ? (
                                           <span className="font-mono">{track.isrc}</span>
                                         ) : (
                                           <span className="text-warning-500">Pas d'ISRC</span>

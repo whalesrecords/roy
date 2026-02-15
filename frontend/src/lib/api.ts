@@ -1132,6 +1132,7 @@ export interface ContractData {
   start_date: string;
   end_date?: string;
   description?: string;
+  document_url?: string | null;
   parties: ContractParty[];
   created_at?: string;
   updated_at?: string;
