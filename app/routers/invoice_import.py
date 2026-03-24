@@ -10,12 +10,12 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
@@ -23,16 +23,6 @@ from app.services.invoice_extractor import extract_invoice_data
 
 
 router = APIRouter(prefix="/invoice-import", tags=["invoice-import"])
-
-
-async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
-    """Verify admin token from request header."""
-    if x_admin_token != settings.ADMIN_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token"
-        )
-    return x_admin_token
 
 
 # Response schemas

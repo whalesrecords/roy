@@ -9,11 +9,11 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
@@ -37,16 +37,6 @@ from app.models.transaction import TransactionNormalized
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/artists", tags=["artists"])
-
-
-async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
-    """Verify the admin token from header."""
-    if x_admin_token != settings.ADMIN_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token",
-        )
-    return x_admin_token
 
 
 # Artist endpoints

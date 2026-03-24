@@ -10,13 +10,13 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 import base64
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
@@ -25,16 +25,6 @@ from app.models.transaction import TransactionNormalized
 
 
 router = APIRouter(prefix="/finances", tags=["finances"])
-
-
-async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
-    """Verify the admin token from header."""
-    if x_admin_token != settings.ADMIN_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token",
-        )
-    return x_admin_token
 
 
 # Response schemas

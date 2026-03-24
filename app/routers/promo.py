@@ -9,11 +9,11 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 
-from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.promo_submission import PromoSubmission, PromoSource
 from app.models.promo_campaign import PromoCampaign, CampaignStatus
@@ -42,16 +42,6 @@ from app.services.parsers.groover_parser import GrooverParser, GrooverRow, Parse
 
 
 router = APIRouter(prefix="/promo", tags=["promo"])
-
-
-async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
-    """Verify the admin token from header."""
-    if x_admin_token != settings.ADMIN_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token",
-        )
-    return x_admin_token
 
 
 def normalize_artist_name(name: str) -> str:

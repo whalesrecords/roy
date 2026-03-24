@@ -8,10 +8,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models import Import, ImportSource, ImportStatus
 from app.schemas.imports import (
@@ -40,16 +40,6 @@ from app.services.normalize import (
 
 
 router = APIRouter(prefix="/imports", tags=["imports"])
-
-
-async def verify_admin_token(x_admin_token: Annotated[str, Header()]) -> str:
-    """Verify the admin token from header."""
-    if x_admin_token != settings.ADMIN_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin token",
-        )
-    return x_admin_token
 
 
 def extract_period_from_filename(filename: str) -> tuple:
