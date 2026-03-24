@@ -302,54 +302,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/debug-config")
-async def debug_config():
-    """Debug endpoint to check Supabase configuration (no sensitive data)."""
-    import os
-    return {
-        "supabase_url_set": bool(settings.SUPABASE_URL),
-        "supabase_url_value": settings.SUPABASE_URL[:30] + "..." if settings.SUPABASE_URL else None,
-        "supabase_anon_key_set": bool(settings.SUPABASE_ANON_KEY),
-        "supabase_anon_key_prefix": settings.SUPABASE_ANON_KEY[:20] + "..." if settings.SUPABASE_ANON_KEY else None,
-        "supabase_service_key_set": bool(settings.SUPABASE_SERVICE_ROLE_KEY),
-        "supabase_service_key_prefix": settings.SUPABASE_SERVICE_ROLE_KEY[:20] + "..." if settings.SUPABASE_SERVICE_ROLE_KEY else None,
-        "env_supabase_url": os.getenv("SUPABASE_URL", "NOT SET")[:30] if os.getenv("SUPABASE_URL") else "NOT SET",
-        "env_supabase_anon_key": os.getenv("SUPABASE_ANON_KEY", "NOT SET")[:20] if os.getenv("SUPABASE_ANON_KEY") else "NOT SET",
-        "env_supabase_service_key": os.getenv("SUPABASE_SERVICE_ROLE_KEY", "NOT SET")[:20] if os.getenv("SUPABASE_SERVICE_ROLE_KEY") else "NOT SET",
-    }
-
-
-@router.get("/list-supabase-users")
-async def list_supabase_users():
-    """List all users in Supabase Auth (admin only)."""
-    import os
-    service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
-
-    if not service_key:
-        raise HTTPException(status_code=500, detail="Supabase service key not configured")
-
-    try:
-        from supabase import create_client
-        supabase = create_client(supabase_url, service_key)
-
-        # List users
-        users_response = supabase.auth.admin.list_users()
-
-        users = []
-        for user in users_response:
-            users.append({
-                "id": user.id,
-                "email": user.email,
-                "created_at": user.created_at,
-                "email_confirmed": user.email_confirmed_at is not None,
-            })
-
-        return {"count": len(users), "users": users}
-
-    except Exception as e:
-        logger.error(f"Failed to list users: {e}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+# Debug endpoints removed for security — use Supabase dashboard instead
 
 
 class ResetPasswordRequest(BaseModel):
@@ -362,7 +315,7 @@ async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depen
     """Reset password for a Supabase user by email (admin only)."""
     import os
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+    supabase_url = settings.SUPABASE_URL
 
     if not service_key:
         raise HTTPException(status_code=500, detail="Supabase service key not configured")
@@ -403,7 +356,7 @@ async def login_email(request: EmailLoginRequest, db: AsyncSession = Depends(get
     import os
     # Read directly from env to bypass lru_cache
     anon_key = os.getenv("SUPABASE_ANON_KEY", "")
-    supabase_url = os.getenv("SUPABASE_URL", "https://huolkgcnizwrhzyboemd.supabase.co")
+    supabase_url = settings.SUPABASE_URL
 
     if not anon_key:
         logger.error("SUPABASE_ANON_KEY not set in environment")

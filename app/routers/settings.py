@@ -5,7 +5,7 @@ API endpoints for label settings management.
 """
 
 import base64
-from typing import Optional
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.auth import verify_admin_token
 from app.models import LabelSettings
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -56,7 +57,10 @@ class LabelSettingsUpdate(BaseModel):
 
 
 @router.get("/label", response_model=Optional[LabelSettingsResponse])
-async def get_label_settings(db: AsyncSession = Depends(get_db)):
+async def get_label_settings(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
     """Get label settings. Returns null if not configured."""
     result = await db.execute(select(LabelSettings).limit(1))
     settings = result.scalar_one_or_none()
@@ -66,6 +70,7 @@ async def get_label_settings(db: AsyncSession = Depends(get_db)):
 @router.put("/label", response_model=LabelSettingsResponse)
 async def update_label_settings(
     data: LabelSettingsUpdate,
+    _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Update label settings. Creates if not exists."""
@@ -113,6 +118,7 @@ async def update_label_settings(
 @router.post("/label/logo", response_model=LabelSettingsResponse)
 async def upload_logo(
     file: UploadFile = File(...),
+    _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload logo as base64. Accepts PNG, JPG, WEBP."""
@@ -151,7 +157,10 @@ async def upload_logo(
 
 
 @router.delete("/label/logo", response_model=LabelSettingsResponse)
-async def delete_logo(db: AsyncSession = Depends(get_db)):
+async def delete_logo(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
     """Remove the logo."""
     result = await db.execute(select(LabelSettings).limit(1))
     settings = result.scalar_one_or_none()

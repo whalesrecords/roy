@@ -68,6 +68,13 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_tx_artist_period ON transactions_normalized(artist_name, period_start, period_end)",
             "CREATE INDEX IF NOT EXISTS idx_tx_import_id ON transactions_normalized(import_id)",
             "CREATE INDEX IF NOT EXISTS idx_advance_ledger_promo_submission ON advance_ledger(promo_submission_id) WHERE promo_submission_id IS NOT NULL",
+            # Additional indexes for contracts and royalty queries
+            "CREATE INDEX IF NOT EXISTS idx_contracts_artist_scope ON contracts(artist_id, scope, scope_id)",
+            "CREATE INDEX IF NOT EXISTS idx_contracts_artist_start ON contracts(artist_id, start_date)",
+            "CREATE INDEX IF NOT EXISTS idx_royalty_runs_status ON royalty_runs(status)",
+            "CREATE INDEX IF NOT EXISTS idx_statements_run_id ON statements(royalty_run_id)",
+            "CREATE INDEX IF NOT EXISTS idx_royalty_items_artist_run ON royalty_line_items(artist_id, royalty_run_id)",
+            "CREATE INDEX IF NOT EXISTS idx_tx_artist_id ON transactions_normalized(artist_id) WHERE artist_id IS NOT NULL",
         ]
         for idx_sql in indexes:
             await conn.execute(text(idx_sql))
@@ -84,13 +91,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware — restrict to known frontend origins
+ALLOWED_ORIGINS = [
+    "https://admin.whalesrecords.com",
+    "https://artist.whalesrecords.com",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Token"],
 )
 
 # Include routers
