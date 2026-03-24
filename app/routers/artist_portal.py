@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.auth import verify_admin_token
 from app.models.artist import Artist
 from app.models.transaction import TransactionNormalized
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType, ExpenseCategory
@@ -311,7 +312,11 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/reset-password")
-async def reset_password(request: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def reset_password(
+    request: ResetPasswordRequest,
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
     """Reset password for a Supabase user by email (admin only)."""
     import os
     service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -418,6 +423,7 @@ async def login_email(request: EmailLoginRequest, db: AsyncSession = Depends(get
 @router.post("/create-auth")
 async def create_artist_auth(
     request: CreateArtistAuthRequest,
+    _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Create Supabase auth account for an artist (admin only)."""
@@ -1181,6 +1187,7 @@ async def get_statement_detail(
 @router.post("/generate-code/{artist_id}")
 async def generate_access_code(
     artist_id: str,
+    _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate an access code for an artist (admin only)."""
@@ -2093,6 +2100,7 @@ class BatchCreateAuthRequest(BaseModel):
 @router.post("/create-auth-batch")
 async def create_auth_batch(
     request: BatchCreateAuthRequest,
+    _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """Create Supabase auth accounts for all artists with email but no auth_user_id."""
