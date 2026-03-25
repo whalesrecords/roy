@@ -15,6 +15,13 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: 'Whales Records - Admin',
   description: 'Gestion des imports et royalties',
+  manifest: '/manifest.json',
+  themeColor: '#6366f1',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'WR Admin',
+  },
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',
@@ -29,6 +36,8 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
