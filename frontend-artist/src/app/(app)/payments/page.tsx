@@ -1,35 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getArtistPayments, getStatements, requestPayment, ArtistPayment, Statement } from '@/lib/api';
+import { getArtistPayments, ArtistPayment } from '@/lib/api';
 
 export default function PaymentsPage() {
   const { artist, loading: authLoading } = useAuth();
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
-  const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'statements' | 'payments'>('statements');
-  const [requestingPayment, setRequestingPayment] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (artist) {
-      loadData();
+      loadPayments();
     }
   }, [artist]);
 
-  const loadData = async () => {
+  const loadPayments = async () => {
     try {
-      const [paymentsData, statementsData] = await Promise.all([
-        getArtistPayments(),
-        getStatements(),
-      ]);
-      setPayments(paymentsData);
-      setStatements(statementsData);
+      const data = await getArtistPayments();
+      setPayments(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Loading error');
     } finally {
@@ -37,8 +29,9 @@ export default function PaymentsPage() {
     }
   };
 
-  const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
+  const formatCurrency = (value: string | number, currency: string = 'EUR') => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return num.toLocaleString('en-US', { style: 'currency', currency });
   };
 
   const formatDate = (dateStr: string) => {
@@ -49,35 +42,24 @@ export default function PaymentsPage() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return <span className="px-2 py-0.5 bg-success/10 text-success text-xs font-medium rounded-full">Paid</span>;
-      case 'finalized':
-        return <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full">Finalized</span>;
-      default:
-        return <span className="px-2 py-0.5 bg-secondary/10 text-secondary-600 text-xs font-medium rounded-full">Draft</span>;
-    }
-  };
+  // Summary
+  const totalReceived = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  const currency = payments[0]?.currency || 'EUR';
+  const lastPaymentDate = payments.length > 0
+    ? payments.reduce((latest, p) => (p.date > latest ? p.date : latest), payments[0].date)
+    : null;
 
-  const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-  // Only count unpaid statements (finalized but not paid)
-  const unpaidStatements = statements.filter(s => s.status !== 'paid');
-  const totalPayable = unpaidStatements.reduce((sum, s) => sum + parseFloat(s.net_payable), 0);
-
-  const handleRequestPayment = async (statementId: string) => {
-    setRequestingPayment(true);
-    setError(null);
-    try {
-      await requestPayment(statementId);
-      setPaymentSuccess('Payment request sent successfully!');
-      setTimeout(() => setPaymentSuccess(null), 5000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error during request');
-    } finally {
-      setRequestingPayment(false);
+  // Group by year, most recent first
+  const groupedByYear = useMemo(() => {
+    const sorted = [...payments].sort((a, b) => b.date.localeCompare(a.date));
+    const groups: Record<string, ArtistPayment[]> = {};
+    for (const p of sorted) {
+      const year = new Date(p.date).getFullYear().toString();
+      if (!groups[year]) groups[year] = [];
+      groups[year].push(p);
     }
-  };
+    return Object.entries(groups).sort(([a], [b]) => parseInt(b) - parseInt(a));
+  }, [payments]);
 
   if (authLoading || loading) {
     return (
@@ -99,183 +81,115 @@ export default function PaymentsPage() {
           </Link>
           <div>
             <h1 className="font-semibold text-foreground">Payments</h1>
-            <p className="text-xs text-secondary-500">Statements and disbursements</p>
+            <p className="text-xs text-secondary-500">Transaction history</p>
           </div>
         </div>
       </header>
 
-      <main className="px-4 py-4 pb-24 space-y-4">
+      <main className="px-4 py-4 pb-24 space-y-5">
         {error && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
 
-        {paymentSuccess && (
-          <div className="p-4 bg-success/10 border border-success/20 rounded-2xl">
-            <p className="text-success text-sm flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              {paymentSuccess}
-            </p>
+        {/* Summary Card */}
+        <div className="bg-gradient-to-br from-success to-success/80 rounded-2xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+            <span className="text-white/70 text-sm font-medium">Total received</span>
           </div>
-        )}
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gradient-to-br from-primary to-primary/80 rounded-2xl p-4 text-white">
-            <p className="text-white/70 text-xs mb-1">Royalties due</p>
-            <p className="text-xl font-bold">{formatCurrency(totalPayable.toString())}</p>
-          </div>
-          <div className="bg-gradient-to-br from-success to-success/80 rounded-2xl p-4 text-white">
-            <p className="text-white/70 text-xs mb-1">Total paid</p>
-            <p className="text-xl font-bold">{formatCurrency(totalPaid.toString())}</p>
-          </div>
-        </div>
-
-        {/* Request Payment Button */}
-        {totalPayable > 0 && (
-          <button
-            onClick={() => unpaidStatements.length > 0 && handleRequestPayment(unpaidStatements[0].id)}
-            disabled={requestingPayment || unpaidStatements.length === 0}
-            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
-          >
-            {requestingPayment ? (
-              <>
-                <Spinner size="sm" color="white" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Request Payment ({formatCurrency(totalPayable.toString())})
-              </>
-            )}
-          </button>
-        )}
-
-        {/* Tabs */}
-        <div className="flex gap-2 p-1 bg-content2 rounded-xl">
-          <button
-            onClick={() => setActiveTab('statements')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'statements'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-secondary-500'
-            }`}
-          >
-            Statements ({statements.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('payments')}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'payments'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-secondary-500'
-            }`}
-          >
-            Disbursements ({payments.length})
-          </button>
-        </div>
-
-        {/* Statements Tab */}
-        {activeTab === 'statements' && (
-          <div className="space-y-3">
-            {statements.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <p className="text-secondary-500">No statements available</p>
-                <p className="text-xs text-secondary-400 mt-1">Statements will be generated by your label</p>
+          <p className="text-3xl font-bold mb-4">{formatCurrency(totalReceived, currency)}</p>
+          <div className="flex justify-between text-sm">
+            <div>
+              <p className="text-white/60 text-xs">Payments</p>
+              <p className="font-semibold">{payments.length}</p>
+            </div>
+            {lastPaymentDate && (
+              <div className="text-right">
+                <p className="text-white/60 text-xs">Last payment</p>
+                <p className="font-semibold">{formatDate(lastPaymentDate)}</p>
               </div>
-            ) : (
-              statements.map((stmt) => (
-                <Link
-                  key={stmt.id}
-                  href={`/payments/${stmt.id}`}
-                  className="block bg-background border border-divider rounded-2xl p-4 hover:border-primary/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-foreground">{stmt.period_label}</p>
-                      <p className="text-xs text-secondary-500">{formatDate(stmt.created_at)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(stmt.status)}
-                      <svg className="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            )}
+          </div>
+        </div>
+
+        {/* Link to statements */}
+        <Link
+          href="/payments"
+          className="flex items-center justify-between px-4 py-3 bg-content1 rounded-xl border border-divider hover:border-primary/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm font-medium text-foreground">Voir mes relev&eacute;s</span>
+          </div>
+          <svg className="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
+
+        {/* Empty state */}
+        {payments.length === 0 && !error && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <p className="text-foreground font-medium mb-1">Aucun paiement re&ccedil;u</p>
+            <p className="text-xs text-secondary-400">Your payments will appear here once processed</p>
+          </div>
+        )}
+
+        {/* Timeline grouped by year */}
+        {groupedByYear.map(([year, yearPayments]) => (
+          <div key={year}>
+            {/* Year label */}
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">{year}</span>
+              <div className="flex-1 border-t border-divider" />
+            </div>
+
+            {/* Payments in this year */}
+            <div className="space-y-0">
+              {yearPayments.map((payment, index) => (
+                <div key={payment.id}>
+                  <div className="flex items-center gap-3 py-3">
+                    {/* Green checkmark */}
+                    <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
+
+                    {/* Description + date */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {payment.description || 'Payment'}
+                      </p>
+                      <p className="text-xs text-secondary-400">{formatDate(payment.date)}</p>
+                    </div>
+
+                    {/* Amount */}
+                    <p className="text-lg font-bold text-success flex-shrink-0">
+                      +{formatCurrency(payment.amount, payment.currency)}
+                    </p>
                   </div>
 
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-secondary-500">Gross revenue</span>
-                      <span className="text-foreground">{formatCurrency(stmt.gross_revenue, stmt.currency)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-secondary-500">Your royalties</span>
-                      <span className="text-foreground">{formatCurrency(stmt.artist_royalties, stmt.currency)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-secondary-500">Advances recouped</span>
-                      <span className="text-warning">-{formatCurrency(stmt.recouped, stmt.currency)}</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-divider">
-                      <span className="font-semibold text-foreground">Net payable</span>
-                      <span className="font-bold text-success text-lg">{formatCurrency(stmt.net_payable, stmt.currency)}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Payments Tab */}
-        {activeTab === 'payments' && (
-          <div className="space-y-3">
-            {payments.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
+                  {/* Separator */}
+                  {index < yearPayments.length - 1 && (
+                    <div className="border-b border-divider ml-13" />
+                  )}
                 </div>
-                <p className="text-secondary-500">No disbursements yet</p>
-              </div>
-            ) : (
-              payments.map((payment) => (
-                <div
-                  key={payment.id}
-                  className="bg-background border border-divider rounded-2xl p-4 flex items-center gap-4"
-                >
-                  <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">Disbursement</p>
-                    {payment.description && (
-                      <p className="text-sm text-secondary-500 truncate">{payment.description}</p>
-                    )}
-                    <p className="text-xs text-secondary-400">{formatDate(payment.date)}</p>
-                  </div>
-                  <p className="font-bold text-success text-lg">{formatCurrency(payment.amount, payment.currency)}</p>
-                </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
-        )}
+        ))}
       </main>
-
     </div>
   );
 }
