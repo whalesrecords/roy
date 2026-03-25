@@ -2,10 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Spinner, Input, Button } from '@heroui/react';
+import { Spinner, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+function FieldInput({ label, placeholder, value, onChange, type = 'text' }: {
+  label: string; placeholder: string; value?: string; onChange: (v: string) => void; type?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-foreground block">{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-3 bg-content2 border-2 border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
+      />
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();
@@ -215,22 +232,8 @@ export default function SettingsPage() {
               Contact
             </h2>
             <div className="space-y-4">
-              <Input
-                label="Email"
-                labelPlacement="inside"
-                type="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-              />
-              <Input
-                label="Phone"
-                labelPlacement="inside"
-                type="tel"
-                placeholder="+1 234 567 8900"
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-              />
+              <FieldInput label="Email" type="email" placeholder="your@email.com" value={formData.email} onChange={(v) => handleChange('email', v)} />
+              <FieldInput label="Phone" type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={(v) => handleChange('phone', v)} />
             </div>
           </section>
 
@@ -241,46 +244,16 @@ export default function SettingsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Address
+              Adresse
             </h2>
             <div className="space-y-4">
-              <Input
-                label="Address line 1"
-                labelPlacement="inside"
-                placeholder="123 Music Street"
-                value={formData.address_line1}
-                onChange={(e) => handleChange('address_line1', e.target.value)}
-              />
-              <Input
-                label="Address line 2"
-                labelPlacement="inside"
-                placeholder="Apartment, building..."
-                value={formData.address_line2}
-                onChange={(e) => handleChange('address_line2', e.target.value)}
-              />
+              <FieldInput label="Adresse" placeholder="123 rue de la Musique" value={formData.address_line1} onChange={(v) => handleChange('address_line1', v)} />
+              <FieldInput label="Complement" placeholder="Appartement, batiment..." value={formData.address_line2} onChange={(v) => handleChange('address_line2', v)} />
               <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Postal code"
-                  labelPlacement="inside"
-                  placeholder="10001"
-                  value={formData.postal_code}
-                  onChange={(e) => handleChange('postal_code', e.target.value)}
-                />
-                <Input
-                  label="City"
-                  labelPlacement="inside"
-                  placeholder="New York"
-                  value={formData.city}
-                  onChange={(e) => handleChange('city', e.target.value)}
-                />
+                <FieldInput label="Code postal" placeholder="33210" value={formData.postal_code} onChange={(v) => handleChange('postal_code', v)} />
+                <FieldInput label="Ville" placeholder="Langon" value={formData.city} onChange={(v) => handleChange('city', v)} />
               </div>
-              <Input
-                label="Country"
-                labelPlacement="inside"
-                placeholder="United States"
-                value={formData.country}
-                onChange={(e) => handleChange('country', e.target.value)}
-              />
+              <FieldInput label="Pays" placeholder="France" value={formData.country} onChange={(v) => handleChange('country', v)} />
             </div>
           </section>
 
@@ -290,37 +263,13 @@ export default function SettingsPage() {
               <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              Bank details
+              Coordonnees bancaires
             </h2>
             <div className="space-y-4">
-              <Input
-                label="Account holder"
-                labelPlacement="inside"
-                placeholder="Full name or business name"
-                value={formData.account_holder}
-                onChange={(e) => handleChange('account_holder', e.target.value)}
-              />
-              <Input
-                label="Bank name"
-                labelPlacement="inside"
-                placeholder="Bank of America"
-                value={formData.bank_name}
-                onChange={(e) => handleChange('bank_name', e.target.value)}
-              />
-              <Input
-                label="IBAN"
-                labelPlacement="inside"
-                placeholder="US12 3456 7890 1234 5678 9012 345"
-                value={formData.iban}
-                onChange={(e) => handleChange('iban', e.target.value)}
-              />
-              <Input
-                label="BIC / SWIFT"
-                labelPlacement="inside"
-                placeholder="BOFAUS3N"
-                value={formData.bic}
-                onChange={(e) => handleChange('bic', e.target.value)}
-              />
+              <FieldInput label="Titulaire du compte" placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={(v) => handleChange('account_holder', v)} />
+              <FieldInput label="Banque" placeholder="Credit Agricole" value={formData.bank_name} onChange={(v) => handleChange('bank_name', v)} />
+              <FieldInput label="IBAN" placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={(v) => handleChange('iban', v)} />
+              <FieldInput label="BIC / SWIFT" placeholder="AGRIFRPP" value={formData.bic} onChange={(v) => handleChange('bic', v)} />
             </div>
           </section>
 
@@ -330,26 +279,14 @@ export default function SettingsPage() {
               <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Legal information (optional)
+              Informations legales (optionnel)
             </h2>
             <p className="text-xs text-secondary-500 mb-4">
-              If you have a business entity
+              Si vous avez une structure juridique
             </p>
             <div className="space-y-4">
-              <Input
-                label="Business ID / SIRET"
-                labelPlacement="inside"
-                placeholder="123 456 789 00012"
-                value={formData.siret}
-                onChange={(e) => handleChange('siret', e.target.value)}
-              />
-              <Input
-                label="VAT number"
-                labelPlacement="inside"
-                placeholder="US123456789"
-                value={formData.vat_number}
-                onChange={(e) => handleChange('vat_number', e.target.value)}
-              />
+              <FieldInput label="SIRET" placeholder="123 456 789 00012" value={formData.siret} onChange={(v) => handleChange('siret', v)} />
+              <FieldInput label="Numero de TVA" placeholder="FR12345678901" value={formData.vat_number} onChange={(v) => handleChange('vat_number', v)} />
             </div>
           </section>
 

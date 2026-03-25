@@ -55,7 +55,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
     e.preventDefault();
     setIsDragging(false);
     const droppedFiles = Array.from(e.dataTransfer.files).filter(
-      f => f.type === 'text/csv' || f.name.endsWith('.csv')
+      f => f.type === 'text/csv' || f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls')
     );
     if (droppedFiles.length > 0) {
       addFiles(droppedFiles);
@@ -395,7 +395,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
           >
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               multiple
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
