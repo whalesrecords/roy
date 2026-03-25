@@ -39,6 +39,7 @@ export default function ContractsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ updated: number; errors: string[] } | null>(null);
   const [refreshingMetadata, setRefreshingMetadata] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -722,72 +723,76 @@ export default function ContractsPage() {
                   ))}
                 </select>
               )}
-              {/* Export CSV button */}
-              <button
-                onClick={exportContracts}
-                disabled={exporting || filteredContracts.length === 0}
-                className="flex items-center gap-2 px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full border-2 border-default-200 hover:bg-content3 transition-colors disabled:opacity-50"
-              >
-                {exporting ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              {/* Hidden file input for CSV import */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+                disabled={importing}
+              />
+              {/* Actions dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setActionsOpen(!actionsOpen)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full border-2 border-default-200 hover:bg-content3 transition-colors"
+                >
+                  {(refreshingMetadata || exporting || importing) && <Spinner size="sm" />}
+                  Actions
+                  <svg className={`w-4 h-4 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
+                </button>
+                {actionsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-56 bg-background border border-divider rounded-xl shadow-lg z-50 overflow-hidden">
+                      <button
+                        onClick={() => { refreshAllMetadata(); setActionsOpen(false); }}
+                        disabled={refreshingMetadata}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
+                      >
+                        <svg className="w-4 h-4 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Rafraîchir métadonnées
+                      </button>
+                      <button
+                        onClick={() => { syncStartDates(); setActionsOpen(false); }}
+                        disabled={refreshingMetadata}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
+                      >
+                        <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Synchro dates de fin
+                      </button>
+                      <div className="border-t border-divider" />
+                      <button
+                        onClick={() => { exportContracts(); setActionsOpen(false); }}
+                        disabled={exporting || filteredContracts.length === 0}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
+                      >
+                        <svg className="w-4 h-4 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Exporter CSV
+                      </button>
+                      <button
+                        onClick={() => { fileInputRef.current?.click(); setActionsOpen(false); }}
+                        disabled={importing}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
+                      >
+                        <svg className="w-4 h-4 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Importer CSV
+                      </button>
+                    </div>
+                  </>
                 )}
-                Export
-              </button>
-              {/* Import CSV button */}
-              <label className="flex items-center gap-2 px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full border-2 border-default-200 hover:bg-content3 transition-colors cursor-pointer">
-                {importing ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                )}
-                Import
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleImportCSV}
-                  className="hidden"
-                  disabled={importing}
-                />
-              </label>
-              {/* Refresh Spotify metadata button */}
-              <button
-                onClick={refreshAllMetadata}
-                disabled={refreshingMetadata}
-                className="flex items-center gap-2 px-4 py-2.5 bg-success-100 text-success-700 font-medium text-sm rounded-full border-2 border-success-200 hover:bg-success-200 transition-colors disabled:opacity-50"
-                title="Recuperer les metadonnees depuis Spotify"
-              >
-                {refreshingMetadata ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
-                Spotify
-              </button>
-              {/* Sync start dates with release dates */}
-              <button
-                onClick={syncStartDates}
-                disabled={refreshingMetadata}
-                className="flex items-center gap-2 px-4 py-2.5 bg-primary-100 text-primary-700 font-medium text-sm rounded-full border-2 border-primary-200 hover:bg-primary-200 transition-colors disabled:opacity-50"
-                title="Synchroniser les dates de debut avec les dates de release"
-              >
-                {refreshingMetadata ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                )}
-                Sync dates
-              </button>
+              </div>
               <button
                 onClick={() => handleOpenModal()}
                 className="px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all whitespace-nowrap"
