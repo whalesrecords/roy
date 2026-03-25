@@ -146,14 +146,28 @@ export interface SpotifySearchResult {
   genres?: string[];
 }
 
+export type PartyType = 'artist' | 'label' | 'manager' | 'booker' | 'agent' | 'publisher' | 'other';
+
+export const PARTY_TYPE_LABELS: Record<PartyType, string> = {
+  artist: 'Artiste',
+  label: 'Label',
+  manager: 'Manager',
+  booker: 'Booker',
+  agent: 'Agent',
+  publisher: 'Editeur',
+  other: 'Autre',
+};
+
 export interface ContractParty {
   id?: string;
-  party_type: 'artist' | 'label';
+  party_type: PartyType;
   artist_id?: string;
   label_name?: string;
   share_percentage: string;
   share_physical?: string | null;
   share_digital?: string | null;
+  contact_email?: string;
+  contact_phone?: string;
   created_at?: string;
 }
 

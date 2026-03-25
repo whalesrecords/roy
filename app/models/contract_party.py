@@ -21,6 +21,11 @@ class PartyType(str, Enum):
     """Type of party in a contract."""
     ARTIST = "artist"
     LABEL = "label"
+    MANAGER = "manager"
+    BOOKER = "booker"
+    AGENT = "agent"
+    PUBLISHER = "publisher"
+    OTHER = "other"
 
 
 class ContractParty(Base):
@@ -69,8 +74,12 @@ class ContractParty(Base):
         index=True,
     )
 
-    # For labels: label name (simple string, no FK for now)
+    # For labels/intermediaries: name (simple string, no FK for now)
     label_name: Mapped[str] = mapped_column(String(200), nullable=True)
+
+    # Contact info for intermediaries (manager, booker, agent, etc.)
+    contact_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # Share percentage (0.0000 to 1.0000, i.e., 0% to 100%)
     # share_percentage = default / streams rate
@@ -113,10 +122,11 @@ class ContractParty(Base):
             "share_percentage >= 0 AND share_percentage <= 1",
             name="check_share_percentage_range",
         ),
+        # artist requires artist_id; label/manager/booker/agent/publisher/other require label_name
         CheckConstraint(
-            "(party_type = 'artist' AND artist_id IS NOT NULL AND label_name IS NULL) OR "
-            "(party_type = 'label' AND label_name IS NOT NULL AND artist_id IS NULL)",
-            name="check_party_type_consistency",
+            "(party_type = 'artist' AND artist_id IS NOT NULL) OR "
+            "(party_type != 'artist' AND label_name IS NOT NULL)",
+            name="check_party_type_consistency_v2",
         ),
     )
 

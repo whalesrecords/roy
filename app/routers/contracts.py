@@ -204,6 +204,8 @@ async def create_contract(
                 share_percentage=party_data.share_percentage,
                 share_physical=party_data.share_physical,
                 share_digital=party_data.share_digital,
+                contact_email=getattr(party_data, 'contact_email', None),
+                contact_phone=getattr(party_data, 'contact_phone', None),
             )
             db.add(party)
 

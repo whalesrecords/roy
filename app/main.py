@@ -52,6 +52,20 @@ async def lifespan(app: FastAPI):
             # (each Bandcamp sale is a single date, period_end was wrongly set to the import's period_end)
             """UPDATE transactions_normalized SET period_end = period_start
                WHERE store_name = 'Bandcamp' AND period_end != period_start""",
+            # Add intermediary support to contract parties
+            "ALTER TABLE contract_parties ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)",
+            "ALTER TABLE contract_parties ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50)",
+            # Expand party_type enum to support intermediaries
+            """DO $$ BEGIN
+                ALTER TYPE partytype ADD VALUE IF NOT EXISTS 'manager';
+                ALTER TYPE partytype ADD VALUE IF NOT EXISTS 'booker';
+                ALTER TYPE partytype ADD VALUE IF NOT EXISTS 'agent';
+                ALTER TYPE partytype ADD VALUE IF NOT EXISTS 'publisher';
+                ALTER TYPE partytype ADD VALUE IF NOT EXISTS 'other';
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$""",
+            # Drop old constraint and add new one that allows intermediaries
+            "ALTER TABLE contract_parties DROP CONSTRAINT IF EXISTS check_party_type_consistency",
         ]
         for sql in migrations:
             try:

@@ -7,14 +7,19 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 
+VALID_PARTY_TYPES = ['artist', 'label', 'manager', 'booker', 'agent', 'publisher', 'other']
+
+
 class PartyBase(BaseModel):
     """Base schema for a contract party."""
-    party_type: str = Field(..., description="Type of party: 'artist' or 'label'")
+    party_type: str = Field(..., description="Type of party: artist, label, manager, booker, agent, publisher, other")
     artist_id: Optional[UUID] = Field(None, description="Artist ID if party_type is 'artist'")
-    label_name: Optional[str] = Field(None, max_length=200, description="Label name if party_type is 'label'")
+    label_name: Optional[str] = Field(None, max_length=200, description="Name of label/manager/booker/agent/publisher")
     share_percentage: Decimal = Field(..., ge=0, le=1, description="Share percentage (0.0 to 1.0) - default/streams rate")
     share_physical: Optional[Decimal] = Field(None, ge=0, le=1, description="Physical sales rate (CD, vinyl, K7) - if null, uses share_percentage")
     share_digital: Optional[Decimal] = Field(None, ge=0, le=1, description="Digital sales rate (downloads) - if null, uses share_percentage")
+    contact_email: Optional[str] = Field(None, max_length=255, description="Contact email for intermediary")
+    contact_phone: Optional[str] = Field(None, max_length=50, description="Contact phone for intermediary")
 
     @field_validator('share_percentage')
     @classmethod
@@ -26,8 +31,8 @@ class PartyBase(BaseModel):
     @field_validator('party_type')
     @classmethod
     def validate_party_type(cls, v):
-        if v not in ['artist', 'label']:
-            raise ValueError("party_type must be 'artist' or 'label'")
+        if v not in VALID_PARTY_TYPES:
+            raise ValueError(f"party_type must be one of {VALID_PARTY_TYPES}")
         return v
 
 
@@ -47,6 +52,8 @@ class PartyResponse(PartyBase):
     """Schema for contract party response."""
     id: UUID
     contract_id: UUID
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
     created_at: datetime
 
     class Config:

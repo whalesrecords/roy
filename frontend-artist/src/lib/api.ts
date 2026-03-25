@@ -101,6 +101,14 @@ export interface Expense {
   date: string;
 }
 
+export interface ContractPartyInfo {
+  party_type: string;
+  label_name?: string;
+  share_percentage: string;
+  contact_email?: string;
+  contact_phone?: string;
+}
+
 export interface Contract {
   id: string;
   scope: string;
@@ -111,6 +119,7 @@ export interface Contract {
   artist_share: number;
   label_share: number;
   description?: string;
+  parties?: ContractPartyInfo[];
 }
 
 export interface QuarterlyRevenue {
