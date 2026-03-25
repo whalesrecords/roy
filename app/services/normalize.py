@@ -15,6 +15,7 @@ from app.services.parsers.bandcamp import BandcampRow
 from app.services.parsers.squarespace import SquarespaceRow
 from app.services.parsers.believe_uk import BelieveUKRow
 from app.services.parsers.believe_fr import BelieveFRRow
+from app.services.parsers.detailsdetails import DetailsDetailsRow
 
 
 # Sales type normalization mapping
@@ -736,4 +737,143 @@ def normalize_squarespace_row(
         store_name="Squarespace",
         sku=row.sku,
         physical_format=row.variant,  # Color/edition variant
+    )
+
+
+def parse_detailsdetails_sales_period(period_str: Optional[str]) -> Optional[tuple]:
+    """
+    Parse a DetailsDetails sales period string into start and end dates.
+
+    Format: "2025-M06" -> (2025-06-01, 2025-06-30)
+    """
+    import calendar
+
+    if not period_str:
+        return None
+
+    period_str = period_str.strip()
+
+    # Format: "YYYY-Mmm" (e.g., "2025-M06")
+    match = re.match(r"^(\d{4})-M(\d{2})$", period_str)
+    if match:
+        year = int(match.group(1))
+        month = int(match.group(2))
+        if 1 <= month <= 12:
+            start = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = date(year, month, last_day)
+            return start, end
+
+    # Fallback: try "YYYY-MM" format
+    match = re.match(r"^(\d{4})-(\d{2})$", period_str)
+    if match:
+        year = int(match.group(1))
+        month = int(match.group(2))
+        if 1 <= month <= 12:
+            start = date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = date(year, month, last_day)
+            return start, end
+
+    return None
+
+
+def normalize_detailsdetails_sale_type(usage_type: Optional[str]) -> SaleType:
+    """
+    Convert DetailsDetails usage type to SaleType enum.
+
+    Args:
+        usage_type: DetailsDetails usage type (Track Stream, Physical, etc.)
+
+    Returns:
+        SaleType enum value
+    """
+    if not usage_type:
+        return SaleType.OTHER
+
+    usage_lower = usage_type.lower().strip()
+
+    # Streams
+    if "stream" in usage_lower:
+        return SaleType.STREAM
+
+    # Downloads
+    if "download" in usage_lower:
+        return SaleType.DOWNLOAD
+
+    # Physical
+    if usage_lower in ["physical", "lp", "cd", "vinyl", "cassette"]:
+        return SaleType.PHYSICAL
+
+    return normalize_sale_type(usage_type)
+
+
+def normalize_detailsdetails_row(
+    row: DetailsDetailsRow,
+    import_id: str,
+    fallback_period_start: date,
+    fallback_period_end: date,
+) -> TransactionNormalized:
+    """
+    Transform a parsed DetailsDetails row into a normalized transaction.
+
+    Args:
+        row: Parsed DetailsDetails row
+        import_id: UUID of the parent import
+        fallback_period_start: Default period start if not parseable
+        fallback_period_end: Default period end if not parseable
+
+    Returns:
+        TransactionNormalized instance (not yet persisted)
+    """
+    # Parse period from row or use fallback
+    period_result = parse_detailsdetails_sales_period(row.sales_period)
+    if period_result:
+        period_start, period_end = period_result
+    else:
+        period_start, period_end = fallback_period_start, fallback_period_end
+
+    # Clean ISRC if present
+    clean_isrc = None
+    if row.isrc:
+        clean_isrc = row.isrc.replace("-", "").strip()
+        if len(clean_isrc) > 12:
+            clean_isrc = clean_isrc[:12]
+
+    # Clean barcode/UPC - ensure it's a string
+    upc = None
+    if row.barcode:
+        upc = str(row.barcode).strip()
+        # Remove .0 suffix from numeric barcodes
+        if upc.endswith(".0"):
+            upc = upc[:-2]
+
+    # Determine store name
+    if row.sheet_name == "Physical Sales":
+        store_name = "Physical Sales"
+    else:
+        store_name = row.shop
+
+    # Use amount (gross) as the transaction amount
+    # Net quantity = sales - returns
+    quantity = row.sales - row.returns
+
+    return TransactionNormalized(
+        import_id=import_id,
+        source_row_number=row.row_number,
+        artist_name=row.artist,
+        release_title=row.album_title or row.title or None,
+        track_title=row.title if row.album_title else None,
+        isrc=clean_isrc,
+        upc=upc,
+        territory=normalize_country_code(row.country),
+        sale_type=normalize_detailsdetails_sale_type(row.usage_type),
+        original_sale_type=row.usage_type,
+        quantity=quantity,
+        gross_amount=row.amount,
+        currency="EUR",  # DetailsDetails reports are in EUR
+        period_start=period_start,
+        period_end=period_end,
+        store_name=store_name,
+        physical_format=row.physical_format,
     )

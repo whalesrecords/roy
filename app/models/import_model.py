@@ -24,6 +24,7 @@ class ImportSource(str, Enum):
     SQUARESPACE = "squarespace"
     SUBMITHUB = "submithub"
     GROOVER = "groover"
+    DETAILSDETAILS = "detailsdetails"
     OTHER = "other"
 
 

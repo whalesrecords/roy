@@ -29,12 +29,14 @@ from app.services.parsers.bandcamp import BandcampParser
 from app.services.parsers.squarespace import SquarespaceParser
 from app.services.parsers.believe_uk import BelieveUKParser
 from app.services.parsers.believe_fr import BelieveFRParser
+from app.services.parsers.detailsdetails import DetailsDetailsParser
 from app.services.normalize import (
     normalize_tunecore_row,
     normalize_bandcamp_row,
     normalize_squarespace_row,
     normalize_believe_uk_row,
     normalize_believe_fr_row,
+    normalize_detailsdetails_row,
     parse_squarespace_date,
 )
 
@@ -163,7 +165,7 @@ async def analyze_import(
     artists_with_ampersand = []
     total_artists = 0
 
-    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP, ImportSource.SQUARESPACE):
+    if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP, ImportSource.SQUARESPACE, ImportSource.DETAILSDETAILS):
         # Fast: extract period from filename
         period_start, period_end = extract_period_from_filename(file.filename or "")
 
@@ -441,6 +443,37 @@ async def create_import(
         for row in result.rows:
             try:
                 transaction = normalize_believe_fr_row(
+                    row=row,
+                    import_id=import_record.id,
+                    fallback_period_start=period_start,
+                    fallback_period_end=period_end,
+                )
+                transactions.append(transaction)
+                gross_total += transaction.gross_amount
+            except Exception as e:
+                errors.append(ImportErrorDetail(
+                    row_number=row.row_number,
+                    error=f"Normalization error: {str(e)}",
+                ))
+
+    elif import_source == ImportSource.DETAILSDETAILS:
+        parser = DetailsDetailsParser()
+        result = parser.parse(content)
+
+        import_record.rows_total = result.total_rows
+
+        # Collect errors
+        for err in result.errors:
+            errors.append(ImportErrorDetail(
+                row_number=err.row_number,
+                error=err.error,
+                raw_data=err.raw_data,
+            ))
+
+        # Normalize and create transactions
+        for row in result.rows:
+            try:
+                transaction = normalize_detailsdetails_row(
                     row=row,
                     import_id=import_record.id,
                     fallback_period_start=period_start,

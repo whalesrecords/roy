@@ -53,60 +53,94 @@ const PLATFORM_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  // Critical data (renders hero card immediately)
   const [data, setData] = useState<ArtistDashboard | null>(null);
-  const [releases, setReleases] = useState<ArtistRelease[]>([]);
-  const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
-  const [platforms, setPlatforms] = useState<PlatformStats[]>([]);
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
+  // Secondary data (loads after hero card is visible)
+  const [releases, setReleases] = useState<ArtistRelease[]>([]);
+  const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
+  const [platforms, setPlatforms] = useState<PlatformStats[]>([]);
+  const [chartsLoading, setChartsLoading] = useState(true);
+  // UI state
   const [error, setError] = useState<string | null>(null);
   const [requestingPayment, setRequestingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
   const [unreadTickets, setUnreadTickets] = useState(0);
 
+  // Stage 1: Load critical data (dashboard summary + settings + statements)
   useEffect(() => {
-    if (artist) {
-      loadDashboard();
-      loadUnreadTickets();
-      const interval = setInterval(loadUnreadTickets, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [artist]);
+    if (!artist) return;
+    let cancelled = false;
 
-  const loadDashboard = async () => {
-    try {
-      const [dashboard, quarterlyData, releasesData, platformData, settings, statementsData] =
-        await Promise.all([
+    const loadCritical = async () => {
+      try {
+        const [dashboard, settings, statementsData] = await Promise.all([
           getArtistDashboard(),
-          getQuarterlyRevenue(),
-          getArtistReleases(),
-          getPlatformStats(),
           getLabelSettings(),
           getStatements(),
         ]);
-      setData(dashboard);
-      setQuarterly(quarterlyData);
-      setReleases(releasesData);
-      setPlatforms(platformData);
-      setLabelSettings(settings);
-      setStatements(statementsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (cancelled) return;
+        setData(dashboard);
+        setLabelSettings(settings);
+        setStatements(statementsData);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Loading error');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
 
-  const loadUnreadTickets = async () => {
-    try {
-      const tickets = await getMyTickets();
-      const unreadCount = tickets.filter((t) => t.unread_count > 0).length;
-      setUnreadTickets(unreadCount);
-    } catch {
-      // Silently fail for unread count
-    }
-  };
+    loadCritical();
+    return () => { cancelled = true; };
+  }, [artist]);
+
+  // Stage 2: Load secondary data (charts) after critical data is ready
+  useEffect(() => {
+    if (!data) return;
+    let cancelled = false;
+
+    const loadSecondary = async () => {
+      try {
+        const [releasesData, quarterlyData, platformData] = await Promise.all([
+          getArtistReleases(),
+          getQuarterlyRevenue(),
+          getPlatformStats(),
+        ]);
+        if (cancelled) return;
+        setReleases(releasesData);
+        setQuarterly(quarterlyData);
+        setPlatforms(platformData);
+      } catch {
+        // Secondary data failure is non-critical
+      } finally {
+        if (!cancelled) setChartsLoading(false);
+      }
+    };
+
+    loadSecondary();
+    return () => { cancelled = true; };
+  }, [data]);
+
+  // Stage 3: Tickets (independent, non-blocking)
+  useEffect(() => {
+    if (!artist) return;
+
+    const loadUnreadTickets = async () => {
+      try {
+        const tickets = await getMyTickets();
+        const unreadCount = tickets.filter((t: { unread_count: number }) => t.unread_count > 0).length;
+        setUnreadTickets(unreadCount);
+      } catch {
+        // Silently fail for unread count
+      }
+    };
+
+    loadUnreadTickets();
+    const interval = setInterval(loadUnreadTickets, 30000);
+    return () => clearInterval(interval);
+  }, [artist]);
 
   const unpaidStatements = statements.filter((s) => s.status !== 'paid');
   const totalUnpaid = unpaidStatements.reduce((sum, s) => sum + parseFloat(s.net_payable), 0);
@@ -320,7 +354,12 @@ export default function DashboardPage() {
         </div>
 
         {/* ===== REVENUE TREND (Area Chart) ===== */}
-        {quarterlyChartData.length > 0 && (
+        {chartsLoading ? (
+          <div className="bg-content1 border border-divider rounded-2xl p-5 animate-pulse">
+            <div className="h-4 w-40 bg-content2 rounded mb-4" />
+            <div className="h-64 bg-content2 rounded-xl" />
+          </div>
+        ) : quarterlyChartData.length > 0 && (
           <div className="bg-content1 border border-divider rounded-2xl p-5">
             <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
               Tendance des revenus
@@ -368,7 +407,24 @@ export default function DashboardPage() {
         )}
 
         {/* ===== TOP RELEASES ===== */}
-        {topReleases.length > 0 && (
+        {chartsLoading ? (
+          <div className="bg-content1 border border-divider rounded-2xl p-5 animate-pulse">
+            <div className="h-4 w-32 bg-content2 rounded mb-4" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-content2/50 rounded-xl">
+                  <div className="w-5 h-5 bg-content2 rounded" />
+                  <div className="w-12 h-12 bg-content2 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-24 bg-content2 rounded" />
+                    <div className="h-2 w-16 bg-content2 rounded" />
+                  </div>
+                  <div className="h-4 w-16 bg-content2 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : topReleases.length > 0 && (
           <div className="bg-content1 border border-divider rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider">
@@ -412,7 +468,22 @@ export default function DashboardPage() {
         )}
 
         {/* ===== PLATFORM DISTRIBUTION (Donut) ===== */}
-        {platformChartData.length > 0 && (
+        {chartsLoading ? (
+          <div className="bg-content1 border border-divider rounded-2xl p-5 animate-pulse">
+            <div className="h-4 w-48 bg-content2 rounded mb-4" />
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-48 h-48 bg-content2 rounded-full" />
+              <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-2 w-full">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-content2 rounded-full" />
+                    <div className="h-3 w-16 bg-content2 rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : platformChartData.length > 0 && (
           <div className="bg-content1 border border-divider rounded-2xl p-5">
             <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
               Distribution par plateforme
@@ -507,7 +578,7 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-foreground">{platforms.length}</p>
+            <p className="text-2xl font-bold text-foreground">{chartsLoading ? '--' : platforms.length}</p>
             <p className="text-xs text-default-500">Plateformes</p>
           </Link>
         </div>
