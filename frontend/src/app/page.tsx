@@ -37,8 +37,7 @@ export default function DashboardPage() {
   const [artistsSummary, setArtistsSummary] = useState<ArtistSummary[]>([]);
   const [basicStats, setBasicStats] = useState({ artists: 0, imports: 0, pendingRuns: 0, openTickets: 0 });
   const [recentImports, setRecentImports] = useState<{ id: string; source: string; period_start: string; period_end: string; total_rows: number }[]>([]);
-
-  const years = useMemo(() => Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i), []);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -57,12 +56,20 @@ export default function DashboardPage() {
         getArtistsSummary().catch(() => []),
       ]);
 
+      // Compute years that actually have import data
+      const yearSet = new Set<number>();
+      imports.forEach(imp => {
+        const startY = new Date(imp.period_start).getFullYear();
+        const endY = new Date(imp.period_end || imp.period_start).getFullYear();
+        yearSet.add(startY);
+        if (endY !== startY) yearSet.add(endY);
+      });
+      const importYears = Array.from(yearSet).sort((a, b) => b - a);
+      setAvailableYears(importYears);
+
       // Auto-detect most recent year from imports if not yet set
-      if (selectedYear === 0 && imports.length > 0) {
-        const latestYear = Math.max(
-          ...imports.map(imp => new Date(imp.period_end || imp.period_start).getFullYear())
-        );
-        setSelectedYear(latestYear);
+      if (selectedYear === 0 && importYears.length > 0) {
+        setSelectedYear(importYears[0]);
         return; // Will re-run with correct year via useEffect
       }
 
@@ -138,7 +145,7 @@ export default function DashboardPage() {
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             className="text-sm bg-background border border-divider rounded-lg px-3 py-1.5 text-foreground"
           >
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
+            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       </div>
