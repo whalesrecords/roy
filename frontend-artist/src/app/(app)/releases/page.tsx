@@ -177,15 +177,15 @@ export default function ReleasesPage() {
           </div>
         )}
 
-        {/* Release Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Release List */}
+        <div className="space-y-3">
           {filteredAndSorted.map((release) => (
             <div
               key={release.upc}
-              className="bg-content1 border border-divider rounded-2xl overflow-hidden hover:scale-[1.02] transition-transform duration-200"
+              className="bg-content1 border border-divider rounded-2xl p-3 flex gap-3 items-center"
             >
-              {/* Artwork */}
-              <div className="aspect-square relative bg-content2">
+              {/* Artwork — compact */}
+              <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-content2">
                 {release.artwork_url ? (
                   <img
                     src={release.artwork_url}
@@ -194,39 +194,27 @@ export default function ReleasesPage() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-                    <svg className="w-16 h-16 text-primary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-primary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                     </svg>
                   </div>
                 )}
-                {/* Track count badge */}
-                <span className="absolute top-2 right-2 bg-black/60 text-white text-xs font-medium px-2 py-0.5 rounded-full backdrop-blur-sm">
-                  {release.track_count} titre{release.track_count > 1 ? 's' : ''}
-                </span>
               </div>
 
               {/* Info */}
-              <div className="p-3 space-y-2">
-                <div>
-                  <p className="font-semibold text-foreground truncate">{release.title}</p>
-                  <p className="text-xs text-secondary-400 font-mono">{release.upc}</p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  {/* Streams */}
-                  <div className="flex items-center gap-1.5 text-secondary-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-sm">{formatNumber(release.streams)}</span>
-                  </div>
-                  {/* Revenue */}
-                  <p className="text-sm font-semibold text-success">
-                    {formatCurrency(release.net, release.currency)}
-                  </p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground text-sm truncate">{release.title}</p>
+                <p className="text-xs text-secondary-400">
+                  {release.track_count} titre{release.track_count > 1 ? 's' : ''}
+                  <span className="mx-1.5">·</span>
+                  {formatNumber(release.streams)} streams
+                </p>
               </div>
+
+              {/* Revenue */}
+              <p className="text-sm font-bold text-success flex-shrink-0">
+                {formatCurrency(release.net, release.currency)}
+              </p>
             </div>
           ))}
         </div>

@@ -29,7 +29,7 @@ const VIEW_LABELS: Record<DashboardView, string> = {
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [view, setView] = useState<DashboardView>('overview');
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(0); // 0 = not yet determined
   const [loading, setLoading] = useState(true);
 
   // Data
@@ -53,9 +53,18 @@ export default function DashboardPage() {
         getImports(),
         getRoyaltyRuns(),
         getTicketStats().catch(() => ({ open: 0 })),
-        getAnalyticsSummary(selectedYear).catch(() => null),
+        selectedYear > 0 ? getAnalyticsSummary(selectedYear).catch(() => null) : Promise.resolve(null),
         getArtistsSummary().catch(() => []),
       ]);
+
+      // Auto-detect most recent year from imports if not yet set
+      if (selectedYear === 0 && imports.length > 0) {
+        const latestYear = Math.max(
+          ...imports.map(imp => new Date(imp.period_end || imp.period_start).getFullYear())
+        );
+        setSelectedYear(latestYear);
+        return; // Will re-run with correct year via useEffect
+      }
 
       setBasicStats({
         artists: artists.filter(a => a.category === 'signed').length,
