@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Spinner, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Input, Textarea, Select, SelectItem, useDisclosure } from '@heroui/react';
+import { Spinner, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTickets, createMyTicket, Ticket, CreateTicketRequest } from '@/lib/api';
 import LabelLogo from '@/components/layout/LabelLogo';
@@ -131,35 +131,28 @@ export default function SupportPage() {
       <main className="px-4 py-6 space-y-6">
 
         {/* Filters */}
-        <div className="bg-background border border-divider rounded-2xl p-4">
-          <div className="grid grid-cols-1 gap-3">
-          <Select
-            placeholder="Status"
-            selectedKeys={statusFilter ? [statusFilter] : []}
+        <div className="flex gap-3">
+          <select
+            value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            className="flex-1 px-3 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="">All</SelectItem>
-            <SelectItem key="open">Open</SelectItem>
-            <SelectItem key="in_progress">In Progress</SelectItem>
-            <SelectItem key="resolved">Resolved</SelectItem>
-            <SelectItem key="closed">Closed</SelectItem>
-          </Select>
-          <Select
-            placeholder="Category"
-            selectedKeys={categoryFilter ? [categoryFilter] : []}
+            <option value="">Tous les statuts</option>
+            <option value="open">Ouvert</option>
+            <option value="in_progress">En cours</option>
+            <option value="resolved">Résolu</option>
+            <option value="closed">Fermé</option>
+          </select>
+          <select
+            value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
+            className="flex-1 px-3 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="">All</SelectItem>
-            <SelectItem key="payment">Payments</SelectItem>
-            <SelectItem key="profile">Profile</SelectItem>
-            <SelectItem key="technical">Technical</SelectItem>
-            <SelectItem key="royalties">Royalties</SelectItem>
-            <SelectItem key="contracts">Contracts</SelectItem>
-            <SelectItem key="catalog">Catalog</SelectItem>
-            <SelectItem key="general">General</SelectItem>
-            <SelectItem key="other">Other</SelectItem>
-          </Select>
-          </div>
+            <option value="">Toutes catégories</option>
+            {CATEGORY_OPTIONS.map(c => (
+              <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Error */}
@@ -250,33 +243,38 @@ export default function SupportPage() {
               </div>
             )}
             <div className="space-y-4">
-              <Select
-                label="Category"
-                selectedKeys={[category]}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <SelectItem key="payment">💰 Payments</SelectItem>
-                <SelectItem key="profile">👤 Profile</SelectItem>
-                <SelectItem key="technical">⚙️ Technical</SelectItem>
-                <SelectItem key="royalties">📊 Royalties</SelectItem>
-                <SelectItem key="contracts">📄 Contracts</SelectItem>
-                <SelectItem key="catalog">🎵 Catalog</SelectItem>
-                <SelectItem key="general">💬 General</SelectItem>
-                <SelectItem key="other">❓ Other</SelectItem>
-              </Select>
-              <Input
-                label="Subject"
-                placeholder="Brief description of your issue..."
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-              />
-              <Textarea
-                label="Message"
-                placeholder="Please describe your issue in detail..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                minRows={6}
-              />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground block">Catégorie</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-4 py-3 bg-content2 border-2 border-divider rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors text-sm"
+                >
+                  {CATEGORY_OPTIONS.map(c => (
+                    <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground block">Sujet</label>
+                <input
+                  type="text"
+                  placeholder="Description courte du problème..."
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full px-4 py-3 bg-content2 border-2 border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground block">Message</label>
+                <textarea
+                  placeholder="Décrivez votre problème en détail..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={6}
+                  className="w-full px-4 py-3 bg-content2 border-2 border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
+                />
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>
