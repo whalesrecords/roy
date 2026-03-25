@@ -39,6 +39,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         from sqlalchemy import text
 
+        # Create sequences
+        await conn.execute(text("CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1"))
+
         # Add missing columns
         migrations = [
             "ALTER TABLE transactions_normalized ADD COLUMN IF NOT EXISTS item_url VARCHAR(500)",
