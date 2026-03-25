@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import NotificationBell from '@/components/layout/NotificationBell';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
@@ -162,7 +161,7 @@ export default function DashboardPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Spinner size="lg" color="primary" />
       </div>
     );
@@ -171,9 +170,9 @@ export default function DashboardPage() {
   if (!artist) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950 safe-top safe-bottom">
+    <div className="min-h-screen bg-background safe-top safe-bottom">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
@@ -186,41 +185,41 @@ export default function DashboardPage() {
               <img
                 src={data.artist.artwork_url}
                 alt={artist.name}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-zinc-700"
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-divider"
               />
             ) : (
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">
+                <span className="text-foreground font-bold">
                   {artist.name.charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
             <div>
-              <p className="font-semibold text-white">{artist.name}</p>
-              <p className="text-xs text-zinc-500">{labelSettings?.label_name || 'Artist Portal'}</p>
+              <p className="font-semibold text-foreground">{artist.name}</p>
+              <p className="text-xs text-default-500">{labelSettings?.label_name || 'Artist Portal'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors"
+              className="p-2 rounded-full bg-content2 hover:bg-content3 transition-colors"
             >
               {theme === 'light' ? (
-                <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               )}
             </button>
             <button
               onClick={logout}
-              className="p-2 rounded-full bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+              className="p-2 rounded-full bg-content2 hover:bg-red-500/20 hover:text-red-400 transition-colors"
             >
-              <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
@@ -247,46 +246,46 @@ export default function DashboardPage() {
         )}
 
         {/* ===== HERO SECTION ===== */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <div className="bg-content1 border border-divider rounded-2xl p-5 space-y-4">
           <div className="flex items-center gap-4">
             {data?.artist.artwork_url ? (
               <img
                 src={data.artist.artwork_url}
                 alt={data.artist.name}
-                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-zinc-700"
+                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-divider"
               />
             ) : (
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                <span className="text-white text-2xl font-bold">
+                <span className="text-foreground text-2xl font-bold">
                   {artist.name.charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
             <div className="flex-1">
-              <h1 className="text-xl font-bold text-white">{data?.artist.name}</h1>
-              <p className="text-zinc-500 text-sm">{labelSettings?.label_name || 'Artist Portal'}</p>
+              <h1 className="text-xl font-bold text-foreground">{data?.artist.name}</h1>
+              <p className="text-default-500 text-sm">{labelSettings?.label_name || 'Artist Portal'}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Revenus nets</p>
+              <p className="text-default-500 text-xs uppercase tracking-wider mb-1">Revenus nets</p>
               <p className="text-3xl font-bold text-emerald-400">
                 {data ? formatCurrency(data.total_net, data.currency) : '--'}
               </p>
             </div>
             <div>
-              <p className="text-zinc-500 text-xs uppercase tracking-wider mb-1">Revenus bruts</p>
-              <p className="text-2xl font-semibold text-white">
+              <p className="text-default-500 text-xs uppercase tracking-wider mb-1">Revenus bruts</p>
+              <p className="text-2xl font-semibold text-foreground">
                 {data ? formatCurrency(data.total_gross, data.currency) : '--'}
               </p>
             </div>
           </div>
 
           {data && parseFloat(data.advance_balance) > 0 && (
-            <div className="bg-zinc-800/50 rounded-xl p-3 flex items-center justify-between">
+            <div className="bg-content2/50 rounded-xl p-3 flex items-center justify-between">
               <div>
-                <p className="text-zinc-500 text-xs">Avance restante</p>
+                <p className="text-default-500 text-xs">Avance restante</p>
                 <p className="text-amber-400 font-semibold">
                   {formatCurrency(data.advance_balance, data.currency)}
                 </p>
@@ -322,8 +321,8 @@ export default function DashboardPage() {
 
         {/* ===== REVENUE TREND (Area Chart) ===== */}
         {quarterlyChartData.length > 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+          <div className="bg-content1 border border-divider rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
               Tendance des revenus
             </h2>
             <div className="h-64">
@@ -358,11 +357,11 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 mt-3 justify-center">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-xs text-zinc-500">Brut</span>
+                <span className="text-xs text-default-500">Brut</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                <span className="text-xs text-zinc-500">Net</span>
+                <span className="text-xs text-default-500">Net</span>
               </div>
             </div>
           </div>
@@ -370,9 +369,9 @@ export default function DashboardPage() {
 
         {/* ===== TOP RELEASES ===== */}
         {topReleases.length > 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <div className="bg-content1 border border-divider rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+              <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider">
                 Top Sorties
               </h2>
               <Link href="/releases" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">
@@ -383,9 +382,9 @@ export default function DashboardPage() {
               {topReleases.map((release, idx) => (
                 <div
                   key={release.upc}
-                  className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl hover:bg-zinc-800 transition-colors"
+                  className="flex items-center gap-3 p-3 bg-content2/50 rounded-xl hover:bg-content2 transition-colors"
                 >
-                  <span className="text-zinc-600 text-sm font-mono w-5 text-center">{idx + 1}</span>
+                  <span className="text-default-500 text-sm font-mono w-5 text-center">{idx + 1}</span>
                   {release.artwork_url ? (
                     <img
                       src={release.artwork_url}
@@ -393,15 +392,15 @@ export default function DashboardPage() {
                       className="w-12 h-12 rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-zinc-700 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 bg-content2 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                       </svg>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium text-sm truncate">{release.title}</p>
-                    <p className="text-zinc-500 text-xs">{formatNumber(release.streams)} streams</p>
+                    <p className="text-foreground font-medium text-sm truncate">{release.title}</p>
+                    <p className="text-default-500 text-xs">{formatNumber(release.streams)} streams</p>
                   </div>
                   <p className="text-emerald-400 font-semibold text-sm whitespace-nowrap">
                     {formatCurrency(release.gross, release.currency)}
@@ -414,8 +413,8 @@ export default function DashboardPage() {
 
         {/* ===== PLATFORM DISTRIBUTION (Donut) ===== */}
         {platformChartData.length > 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+          <div className="bg-content1 border border-divider rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
               Distribution par plateforme
             </h2>
             <div className="flex flex-col md:flex-row items-center gap-6">
@@ -449,8 +448,8 @@ export default function DashboardPage() {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-white">{formatNumber(totalPlatformStreams)}</p>
-                    <p className="text-[10px] text-zinc-500 uppercase">streams</p>
+                    <p className="text-lg font-bold text-foreground">{formatNumber(totalPlatformStreams)}</p>
+                    <p className="text-[10px] text-default-500 uppercase">streams</p>
                   </div>
                 </div>
               </div>
@@ -461,8 +460,8 @@ export default function DashboardPage() {
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.other }}
                     />
-                    <span className="text-xs text-zinc-400 truncate">{p.name}</span>
-                    <span className="text-xs text-zinc-600 ml-auto">{p.percentage.toFixed(1)}%</span>
+                    <span className="text-xs text-default-400 truncate">{p.name}</span>
+                    <span className="text-xs text-default-500 ml-auto">{p.percentage.toFixed(1)}%</span>
                   </div>
                 ))}
               </div>
@@ -472,56 +471,56 @@ export default function DashboardPage() {
 
         {/* ===== QUICK STATS GRID ===== */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="bg-content1 border border-divider rounded-2xl p-4">
             <div className="w-9 h-9 bg-indigo-500/10 rounded-xl flex items-center justify-center mb-2">
               <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-white">{data?.release_count || 0}</p>
-            <p className="text-xs text-zinc-500">Sorties</p>
+            <p className="text-2xl font-bold text-foreground">{data?.release_count || 0}</p>
+            <p className="text-xs text-default-500">Sorties</p>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="bg-content1 border border-divider rounded-2xl p-4">
             <div className="w-9 h-9 bg-purple-500/10 rounded-xl flex items-center justify-center mb-2">
               <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-white">{data?.track_count || 0}</p>
-            <p className="text-xs text-zinc-500">Titres</p>
+            <p className="text-2xl font-bold text-foreground">{data?.track_count || 0}</p>
+            <p className="text-xs text-default-500">Titres</p>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="bg-content1 border border-divider rounded-2xl p-4">
             <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-2">
               <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-white">{formatNumber(data?.total_streams || 0)}</p>
-            <p className="text-xs text-zinc-500">Streams</p>
+            <p className="text-2xl font-bold text-foreground">{formatNumber(data?.total_streams || 0)}</p>
+            <p className="text-xs text-default-500">Streams</p>
           </div>
 
-          <Link href="/stats" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover:border-indigo-500/50 transition-colors">
+          <Link href="/stats" className="bg-content1 border border-divider rounded-2xl p-4 hover:border-indigo-500/50 transition-colors">
             <div className="w-9 h-9 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-2">
               <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <p className="text-2xl font-bold text-white">{platforms.length}</p>
-            <p className="text-xs text-zinc-500">Plateformes</p>
+            <p className="text-2xl font-bold text-foreground">{platforms.length}</p>
+            <p className="text-xs text-default-500">Plateformes</p>
           </Link>
         </div>
 
         {/* ===== QUICK LINKS ===== */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider px-1">
+          <h2 className="text-sm font-semibold text-default-500 uppercase tracking-wider px-1">
             Navigation
           </h2>
 
           <Link
             href="/releases"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors"
           >
             <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -529,17 +528,17 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Mes Sorties</p>
-              <p className="text-sm text-zinc-500">Revenus par album</p>
+              <p className="font-semibold text-foreground">Mes Sorties</p>
+              <p className="text-sm text-default-500">Revenus par album</p>
             </div>
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
 
           <Link
             href="/tracks"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors"
           >
             <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -547,17 +546,17 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Mes Titres</p>
-              <p className="text-sm text-zinc-500">Revenus par titre</p>
+              <p className="font-semibold text-foreground">Mes Titres</p>
+              <p className="text-sm text-default-500">Revenus par titre</p>
             </div>
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
 
           <Link
             href="/payments"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors"
           >
             <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -565,17 +564,17 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Paiements</p>
-              <p className="text-sm text-zinc-500">Historique des paiements</p>
+              <p className="font-semibold text-foreground">Paiements</p>
+              <p className="text-sm text-default-500">Historique des paiements</p>
             </div>
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
 
           <Link
             href="/expenses"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors"
           >
             <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -583,35 +582,35 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Frais du Label</p>
-              <p className="text-sm text-zinc-500">Investissements sur vos projets</p>
+              <p className="font-semibold text-foreground">Frais du Label</p>
+              <p className="text-sm text-default-500">Investissements sur vos projets</p>
             </div>
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
 
           <Link
             href="/contracts"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors"
           >
-            <div className="w-12 h-12 bg-zinc-700/50 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 bg-content2/50 rounded-xl flex items-center justify-center">
+              <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Mes Contrats</p>
-              <p className="text-sm text-zinc-500">Accords de partage des revenus</p>
+              <p className="font-semibold text-foreground">Mes Contrats</p>
+              <p className="text-sm text-default-500">Accords de partage des revenus</p>
             </div>
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
 
           <Link
             href="/support"
-            className="flex items-center gap-4 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-colors relative"
+            className="flex items-center gap-4 p-4 bg-content1 border border-divider rounded-2xl hover:border-indigo-500/50 transition-colors relative"
           >
             <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -619,15 +618,15 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-white">Support</p>
-              <p className="text-sm text-zinc-500">Contacter le label</p>
+              <p className="font-semibold text-foreground">Support</p>
+              <p className="text-sm text-default-500">Contacter le label</p>
             </div>
             {unreadTickets > 0 && (
               <span className="absolute top-2 right-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
                 {unreadTickets}
               </span>
             )}
-            <svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
@@ -651,7 +650,6 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <BottomNav />
     </div>
   );
 }

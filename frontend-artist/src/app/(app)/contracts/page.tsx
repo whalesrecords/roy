@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getContracts, Contract } from '@/lib/api';
@@ -145,7 +144,6 @@ export default function ContractsPage() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

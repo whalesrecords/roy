@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getExpenses, Expense } from '@/lib/api';
@@ -141,7 +140,6 @@ export default function ExpensesPage() {
         </div>
       </main>
 
-      <BottomNav />
     </div>
   );
 }

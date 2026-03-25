@@ -1533,7 +1533,7 @@ async def request_payment(
 
 # ============ Notifications Endpoint (for admin) ============
 
-@router.get("/notifications")
+@router.get("/admin-notifications")
 async def get_notifications(
     unread_only: bool = False,
     limit: int = 50,
@@ -1571,12 +1571,12 @@ async def get_notifications(
     ]
 
 
-@router.put("/notifications/{notification_id}/read")
+@router.put("/admin-notifications/{notification_id}/read")
 async def mark_notification_read(
     notification_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Mark a notification as read."""
+    """Mark an admin notification as read."""
     result = await db.execute(
         select(Notification).where(Notification.id == uuid.UUID(notification_id))
     )
@@ -1591,11 +1591,11 @@ async def mark_notification_read(
     return {"message": "Notification marquee comme lue"}
 
 
-@router.put("/notifications/read-all")
+@router.put("/admin-notifications/read-all")
 async def mark_all_notifications_read(
     db: AsyncSession = Depends(get_db),
 ):
-    """Mark all notifications as read."""
+    """Mark all admin notifications as read."""
     from sqlalchemy import update
 
     await db.execute(

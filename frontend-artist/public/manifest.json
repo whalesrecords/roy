@@ -11,6 +11,7 @@
   "scope": "/",
   "lang": "fr",
   "categories": ["finance", "music"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
@@ -22,6 +23,21 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "url": "/",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Statistiques",
+      "short_name": "Stats",
+      "url": "/stats",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

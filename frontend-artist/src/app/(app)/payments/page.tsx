@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPayments, getStatements, requestPayment, ArtistPayment, Statement } from '@/lib/api';
@@ -277,7 +276,6 @@ export default function PaymentsPage() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

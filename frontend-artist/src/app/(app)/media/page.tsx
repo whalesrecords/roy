@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import LabelLogo from '@/components/layout/LabelLogo';
 import { Spinner } from '@heroui/react';
 import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
@@ -312,7 +311,6 @@ export default function MediaPage() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

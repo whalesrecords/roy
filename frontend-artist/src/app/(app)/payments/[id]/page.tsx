@@ -6,7 +6,6 @@ import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { getStatementDetail, getLabelSettings, StatementDetail, LabelSettings } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 
 export default function StatementDetailPage() {
   const { artist, loading: authLoading } = useAuth();
@@ -213,7 +212,6 @@ export default function StatementDetailPage() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

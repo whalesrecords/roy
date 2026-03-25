@@ -1250,17 +1250,17 @@ export interface Notification {
 
 export async function getNotifications(unreadOnly = false): Promise<Notification[]> {
   const params = unreadOnly ? '?unread_only=true' : '';
-  return fetchApi<Notification[]>(`/artist-portal/notifications${params}`);
+  return fetchApi<Notification[]>(`/artist-portal/admin-notifications${params}`);
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
-  await fetchApi(`/artist-portal/notifications/${notificationId}/read`, {
+  await fetchApi(`/artist-portal/admin-notifications/${notificationId}/read`, {
     method: 'PUT',
   });
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  await fetchApi('/artist-portal/notifications/read-all', {
+  await fetchApi('/artist-portal/admin-notifications/read-all', {
     method: 'PUT',
   });
 }

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import BottomNav from '@/components/layout/BottomNav';
 import LabelLogo from '@/components/layout/LabelLogo';
 import { Spinner } from '@heroui/react';
 import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
@@ -107,7 +106,6 @@ export default function MediaDetailPage() {
             <p className="text-danger text-sm">{error || 'Not found'}</p>
           </div>
         </main>
-        <BottomNav />
       </div>
     );
   }
@@ -253,7 +251,6 @@ export default function MediaDetailPage() {
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }

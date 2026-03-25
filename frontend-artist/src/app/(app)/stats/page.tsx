@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getPlatformStats, getQuarterlyRevenue, PlatformStats, QuarterlyRevenue } from '@/lib/api';
-import BottomNav from '@/components/layout/BottomNav';
 import {
   BarChart,
   Bar,
@@ -111,32 +110,32 @@ export default function StatsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 safe-top safe-bottom">
+    <div className="min-h-screen bg-background safe-top safe-bottom">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-zinc-800 transition-colors">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
+              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
             <div>
-              <h1 className="font-semibold text-white">Statistiques</h1>
-              <p className="text-xs text-zinc-500">Par plateforme</p>
+              <h1 className="font-semibold text-foreground">Statistiques</h1>
+              <p className="text-xs text-default-500">Par plateforme</p>
             </div>
           </div>
           <select
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value))}
-            className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg text-sm font-medium text-white focus:outline-none focus:border-indigo-500 transition-colors"
+            className="px-3 py-1.5 bg-content2 border border-divider rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-indigo-500 transition-colors"
           >
             {years.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -160,20 +159,20 @@ export default function StatsPage() {
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Revenus {year}</p>
+              <div className="bg-content1 border border-divider rounded-2xl p-5">
+                <p className="text-xs text-default-500 uppercase tracking-wider mb-1">Revenus {year}</p>
                 <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalRevenue)}</p>
               </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Streams {year}</p>
-                <p className="text-2xl font-bold text-white">{formatNumber(totalStreams)}</p>
+              <div className="bg-content1 border border-divider rounded-2xl p-5">
+                <p className="text-xs text-default-500 uppercase tracking-wider mb-1">Streams {year}</p>
+                <p className="text-2xl font-bold text-foreground">{formatNumber(totalStreams)}</p>
               </div>
             </div>
 
             {/* ===== REVENUE BY PLATFORM - Horizontal Bar Chart ===== */}
             {barChartData.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+              <div className="bg-content1 border border-divider rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
                   Revenus par plateforme
                 </h2>
                 <div style={{ height: Math.max(barChartData.length * 50, 200) }}>
@@ -220,8 +219,8 @@ export default function StatsPage() {
 
             {/* ===== REVENUE TREND - Line Chart ===== */}
             {lineChartData.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+              <div className="bg-content1 border border-divider rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
                   Tendance des revenus
                 </h2>
                 <div className="h-64">
@@ -256,11 +255,11 @@ export default function StatsPage() {
                 <div className="flex items-center gap-4 mt-3 justify-center">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-xs text-zinc-500">Brut</span>
+                    <span className="text-xs text-default-500">Brut</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                    <span className="text-xs text-zinc-500">Net</span>
+                    <span className="text-xs text-default-500">Net</span>
                   </div>
                 </div>
               </div>
@@ -268,8 +267,8 @@ export default function StatsPage() {
 
             {/* ===== PLATFORM DISTRIBUTION - Pie Chart ===== */}
             {pieChartData.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">
+              <div className="bg-content1 border border-divider rounded-2xl p-5">
+                <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider mb-4">
                   Distribution des revenus
                 </h2>
                 <div className="flex flex-col md:flex-row items-center gap-6">
@@ -303,7 +302,7 @@ export default function StatsPage() {
                           iconType="circle"
                           iconSize={10}
                           formatter={(value: string) => (
-                            <span className="text-xs text-zinc-400">{value}</span>
+                            <span className="text-xs text-default-400">{value}</span>
                           )}
                         />
                       </PieChart>
@@ -311,14 +310,14 @@ export default function StatsPage() {
                   </div>
                   <div className="flex-1 w-full space-y-2">
                     {pieChartData.map((p) => (
-                      <div key={p.platform} className="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/30">
+                      <div key={p.platform} className="flex items-center gap-3 p-2 rounded-lg bg-content2/30">
                         <div
                           className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.other }}
                         />
-                        <span className="text-sm text-zinc-300 flex-1">{p.name}</span>
+                        <span className="text-sm text-default-300 flex-1">{p.name}</span>
                         <span className="text-sm text-emerald-400 font-medium">{formatCurrency(p.value)}</span>
-                        <span className="text-xs text-zinc-600 w-12 text-right">{p.percentage.toFixed(1)}%</span>
+                        <span className="text-xs text-default-500 w-12 text-right">{p.percentage.toFixed(1)}%</span>
                       </div>
                     ))}
                   </div>
@@ -328,44 +327,44 @@ export default function StatsPage() {
 
             {/* ===== PLATFORM DETAIL TABLE ===== */}
             {stats.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-zinc-800">
-                  <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">
+              <div className="bg-content1 border border-divider rounded-2xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-divider">
+                  <h2 className="text-sm font-semibold text-default-400 uppercase tracking-wider">
                     Detail par plateforme
                   </h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-zinc-800">
-                        <th className="text-left px-5 py-3 text-xs text-zinc-500 font-medium uppercase tracking-wider">Plateforme</th>
-                        <th className="text-right px-5 py-3 text-xs text-zinc-500 font-medium uppercase tracking-wider">Revenus</th>
-                        <th className="text-right px-5 py-3 text-xs text-zinc-500 font-medium uppercase tracking-wider">Streams</th>
-                        <th className="text-right px-5 py-3 text-xs text-zinc-500 font-medium uppercase tracking-wider">Part</th>
+                      <tr className="border-b border-divider">
+                        <th className="text-left px-5 py-3 text-xs text-default-500 font-medium uppercase tracking-wider">Plateforme</th>
+                        <th className="text-right px-5 py-3 text-xs text-default-500 font-medium uppercase tracking-wider">Revenus</th>
+                        <th className="text-right px-5 py-3 text-xs text-default-500 font-medium uppercase tracking-wider">Streams</th>
+                        <th className="text-right px-5 py-3 text-xs text-default-500 font-medium uppercase tracking-wider">Part</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[...stats]
                         .sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross))
                         .map((platform) => (
-                          <tr key={platform.platform} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                          <tr key={platform.platform} className="border-b border-divider/50 hover:bg-content2/30 transition-colors">
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-3">
                                 <div
                                   className="w-3 h-3 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: PLATFORM_COLORS[platform.platform] || PLATFORM_COLORS.other }}
                                 />
-                                <span className="text-white font-medium">{platform.platform_label}</span>
+                                <span className="text-foreground font-medium">{platform.platform_label}</span>
                               </div>
                             </td>
                             <td className="px-5 py-3 text-right text-emerald-400 font-medium">
                               {formatCurrency(platform.gross)}
                             </td>
-                            <td className="px-5 py-3 text-right text-zinc-300">
+                            <td className="px-5 py-3 text-right text-default-300">
                               {formatNumber(platform.streams)}
                             </td>
                             <td className="px-5 py-3 text-right">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-content2 text-default-300">
                                 {platform.percentage.toFixed(1)}%
                               </span>
                             </td>
@@ -373,16 +372,16 @@ export default function StatsPage() {
                         ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-zinc-800/50">
-                        <td className="px-5 py-3 text-white font-semibold">Total</td>
+                      <tr className="bg-content2/50">
+                        <td className="px-5 py-3 text-foreground font-semibold">Total</td>
                         <td className="px-5 py-3 text-right text-emerald-400 font-bold">
                           {formatCurrency(totalRevenue)}
                         </td>
-                        <td className="px-5 py-3 text-right text-white font-semibold">
+                        <td className="px-5 py-3 text-right text-foreground font-semibold">
                           {formatNumber(totalStreams)}
                         </td>
                         <td className="px-5 py-3 text-right">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-700 text-white">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-content2 text-white">
                             100%
                           </span>
                         </td>
@@ -395,18 +394,17 @@ export default function StatsPage() {
 
             {stats.length === 0 && (
               <div className="text-center py-12">
-                <svg className="w-16 h-16 text-zinc-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-16 h-16 text-default-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <p className="text-zinc-500 text-lg">Aucune donnee pour {year}</p>
-                <p className="text-zinc-600 text-sm mt-1">Essayez de selectionner une autre annee</p>
+                <p className="text-default-500 text-lg">Aucune donnee pour {year}</p>
+                <p className="text-default-500 text-sm mt-1">Essayez de selectionner une autre annee</p>
               </div>
             )}
           </>
         )}
       </main>
 
-      <BottomNav />
     </div>
   );
 }
