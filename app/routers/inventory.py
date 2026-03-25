@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.product import Product, StockMovement, ProductFormat, ProductStatus, MovementType
+from app.models.transaction import TransactionNormalized, SaleType
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -310,3 +311,81 @@ async def get_stock_movements(
         .limit(limit)
     )
     return result.scalars().all()
+
+
+@router.post("/auto-discover", response_model=List[ProductResponse])
+async def auto_discover_products(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Auto-discover physical products from Bandcamp/Squarespace/DetailsDetails transactions.
+    Creates inventory items for any physical sale items not already tracked.
+    """
+    # Find distinct physical items from transactions
+    result = await db.execute(
+        select(
+            TransactionNormalized.item_title,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.upc,
+            TransactionNormalized.store_name,
+            func.sum(TransactionNormalized.quantity).label('total_sold'),
+            func.sum(TransactionNormalized.net_amount).label('total_revenue'),
+        )
+        .where(TransactionNormalized.sale_type == SaleType.PHYSICAL)
+        .group_by(
+            TransactionNormalized.item_title,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.upc,
+            TransactionNormalized.store_name,
+        )
+        .order_by(func.sum(TransactionNormalized.quantity).desc())
+    )
+    physical_items = result.all()
+
+    # Get existing products to avoid duplicates
+    existing = await db.execute(select(Product))
+    existing_products = existing.scalars().all()
+    existing_titles = {(p.title.lower(), (p.artist_name or '').lower()) for p in existing_products}
+
+    created = []
+    for item in physical_items:
+        title = item.item_title or 'Unknown'
+        artist = item.artist_name or ''
+
+        # Skip if already exists
+        if (title.lower(), artist.lower()) in existing_titles:
+            continue
+
+        # Guess format from title
+        title_lower = title.lower()
+        if any(w in title_lower for w in ['vinyl', 'lp', '12"', '12 inch', '10"', '7"']):
+            fmt = ProductFormat.VINYL
+        elif any(w in title_lower for w in ['cassette', 'tape', 'k7']):
+            fmt = ProductFormat.CASSETTE
+        elif any(w in title_lower for w in ['bundle', 'pack', 'coffret']):
+            fmt = ProductFormat.BUNDLE
+        elif any(w in title_lower for w in ['shirt', 'tee', 'hoodie', 'tote', 'poster', 'patch', 'pin', 'sticker']):
+            fmt = ProductFormat.MERCH
+        else:
+            fmt = ProductFormat.CD
+
+        product = Product(
+            title=title,
+            format=fmt,
+            artist_name=artist,
+            release_upc=item.upc,
+            status=ProductStatus.AVAILABLE,
+            stock_quantity=0,  # Unknown stock — user will adjust
+            notes=f"Auto-découvert depuis {item.store_name}. {item.total_sold or 0} unités vendues.",
+        )
+        db.add(product)
+        created.append(product)
+        existing_titles.add((title.lower(), artist.lower()))
+
+    if created:
+        await db.commit()
+        for p in created:
+            await db.refresh(p)
+
+    return created

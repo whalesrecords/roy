@@ -1755,3 +1755,7 @@ export async function adjustStock(productId: string, data: { quantity: number; m
 export async function getStockMovements(productId: string): Promise<StockMovement[]> {
   return fetchApi<StockMovement[]>(`/inventory/products/${productId}/movements`);
 }
+
+export async function autoDiscoverProducts(): Promise<Product[]> {
+  return fetchApi<Product[]>('/inventory/auto-discover', { method: 'POST' });
+}
