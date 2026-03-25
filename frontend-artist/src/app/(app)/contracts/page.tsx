@@ -182,6 +182,41 @@ export default function ContractsPage() {
                     </div>
                   </div>
 
+                  {/* Intermediaries / Team */}
+                  {contract.parties && contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-secondary-500 uppercase tracking-wider">Equipe</p>
+                      <div className="flex flex-wrap gap-2">
+                        {contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).map((p, i) => {
+                          const typeLabels: Record<string, string> = {
+                            manager: 'Manager',
+                            booker: 'Booker',
+                            agent: 'Agent',
+                            publisher: 'Editeur',
+                            other: 'Autre',
+                          };
+                          const typeColors: Record<string, string> = {
+                            manager: 'bg-warning/10 text-warning',
+                            booker: 'bg-secondary/10 text-secondary',
+                            agent: 'bg-danger/10 text-danger',
+                            publisher: 'bg-cyan-500/10 text-cyan-500',
+                            other: 'bg-default-100 text-default-500',
+                          };
+                          return (
+                            <div key={i} className={`px-3 py-1.5 rounded-xl text-xs ${typeColors[p.party_type] || typeColors.other}`}>
+                              <span className="font-semibold">{typeLabels[p.party_type] || p.party_type}</span>
+                              {p.label_name && <span className="ml-1">— {p.label_name}</span>}
+                              <span className="ml-1 opacity-75">({(parseFloat(p.share_percentage) * 100).toFixed(0)}%)</span>
+                              {p.contact_email && (
+                                <a href={`mailto:${p.contact_email}`} className="ml-2 underline opacity-75">{p.contact_email}</a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Description */}
                   {contract.description && (
                     <p className="text-xs text-secondary-500 italic">{contract.description}</p>

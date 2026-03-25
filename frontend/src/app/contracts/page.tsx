@@ -313,8 +313,8 @@ export default function ContractsPage() {
     setFormScopeInfo(null);
   };
 
-  const handleAddParty = (type: 'artist' | 'label') => {
-    setParties([...parties, { party_type: type, artist_id: '', label_name: '', share_percentage: '0' }]);
+  const handleAddParty = (type: string) => {
+    setParties([...parties, { party_type: type as any, artist_id: '', label_name: '', share_percentage: '0' }]);
   };
 
   const handleRemoveParty = (index: number) => {
@@ -352,8 +352,10 @@ export default function ContractsPage() {
         parties: parties.map(p => ({
           party_type: p.party_type,
           artist_id: p.party_type === 'artist' ? p.artist_id : undefined,
-          label_name: p.party_type === 'label' ? p.label_name : undefined,
+          label_name: p.party_type !== 'artist' ? p.label_name : undefined,
           share_percentage: p.share_percentage,
+          contact_email: p.contact_email || undefined,
+          contact_phone: p.contact_phone || undefined,
         })),
       };
 
@@ -1169,26 +1171,30 @@ export default function ContractsPage() {
                       ({(totalShare * 100).toFixed(1)}%)
                     </span>
                   </h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAddParty('artist')}
-                      className="px-3 py-1.5 text-xs font-medium text-success bg-success/10 rounded-full hover:bg-success/20 transition-colors"
-                    >
-                      + Artiste
-                    </button>
-                    <button
-                      onClick={() => handleAddParty('label')}
-                      className="px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors"
-                    >
-                      + Label
-                    </button>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { type: 'artist', label: 'Artiste', color: 'text-success bg-success/10 hover:bg-success/20' },
+                      { type: 'label', label: 'Label', color: 'text-primary bg-primary/10 hover:bg-primary/20' },
+                      { type: 'manager', label: 'Manager', color: 'text-warning bg-warning/10 hover:bg-warning/20' },
+                      { type: 'booker', label: 'Booker', color: 'text-secondary bg-secondary/10 hover:bg-secondary/20' },
+                      { type: 'agent', label: 'Agent', color: 'text-danger bg-danger/10 hover:bg-danger/20' },
+                      { type: 'publisher', label: 'Editeur', color: 'text-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20' },
+                    ].map(({ type, label, color }) => (
+                      <button
+                        key={type}
+                        onClick={() => handleAddParty(type)}
+                        className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-colors ${color}`}
+                      >
+                        + {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {parties.map((party, index) => (
                     <div key={index} className="flex gap-3 items-start p-4 rounded-xl border-2 border-divider bg-content2">
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-2">
                         {party.party_type === 'artist' ? (
                           <div>
                             <label className="block text-xs font-medium text-secondary-500 mb-1.5">Artiste</label>
@@ -1205,14 +1211,39 @@ export default function ContractsPage() {
                           </div>
                         ) : (
                           <div>
-                            <label className="block text-xs font-medium text-secondary-500 mb-1.5">Nom du label</label>
+                            <label className="block text-xs font-medium text-secondary-500 mb-1.5">
+                              {party.party_type === 'label' ? 'Nom du label' :
+                               party.party_type === 'manager' ? 'Nom du manager' :
+                               party.party_type === 'booker' ? 'Nom du booker' :
+                               party.party_type === 'agent' ? 'Nom de l\'agent' :
+                               party.party_type === 'publisher' ? 'Nom de l\'editeur' : 'Nom'}
+                            </label>
                             <input
                               type="text"
-                              placeholder="Ex: Whales Records"
+                              placeholder="Nom ou societe"
                               value={party.label_name || ''}
                               onChange={(e) => handlePartyChange(index, 'label_name', e.target.value)}
                               className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-lg text-sm text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
                             />
+                            {/* Contact fields for intermediaries */}
+                            {party.party_type !== 'label' && (
+                              <div className="flex gap-2 mt-2">
+                                <input
+                                  type="email"
+                                  placeholder="Email"
+                                  value={party.contact_email || ''}
+                                  onChange={(e) => handlePartyChange(index, 'contact_email', e.target.value)}
+                                  className="flex-1 h-8 px-2 bg-background border border-default-200 rounded-lg text-xs text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                                />
+                                <input
+                                  type="tel"
+                                  placeholder="Tel"
+                                  value={party.contact_phone || ''}
+                                  onChange={(e) => handlePartyChange(index, 'contact_phone', e.target.value)}
+                                  className="w-32 h-8 px-2 bg-background border border-default-200 rounded-lg text-xs text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
