@@ -60,7 +60,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
     if (droppedFiles.length > 0) {
       addFiles(droppedFiles);
     } else {
-      setError('Seuls les fichiers CSV sont acceptés');
+      setError('Seuls les fichiers CSV et XLSX sont acceptés');
     }
   }, []);
 
@@ -404,7 +404,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <p className="font-medium text-default-700">
-              Glissez vos fichiers CSV ici
+              Glissez vos fichiers ici
             </p>
             <p className="text-sm text-default-500 mt-1">
               ou cliquez pour sélectionner (plusieurs fichiers possibles)
