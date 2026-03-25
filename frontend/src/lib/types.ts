@@ -1,6 +1,6 @@
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'partial';
 
-export type ImportSource = 'tunecore' | 'believe_uk' | 'believe_fr' | 'cdbaby' | 'bandcamp' | 'squarespace' | 'other';
+export type ImportSource = 'tunecore' | 'believe_uk' | 'believe_fr' | 'cdbaby' | 'bandcamp' | 'squarespace' | 'detailsdetails' | 'other';
 
 export interface ImportRecord {
   id: string;
@@ -89,6 +89,7 @@ export const SOURCES: { value: ImportSource; label: string }[] = [
   { value: 'cdbaby', label: 'CD Baby' },
   { value: 'bandcamp', label: 'Bandcamp' },
   { value: 'squarespace', label: 'Squarespace' },
+  { value: 'detailsdetails', label: 'DetailsDetails (XLSX)' },
   { value: 'other', label: 'Autre' },
 ];
 

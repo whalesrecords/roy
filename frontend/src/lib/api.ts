@@ -1667,3 +1667,91 @@ export async function downloadExport(url: string, filename: string): Promise<voi
   a.remove();
   URL.revokeObjectURL(a.href);
 }
+
+// ============ Inventory ============
+
+export interface Product {
+  id: string;
+  title: string;
+  format: string;
+  variant?: string;
+  sku?: string;
+  release_upc?: string;
+  artist_name?: string;
+  price_eur?: number;
+  cost_eur?: number;
+  stock_quantity: number;
+  low_stock_threshold: number;
+  status: string;
+  limited_edition: boolean;
+  edition_size?: number;
+  image_url?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InventorySummary {
+  total_products: number;
+  total_stock: number;
+  low_stock_count: number;
+  total_value: number;
+  by_format: Record<string, number>;
+  by_status: Record<string, number>;
+}
+
+export interface StockMovement {
+  id: string;
+  product_id: string;
+  movement_type: string;
+  quantity: number;
+  reason?: string;
+  source?: string;
+  created_at: string;
+}
+
+export async function getProducts(params?: { format?: string; status?: string; low_stock?: boolean; search?: string }): Promise<Product[]> {
+  const queryParams = new URLSearchParams();
+  if (params?.format) queryParams.set('format', params.format);
+  if (params?.status) queryParams.set('status', params.status);
+  if (params?.low_stock) queryParams.set('low_stock', 'true');
+  if (params?.search) queryParams.set('search', params.search);
+  const query = queryParams.toString();
+  return fetchApi<Product[]>(`/inventory/products${query ? `?${query}` : ''}`);
+}
+
+export async function getInventorySummary(): Promise<InventorySummary> {
+  return fetchApi<InventorySummary>('/inventory/summary');
+}
+
+export async function createProduct(data: Partial<Product>): Promise<Product> {
+  return fetchApi<Product>('/inventory/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateProduct(id: string, data: Partial<Product>): Promise<Product> {
+  return fetchApi<Product>(`/inventory/products/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  await fetchApi(`/inventory/products/${id}`, { method: 'DELETE' });
+}
+
+export async function adjustStock(productId: string, data: { quantity: number; movement_type: string; reason?: string; source?: string }): Promise<Product> {
+  return fetchApi<Product>(`/inventory/products/${productId}/stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getStockMovements(productId: string): Promise<StockMovement[]> {
+  return fetchApi<StockMovement[]>(`/inventory/products/${productId}/movements`);
+}

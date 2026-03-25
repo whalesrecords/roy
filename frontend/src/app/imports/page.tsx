@@ -18,6 +18,7 @@ const sourceLabels: Record<string, string> = {
   cdbaby: 'CD Baby',
   bandcamp: 'Bandcamp',
   squarespace: 'Squarespace',
+  detailsdetails: 'DetailsDetails (XLSX)',
   other: 'Autre',
 };
 

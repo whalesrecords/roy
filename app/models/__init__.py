@@ -19,6 +19,7 @@ from app.models.ticket_message import TicketMessage, MessageSender
 from app.models.ticket_participant import TicketParticipant
 from app.models.promo_submission import PromoSubmission, PromoSource, SubmitHubAction
 from app.models.promo_campaign import PromoCampaign, CampaignStatus
+from app.models.product import Product, StockMovement, ProductFormat, ProductStatus, MovementType
 
 __all__ = [
     # Import models
@@ -72,4 +73,10 @@ __all__ = [
     "SubmitHubAction",
     "PromoCampaign",
     "CampaignStatus",
+    # Inventory
+    "Product",
+    "StockMovement",
+    "ProductFormat",
+    "ProductStatus",
+    "MovementType",
 ]
