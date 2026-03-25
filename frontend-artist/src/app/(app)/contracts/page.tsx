@@ -1,10 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getContracts, Contract } from '@/lib/api';
+
+const scopeConfig: Record<string, { label: string; color: string; bg: string }> = {
+  catalog: { label: 'Catalogue', color: 'text-primary', bg: 'bg-primary/10' },
+  release: { label: 'Release', color: 'text-warning', bg: 'bg-warning/10' },
+  track: { label: 'Track', color: 'text-success', bg: 'bg-success/10' },
+};
+
+function getScopeStyle(scope: string) {
+  return scopeConfig[scope] || { label: scope, color: 'text-secondary-600', bg: 'bg-secondary/10' };
+}
+
+function isActive(contract: Contract): boolean {
+  if (!contract.end_date) return true;
+  return new Date(contract.end_date) > new Date();
+}
 
 export default function ContractsPage() {
   const { artist, loading: authLoading } = useAuth();
@@ -23,28 +38,29 @@ export default function ContractsPage() {
       const data = await getContracts();
       setContracts(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
   };
 
-  const getScopeLabel = (scope: string) => {
-    switch (scope) {
-      case 'catalog': return 'Full catalog';
-      case 'release': return 'Album';
-      case 'track': return 'Track';
-      default: return scope;
-    }
-  };
+  const sortedContracts = useMemo(
+    () =>
+      [...contracts].sort(
+        (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+      ),
+    [contracts]
+  );
+
+  const activeCount = useMemo(() => contracts.filter(isActive).length, [contracts]);
 
   if (authLoading || loading) {
     return (
@@ -69,81 +85,113 @@ export default function ContractsPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">My Contracts</h1>
-            <p className="text-xs text-secondary-500">Revenue sharing agreements</p>
+            <h1 className="font-semibold text-foreground">Mes contrats</h1>
+            <p className="text-xs text-secondary-500">Accords de partage des revenus</p>
           </div>
         </div>
       </header>
 
-      <main className="px-4 py-6 pb-24 space-y-4">
+      <main className="px-4 py-6 pb-24 space-y-6">
         {error && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
 
-        {contracts.length === 0 ? (
+        {/* Summary */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-background border border-divider rounded-2xl p-4">
+            <p className="text-xs text-secondary-500 mb-1">Total contrats</p>
+            <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
+          </div>
+          <div className="bg-background border border-divider rounded-2xl p-4">
+            <p className="text-xs text-secondary-500 mb-1">Contrats actifs</p>
+            <p className="text-2xl font-bold text-success">{activeCount}</p>
+          </div>
+        </div>
+
+        {/* Contracts list */}
+        {sortedContracts.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <span className="text-3xl">📄</span>
             </div>
-            <p className="text-secondary-500">No contracts on file</p>
+            <p className="text-secondary-500">Aucun contrat enregistré</p>
           </div>
         ) : (
-          contracts.map((contract) => (
-            <div
-              key={contract.id}
-              className="bg-background border border-divider rounded-2xl p-4"
-            >
-              {/* Scope Badge */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
-                  {getScopeLabel(contract.scope)}
-                </span>
-                {contract.scope_title && (
-                  <span className="text-sm text-foreground font-medium">
-                    {contract.scope_title}
-                  </span>
-                )}
-              </div>
+          <div className="space-y-4">
+            {sortedContracts.map((contract) => {
+              const active = isActive(contract);
+              const scope = getScopeStyle(contract.scope);
 
-              {/* Shares */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-success/5 border border-success/20 rounded-xl p-3">
-                  <p className="text-xs text-success font-medium mb-1">Artist Share</p>
-                  <p className="text-2xl font-bold text-success">{contract.artist_share}%</p>
+              return (
+                <div
+                  key={contract.id}
+                  className={`bg-background border rounded-2xl p-4 space-y-4 ${
+                    active ? 'border-divider' : 'border-divider opacity-70'
+                  }`}
+                >
+                  {/* Top row: scope badge + status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`px-3 py-1 ${scope.bg} ${scope.color} text-xs font-semibold rounded-full shrink-0`}>
+                        {scope.label}
+                      </span>
+                      {contract.scope_title && (
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {contract.scope_title}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${
+                        active
+                          ? 'bg-success/10 text-success'
+                          : 'bg-secondary/10 text-secondary-500'
+                      }`}
+                    >
+                      {active ? 'Actif' : 'Expiré'}
+                    </span>
+                  </div>
+
+                  {/* Date range */}
+                  <div className="flex items-center gap-2 text-sm text-secondary-500">
+                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>
+                      {formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : 'En cours'}
+                    </span>
+                  </div>
+
+                  {/* Split visualization */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span className="text-success">Artiste {contract.artist_share}%</span>
+                      <span className="text-secondary-500">Label {contract.label_share}%</span>
+                    </div>
+                    <div className="flex h-3 rounded-full overflow-hidden">
+                      <div
+                        className="bg-success rounded-l-full transition-all"
+                        style={{ width: `${contract.artist_share}%` }}
+                      />
+                      <div
+                        className="bg-secondary-300 rounded-r-full transition-all"
+                        style={{ width: `${contract.label_share}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {contract.description && (
+                    <p className="text-xs text-secondary-500 italic">{contract.description}</p>
+                  )}
                 </div>
-                <div className="bg-secondary/5 border border-secondary/20 rounded-xl p-3">
-                  <p className="text-xs text-secondary-600 font-medium mb-1">Label Share</p>
-                  <p className="text-2xl font-bold text-secondary-600">{contract.label_share}%</p>
-                </div>
-              </div>
-
-              {/* Dates */}
-              <div className="flex items-center gap-2 text-sm text-secondary-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>
-                  {formatDate(contract.start_date)}
-                  {' - '}
-                  {contract.end_date ? formatDate(contract.end_date) : 'Unlimited'}
-                </span>
-              </div>
-
-              {/* Description */}
-              {contract.description && (
-                <p className="mt-3 text-sm text-secondary-500 italic">
-                  {contract.description}
-                </p>
-              )}
-            </div>
-          ))
+              );
+            })}
+          </div>
         )}
       </main>
-
     </div>
   );
 }
