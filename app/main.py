@@ -42,6 +42,16 @@ async def lifespan(app: FastAPI):
         # Create sequences
         await conn.execute(text("CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1"))
 
+        # Add new enum values
+        enum_updates = [
+            "ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'detailsdetails'",
+        ]
+        for sql in enum_updates:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass
+
         # Add missing columns
         migrations = [
             "ALTER TABLE transactions_normalized ADD COLUMN IF NOT EXISTS item_url VARCHAR(500)",
