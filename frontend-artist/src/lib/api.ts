@@ -209,6 +209,10 @@ export async function getContracts(): Promise<Contract[]> {
   return fetchApi<Contract[]>('/artist-portal/contracts');
 }
 
+export async function getAvailableYears(): Promise<{ years: number[]; default_year: number | null }> {
+  return fetchApi<{ years: number[]; default_year: number | null }>('/artist-portal/available-years');
+}
+
 export async function getQuarterlyRevenue(year?: number): Promise<QuarterlyRevenue[]> {
   const params = year ? `?year=${year}` : '';
   return fetchApi<QuarterlyRevenue[]>(`/artist-portal/revenue-quarterly${params}`);

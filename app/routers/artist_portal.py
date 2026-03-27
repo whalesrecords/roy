@@ -957,6 +957,26 @@ async def get_contracts(
     return contracts
 
 
+@router.get("/available-years")
+async def get_available_years(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get years that have actual transaction data for this artist."""
+    result = await db.execute(
+        select(
+            func.extract("year", TransactionNormalized.period_start).label("year"),
+            func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+        )
+        .where(TransactionNormalized.artist_name == artist.name)
+        .group_by(func.extract("year", TransactionNormalized.period_start))
+        .order_by(func.extract("year", TransactionNormalized.period_start).desc())
+    )
+    rows = result.all()
+    years = [int(row.year) for row in rows if float(row.total_gross or 0) > 0]
+    return {"years": years, "default_year": years[0] if years else None}
+
+
 @router.get("/revenue-quarterly", response_model=List[QuarterlyRevenueResponse])
 async def get_quarterly_revenue(
     year: Optional[int] = None,

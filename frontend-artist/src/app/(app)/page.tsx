@@ -10,6 +10,7 @@ import {
   getArtistDashboard,
   getArtistReleases,
   getQuarterlyRevenue,
+  getAvailableYears,
   getPlatformStats,
   getLabelSettings,
   getStatements,
@@ -120,15 +121,20 @@ export default function DashboardPage() {
 
     const loadSecondary = async () => {
       try {
-        const [releasesData, quarterlyData, platformData, notifData] = await Promise.all([
+        const [releasesData, yearsData, platformData, notifData] = await Promise.all([
           getArtistReleases(),
-          getQuarterlyRevenue(),
+          getAvailableYears(),
           getPlatformStats(),
           getArtistNotifications({ limit: 5 }),
         ]);
         if (cancelled) return;
         setReleases(releasesData);
-        setQuarterly(quarterlyData);
+        // Fetch quarterly data for most recent year with data
+        const targetYear = yearsData.default_year;
+        const quarterlyData = targetYear
+          ? await getQuarterlyRevenue(targetYear)
+          : [];
+        setQuarterly(quarterlyData.filter(q => parseFloat(q.gross) > 0 || q.streams > 0));
         setPlatforms(platformData);
         setNotifications(notifData);
       } catch {

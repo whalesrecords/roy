@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getPlatformStats, getQuarterlyRevenue, PlatformStats, QuarterlyRevenue } from '@/lib/api';
+import { getPlatformStats, getQuarterlyRevenue, getAvailableYears, PlatformStats, QuarterlyRevenue } from '@/lib/api';
 import {
   BarChart,
   Bar,
@@ -51,29 +51,21 @@ export default function StatsPage() {
   const [tableSortDir, setTableSortDir] = useState<SortDir>('desc');
   const [availableYears, setAvailableYears] = useState<number[]>([]);
 
-  // Auto-detect years with data on first load
+  // Load available years from dedicated endpoint
   useEffect(() => {
     if (!artist) return;
     const detectYears = async () => {
       try {
-        // Fetch all quarterly data to find years with revenue
-        const allQuarterly = await getQuarterlyRevenue();
-        const yearsWithData = new Set<number>();
-        allQuarterly.forEach(q => {
-          if (parseFloat(q.gross) > 0 || q.streams > 0) {
-            yearsWithData.add(q.year);
-          }
-        });
-        const sorted = Array.from(yearsWithData).sort((a, b) => b - a);
-        setAvailableYears(sorted.length > 0 ? sorted : [new Date().getFullYear()]);
-        if (year === 0 && sorted.length > 0) {
-          setYear(sorted[0]); // Select most recent year with data
-        } else if (year === 0) {
-          setYear(new Date().getFullYear());
+        const data = await getAvailableYears();
+        const years = data.years.length > 0 ? data.years : [new Date().getFullYear()];
+        setAvailableYears(years);
+        if (year === 0) {
+          setYear(data.default_year || years[0]);
         }
       } catch {
-        setAvailableYears([new Date().getFullYear()]);
-        if (year === 0) setYear(new Date().getFullYear());
+        const currentYear = new Date().getFullYear();
+        setAvailableYears([currentYear]);
+        if (year === 0) setYear(currentYear);
       }
     };
     detectYears();

@@ -248,48 +248,92 @@ async def list_artists_with_summary(
 ) -> List[dict]:
     """
     List all artists with aggregated revenue including collaborations.
-    Revenue includes direct transactions + collaboration shares via track-artist links.
+    Uses 3 queries instead of N+1 for performance.
     """
-    from sqlalchemy import or_
     from app.models.track_artist_link import TrackArtistLink
 
-    # Get all artists
+    # 1. All artists
     result = await db.execute(select(Artist).order_by(Artist.name))
     artists = result.scalars().all()
+    if not artists:
+        return []
 
-    summary = []
-    for artist in artists:
-        # Get track-artist links for this artist
-        links_result = await db.execute(
-            select(TrackArtistLink).where(TrackArtistLink.artist_id == artist.id)
-        )
-        artist_links = links_result.scalars().all()
-        linked_isrcs = {link.isrc for link in artist_links}
+    # 2. All track-artist links in one query
+    links_result = await db.execute(select(TrackArtistLink))
+    all_links = links_result.scalars().all()
+    # Map artist_id → set of ISRCs
+    artist_isrcs: dict[str, set[str]] = {}
+    for link in all_links:
+        aid = str(link.artist_id)
+        artist_isrcs.setdefault(aid, set()).add(link.isrc)
 
-        # Build query for transactions (case-insensitive artist name matching)
-        if linked_isrcs:
-            where_clause = or_(
-                func.lower(TransactionNormalized.artist_name) == artist.name.lower(),
-                TransactionNormalized.isrc.in_(linked_isrcs),
-            )
-        else:
-            where_clause = func.lower(TransactionNormalized.artist_name) == artist.name.lower()
+    # 3. Aggregated transactions by lowercase artist_name
+    tx_by_name_result = await db.execute(
+        select(
+            func.lower(TransactionNormalized.artist_name).label("name_lower"),
+            func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+            func.sum(TransactionNormalized.quantity).label("total_streams"),
+            func.count().label("transaction_count"),
+        ).group_by(func.lower(TransactionNormalized.artist_name))
+    )
+    tx_by_name: dict[str, dict] = {
+        row.name_lower: {
+            "total_gross": row.total_gross or Decimal("0"),
+            "total_streams": row.total_streams or 0,
+            "transaction_count": row.transaction_count or 0,
+        }
+        for row in tx_by_name_result.all()
+        if row.name_lower
+    }
 
-        # Get aggregated data
-        tx_result = await db.execute(
+    # 4. Aggregated transactions by ISRC (for collaborations)
+    all_isrcs = {isrc for isrcs in artist_isrcs.values() for isrc in isrcs}
+    tx_by_isrc: dict[str, dict] = {}
+    if all_isrcs:
+        tx_by_isrc_result = await db.execute(
             select(
+                TransactionNormalized.isrc,
                 func.sum(TransactionNormalized.gross_amount).label("total_gross"),
                 func.sum(TransactionNormalized.quantity).label("total_streams"),
                 func.count().label("transaction_count"),
-            ).where(where_clause)
+            )
+            .where(TransactionNormalized.isrc.in_(all_isrcs))
+            .group_by(TransactionNormalized.isrc)
         )
-        row = tx_result.first()
+        tx_by_isrc = {
+            row.isrc: {
+                "total_gross": row.total_gross or Decimal("0"),
+                "total_streams": row.total_streams or 0,
+                "transaction_count": row.transaction_count or 0,
+            }
+            for row in tx_by_isrc_result.all()
+            if row.isrc
+        }
 
-        # Calculate total gross (full amount - contract % handles splits)
-        total_gross = row.total_gross or Decimal("0") if row else Decimal("0")
+    # Build summary without N+1
+    summary = []
+    for artist in artists:
+        aid = str(artist.id)
+        linked_isrcs = artist_isrcs.get(aid, set())
+        name_lower = artist.name.lower()
+
+        # Start with name-based transactions
+        name_data = tx_by_name.get(name_lower, {})
+        total_gross = name_data.get("total_gross", Decimal("0"))
+        total_streams = name_data.get("total_streams", 0)
+        transaction_count = name_data.get("transaction_count", 0)
+
+        # Add ISRC-based transactions that aren't already counted by name
+        if linked_isrcs:
+            for isrc in linked_isrcs:
+                isrc_data = tx_by_isrc.get(isrc)
+                if isrc_data:
+                    total_gross += isrc_data["total_gross"]
+                    total_streams += isrc_data["total_streams"]
+                    transaction_count += isrc_data["transaction_count"]
 
         summary.append({
-            "id": str(artist.id),
+            "id": aid,
             "name": artist.name,
             "external_id": artist.external_id,
             "spotify_id": artist.spotify_id,
@@ -297,12 +341,11 @@ async def list_artists_with_summary(
             "image_url_small": artist.image_url_small,
             "created_at": artist.created_at.isoformat() if artist.created_at else None,
             "total_gross": str(total_gross),
-            "total_streams": row.total_streams if row else 0,
-            "transaction_count": row.transaction_count if row else 0,
+            "total_streams": total_streams,
+            "transaction_count": transaction_count,
             "has_collaborations": len(linked_isrcs) > 0,
         })
 
-    # Sort by total_gross descending
     summary.sort(key=lambda x: Decimal(x["total_gross"]), reverse=True)
     return summary
 
