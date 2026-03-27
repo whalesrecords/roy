@@ -145,111 +145,98 @@ async def get_analytics_summary(
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
-    # Get all transactions for the year with their import source
-    tx_query = (
+    # --- Revenue: aggregate by (month, year, source) in SQL ---
+    tx_by_month_source = await db.execute(
         select(
-            TransactionNormalized.gross_amount,
-            TransactionNormalized.period_start,
+            extract("month", TransactionNormalized.period_start).label("month"),
+            extract("year", TransactionNormalized.period_start).label("year_val"),
             Import.source,
+            func.sum(TransactionNormalized.gross_amount).label("gross"),
+            func.count(TransactionNormalized.id).label("cnt"),
         )
         .join(Import, TransactionNormalized.import_id == Import.id)
         .where(
             TransactionNormalized.period_start >= start_date,
             TransactionNormalized.period_end <= end_date,
         )
+        .group_by("month", "year_val", Import.source)
     )
-    tx_result = await db.execute(tx_query)
-    transactions = tx_result.all()
+    tx_rows = tx_by_month_source.all()
 
-    # Aggregate revenue by month and source
     monthly_revenue_data: dict[tuple[int, int], dict] = {}
     source_revenue_data: dict[str, dict] = {}
     total_revenue = Decimal("0")
 
-    for tx in transactions:
-        amount = tx.gross_amount or Decimal("0")
+    for row in tx_rows:
+        amount = Decimal(str(row.gross or 0))
         total_revenue += amount
+        month = int(row.month)
+        year_val = int(row.year_val)
+        source = row.source.value if row.source else "other"
 
-        month = tx.period_start.month
-        year_val = tx.period_start.year
-        source = tx.source.value if tx.source else "other"
-
-        # Monthly aggregation
         key = (year_val, month)
         if key not in monthly_revenue_data:
-            monthly_revenue_data[key] = {
-                "gross": Decimal("0"),
-                "sources": {},
-            }
+            monthly_revenue_data[key] = {"gross": Decimal("0"), "sources": {}}
         monthly_revenue_data[key]["gross"] += amount
-        if source not in monthly_revenue_data[key]["sources"]:
-            monthly_revenue_data[key]["sources"][source] = Decimal("0")
-        monthly_revenue_data[key]["sources"][source] += amount
+        monthly_revenue_data[key]["sources"][source] = (
+            monthly_revenue_data[key]["sources"].get(source, Decimal("0")) + amount
+        )
 
-        # Source aggregation
         if source not in source_revenue_data:
-            source_revenue_data[source] = {
-                "gross": Decimal("0"),
-                "count": 0,
-            }
+            source_revenue_data[source] = {"gross": Decimal("0"), "count": 0}
         source_revenue_data[source]["gross"] += amount
-        source_revenue_data[source]["count"] += 1
+        source_revenue_data[source]["count"] += int(row.cnt)
 
-    # Get expenses for the year (advances with entry_type = ADVANCE)
-    expense_query = (
-        select(AdvanceLedgerEntry)
+    # --- Expenses: aggregate by (month, year, category) in SQL ---
+    exp_by_month_cat = await db.execute(
+        select(
+            extract("month", AdvanceLedgerEntry.effective_date).label("month"),
+            extract("year", AdvanceLedgerEntry.effective_date).label("year_val"),
+            AdvanceLedgerEntry.category,
+            func.sum(AdvanceLedgerEntry.amount).label("amount"),
+            func.count(AdvanceLedgerEntry.id).label("cnt"),
+        )
         .where(
             AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
-            func.extract('year', AdvanceLedgerEntry.effective_date) == year,
+            extract("year", AdvanceLedgerEntry.effective_date) == year,
         )
+        .group_by("month", "year_val", AdvanceLedgerEntry.category)
     )
-    expense_result = await db.execute(expense_query)
-    expenses = expense_result.scalars().all()
+    exp_rows = exp_by_month_cat.all()
 
-    # Aggregate expenses by month and category
     monthly_expense_data: dict[tuple[int, int], dict] = {}
     category_expense_data: dict[str, dict] = {}
     total_expenses = Decimal("0")
 
-    for exp in expenses:
-        amount = exp.amount or Decimal("0")
+    for row in exp_rows:
+        amount = Decimal(str(row.amount or 0))
         total_expenses += amount
+        month = int(row.month)
+        year_val = int(row.year_val)
+        category = row.category or "other"
 
-        month = exp.effective_date.month
-        year_val = exp.effective_date.year
-        category = exp.category or "other"
-
-        # Monthly aggregation
         key = (year_val, month)
         if key not in monthly_expense_data:
-            monthly_expense_data[key] = {
-                "amount": Decimal("0"),
-                "categories": {},
-            }
+            monthly_expense_data[key] = {"amount": Decimal("0"), "categories": {}}
         monthly_expense_data[key]["amount"] += amount
-        if category not in monthly_expense_data[key]["categories"]:
-            monthly_expense_data[key]["categories"][category] = Decimal("0")
-        monthly_expense_data[key]["categories"][category] += amount
+        monthly_expense_data[key]["categories"][category] = (
+            monthly_expense_data[key]["categories"].get(category, Decimal("0")) + amount
+        )
 
-        # Category aggregation
         if category not in category_expense_data:
-            category_expense_data[category] = {
-                "amount": Decimal("0"),
-                "count": 0,
-            }
+            category_expense_data[category] = {"amount": Decimal("0"), "count": 0}
         category_expense_data[category]["amount"] += amount
-        category_expense_data[category]["count"] += 1
+        category_expense_data[category]["count"] += int(row.cnt)
 
-    # Get royalties payable from locked royalty runs for the year
-    royalty_runs_query = (
+    # --- Royalty runs (already few rows, no change needed) ---
+    royalty_runs_result = await db.execute(
         select(RoyaltyRun)
         .where(
             RoyaltyRun.is_locked == True,
-            func.extract('year', RoyaltyRun.period_start) == year,
+            func.extract("year", RoyaltyRun.period_start) == year,
         )
         .order_by(RoyaltyRun.period_start)
     )
-    royalty_runs_result = await db.execute(royalty_runs_query)
     royalty_runs = royalty_runs_result.scalars().all()
 
     total_royalties_payable = Decimal("0")
@@ -262,24 +249,19 @@ async def get_analytics_summary(
             period_start=str(run.period_start),
             period_end=str(run.period_end),
             net_payable=str(net_payable),
-            status=run.status.value if hasattr(run.status, 'value') else str(run.status),
+            status=run.status.value if hasattr(run.status, "value") else str(run.status),
         ))
 
-        # Add royalties to monthly expense data (as a special category)
         month = run.period_end.month
         year_val = run.period_end.year
         key = (year_val, month)
         if key not in monthly_expense_data:
-            monthly_expense_data[key] = {
-                "amount": Decimal("0"),
-                "categories": {},
-            }
+            monthly_expense_data[key] = {"amount": Decimal("0"), "categories": {}}
         monthly_expense_data[key]["amount"] += net_payable
-        if "royalties" not in monthly_expense_data[key]["categories"]:
-            monthly_expense_data[key]["categories"]["royalties"] = Decimal("0")
-        monthly_expense_data[key]["categories"]["royalties"] += net_payable
+        monthly_expense_data[key]["categories"]["royalties"] = (
+            monthly_expense_data[key]["categories"].get("royalties", Decimal("0")) + net_payable
+        )
 
-    # Add royalties to category data
     if total_royalties_payable > 0:
         category_expense_data["royalties"] = {
             "amount": total_royalties_payable,
@@ -287,25 +269,27 @@ async def get_analytics_summary(
         }
 
     # Build response
-    monthly_revenue = []
-    for (y, m), data in sorted(monthly_revenue_data.items()):
-        monthly_revenue.append(MonthlyRevenue(
+    monthly_revenue = [
+        MonthlyRevenue(
             month=m,
             year=y,
             month_label=MONTH_LABELS.get(m, str(m)),
             gross=str(data["gross"]),
             source_breakdown={k: str(v) for k, v in data["sources"].items()},
-        ))
+        )
+        for (y, m), data in sorted(monthly_revenue_data.items())
+    ]
 
-    monthly_expenses = []
-    for (y, m), data in sorted(monthly_expense_data.items()):
-        monthly_expenses.append(MonthlyExpense(
+    monthly_expenses = [
+        MonthlyExpense(
             month=m,
             year=y,
             month_label=MONTH_LABELS.get(m, str(m)),
             amount=str(data["amount"]),
             category_breakdown={k: str(v) for k, v in data["categories"].items()},
-        ))
+        )
+        for (y, m), data in sorted(monthly_expense_data.items())
+    ]
 
     revenue_by_source = [
         SourceRevenue(

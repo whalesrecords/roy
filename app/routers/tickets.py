@@ -22,6 +22,7 @@ from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriori
 from app.models.ticket_message import TicketMessage, MessageSender
 from app.models.ticket_participant import TicketParticipant
 from app.models.notification import Notification, NotificationType
+from app.models.artist_notification import ArtistNotification, ArtistNotificationType
 
 logger = logging.getLogger(__name__)
 
@@ -593,6 +594,15 @@ async def add_admin_message(
                 }),
             )
             db.add(notification)
+            # Also create ArtistNotification so it appears in the artist portal bell
+            artist_notif = ArtistNotification(
+                artist_id=artist.id,
+                notification_type=ArtistNotificationType.TICKET_RESPONSE,
+                title=f"Réponse à votre ticket {ticket.ticket_number}",
+                message=data.message[:120] if data.message else None,
+                link=f"/support/{ticket.id}",
+            )
+            db.add(artist_notif)
 
         await db.commit()
 

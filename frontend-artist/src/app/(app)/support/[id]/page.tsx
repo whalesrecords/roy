@@ -3,20 +3,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Spinner, Button, Textarea } from '@heroui/react';
+import { Spinner, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTicketDetail, addMyTicketMessage, closeMyTicket, TicketDetail } from '@/lib/api';
 import LabelLogo from '@/components/layout/LabelLogo';
 
 const CATEGORY_OPTIONS = [
-  { key: 'payment', label: 'Payments', icon: '💰' },
-  { key: 'profile', label: 'Profile', icon: '👤' },
-  { key: 'technical', label: 'Technical', icon: '⚙️' },
+  { key: 'payment', label: 'Paiement', icon: '💰' },
+  { key: 'profile', label: 'Profil', icon: '👤' },
+  { key: 'technical', label: 'Technique', icon: '⚙️' },
   { key: 'royalties', label: 'Royalties', icon: '📊' },
-  { key: 'contracts', label: 'Contracts', icon: '📄' },
-  { key: 'catalog', label: 'Catalog', icon: '🎵' },
-  { key: 'general', label: 'General', icon: '💬' },
-  { key: 'other', label: 'Other', icon: '❓' },
+  { key: 'contracts', label: 'Contrats', icon: '📄' },
+  { key: 'catalog', label: 'Catalogue', icon: '🎵' },
+  { key: 'general', label: 'Général', icon: '💬' },
+  { key: 'other', label: 'Autre', icon: '❓' },
 ];
 
 const STATUS_COLORS = {
@@ -39,18 +39,17 @@ export default function TicketDetailPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
   useEffect(() => {
     if (artist) {
       loadTicket();
-      // Auto-refresh every 30 seconds
       const interval = setInterval(loadTicket, 30000);
       return () => clearInterval(interval);
     }
   }, [artist, ticketId]);
 
   useEffect(() => {
-    // Scroll to bottom when messages change
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ticket?.messages]);
 
@@ -61,7 +60,7 @@ export default function TicketDetailPage() {
       setTicket(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
@@ -78,23 +77,22 @@ export default function TicketDetailPage() {
       setNewMessage('');
       await loadTicket();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error sending message');
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi');
     } finally {
       setSending(false);
     }
   };
 
   const handleCloseTicket = async () => {
-    if (!confirm('Are you sure you want to close this ticket?')) return;
-
     setClosing(true);
     setError(null);
+    setShowCloseConfirm(false);
 
     try {
       await closeMyTicket(ticketId);
       await loadTicket();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error closing ticket');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la fermeture');
     } finally {
       setClosing(false);
     }
@@ -102,7 +100,7 @@ export default function TicketDetailPage() {
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString('fr-FR', {
       month: 'short',
       day: '2-digit',
       year: 'numeric',
@@ -123,7 +121,7 @@ export default function TicketDetailPage() {
     return (
       <div className="min-h-screen bg-background px-4 py-8">
         <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
-          <p className="text-danger">Ticket not found</p>
+          <p className="text-danger">Ticket introuvable</p>
         </div>
       </div>
     );
@@ -136,7 +134,7 @@ export default function TicketDetailPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/support" className="p-2 -ml-2 hover:bg-content2 rounded-lg transition-colors">
+          <Link href="/support" className="p-2 -ml-2 hover:bg-content2 rounded-xl transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -172,7 +170,7 @@ export default function TicketDetailPage() {
                 )}
               </div>
               <p className="text-sm text-secondary-500 mb-1">{ticket.category_label}</p>
-              <p className="text-xs text-secondary-500">Created {formatTime(ticket.created_at)}</p>
+              <p className="text-xs text-secondary-500">Créé le {formatTime(ticket.created_at)}</p>
             </div>
           </div>
         </div>
@@ -234,28 +232,28 @@ export default function TicketDetailPage() {
         {/* Reply Form or Closed Notice */}
         {ticket.status === 'closed' ? (
           <div className="bg-content2 rounded-2xl p-6 text-center">
-            <p className="text-secondary-500 text-sm">This ticket is closed</p>
+            <p className="text-secondary-500 text-sm">Ce ticket est fermé</p>
           </div>
         ) : (
           <div className="bg-background border border-divider rounded-2xl p-4">
-            <h3 className="font-semibold mb-3 text-sm">Reply</h3>
-            <Textarea
-              placeholder="Your message..."
+            <h3 className="font-semibold mb-3 text-sm">Répondre</h3>
+            <textarea
+              placeholder="Votre message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              minRows={3}
-              className="mb-3"
+              rows={3}
+              className="w-full px-4 py-3 bg-content2 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none mb-3"
             />
             <div className="flex items-center justify-between gap-3">
               {ticket.status === 'resolved' && (
                 <Button
-                  color="success"
+                  color="danger"
                   variant="flat"
                   size="sm"
-                  onClick={handleCloseTicket}
+                  onClick={() => setShowCloseConfirm(true)}
                   isLoading={closing}
                 >
-                  Close Ticket
+                  Fermer le ticket
                 </Button>
               )}
               <Button
@@ -266,12 +264,42 @@ export default function TicketDetailPage() {
                 isDisabled={!newMessage.trim()}
                 className="ml-auto"
               >
-                Send
+                Envoyer
               </Button>
             </div>
           </div>
         )}
       </main>
+
+      {/* Close Ticket Confirmation Dialog */}
+      {showCloseConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-background border border-divider rounded-2xl p-6 space-y-4">
+            <h3 className="font-bold text-lg">Fermer le ticket</h3>
+            <p className="text-secondary-500 text-sm">
+              Êtes-vous sûr de vouloir fermer ce ticket ? Vous ne pourrez plus envoyer de messages.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                variant="flat"
+                className="flex-1"
+                onClick={() => setShowCloseConfirm(false)}
+                isDisabled={closing}
+              >
+                Annuler
+              </Button>
+              <Button
+                color="danger"
+                className="flex-1"
+                onClick={handleCloseTicket}
+                isLoading={closing}
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

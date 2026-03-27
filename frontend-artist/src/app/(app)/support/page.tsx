@@ -8,14 +8,14 @@ import { getMyTickets, createMyTicket, Ticket, CreateTicketRequest } from '@/lib
 import LabelLogo from '@/components/layout/LabelLogo';
 
 const CATEGORY_OPTIONS = [
-  { key: 'payment', label: 'Payments', icon: '💰' },
-  { key: 'profile', label: 'Profile', icon: '👤' },
-  { key: 'technical', label: 'Technical', icon: '⚙️' },
+  { key: 'payment', label: 'Paiement', icon: '💰' },
+  { key: 'profile', label: 'Profil', icon: '👤' },
+  { key: 'technical', label: 'Technique', icon: '⚙️' },
   { key: 'royalties', label: 'Royalties', icon: '📊' },
-  { key: 'contracts', label: 'Contracts', icon: '📄' },
-  { key: 'catalog', label: 'Catalog', icon: '🎵' },
-  { key: 'general', label: 'General', icon: '💬' },
-  { key: 'other', label: 'Other', icon: '❓' },
+  { key: 'contracts', label: 'Contrats', icon: '📄' },
+  { key: 'catalog', label: 'Catalogue', icon: '🎵' },
+  { key: 'general', label: 'Général', icon: '💬' },
+  { key: 'other', label: 'Autre', icon: '❓' },
 ];
 
 const STATUS_COLORS = {
@@ -56,7 +56,7 @@ export default function SupportPage() {
       });
       setTickets(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export default function SupportPage() {
 
   const handleCreateTicket = async () => {
     if (!subject.trim() || !message.trim()) {
-      setError('Please fill in all fields');
+      setError('Veuillez remplir tous les champs');
       return;
     }
 
@@ -84,7 +84,7 @@ export default function SupportPage() {
       onClose();
       await loadTickets();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error creating ticket');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     } finally {
       setCreating(false);
     }
@@ -98,11 +98,11 @@ export default function SupportPage() {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString('en-US');
+    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 60) return `il y a ${diffMins}m`;
+    if (diffHours < 24) return `il y a ${diffHours}h`;
+    if (diffDays < 7) return `il y a ${diffDays}j`;
+    return date.toLocaleDateString('fr-FR');
   };
 
   if (authLoading || loading) {
@@ -123,7 +123,7 @@ export default function SupportPage() {
             <h1 className="text-xl font-bold">Support</h1>
           </div>
           <Button color="primary" size="md" onClick={onOpen}>
-            + New Ticket
+            + Nouveau ticket
           </Button>
         </div>
       </header>
@@ -166,7 +166,7 @@ export default function SupportPage() {
         <div className="space-y-3">
           {tickets.length === 0 ? (
             <div className="bg-background border border-divider rounded-2xl p-12 text-center">
-              <p className="text-secondary-500">No tickets found</p>
+              <p className="text-secondary-500">Aucun ticket trouvé</p>
             </div>
           ) : (
             tickets.map((ticket) => {
@@ -235,10 +235,10 @@ export default function SupportPage() {
       {/* Create Ticket Modal */}
       <Modal isOpen={isOpen} onClose={onClose} size="2xl">
         <ModalContent>
-          <ModalHeader>Create New Ticket</ModalHeader>
+          <ModalHeader>Nouveau ticket</ModalHeader>
           <ModalBody>
             {error && (
-              <div className="bg-danger/10 border border-danger rounded-lg p-4 mb-4">
+              <div className="bg-danger/10 border border-danger rounded-2xl p-4 mb-4">
                 <p className="text-danger text-sm">{error}</p>
               </div>
             )}
@@ -279,7 +279,7 @@ export default function SupportPage() {
           </ModalBody>
           <ModalFooter>
             <Button variant="flat" onClick={onClose} isDisabled={creating}>
-              Cancel
+              Annuler
             </Button>
             <Button
               color="primary"
@@ -287,7 +287,7 @@ export default function SupportPage() {
               isLoading={creating}
               isDisabled={!subject.trim() || !message.trim()}
             >
-              Create Ticket
+              Créer le ticket
             </Button>
           </ModalFooter>
         </ModalContent>
