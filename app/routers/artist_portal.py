@@ -771,10 +771,11 @@ async def get_payments(
 @router.get("/platforms", response_model=List[PlatformStatsResponse])
 async def get_platform_stats(
     year: Optional[int] = None,
+    quarter: Optional[int] = None,
     artist: Artist = Depends(get_current_artist),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get revenue breakdown by platform."""
+    """Get revenue breakdown by platform. quarter=1..4 filters to that quarter."""
     query = select(
         TransactionNormalized.store_name,
         func.sum(TransactionNormalized.gross_amount).label("gross"),
@@ -784,6 +785,15 @@ async def get_platform_stats(
     if year:
         query = query.where(
             func.extract("year", TransactionNormalized.period_start) == year
+        )
+
+    if quarter and 1 <= quarter <= 4:
+        # Q1=months 1-3, Q2=4-6, Q3=7-9, Q4=10-12
+        month_start = (quarter - 1) * 3 + 1
+        month_end = quarter * 3
+        query = query.where(
+            func.extract("month", TransactionNormalized.period_start) >= month_start,
+            func.extract("month", TransactionNormalized.period_start) <= month_end,
         )
 
     query = query.group_by(TransactionNormalized.store_name).order_by(

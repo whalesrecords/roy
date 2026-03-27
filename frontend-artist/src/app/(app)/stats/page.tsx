@@ -75,18 +75,18 @@ export default function StatsPage() {
     if (artist && year > 0) {
       loadStats();
     }
-  }, [artist, year]);
+  }, [artist, year, selectedQuarter]);
 
   const loadStats = async () => {
     setLoading(true);
     setError(null);
     try {
+      const quarterNum = selectedQuarter ? parseInt(selectedQuarter.replace('Q', '')) : null;
       const [platformData, quarterlyData] = await Promise.all([
-        getPlatformStats(year),
+        getPlatformStats(year, quarterNum),
         getQuarterlyRevenue(year),
       ]);
       setStats(platformData);
-      // Filter out quarters with zero data
       setQuarterly(quarterlyData.filter(q => parseFloat(q.gross) > 0 || q.streams > 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
@@ -105,12 +105,6 @@ export default function StatsPage() {
     if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
     return value.toLocaleString('fr-FR');
   };
-
-  // Filtered quarterly data based on selected quarter
-  const filteredQuarterly = useMemo(() => {
-    if (!selectedQuarter) return quarterly;
-    return quarterly.filter((q) => q.quarter === selectedQuarter);
-  }, [quarterly, selectedQuarter]);
 
   // KPI totals
   const totalRevenue = stats.reduce((sum, s) => sum + parseFloat(s.gross), 0);

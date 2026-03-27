@@ -196,9 +196,12 @@ export async function getArtistPayments(): Promise<ArtistPayment[]> {
   return fetchApi<ArtistPayment[]>('/artist-portal/payments');
 }
 
-export async function getPlatformStats(year?: number): Promise<PlatformStats[]> {
-  const params = year ? `?year=${year}` : '';
-  return fetchApi<PlatformStats[]>(`/artist-portal/platforms${params}`);
+export async function getPlatformStats(year?: number, quarter?: number | null): Promise<PlatformStats[]> {
+  const p = new URLSearchParams();
+  if (year) p.set('year', String(year));
+  if (quarter) p.set('quarter', String(quarter));
+  const qs = p.toString() ? `?${p.toString()}` : '';
+  return fetchApi<PlatformStats[]>(`/artist-portal/platforms${qs}`);
 }
 
 export async function getExpenses(): Promise<Expense[]> {
