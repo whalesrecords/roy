@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: 'Consultez vos revenus, statistiques et demandez vos paiements',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: '/api/icon',
+    apple: '/api/icon',
   },
   appleWebApp: {
     capable: true,
@@ -46,8 +46,8 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icon.svg" />
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/api/icon" />
+        <link rel="icon" href="/api/icon" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>

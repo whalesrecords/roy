@@ -23,8 +23,8 @@ export const metadata: Metadata = {
     title: 'WR Admin',
   },
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: '/api/icon',
+    apple: '/api/icon',
   },
 };
 
