@@ -48,12 +48,12 @@ class Import(Base):
         default=uuid.uuid4,
     )
     source: Mapped[str] = mapped_column(
-        SAEnum(ImportSource),
+        String(50),
         nullable=False,
     )
     status: Mapped[str] = mapped_column(
-        SAEnum(ImportStatus),
-        default=ImportStatus.PENDING,
+        String(50),
+        default=ImportStatus.PENDING.value,
         nullable=False,
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=True)

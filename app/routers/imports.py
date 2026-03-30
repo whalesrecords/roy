@@ -260,7 +260,7 @@ async def _process_import_background(
             }
             parser_class = parser_map.get(import_source)
             if not parser_class:
-                import_record.status = ImportStatus.FAILED
+                import_record.status = ImportStatus.FAILED.value
                 await session.commit()
                 return
 
@@ -314,11 +314,11 @@ async def _process_import_background(
             import_record.completed_at = datetime.utcnow()
 
             if import_record.errors_count == 0:
-                import_record.status = ImportStatus.COMPLETED
+                import_record.status = ImportStatus.COMPLETED.value
             elif import_record.rows_inserted > 0:
-                import_record.status = ImportStatus.PARTIAL
+                import_record.status = ImportStatus.PARTIAL.value
             else:
-                import_record.status = ImportStatus.FAILED
+                import_record.status = ImportStatus.FAILED.value
 
             await session.commit()
             logger.info(f"Import {import_id} completed: {import_record.rows_inserted} rows inserted")
@@ -329,7 +329,7 @@ async def _process_import_background(
                 async with async_session_maker() as err_session:
                     rec = await err_session.get(Import, uuid_lib.UUID(import_id))
                     if rec:
-                        rec.status = ImportStatus.FAILED
+                        rec.status = ImportStatus.FAILED.value
                         await err_session.commit()
             except Exception:
                 pass
@@ -381,8 +381,8 @@ async def create_import(
 
     # Create import record and commit immediately to get the ID
     import_record = Import(
-        source=import_source,
-        status=ImportStatus.PROCESSING,
+        source=import_source.value,
+        status=ImportStatus.PROCESSING.value,
         filename=file.filename,
         period_start=period_start,
         period_end=period_end,
