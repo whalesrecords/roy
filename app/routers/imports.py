@@ -207,11 +207,13 @@ async def analyze_import(
                 period_end = dates[-1]
 
     # Check for duplicates (same source, filename, and period)
+    # Use cast(source, String) to avoid asyncpg enum uppercase cast issues
+    from sqlalchemy import cast, String as SAString
     duplicate = None
     if period_start and period_end:
         existing = await db.execute(
             select(Import)
-            .where(Import.source == import_source)
+            .where(cast(Import.source, SAString) == import_source.value)
             .where(Import.filename == resolved_filename)
             .where(Import.period_start == period_start)
             .where(Import.period_end == period_end)
