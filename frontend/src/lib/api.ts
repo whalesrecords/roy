@@ -11,19 +11,19 @@ import type {
   RoyaltyRun,
 } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || '';
+// Admin calls go through /api/proxy/* — the token is injected server-side
+// and never exposed in the browser bundle.
+const PROXY_BASE = '/api/proxy';
 
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const headers: HeadersInit = {
-    'X-Admin-Token': ADMIN_TOKEN,
     ...options?.headers,
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetch(`${PROXY_BASE}${endpoint}`, {
     ...options,
     headers,
   });

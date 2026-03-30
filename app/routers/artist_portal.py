@@ -205,23 +205,45 @@ class StatementDetailResponse(BaseModel):
     sources: List[StatementSourceDetail]
 
 
-# ============ Token Storage (simple in-memory for MVP) ============
-# In production, use Redis or database storage
-# Note: Access code tokens are still stored here for backward compatibility
+# ============ Token Storage (database-backed with expiration) ============
 
-_tokens: dict[str, str] = {}  # token -> artist_id
+TOKEN_TTL_DAYS = 30
+
+from app.models.artist_token import ArtistToken
+from datetime import timedelta
 
 
 def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
-def store_token(token: str, artist_id: str):
-    _tokens[token] = artist_id
+async def store_token(token: str, artist_id: str, db: AsyncSession):
+    from sqlalchemy import delete
+    # Clean up expired tokens for this artist
+    await db.execute(
+        delete(ArtistToken).where(
+            ArtistToken.artist_id == uuid.UUID(artist_id),
+            ArtistToken.expires_at < datetime.utcnow(),
+        )
+    )
+    record = ArtistToken(
+        token=token,
+        artist_id=uuid.UUID(artist_id),
+        expires_at=datetime.utcnow() + timedelta(days=TOKEN_TTL_DAYS),
+    )
+    db.add(record)
+    await db.commit()
 
 
-def get_artist_id_from_token(token: str) -> Optional[str]:
-    return _tokens.get(token)
+async def get_artist_id_from_token(token: str, db: AsyncSession) -> Optional[str]:
+    result = await db.execute(
+        select(ArtistToken).where(
+            ArtistToken.token == token,
+            ArtistToken.expires_at > datetime.utcnow(),
+        )
+    )
+    record = result.scalar_one_or_none()
+    return str(record.artist_id) if record else None
 
 
 def get_supabase_client():
@@ -245,11 +267,10 @@ async def get_current_artist(
 
     token = authorization.replace("Bearer ", "")
 
-    # First try legacy token lookup
-    artist_id = get_artist_id_from_token(token)
+    # First try DB token lookup
+    artist_id = await get_artist_id_from_token(token, db)
 
     if artist_id:
-        # Legacy token found
         result = await db.execute(select(Artist).where(Artist.id == uuid.UUID(artist_id)))
         artist = result.scalar_one_or_none()
         if artist:
@@ -290,7 +311,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Code invalide")
 
     token = generate_token()
-    store_token(token, str(artist.id))
+    await store_token(token, str(artist.id), db)
 
     return {
         "token": token,
@@ -1040,6 +1061,7 @@ async def get_quarterly_revenue(
 
 @router.get("/label-settings", response_model=LabelSettingsResponse)
 async def get_label_settings(
+    artist: Artist = Depends(get_current_artist),
     db: AsyncSession = Depends(get_db),
 ):
     """Get label settings (logo, name) for display in artist portal."""
@@ -1230,10 +1252,8 @@ async def generate_access_code(
     # Generate a simple 8-character code
     code = secrets.token_hex(4).upper()
 
-    # Update the artist directly via ORM
     artist.access_code = code
-    # Don't call commit - let get_db handle it
-    print(f"DEBUG: Setting code {code} for artist {artist.name}")
+    await db.commit()
 
     return {"access_code": code}
 

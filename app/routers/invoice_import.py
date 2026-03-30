@@ -116,6 +116,19 @@ async def extract_invoice(
             detail="Fichier trop volumineux. Maximum: 10MB"
         )
 
+    # Validate by magic number (not just extension/content-type which are spoofable)
+    MAGIC_NUMBERS = {
+        b'%PDF': 'pdf',
+        b'\x89PNG\r\n\x1a\n': 'png',
+        b'\xff\xd8\xff': 'jpeg',
+    }
+    detected = next((t for magic, t in MAGIC_NUMBERS.items() if content.startswith(magic)), None)
+    if not detected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contenu du fichier invalide. Uploadez un PDF ou une image (PNG/JPG)."
+        )
+
     filename = file.filename or "invoice.pdf"
 
     try:
