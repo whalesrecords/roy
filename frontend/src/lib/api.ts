@@ -464,7 +464,13 @@ export interface ImportAnalysis {
 
 export async function analyzeImport(file: File, source: string): Promise<ImportAnalysis> {
   const formData = new FormData();
-  formData.append('file', file);
+  // Send only filename + source for non-Squarespace sources to avoid proxy body size limits
+  // (the backend only needs filename for period detection on most sources)
+  if (source === 'squarespace') {
+    formData.append('file', file);
+  } else {
+    formData.append('filename', file.name);
+  }
   formData.append('source', source);
 
   const res = await fetch(`${API_BASE}/imports/analyze`, {

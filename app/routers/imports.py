@@ -6,7 +6,7 @@ Handles CSV file uploads and import processing.
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -152,14 +152,15 @@ def extract_period_from_filename(filename: str) -> tuple:
 @router.post("/analyze")
 async def analyze_import(
     source: Annotated[str, Form()],
-    file: Annotated[UploadFile, File()],
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    file: Annotated[Optional[UploadFile], File()] = None,
+    filename: Annotated[Optional[str], Form()] = None,
 ) -> dict:
     """
-    Analyze a CSV file before importing.
-    Returns detected period, artists with "&", and duplicate check.
-    Fast: extracts period from filename first.
+    Analyze a file before importing.
+    Accepts either a full file upload (Squarespace) or just a filename string (all other sources).
+    Returns detected period and duplicate check.
     """
     # Validate source
     try:
@@ -170,22 +171,24 @@ async def analyze_import(
             detail=f"Unsupported source: {source}",
         )
 
+    # Resolve the filename to use for period detection
+    resolved_filename = filename or (file.filename if file else "") or ""
+
     period_start = None
     period_end = None
     artists_with_ampersand = []
     total_artists = 0
 
     if import_source in (ImportSource.TUNECORE, ImportSource.BELIEVE_UK, ImportSource.BELIEVE_FR, ImportSource.BANDCAMP, ImportSource.SQUARESPACE, ImportSource.DETAILSDETAILS):
-        # Fast: extract period from filename
-        period_start, period_end = extract_period_from_filename(file.filename or "")
+        # Extract period from filename
+        period_start, period_end = extract_period_from_filename(resolved_filename)
 
         # For Squarespace, if period not in filename, extract from CSV content
-        if import_source == ImportSource.SQUARESPACE and (not period_start or not period_end):
+        if import_source == ImportSource.SQUARESPACE and file and (not period_start or not period_end):
             content = await file.read()
             parser = SquarespaceParser()
             result = parser.parse(content)
 
-            # Extract date range from parsed orders
             dates = []
             for row in result.rows:
                 if row.date_from:
@@ -198,16 +201,13 @@ async def analyze_import(
                 period_start = dates[0]
                 period_end = dates[-1]
 
-            # Reset file position for potential re-use
-            await file.seek(0)
-
     # Check for duplicates (same source, filename, and period)
     duplicate = None
     if period_start and period_end:
         existing = await db.execute(
             select(Import)
             .where(Import.source == import_source)
-            .where(Import.filename == file.filename)
+            .where(Import.filename == resolved_filename)
             .where(Import.period_start == period_start)
             .where(Import.period_end == period_end)
         )
