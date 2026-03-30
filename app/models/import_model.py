@@ -48,11 +48,11 @@ class Import(Base):
         default=uuid.uuid4,
     )
     source: Mapped[str] = mapped_column(
-        SAEnum(ImportSource, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(ImportSource),
         nullable=False,
     )
     status: Mapped[str] = mapped_column(
-        SAEnum(ImportStatus, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(ImportStatus),
         default=ImportStatus.PENDING,
         nullable=False,
     )
