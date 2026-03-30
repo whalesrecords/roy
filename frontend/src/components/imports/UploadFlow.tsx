@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import MappingStep from './MappingStep';
 import { SOURCES, ImportSource } from '@/lib/types';
-import { createImport, analyzeImport, ImportAnalysis } from '@/lib/api';
+import { createImport, getImportStatus, analyzeImport, ImportAnalysis } from '@/lib/api';
 
 interface UploadFlowProps {
   onClose: () => void;
@@ -159,6 +159,19 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
     await startImport();
   };
 
+  const pollUntilDone = async (importId: string): Promise<void> => {
+    const maxAttempts = 120; // 4 minutes max (120 × 2s)
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      try {
+        const status = await getImportStatus(importId);
+        if (status.status !== 'processing') return;
+      } catch {
+        return; // stop polling on error
+      }
+    }
+  };
+
   const startImport = async () => {
     setStep('importing');
     setCurrentImportIndex(0);
@@ -184,7 +197,12 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
 
       try {
         const result = await createImport(entry.file, source, periodStart, periodEnd);
-        updatedFiles[i] = { ...entry, imported: true, importId: result.import_id };
+        const importId = result.import_id;
+        // If processing in background, poll until done
+        if (result.status === 'processing') {
+          await pollUntilDone(importId);
+        }
+        updatedFiles[i] = { ...entry, imported: true, importId };
       } catch (err) {
         updatedFiles[i] = {
           ...entry,
@@ -273,10 +291,13 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
             <div className="animate-spin w-10 h-10 border-3 border-foreground border-t-transparent rounded-full mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground mb-2">Import en cours</h2>
             <p className="text-default-500">
-              {currentImportIndex + 1} / {files.length} fichiers
+              {currentImportIndex + 1} / {files.length} fichier{files.length > 1 ? 's' : ''}
             </p>
             <p className="text-sm text-default-400 mt-1 truncate">
               {files[currentImportIndex]?.file.name}
+            </p>
+            <p className="text-xs text-default-400 mt-2">
+              Traitement en cours, veuillez patienter...
             </p>
           </div>
         </div>

@@ -90,6 +90,12 @@ export async function createImport(
   });
 }
 
+export async function getImportStatus(
+  importId: string
+): Promise<CreateImportResponse> {
+  return fetchApi<CreateImportResponse>(`/imports/${importId}/status`);
+}
+
 export async function getImportPreview(
   importId: string
 ): Promise<PreviewResponse> {

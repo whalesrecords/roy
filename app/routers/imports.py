@@ -5,15 +5,18 @@ Handles CSV file uploads and import processing.
 """
 
 import asyncio
+import logging
+import uuid as uuid_lib
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, or_
 
 from app.core.auth import verify_admin_token
-from app.core.database import get_db
+from app.core.database import get_db, async_session_maker
 from app.models import Import, ImportSource, ImportStatus
 from app.schemas.imports import (
     ImportResponse,
@@ -24,7 +27,8 @@ from app.schemas.imports import (
     MappingResponse,
 )
 from app.models.transaction import TransactionNormalized
-from sqlalchemy import select, or_
+
+logger = logging.getLogger(__name__)
 from app.services.parsers.tunecore import TuneCoreParser, ParseError
 from app.services.parsers.bandcamp import BandcampParser
 from app.services.parsers.squarespace import SquarespaceParser
@@ -230,6 +234,105 @@ async def analyze_import(
     }
 
 
+async def _process_import_background(
+    import_id: str,
+    content: bytes,
+    import_source: ImportSource,
+    period_start: date,
+    period_end: date,
+) -> None:
+    """Parse and insert import data in the background (own DB session)."""
+    async with async_session_maker() as session:
+        try:
+            import_record = await session.get(Import, uuid_lib.UUID(import_id))
+            if not import_record:
+                return
+
+            parser_map = {
+                ImportSource.TUNECORE: TuneCoreParser,
+                ImportSource.BANDCAMP: BandcampParser,
+                ImportSource.SQUARESPACE: SquarespaceParser,
+                ImportSource.BELIEVE_UK: BelieveUKParser,
+                ImportSource.BELIEVE_FR: BelieveFRParser,
+                ImportSource.DETAILSDETAILS: DetailsDetailsParser,
+            }
+            parser_class = parser_map.get(import_source)
+            if not parser_class:
+                import_record.status = ImportStatus.FAILED
+                await session.commit()
+                return
+
+            result = await asyncio.to_thread(parser_class().parse, content)
+            import_record.rows_total = result.total_rows
+
+            errors: list[ImportErrorDetail] = []
+            for err in result.errors:
+                errors.append(ImportErrorDetail(row_number=err.row_number, error=err.error, raw_data=err.raw_data))
+
+            # UPC lookup for Squarespace
+            upc_map: dict[tuple[str, str], str] = {}
+            if import_source == ImportSource.SQUARESPACE:
+                upc_rows = await session.execute(
+                    select(TransactionNormalized.artist_name, TransactionNormalized.release_title, TransactionNormalized.upc)
+                    .where(TransactionNormalized.upc.isnot(None))
+                    .where(TransactionNormalized.release_title.isnot(None))
+                    .distinct()
+                )
+                for r in upc_rows:
+                    upc_map[(r.artist_name.lower().strip(), r.release_title.lower().strip())] = r.upc
+
+            normalize_fn = {
+                ImportSource.TUNECORE: normalize_tunecore_row,
+                ImportSource.BANDCAMP: normalize_bandcamp_row,
+                ImportSource.SQUARESPACE: normalize_squarespace_row,
+                ImportSource.BELIEVE_UK: normalize_believe_uk_row,
+                ImportSource.BELIEVE_FR: normalize_believe_fr_row,
+                ImportSource.DETAILSDETAILS: normalize_detailsdetails_row,
+            }[import_source]
+
+            transactions = []
+            gross_total = Decimal("0")
+            for row in result.rows:
+                try:
+                    tx = normalize_fn(row=row, import_id=import_record.id, fallback_period_start=period_start, fallback_period_end=period_end)
+                    if import_source == ImportSource.SQUARESPACE and not tx.upc and tx.artist_name and tx.release_title:
+                        tx.upc = upc_map.get((tx.artist_name.lower().strip(), tx.release_title.lower().strip()))
+                    transactions.append(tx)
+                    gross_total += tx.gross_amount
+                except Exception as e:
+                    errors.append(ImportErrorDetail(row_number=row.row_number, error=f"Normalization error: {str(e)}"))
+
+            if transactions:
+                session.add_all(transactions)
+
+            import_record.rows_parsed = len(result.rows)
+            import_record.rows_inserted = len(transactions)
+            import_record.errors_count = len(errors)
+            import_record.gross_total = gross_total
+            import_record.completed_at = datetime.utcnow()
+
+            if import_record.errors_count == 0:
+                import_record.status = ImportStatus.COMPLETED
+            elif import_record.rows_inserted > 0:
+                import_record.status = ImportStatus.PARTIAL
+            else:
+                import_record.status = ImportStatus.FAILED
+
+            await session.commit()
+            logger.info(f"Import {import_id} completed: {import_record.rows_inserted} rows inserted")
+
+        except Exception as e:
+            logger.error(f"Import {import_id} background processing failed: {e}")
+            try:
+                async with async_session_maker() as err_session:
+                    rec = await err_session.get(Import, uuid_lib.UUID(import_id))
+                    if rec:
+                        rec.status = ImportStatus.FAILED
+                        await err_session.commit()
+            except Exception:
+                pass
+
+
 @router.post("", response_model=ImportResponse)
 async def create_import(
     source: Annotated[str, Form()],
@@ -238,6 +341,7 @@ async def create_import(
     file: Annotated[UploadFile, File()],
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    background_tasks: BackgroundTasks,
 ) -> ImportResponse:
     """
     Import a CSV file from a distribution source.
@@ -270,7 +374,10 @@ async def create_import(
             detail="period_end must be >= period_start",
         )
 
-    # Create import record
+    # Read file content before creating the record
+    content = await file.read()
+
+    # Create import record and commit immediately to get the ID
     import_record = Import(
         source=import_source,
         status=ImportStatus.PROCESSING,
@@ -279,124 +386,67 @@ async def create_import(
         period_end=period_end,
     )
     db.add(import_record)
-    await db.flush()  # Get the ID
-
-    # Read file content
-    content = await file.read()
-
-    # Parse based on source
-    errors: list[ImportErrorDetail] = []
-    transactions = []
-    gross_total = Decimal("0")
-
-    # --- Parse file in a thread pool to avoid blocking the async event loop ---
-    # (all parsers are synchronous; running them in a thread keeps the connection alive)
-    if import_source == ImportSource.TUNECORE:
-        result = await asyncio.to_thread(TuneCoreParser().parse, content)
-    elif import_source == ImportSource.BANDCAMP:
-        result = await asyncio.to_thread(BandcampParser().parse, content)
-    elif import_source == ImportSource.SQUARESPACE:
-        result = await asyncio.to_thread(SquarespaceParser().parse, content)
-    elif import_source == ImportSource.BELIEVE_UK:
-        result = await asyncio.to_thread(BelieveUKParser().parse, content)
-    elif import_source == ImportSource.BELIEVE_FR:
-        result = await asyncio.to_thread(BelieveFRParser().parse, content)
-    elif import_source == ImportSource.DETAILSDETAILS:
-        result = await asyncio.to_thread(DetailsDetailsParser().parse, content)
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Parser for {source} not yet implemented",
-        )
-
-    import_record.rows_total = result.total_rows
-
-    # Collect errors
-    for err in result.errors:
-        errors.append(ImportErrorDetail(
-            row_number=err.row_number,
-            error=err.error,
-            raw_data=err.raw_data,
-        ))
-
-    # For Squarespace: pre-build UPC lookup
-    upc_map: dict[tuple[str, str], str] = {}
-    if import_source == ImportSource.SQUARESPACE:
-        upc_lookup_result = await db.execute(
-            select(
-                TransactionNormalized.artist_name,
-                TransactionNormalized.release_title,
-                TransactionNormalized.upc,
-            )
-            .where(TransactionNormalized.upc.isnot(None))
-            .where(TransactionNormalized.release_title.isnot(None))
-            .distinct()
-        )
-        for row_upc in upc_lookup_result:
-            key = (row_upc.artist_name.lower().strip(), row_upc.release_title.lower().strip())
-            upc_map[key] = row_upc.upc
-
-    # Normalize rows to transactions
-    normalize_fn = {
-        ImportSource.TUNECORE: normalize_tunecore_row,
-        ImportSource.BANDCAMP: normalize_bandcamp_row,
-        ImportSource.SQUARESPACE: normalize_squarespace_row,
-        ImportSource.BELIEVE_UK: normalize_believe_uk_row,
-        ImportSource.BELIEVE_FR: normalize_believe_fr_row,
-        ImportSource.DETAILSDETAILS: normalize_detailsdetails_row,
-    }[import_source]
-
-    for row in result.rows:
-        try:
-            transaction = normalize_fn(
-                row=row,
-                import_id=import_record.id,
-                fallback_period_start=period_start,
-                fallback_period_end=period_end,
-            )
-            # Auto-match UPC for Squarespace
-            if import_source == ImportSource.SQUARESPACE:
-                if not transaction.upc and transaction.artist_name and transaction.release_title:
-                    lookup_key = (transaction.artist_name.lower().strip(), transaction.release_title.lower().strip())
-                    if lookup_key in upc_map:
-                        transaction.upc = upc_map[lookup_key]
-            transactions.append(transaction)
-            gross_total += transaction.gross_amount
-        except Exception as e:
-            errors.append(ImportErrorDetail(
-                row_number=row.row_number,
-                error=f"Normalization error: {str(e)}",
-            ))
-
-    # Batch insert transactions
-    if transactions:
-        db.add_all(transactions)
-
-    # Update import record
-    import_record.rows_parsed = len(result.rows)
-    import_record.rows_inserted = len(transactions)
-    import_record.errors_count = len(errors)
-    import_record.gross_total = gross_total
-    import_record.completed_at = datetime.utcnow()
-
-    # Set final status
-    if import_record.errors_count == 0:
-        import_record.status = ImportStatus.COMPLETED
-    elif import_record.rows_inserted > 0:
-        import_record.status = ImportStatus.PARTIAL
-    else:
-        import_record.status = ImportStatus.FAILED
-
     await db.commit()
+    await db.refresh(import_record)
+
+    # Schedule background processing — returns immediately, avoiding proxy timeouts
+    background_tasks.add_task(
+        _process_import_background,
+        str(import_record.id),
+        content,
+        import_source,
+        period_start,
+        period_end,
+    )
 
     return ImportResponse(
         import_id=import_record.id,
-        status=import_record.status.value,
-        rows_parsed=import_record.rows_parsed,
-        rows_inserted=import_record.rows_inserted,
-        gross_total=import_record.gross_total,
-        errors_count=import_record.errors_count,
-        sample_errors=errors[:10],  # Limit to first 10 errors
+        status="processing",
+        rows_parsed=0,
+        rows_inserted=0,
+        gross_total=Decimal("0"),
+        errors_count=0,
+        sample_errors=[],
+    )
+
+
+@router.get("/{import_id}/status", response_model=ImportResponse)
+async def get_import_status(
+    import_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ImportResponse:
+    """
+    Poll the status of a background import.
+    Returns current status (processing / completed / partial / failed).
+    """
+    from uuid import UUID
+
+    try:
+        uuid_id = UUID(import_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid import ID format",
+        )
+
+    result = await db.execute(select(Import).where(Import.id == uuid_id))
+    import_record = result.scalar_one_or_none()
+
+    if not import_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Import not found",
+        )
+
+    return ImportResponse(
+        import_id=import_record.id,
+        status=import_record.status.value if hasattr(import_record.status, "value") else import_record.status,
+        rows_parsed=import_record.rows_parsed or 0,
+        rows_inserted=import_record.rows_inserted or 0,
+        gross_total=import_record.gross_total or Decimal("0"),
+        errors_count=import_record.errors_count or 0,
+        sample_errors=[],
     )
 
 
