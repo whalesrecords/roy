@@ -4,6 +4,7 @@ Imports Router
 Handles CSV file uploads and import processing.
 """
 
+import asyncio
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
@@ -288,84 +289,40 @@ async def create_import(
     transactions = []
     gross_total = Decimal("0")
 
+    # --- Parse file in a thread pool to avoid blocking the async event loop ---
+    # (all parsers are synchronous; running them in a thread keeps the connection alive)
     if import_source == ImportSource.TUNECORE:
-        parser = TuneCoreParser()
-        result = parser.parse(content)
-
-        import_record.rows_total = result.total_rows
-
-        # Collect errors
-        for err in result.errors:
-            errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
-            ))
-
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_tunecore_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
+        result = await asyncio.to_thread(TuneCoreParser().parse, content)
     elif import_source == ImportSource.BANDCAMP:
-        parser = BandcampParser()
-        result = parser.parse(content)
-
-        import_record.rows_total = result.total_rows
-
-        # Collect errors
-        for err in result.errors:
-            errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
-            ))
-
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_bandcamp_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
+        result = await asyncio.to_thread(BandcampParser().parse, content)
     elif import_source == ImportSource.SQUARESPACE:
-        parser = SquarespaceParser()
-        result = parser.parse(content)
+        result = await asyncio.to_thread(SquarespaceParser().parse, content)
+    elif import_source == ImportSource.BELIEVE_UK:
+        result = await asyncio.to_thread(BelieveUKParser().parse, content)
+    elif import_source == ImportSource.BELIEVE_FR:
+        result = await asyncio.to_thread(BelieveFRParser().parse, content)
+    elif import_source == ImportSource.DETAILSDETAILS:
+        result = await asyncio.to_thread(DetailsDetailsParser().parse, content)
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Parser for {source} not yet implemented",
+        )
 
-        import_record.rows_total = result.total_rows
+    import_record.rows_total = result.total_rows
 
-        # Collect errors
-        for err in result.errors:
-            errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
-            ))
+    # Collect errors
+    for err in result.errors:
+        errors.append(ImportErrorDetail(
+            row_number=err.row_number,
+            error=err.error,
+            raw_data=err.raw_data,
+        ))
 
-        # Pre-build UPC lookup from existing transactions (artist_name + release_title -> UPC)
-        upc_lookup_query = (
+    # For Squarespace: pre-build UPC lookup
+    upc_map: dict[tuple[str, str], str] = {}
+    if import_source == ImportSource.SQUARESPACE:
+        upc_lookup_result = await db.execute(
             select(
                 TransactionNormalized.artist_name,
                 TransactionNormalized.release_title,
@@ -375,133 +332,41 @@ async def create_import(
             .where(TransactionNormalized.release_title.isnot(None))
             .distinct()
         )
-        upc_lookup_result = await db.execute(upc_lookup_query)
-        upc_map: dict[tuple[str, str], str] = {}
         for row_upc in upc_lookup_result:
             key = (row_upc.artist_name.lower().strip(), row_upc.release_title.lower().strip())
             upc_map[key] = row_upc.upc
 
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_squarespace_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                # Auto-match UPC from existing catalog
+    # Normalize rows to transactions
+    normalize_fn = {
+        ImportSource.TUNECORE: normalize_tunecore_row,
+        ImportSource.BANDCAMP: normalize_bandcamp_row,
+        ImportSource.SQUARESPACE: normalize_squarespace_row,
+        ImportSource.BELIEVE_UK: normalize_believe_uk_row,
+        ImportSource.BELIEVE_FR: normalize_believe_fr_row,
+        ImportSource.DETAILSDETAILS: normalize_detailsdetails_row,
+    }[import_source]
+
+    for row in result.rows:
+        try:
+            transaction = normalize_fn(
+                row=row,
+                import_id=import_record.id,
+                fallback_period_start=period_start,
+                fallback_period_end=period_end,
+            )
+            # Auto-match UPC for Squarespace
+            if import_source == ImportSource.SQUARESPACE:
                 if not transaction.upc and transaction.artist_name and transaction.release_title:
                     lookup_key = (transaction.artist_name.lower().strip(), transaction.release_title.lower().strip())
                     if lookup_key in upc_map:
                         transaction.upc = upc_map[lookup_key]
-
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
-    elif import_source == ImportSource.BELIEVE_UK:
-        parser = BelieveUKParser()
-        result = parser.parse(content)
-
-        import_record.rows_total = result.total_rows
-
-        # Collect errors
-        for err in result.errors:
+            transactions.append(transaction)
+            gross_total += transaction.gross_amount
+        except Exception as e:
             errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
+                row_number=row.row_number,
+                error=f"Normalization error: {str(e)}",
             ))
-
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_believe_uk_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
-    elif import_source == ImportSource.BELIEVE_FR:
-        parser = BelieveFRParser()
-        result = parser.parse(content)
-
-        import_record.rows_total = result.total_rows
-
-        # Collect errors
-        for err in result.errors:
-            errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
-            ))
-
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_believe_fr_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
-    elif import_source == ImportSource.DETAILSDETAILS:
-        parser = DetailsDetailsParser()
-        result = parser.parse(content)
-
-        import_record.rows_total = result.total_rows
-
-        # Collect errors
-        for err in result.errors:
-            errors.append(ImportErrorDetail(
-                row_number=err.row_number,
-                error=err.error,
-                raw_data=err.raw_data,
-            ))
-
-        # Normalize and create transactions
-        for row in result.rows:
-            try:
-                transaction = normalize_detailsdetails_row(
-                    row=row,
-                    import_id=import_record.id,
-                    fallback_period_start=period_start,
-                    fallback_period_end=period_end,
-                )
-                transactions.append(transaction)
-                gross_total += transaction.gross_amount
-            except Exception as e:
-                errors.append(ImportErrorDetail(
-                    row_number=row.row_number,
-                    error=f"Normalization error: {str(e)}",
-                ))
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Parser for {source} not yet implemented",
-        )
 
     # Batch insert transactions
     if transactions:
