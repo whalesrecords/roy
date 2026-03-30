@@ -428,8 +428,8 @@ class RoyaltyCalculator:
 
                         # Determine splits from contract (use THIS artist's individual share)
                         # Pick the right share based on sale type (stream/physical/digital)
-                        tx_source = tx.source.value.lower() if tx.source else "other"
-                        tx_sale_type = _get_sale_type(tx_source, getattr(tx, 'physical_format', None))
+                        _st = tx.sale_type if isinstance(tx.sale_type, str) else (tx.sale_type.value if tx.sale_type else "other")
+                        tx_sale_type = "digital" if _st == "download" else (_st if _st in ("stream", "physical") else _get_sale_type("other", tx.physical_format))
                         if contract:
                             this_party = None
                             if contract.parties:
@@ -520,8 +520,8 @@ class RoyaltyCalculator:
 
                     # Determine splits (use THIS artist's individual share)
                     # Pick the right share based on sale type (stream/physical/digital)
-                    tx_source = tx.source.value.lower() if tx.source else "other"
-                    tx_sale_type = _get_sale_type(tx_source, getattr(tx, 'physical_format', None))
+                    _st = tx.sale_type if isinstance(tx.sale_type, str) else (tx.sale_type.value if tx.sale_type else "other")
+                    tx_sale_type = "digital" if _st == "download" else (_st if _st in ("stream", "physical") else _get_sale_type("other", tx.physical_format))
                     if contract:
                         this_party = None
                         if contract.parties:
