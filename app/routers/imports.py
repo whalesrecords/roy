@@ -83,6 +83,16 @@ def extract_period_from_filename(filename: str) -> tuple:
         except ValueError:
             pass
 
+    # Pattern: Date range YYYY_MM_DD___YYYY_MM_DD (DetailsDetails format)
+    match = re.search(r'(\d{4}_\d{2}_\d{2})_{2,3}(\d{4}_\d{2}_\d{2})', filename)
+    if match:
+        try:
+            start = date.fromisoformat(match.group(1).replace('_', '-'))
+            end = date.fromisoformat(match.group(2).replace('_', '-'))
+            return start, end
+        except ValueError:
+            pass
+
     # Pattern: YYYY-Q# (Quarter format, e.g., 2025-Q3)
     match = re.search(r'(\d{4})-Q([1-4])', filename, re.IGNORECASE)
     if match:
