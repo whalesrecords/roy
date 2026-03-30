@@ -19,12 +19,14 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ALTER TYPE ADD VALUE cannot run inside a transaction in some PG versions
-    # Use raw connection in autocommit mode
-    connection = op.get_bind()
-    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'detailsdetails'"))
-    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_uk'"))
-    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_fr'"))
+    # SQLAlchemy sends enum names in UPPERCASE to PostgreSQL (e.g., 'DETAILSDETAILS')
+    # so we add both cases for safety
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'DETAILSDETAILS'")
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'detailsdetails'")
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'BELIEVE_UK'")
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_uk'")
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'BELIEVE_FR'")
+    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_fr'")
 
 
 def downgrade() -> None:
