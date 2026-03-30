@@ -19,9 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'detailsdetails'")
-    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_uk'")
-    op.execute("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_fr'")
+    # ALTER TYPE ADD VALUE cannot run inside a transaction in some PG versions
+    # Use raw connection in autocommit mode
+    connection = op.get_bind()
+    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'detailsdetails'"))
+    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_uk'"))
+    connection.execute(sa.text("ALTER TYPE importsource ADD VALUE IF NOT EXISTS 'believe_fr'"))
 
 
 def downgrade() -> None:

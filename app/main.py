@@ -117,6 +117,7 @@ app = FastAPI(
     description="Music royalties calculation tool for independent labels",
     version="0.1.0",
     lifespan=lifespan,
+    debug=True,
 )
 
 # CORS middleware — restrict to known frontend origins
