@@ -8,19 +8,19 @@ using both hard matches (ISRC, UPC) and fuzzy matching for Bandcamp physical/pac
 import logging
 import re
 import unicodedata
-from datetime import datetime, date
-from typing import Optional, List, Dict, Tuple
-from uuid import UUID
 from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Dict, List, Optional, Tuple
+from uuid import UUID
 
 from rapidfuzz import fuzz
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.transaction import TransactionNormalized, SaleType
 from app.models.artist import Artist
+from app.models.match_suggestion import MatchMethod, MatchStatus, MatchSuggestion
 from app.models.track_artist_link import TrackArtistLink
-from app.models.match_suggestion import MatchSuggestion, MatchMethod, MatchStatus
+from app.models.transaction import SaleType, TransactionNormalized
 
 logger = logging.getLogger(__name__)
 

@@ -29,17 +29,17 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, DateTime, Numeric, ForeignKey, Text
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.artist import Artist
-    from app.models.royalty_run import RoyaltyRun
     from app.models.promo_submission import PromoSubmission
+    from app.models.royalty_run import RoyaltyRun
 
 
 class LedgerEntryType(str, Enum):

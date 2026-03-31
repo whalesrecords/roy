@@ -27,19 +27,20 @@ from decimal import Decimal
 from typing import Dict, List
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
-from app.models.transaction import TransactionNormalized
-from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.royalty_line_item import RoyaltyLineItem
+from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.statement import Statement, StatementStatus
-from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.track_artist_link import TrackArtistLink
-from app.services.fx import FXService, fx_service as default_fx_service
+from app.models.transaction import TransactionNormalized
+from app.services.fx import FXService
+from app.services.fx import fx_service as default_fx_service
 
 logger = logging.getLogger(__name__)
 

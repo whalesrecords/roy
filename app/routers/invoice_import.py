@@ -6,7 +6,7 @@ Handles PDF/image invoice uploads with data extraction.
 
 import base64
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Annotated, List, Optional
 from uuid import UUID
 
@@ -20,7 +20,6 @@ from app.core.database import get_db
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.services.invoice_extractor import extract_invoice_data
-
 
 router = APIRouter(prefix="/invoice-import", tags=["invoice-import"])
 
@@ -211,7 +210,7 @@ async def create_advance_from_invoice(
         amount = Decimal(data.amount.replace(",", "."))
         if amount <= 0:
             raise ValueError("Amount must be positive")
-    except (ValueError, decimal.InvalidOperation) as e:
+    except (ValueError, InvalidOperation):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Montant invalide: {data.amount}"
@@ -357,7 +356,7 @@ async def batch_create_advances(
                 effective_date=entry.effective_date.isoformat(),
             ))
 
-        except Exception as e:
+        except Exception:
             # Skip failed entries but continue with others
             continue
 

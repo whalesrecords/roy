@@ -9,18 +9,18 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, DateTime, Integer, Text, ForeignKey
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.advance_ledger import AdvanceLedgerEntry
     from app.models.artist import Artist
     from app.models.artwork import ReleaseArtwork, TrackArtwork
     from app.models.promo_campaign import PromoCampaign
-    from app.models.advance_ledger import AdvanceLedgerEntry
 
 
 class PromoSource(str, Enum):

@@ -4,26 +4,24 @@ Finances Router
 Manages all expenses, advances, and payments with document upload support.
 """
 
+import base64
 import logging
 import uuid
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
-import base64
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy import select, func, or_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
-from app.models.artist import Artist
-from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
+from app.models.royalty_run import RoyaltyRun
 from app.models.transaction import TransactionNormalized
-
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +155,7 @@ async def get_finances_summary(
 
     # Get total royalties payable from locked runs
     royalty_query = select(func.sum(RoyaltyRun.total_net_payable)).where(
-        RoyaltyRun.is_locked == True
+        RoyaltyRun.is_locked.is_(True)
     )
     if year:
         royalty_query = royalty_query.where(
@@ -168,7 +166,7 @@ async def get_finances_summary(
 
     # Get royalty runs count
     runs_count_query = select(func.count(RoyaltyRun.id)).where(
-        RoyaltyRun.is_locked == True
+        RoyaltyRun.is_locked.is_(True)
     )
     if year:
         runs_count_query = runs_count_query.where(
@@ -220,7 +218,6 @@ async def list_expenses(
 
     track_titles: dict[str, str] = {}
     if track_scope_ids:
-        from sqlalchemy import distinct
         tr = await db.execute(
             select(TransactionNormalized.isrc, TransactionNormalized.track_title)
             .where(TransactionNormalized.isrc.in_(track_scope_ids))
@@ -516,7 +513,7 @@ async def list_royalty_payments(
     """List all locked royalty runs (payments due to artists)."""
     query = (
         select(RoyaltyRun)
-        .where(RoyaltyRun.is_locked == True)
+        .where(RoyaltyRun.is_locked.is_(True))
         .order_by(RoyaltyRun.period_start.desc())
     )
 
@@ -531,14 +528,6 @@ async def list_royalty_payments(
     # Get artist counts for each run
     payments = []
     for run in runs:
-        # Count statements for this run
-        stmt_query = select(func.count()).select_from(
-            select(AdvanceLedgerEntry).where(
-                AdvanceLedgerEntry.royalty_run_id == run.id,
-                AdvanceLedgerEntry.entry_type == LedgerEntryType.RECOUPMENT,
-            ).subquery()
-        )
-        # Actually just use a simpler approach - count from the run's statements
         artists_count = run.total_transactions // 100 if run.total_transactions else 0  # Rough estimate
 
         payments.append(RoyaltyPaymentResponse(

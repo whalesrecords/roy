@@ -4,10 +4,10 @@ Contracts Router
 Handles contract management with multiple parties (artists and labels).
 """
 
-from datetime import date
-from typing import Annotated, Optional
-from uuid import UUID
 import base64
+from datetime import date
+from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
@@ -16,12 +16,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
-from app.models import Contract, ContractParty, Artist
+from app.models import Artist, Contract, ContractParty
 from app.schemas.contracts import (
     ContractCreate,
-    ContractUpdate,
-    ContractResponse,
     ContractListItem,
+    ContractResponse,
+    ContractUpdate,
 )
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])

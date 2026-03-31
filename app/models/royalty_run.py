@@ -1,21 +1,21 @@
 """RoyaltyRun model for tracking royalty calculation runs."""
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String, DateTime, Date, Numeric, Text, Boolean, Integer, JSON
+from sqlalchemy import JSON, Boolean, Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.advance_ledger import AdvanceLedgerEntry
     from app.models.royalty_line_item import RoyaltyLineItem
     from app.models.statement import Statement
-    from app.models.advance_ledger import AdvanceLedgerEntry
 
 
 class RoyaltyRunStatus(str, Enum):

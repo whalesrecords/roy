@@ -16,13 +16,13 @@ from sqlalchemy.orm import selectinload
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
+from app.models.artist import Artist
 from app.models.royalty_run import RoyaltyRun
 from app.models.statement import Statement, StatementStatus
-from app.models.artist import Artist
 from app.schemas.royalties import (
+    ArtistRoyaltyResult,
     RoyaltyRunCreate,
     RoyaltyRunResponse,
-    ArtistRoyaltyResult,
     StatementCreate,
     StatementResponse,
     StatementsListResponse,

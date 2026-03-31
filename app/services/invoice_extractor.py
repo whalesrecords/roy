@@ -8,13 +8,12 @@ Extracts data from PDF invoices using:
 """
 
 import io
+import json
 import os
 import re
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
 from typing import Optional
-import json
 
 import httpx
 from pypdf import PdfReader

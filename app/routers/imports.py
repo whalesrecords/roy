@@ -11,40 +11,48 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
 
 from app.core.auth import verify_admin_token
-from app.core.database import get_db, async_session_maker
+from app.core.database import async_session_maker, get_db
 from app.models import Import, ImportSource, ImportStatus
+from app.models.transaction import TransactionNormalized
 from app.schemas.imports import (
-    ImportResponse,
     ImportErrorDetail,
     ImportListItem,
-    PreviewResponse,
+    ImportResponse,
     MappingRequest,
     MappingResponse,
+    PreviewResponse,
 )
-from app.models.transaction import TransactionNormalized
 
 logger = logging.getLogger(__name__)
-from app.services.parsers.tunecore import TuneCoreParser, ParseError
-from app.services.parsers.bandcamp import BandcampParser
-from app.services.parsers.squarespace import SquarespaceParser
-from app.services.parsers.believe_uk import BelieveUKParser
-from app.services.parsers.believe_fr import BelieveFRParser
-from app.services.parsers.detailsdetails import DetailsDetailsParser
 from app.services.normalize import (
-    normalize_tunecore_row,
     normalize_bandcamp_row,
-    normalize_squarespace_row,
-    normalize_believe_uk_row,
     normalize_believe_fr_row,
+    normalize_believe_uk_row,
     normalize_detailsdetails_row,
+    normalize_squarespace_row,
+    normalize_tunecore_row,
     parse_squarespace_date,
 )
-
+from app.services.parsers.bandcamp import BandcampParser
+from app.services.parsers.believe_fr import BelieveFRParser
+from app.services.parsers.believe_uk import BelieveUKParser
+from app.services.parsers.detailsdetails import DetailsDetailsParser
+from app.services.parsers.squarespace import SquarespaceParser
+from app.services.parsers.tunecore import TuneCoreParser
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -208,7 +216,8 @@ async def analyze_import(
 
     # Check for duplicates (same source, filename, and period)
     # Use cast(source, String) to avoid asyncpg enum uppercase cast issues
-    from sqlalchemy import cast, String as SAString
+    from sqlalchemy import String as SAString
+    from sqlalchemy import cast
     duplicate = None
     if period_start and period_end:
         existing = await db.execute(
@@ -635,6 +644,7 @@ async def get_import_sale_types(
     Useful for Bandcamp to see CD vs Vinyl vs Digital.
     """
     from uuid import UUID
+
     from sqlalchemy import func
 
     try:
@@ -761,7 +771,8 @@ async def get_catalog_artists(
     Cached for 5 minutes to improve performance.
     """
     import time
-    from sqlalchemy import func, distinct
+
+    from sqlalchemy import distinct, func
 
     global _catalog_cache, _cache_timestamp
 
@@ -814,8 +825,10 @@ async def get_artist_releases(
     Get releases (albums) for an artist from imported transactions.
     Includes collaboration releases via track-artist links.
     """
-    from sqlalchemy import func, distinct, or_
     from urllib.parse import unquote
+
+    from sqlalchemy import or_
+
     from app.models.artist import Artist
     from app.models.track_artist_link import TrackArtistLink
 
@@ -952,8 +965,10 @@ async def get_artist_tracks(
     Get tracks for an artist from imported transactions.
     Includes collaboration tracks via track-artist links.
     """
-    from sqlalchemy import func, or_
     from urllib.parse import unquote
+
+    from sqlalchemy import func, or_
+
     from app.models.artist import Artist
     from app.models.track_artist_link import TrackArtistLink
 
@@ -1047,8 +1062,9 @@ async def get_release_tracks(
     First finds the release_title from UPC, then queries by both UPC and release_title
     to catch tracks from sources that may not have the correct UPC (e.g. Bandcamp).
     """
-    from sqlalchemy import func, and_, or_
     from urllib.parse import unquote
+
+    from sqlalchemy import and_, func, or_
 
     decoded_upc = unquote(upc).strip()
 
@@ -1136,7 +1152,7 @@ async def assign_isrc_to_track(
     """
     Assign an ISRC to transactions that match track_title + artist_name but have no ISRC.
     """
-    from sqlalchemy import func, and_, update
+    from sqlalchemy import and_, func, update
 
     stmt = (
         update(TransactionNormalized)
@@ -1207,7 +1223,7 @@ async def link_upc_to_transactions(
     Link a UPC to all transactions matching artist_name + release_title that don't have a UPC.
     Used to merge Squarespace (physical) releases with Tunecore (digital) releases.
     """
-    from sqlalchemy import update, func
+    from sqlalchemy import func, update
 
     # Update all matching transactions that have no UPC or UNKNOWN UPC
     stmt = (
@@ -1242,7 +1258,7 @@ async def merge_release_upc(
     Used when the same album appears under different UPCs from different sources
     (e.g., Bandcamp has no UPC but TuneCore has one).
     """
-    from sqlalchemy import update, func
+    from sqlalchemy import func, update
 
     stmt = (
         update(TransactionNormalized)

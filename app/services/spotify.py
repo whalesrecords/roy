@@ -11,7 +11,8 @@ from __future__ import annotations
 import base64
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 import httpx
 
 from app.core.config import settings

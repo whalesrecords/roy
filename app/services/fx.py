@@ -12,10 +12,10 @@ Future enhancements:
 """
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
-from typing import Protocol, Optional, Tuple
-import logging
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 

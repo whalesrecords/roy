@@ -17,11 +17,10 @@ Squarespace CSV columns include:
 import csv
 import io
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Dict, Iterator, List, Optional, Union
-from datetime import datetime
-from collections import defaultdict
 
 
 @dataclass

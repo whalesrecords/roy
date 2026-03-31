@@ -10,23 +10,22 @@ import logging
 from datetime import date
 from decimal import Decimal
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.database import get_db
 from app.core.config import settings
+from app.core.database import get_db
+from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
 from app.models.contract_party import ContractParty as ContractPartyModel
-from app.models.transaction import TransactionNormalized
-from app.models.track_artist_link import TrackArtistLink
 from app.models.import_model import Import
-from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+from app.models.track_artist_link import TrackArtistLink
+from app.models.transaction import TransactionNormalized
 
 logger = logging.getLogger(__name__)
 
@@ -385,7 +384,7 @@ async def export_royalties_pdf(
         ".recoup { color: #E79D13; }",
         ".page-break { page-break-before: always; }",
         "</style></head><body>",
-        f"<h1>Rapport de Royalties</h1>",
+        "<h1>Rapport de Royalties</h1>",
         f"<div class='subtitle'>Periode : {period_start.strftime('%d/%m/%Y')} - {period_end.strftime('%d/%m/%Y')}</div>",
     ]
 

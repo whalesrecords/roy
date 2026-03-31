@@ -1,39 +1,37 @@
 """Artist Portal API endpoints for artists to view their royalties."""
+import json
 import logging
 import secrets
 import uuid
-import json
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.database import get_db
-from app.core.config import settings
 from app.core.auth import verify_admin_token
+from app.core.config import settings
+from app.core.database import get_db
+from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
-from app.models.transaction import TransactionNormalized
-from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType, ExpenseCategory
-from app.models.contract import Contract
-from app.models.artwork import ReleaseArtwork, TrackArtwork
-from app.models.contract_party import ContractParty
-from app.models.label_settings import LabelSettings
-from app.models.statement import Statement
-from app.models.royalty_line_item import RoyaltyLineItem
+from app.models.artist_notification import ArtistNotification
 from app.models.artist_profile import ArtistProfile
+from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.contract import Contract
+from app.models.label_settings import LabelSettings
 from app.models.notification import Notification, NotificationType
-from app.models.artist_notification import ArtistNotification, ArtistNotificationType
-from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
-from app.models.ticket_message import TicketMessage, MessageSender
+from app.models.promo_submission import PromoSource, PromoSubmission
+from app.models.royalty_line_item import RoyaltyLineItem
+from app.models.statement import Statement
+from app.models.ticket import Ticket, TicketPriority, TicketStatus
+from app.models.ticket_message import MessageSender, TicketMessage
 from app.models.ticket_participant import TicketParticipant
-from app.models.promo_submission import PromoSubmission, PromoSource
-from app.models.promo_campaign import PromoCampaign
+from app.models.transaction import TransactionNormalized
 
 router = APIRouter(prefix="/artist-portal", tags=["Artist Portal"])
 
@@ -209,8 +207,9 @@ class StatementDetailResponse(BaseModel):
 
 TOKEN_TTL_DAYS = 30
 
-from app.models.artist_token import ArtistToken
 from datetime import timedelta
+
+from app.models.artist_token import ArtistToken
 
 
 def generate_token() -> str:
@@ -538,20 +537,6 @@ async def get_dashboard(
         )
     )
     advance_balance = float(advances_result.scalar() or 0)
-
-    # Get payments (reduce advance balance)
-    payments_result = await db.execute(
-        select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
-            and_(
-                AdvanceLedgerEntry.artist_id == artist.id,
-                AdvanceLedgerEntry.entry_type == "payment",
-            )
-        )
-    )
-    payments_total = float(payments_result.scalar() or 0)
-
-    # Use default 50% artist share for now (contract logic would require eager loading)
-    artist_share = 0.5
 
     # Calculate net from statements - sum of unpaid statements' net_payable
     statements_result = await db.execute(
@@ -953,7 +938,6 @@ async def get_contracts(
     db: AsyncSession = Depends(get_db),
 ):
     """Get contracts for the artist."""
-    from sqlalchemy.orm import selectinload
 
     result = await db.execute(
         select(Contract)
@@ -1622,7 +1606,7 @@ async def get_notifications(
     query = select(Notification).order_by(Notification.created_at.desc()).limit(limit)
 
     if unread_only:
-        query = query.where(Notification.is_read == False)
+        query = query.where(Notification.is_read.is_(False))
 
     result = await db.execute(query)
     notifications = result.scalars().all()
@@ -1678,7 +1662,7 @@ async def mark_all_notifications_read(
     from sqlalchemy import update
 
     await db.execute(
-        update(Notification).where(Notification.is_read == False).values(is_read=True)
+        update(Notification).where(Notification.is_read.is_(False)).values(is_read=True)
     )
     await db.commit()
 
@@ -1849,7 +1833,7 @@ async def get_my_tickets(
                     and_(
                         TicketMessage.ticket_id == ticket.id,
                         TicketMessage.created_at > last_read,
-                        TicketMessage.is_internal == False,
+                        TicketMessage.is_internal.is_(False),
                     )
                 )
             )
@@ -1880,6 +1864,7 @@ async def create_ticket(
 ):
     """Create a new support ticket."""
     from sqlalchemy import text
+
     from app.services.email_service import send_ticket_created_notification
 
     # Generate ticket number using sequence
@@ -1995,7 +1980,7 @@ async def get_ticket_detail(
         .where(
             and_(
                 TicketMessage.ticket_id == ticket.id,
-                TicketMessage.is_internal == False,
+                TicketMessage.is_internal.is_(False),
             )
         )
         .order_by(TicketMessage.created_at)
@@ -2363,8 +2348,6 @@ async def get_artist_promo_submissions(
     offset: int = 0,
 ) -> List[PromoSubmissionResponse]:
     """Get promo submissions for current artist."""
-    from app.models.artwork import ReleaseArtwork
-    from sqlalchemy.orm import selectinload
 
     query = select(PromoSubmission).where(
         PromoSubmission.artist_id == artist.id
@@ -2480,7 +2463,7 @@ async def get_artist_notifications(
     )
 
     if unread_only:
-        query = query.where(ArtistNotification.is_read == False)
+        query = query.where(ArtistNotification.is_read.is_(False))
 
     query = query.order_by(ArtistNotification.created_at.desc()).limit(limit)
 
@@ -2519,7 +2502,7 @@ async def get_unread_notifications_count(
                 ArtistNotification.artist_id.is_(None)  # Global admin messages
             )
         )
-        .where(ArtistNotification.is_read == False)
+        .where(ArtistNotification.is_read.is_(False))
     )
     count = result.scalar()
 
@@ -2565,7 +2548,7 @@ async def mark_all_notifications_as_read(
     await db.execute(
         ArtistNotification.__table__.update()
         .where(ArtistNotification.artist_id == artist.id)
-        .where(ArtistNotification.is_read == False)
+        .where(ArtistNotification.is_read.is_(False))
         .values(is_read=True)
     )
     await db.commit()

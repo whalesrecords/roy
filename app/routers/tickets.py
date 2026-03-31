@@ -4,25 +4,25 @@ Admin Tickets Router
 Handles admin ticket management (view all, respond, update status).
 """
 
-import logging
 import json
+import logging
 import uuid
 from datetime import datetime
-from typing import Annotated, List, Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func, and_, or_, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models.artist import Artist
-from app.models.ticket import Ticket, TicketStatus, TicketCategory, TicketPriority
-from app.models.ticket_message import TicketMessage, MessageSender
-from app.models.ticket_participant import TicketParticipant
-from app.models.notification import Notification, NotificationType
 from app.models.artist_notification import ArtistNotification, ArtistNotificationType
+from app.models.notification import Notification, NotificationType
+from app.models.ticket import Ticket, TicketPriority, TicketStatus
+from app.models.ticket_message import MessageSender, TicketMessage
+from app.models.ticket_participant import TicketParticipant
 
 logger = logging.getLogger(__name__)
 

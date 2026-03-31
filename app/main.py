@@ -9,23 +9,24 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import engine, Base
+from app.core.database import Base, engine
 from app.routers import imports
-from app.routers.royalties import router as royalties_router, artists_router as royalties_artists_router
-from app.routers.artists import router as artists_router
-from app.routers.spotify import router as spotify_router
-from app.routers.catalog import router as catalog_router
-from app.routers.settings import router as settings_router
-from app.routers.match import router as match_router
 from app.routers.analytics import router as analytics_router
-from app.routers.finances import router as finances_router
-from app.routers.contracts import router as contracts_router
-from app.routers.invoice_import import router as invoice_import_router
 from app.routers.artist_portal import router as artist_portal_router
-from app.routers.tickets import router as tickets_router
-from app.routers.promo import router as promo_router
+from app.routers.artists import router as artists_router
+from app.routers.catalog import router as catalog_router
+from app.routers.contracts import router as contracts_router
 from app.routers.exports import router as exports_router
+from app.routers.finances import router as finances_router
 from app.routers.inventory import router as inventory_router
+from app.routers.invoice_import import router as invoice_import_router
+from app.routers.match import router as match_router
+from app.routers.promo import router as promo_router
+from app.routers.royalties import artists_router as royalties_artists_router
+from app.routers.royalties import router as royalties_router
+from app.routers.settings import router as settings_router
+from app.routers.spotify import router as spotify_router
+from app.routers.tickets import router as tickets_router
 
 
 @asynccontextmanager

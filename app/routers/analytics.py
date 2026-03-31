@@ -6,20 +6,19 @@ Provides analytics data for revenue and expenses.
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select, func, extract
+from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
-from app.models import Import, ImportSource
-from app.models.transaction import TransactionNormalized
+from app.models import Import
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
-from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
-
+from app.models.royalty_run import RoyaltyRun
+from app.models.transaction import TransactionNormalized
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -232,7 +231,7 @@ async def get_analytics_summary(
     royalty_runs_result = await db.execute(
         select(RoyaltyRun)
         .where(
-            RoyaltyRun.is_locked == True,
+            RoyaltyRun.is_locked.is_(True),
             func.extract("year", RoyaltyRun.period_start) == year,
         )
         .order_by(RoyaltyRun.period_start)

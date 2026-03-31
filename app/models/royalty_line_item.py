@@ -4,15 +4,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Numeric, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.royalty_run import RoyaltyRun
     from app.models.contract import Contract
+    from app.models.royalty_run import RoyaltyRun
 
 
 class RoyaltyLineItem(Base):

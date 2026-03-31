@@ -7,7 +7,7 @@ Allows matching transactions to canonical entities (artists, releases, tracks).
 
 import logging
 from datetime import date
-from typing import Annotated, Optional, List
+from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -17,11 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.services.matching import (
-    run_auto_matching,
+    get_matching_stats,
     get_unresolved_suggestions,
     resolve_suggestion,
-    get_matching_stats,
-    MatchResult,
+    run_auto_matching,
 )
 
 logger = logging.getLogger(__name__)

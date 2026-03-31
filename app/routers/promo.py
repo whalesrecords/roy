@@ -4,42 +4,39 @@ Promo Router
 Handles promo submission imports (SubmitHub, Groover) and management.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
-from app.models.promo_submission import PromoSubmission, PromoSource
-from app.models.promo_campaign import PromoCampaign, CampaignStatus
-from app.models.artist import Artist
-from app.models.artwork import TrackArtwork, ReleaseArtwork
 from app.models.advance_ledger import AdvanceLedgerEntry, ExpenseCategory, LedgerEntryType
+from app.models.artist import Artist
+from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.promo_campaign import CampaignStatus, PromoCampaign
+from app.models.promo_submission import PromoSource, PromoSubmission
 from app.schemas.promo import (
-    SubmitHubAnalyzeResponse,
-    GrooverAnalyzeResponse,
-    ImportSubmitHubResponse,
-    ImportGrooverResponse,
-    PromoSubmissionsListResponse,
-    PromoSubmissionResponse,
-    PromoStatsResponse,
-    DetailedPromoStatsResponse,
-    ArtistPromoStats,
     AlbumPromoStats,
+    ArtistPromoStats,
+    DetailedPromoStatsResponse,
+    GrooverAnalyzeResponse,
+    ImportGrooverResponse,
+    ImportSubmitHubResponse,
+    PromoStatsResponse,
+    PromoSubmissionResponse,
+    PromoSubmissionsListResponse,
     SongMatch,
-    PromoCampaignCreate,
-    PromoCampaignResponse,
+    SubmitHubAnalyzeResponse,
     TracksSummaryResponse,
     TrackSummary,
 )
-from app.services.parsers.submithub_parser import SubmitHubParser, SubmitHubRow, ParseError as SubmitHubParseError
-from app.services.parsers.groover_parser import GrooverParser, GrooverRow, ParseError as GrooverParseError
-
+from app.services.parsers.groover_parser import GrooverParser
+from app.services.parsers.submithub_parser import SubmitHubParser
 
 router = APIRouter(prefix="/promo", tags=["promo"])
 
@@ -773,8 +770,6 @@ async def list_promo_submissions(
     List all promo submissions (admin view).
     Supports filtering by artist_id and source.
     """
-    from app.models.artist import Artist
-    from app.models.artwork import ReleaseArtwork
     from sqlalchemy.orm import selectinload
 
     # Build query with joins
@@ -845,10 +840,9 @@ async def get_tracks_summary(
     Get summary of promo submissions grouped by track.
     Shows metrics per track (listened, approved, declined, shared, playlists).
     """
-    from app.models.artist import Artist
-    from app.models.artwork import ReleaseArtwork
-    from sqlalchemy.orm import selectinload
     from collections import defaultdict
+
+    from sqlalchemy.orm import selectinload
 
     # Build query
     query = select(PromoSubmission).options(
@@ -1014,8 +1008,6 @@ async def get_detailed_promo_stats(
     """
     Get detailed promo stats with breakdowns by artist and album.
     """
-    from app.models.artist import Artist
-    from app.models.artwork import ReleaseArtwork
     from sqlalchemy.orm import selectinload
 
     # Load all submissions with related data

@@ -4,9 +4,9 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -17,15 +17,15 @@ class ArtistCategory(str, Enum):
     COLLABORATOR = "collaborator"  # Collaborateur / Remixeur
 
 if TYPE_CHECKING:
-    from app.models.contract import Contract
     from app.models.advance_ledger import AdvanceLedgerEntry
-    from app.models.statement import Statement
-    from app.models.track_artist_link import TrackArtistLink
-    from app.models.artist_profile import ArtistProfile
-    from app.models.ticket import Ticket
-    from app.models.promo_submission import PromoSubmission
-    from app.models.promo_campaign import PromoCampaign
     from app.models.artist_notification import ArtistNotification
+    from app.models.artist_profile import ArtistProfile
+    from app.models.contract import Contract
+    from app.models.promo_campaign import PromoCampaign
+    from app.models.promo_submission import PromoSubmission
+    from app.models.statement import Statement
+    from app.models.ticket import Ticket
+    from app.models.track_artist_link import TrackArtistLink
 
 
 class Artist(Base):

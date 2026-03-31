@@ -10,29 +10,29 @@ from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, text, or_
+from pydantic import BaseModel as PydanticBaseModel
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
+from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
-from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.statement import Statement, StatementStatus
-from pydantic import BaseModel as PydanticBaseModel
+from app.models.transaction import TransactionNormalized
+from app.schemas.contracts import ContractListItem
 from app.schemas.royalties import (
+    AdvanceBalanceResponse,
+    AdvanceCreate,
+    AdvanceLedgerEntryResponse,
     ArtistCreate,
     ArtistResponse,
     ContractCreate,
     ContractResponse,
-    AdvanceCreate,
-    AdvanceLedgerEntryResponse,
-    AdvanceBalanceResponse,
     PaymentCreate,
     PaymentUpdate,
 )
-from app.schemas.contracts import ContractListItem
-from app.models.transaction import TransactionNormalized
 
 logger = logging.getLogger(__name__)
 
@@ -387,7 +387,7 @@ class MergeRequest(PydanticBaseModel):
 
 
 @router.post("/{target_id}/merge")
-async def merge_artists(
+async def merge_artists_into_target(
     target_id: UUID,
     data: MergeRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -665,6 +665,7 @@ async def resolve_collaboration(
         delete_after: If True (default), delete the collaboration artist after resolving.
     """
     import re
+
     from app.models.track_artist_link import TrackArtistLink
 
     # Get the collaboration artist
@@ -804,6 +805,7 @@ async def resolve_all_collaborations(
     for the individual artists, and optionally deletes the collaboration artists.
     """
     import re
+
     from app.models.track_artist_link import TrackArtistLink
 
     # Get all artists
@@ -1029,6 +1031,7 @@ async def list_contracts(
 ):
     """List all contracts for an artist (including contracts where they are a party)."""
     from sqlalchemy.orm import selectinload
+
     from app.models.contract_party import ContractParty as ContractPartyModel
 
     # Verify artist exists
@@ -1605,8 +1608,9 @@ async def create_payment(
             logger.warning(f"Statement {data.statement_id} not found for artist {artist_id}")
 
     # Create notification for artist
-    from app.models.artist_notification import ArtistNotification, ArtistNotificationType
     import json
+
+    from app.models.artist_notification import ArtistNotification, ArtistNotificationType
 
     notification = ArtistNotification(
         artist_id=artist_id,
@@ -1794,10 +1798,9 @@ async def update_payment(
 
 # Royalty calculation per artist
 
-from pydantic import BaseModel
 from datetime import date
-from app.models.transaction import TransactionNormalized
-from app.models.contract import ContractScope
+
+from pydantic import BaseModel
 
 
 class AlbumSourceBreakdown(BaseModel):
@@ -1875,7 +1878,6 @@ async def calculate_artist_royalties(
     Returns breakdown by album with artist/label shares applied.
     Considers contracts at track, release, and catalog levels.
     """
-    from sqlalchemy import distinct
     from sqlalchemy.orm import selectinload
 
     # Get artist
@@ -1890,6 +1892,7 @@ async def calculate_artist_royalties(
     # Get all contracts for this artist (valid in the period)
     # Include contracts where artist is primary OR appears as a party
     from sqlalchemy import and_, or_
+
     from app.models.contract_party import ContractParty as ContractPartyModel
     validity_condition = and_(
         Contract.start_date <= period_end,

@@ -1,11 +1,11 @@
 """Artwork models for storing Spotify images and catalog metadata."""
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-from sqlalchemy import String, DateTime, Integer, JSON
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 

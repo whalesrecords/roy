@@ -1,14 +1,14 @@
 """Statement model for artist royalty statements."""
 import uuid
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Date, Numeric, ForeignKey
+from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 

@@ -5,16 +5,16 @@ API endpoints for label settings management.
 """
 
 import base64
-from typing import Annotated, Optional
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.core.auth import verify_admin_token
+from app.core.database import get_db
 from app.models import LabelSettings
 
 router = APIRouter(prefix="/settings", tags=["settings"])

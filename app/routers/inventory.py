@@ -5,19 +5,18 @@ API endpoints for physical product inventory management (vinyl, CD, merch).
 """
 
 from datetime import datetime
-from typing import Annotated, Optional, List
+from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
-from app.models.product import Product, StockMovement, ProductFormat, ProductStatus, MovementType
-from app.models.transaction import TransactionNormalized, SaleType
+from app.models.product import MovementType, Product, ProductFormat, ProductStatus, StockMovement
+from app.models.transaction import SaleType, TransactionNormalized
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 

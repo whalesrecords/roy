@@ -213,6 +213,7 @@ class DetailsDetailsParser:
             DetailsDetailsParseResult with parsed rows and errors
         """
         import io
+
         from openpyxl import load_workbook
 
         result = DetailsDetailsParseResult()

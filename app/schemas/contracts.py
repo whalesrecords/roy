@@ -6,7 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-
 VALID_PARTY_TYPES = ['artist', 'label', 'manager', 'booker', 'agent', 'publisher', 'other']
 
 

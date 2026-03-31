@@ -18,10 +18,10 @@ SubmitHub CSV columns:
 
 import csv
 import io
-from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Union
-from datetime import datetime
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, Iterator, List, Optional, Union
 
 
 @dataclass

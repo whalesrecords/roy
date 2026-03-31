@@ -1,19 +1,17 @@
 """Ticket participant model for multi-artist tickets."""
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-import sqlalchemy as sa
-from sqlalchemy import DateTime, Boolean, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-
 if TYPE_CHECKING:
-    from app.models.ticket import Ticket
     from app.models.artist import Artist
+    from app.models.ticket import Ticket
 
 
 class TicketParticipant(Base):

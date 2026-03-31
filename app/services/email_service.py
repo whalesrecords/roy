@@ -1,7 +1,8 @@
 """Email service using Resend."""
 import logging
 import os
-from typing import Optional, List
+from typing import List, Optional
+
 import resend
 
 logger = logging.getLogger(__name__)

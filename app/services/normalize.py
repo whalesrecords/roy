@@ -6,17 +6,15 @@ Transforms parsed data from various sources into normalized transactions.
 
 import re
 from datetime import date
-from decimal import Decimal
 from typing import Optional, Tuple
 
-from app.models.transaction import TransactionNormalized, SaleType
-from app.services.parsers.tunecore import TuneCoreRow
+from app.models.transaction import SaleType, TransactionNormalized
 from app.services.parsers.bandcamp import BandcampRow
-from app.services.parsers.squarespace import SquarespaceRow
-from app.services.parsers.believe_uk import BelieveUKRow
 from app.services.parsers.believe_fr import BelieveFRRow
+from app.services.parsers.believe_uk import BelieveUKRow
 from app.services.parsers.detailsdetails import DetailsDetailsRow
-
+from app.services.parsers.squarespace import SquarespaceRow
+from app.services.parsers.tunecore import TuneCoreRow
 
 # Sales type normalization mapping
 SALE_TYPE_MAPPING = {
@@ -266,9 +264,7 @@ def normalize_bandcamp_item_type(item_type: str) -> SaleType:
     """
     item_type_lower = item_type.lower().strip() if item_type else ""
 
-    if item_type_lower == "track":
-        return SaleType.DOWNLOAD
-    elif item_type_lower == "album":
+    if item_type_lower == "track" or item_type_lower == "album":
         return SaleType.DOWNLOAD
     elif item_type_lower in ["package", "physical", "merch", "merchandise", "bundle"]:
         return SaleType.PHYSICAL
@@ -676,9 +672,7 @@ def normalize_squarespace_item_type(item_type: str) -> SaleType:
     Returns:
         SaleType enum value
     """
-    if item_type == "track":
-        return SaleType.DOWNLOAD
-    elif item_type == "album":
+    if item_type == "track" or item_type == "album":
         return SaleType.DOWNLOAD
     elif item_type == "package":
         return SaleType.PHYSICAL
