@@ -372,8 +372,8 @@ async def reset_password(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to reset password: {e}")
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        logger.error("Failed to reset password: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Une erreur interne s'est produite.")
 
 
 @router.post("/login-email", response_model=LoginResponse)
@@ -492,11 +492,12 @@ async def create_artist_auth(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Supabase create user error: {e}")
+        err_str = str(e).lower()
+        logger.error("Supabase create user error: %s", e, exc_info=True)
         # Check if user already exists
-        if "already been registered" in str(e).lower() or "already exists" in str(e).lower():
+        if "already been registered" in err_str or "already exists" in err_str:
             raise HTTPException(status_code=400, detail="Un compte avec cet email existe déjà")
-        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+        raise HTTPException(status_code=500, detail="Une erreur interne s'est produite.")
 
 
 @router.get("/me", response_model=ArtistInfo)

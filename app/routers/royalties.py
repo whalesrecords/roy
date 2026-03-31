@@ -102,7 +102,7 @@ async def list_royalty_runs(
     return responses
 
 
-@router.post("", response_model=RoyaltyRunResponse)
+@router.post("", response_model=RoyaltyRunResponse, status_code=status.HTTP_201_CREATED)
 async def create_royalty_run(
     data: RoyaltyRunCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -177,10 +177,10 @@ async def create_royalty_run(
         )
 
     except Exception as e:
-        logger.error(f"Royalty run failed: {e}")
+        logger.error("Royalty run failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Royalty calculation failed: {str(e)}",
+            detail="Royalty calculation failed. Please check logs for details.",
         )
 
 

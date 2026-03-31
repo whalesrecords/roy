@@ -9,7 +9,7 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, text, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,7 +41,7 @@ router = APIRouter(prefix="/artists", tags=["artists"])
 
 # Artist endpoints
 
-@router.post("", response_model=ArtistResponse)
+@router.post("", response_model=ArtistResponse, status_code=status.HTTP_201_CREATED)
 async def create_artist(
     data: ArtistCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -81,10 +81,12 @@ async def create_artist(
 async def list_artists(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
 ) -> List[ArtistResponse]:
-    """List all artists."""
+    """List artists. Paginated (default 200, max 500)."""
     result = await db.execute(
-        select(Artist).order_by(Artist.name)
+        select(Artist).order_by(Artist.name).limit(limit).offset(offset)
     )
     artists = result.scalars().all()
 
@@ -935,7 +937,7 @@ async def delete_artist(
 
 # Contract endpoints
 
-@router.post("/{artist_id}/contracts", response_model=ContractResponse)
+@router.post("/{artist_id}/contracts", response_model=ContractResponse, status_code=status.HTTP_201_CREATED)
 async def create_contract(
     artist_id: UUID,
     data: ContractCreate,
@@ -1179,7 +1181,7 @@ async def delete_contract(
 
 # Advance endpoints
 
-@router.post("/{artist_id}/advances", response_model=AdvanceLedgerEntryResponse)
+@router.post("/{artist_id}/advances", response_model=AdvanceLedgerEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_advance(
     artist_id: UUID,
     data: AdvanceCreate,
@@ -1545,7 +1547,7 @@ async def get_advance_balance(
 
 # Payment endpoints
 
-@router.post("/{artist_id}/payments", response_model=AdvanceLedgerEntryResponse)
+@router.post("/{artist_id}/payments", response_model=AdvanceLedgerEntryResponse, status_code=status.HTTP_201_CREATED)
 async def create_payment(
     artist_id: UUID,
     data: PaymentCreate,

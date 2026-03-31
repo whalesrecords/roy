@@ -456,12 +456,14 @@ async def get_import_status(
 async def list_imports(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[ImportListItem]:
     """
-    List all imports, ordered by creation date descending.
+    List imports, ordered by creation date descending. Paginated (default 100).
     """
     result = await db.execute(
-        select(Import).order_by(Import.created_at.desc())
+        select(Import).order_by(Import.created_at.desc()).limit(limit).offset(offset)
     )
     imports = result.scalars().all()
 

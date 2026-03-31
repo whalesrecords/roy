@@ -281,7 +281,7 @@ async def list_expenses(
     return responses
 
 
-@router.post("/expenses", response_model=ExpenseResponse)
+@router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
 async def create_expense(
     data: ExpenseCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
