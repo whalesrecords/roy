@@ -479,11 +479,8 @@ export async function analyzeImport(file: File, source: string): Promise<ImportA
   }
   formData.append('source', source);
 
-  const res = await fetch(`${API_BASE}/imports/analyze`, {
+  const res = await fetch(`${PROXY_BASE}/imports/analyze`, {
     method: 'POST',
-    headers: {
-      'X-Admin-Token': ADMIN_TOKEN,
-    },
     body: formData,
   });
 
@@ -1658,11 +1655,11 @@ export async function deletePromoSubmission(submissionId: string): Promise<void>
 
 // Export functions
 export function getExportCsvUrl(periodStart: string, periodEnd: string): string {
-  return `${API_BASE}/exports/royalties/csv?period_start=${periodStart}&period_end=${periodEnd}`;
+  return `${PROXY_BASE}/exports/royalties/csv?period_start=${periodStart}&period_end=${periodEnd}`;
 }
 
 export function getExportPdfUrl(periodStart: string, periodEnd: string): string {
-  return `${API_BASE}/exports/royalties/pdf?period_start=${periodStart}&period_end=${periodEnd}`;
+  return `${PROXY_BASE}/exports/royalties/pdf?period_start=${periodStart}&period_end=${periodEnd}`;
 }
 
 export async function downloadExport(url: string, filename: string): Promise<void> {
