@@ -1,7 +1,10 @@
 """Email service using Resend."""
+import logging
 import os
 from typing import Optional, List
 import resend
+
+logger = logging.getLogger(__name__)
 
 
 # Initialize Resend with API key from environment
@@ -31,7 +34,7 @@ async def send_email(
         True if email was sent successfully
     """
     if not resend.api_key:
-        print("Warning: RESEND_API_KEY not configured, email not sent")
+        logger.warning("RESEND_API_KEY not configured, email not sent")
         return False
 
     try:
@@ -48,7 +51,7 @@ async def send_email(
         resend.Emails.send(params)
         return True
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logger.error("Error sending email: %s", e)
         return False
 
 

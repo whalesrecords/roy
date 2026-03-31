@@ -337,7 +337,8 @@ class RoyaltyCalculator:
             all_artists = artist_result.scalars().all()
             artist_cache: Dict[str, Artist] = {a.name: a for a in all_artists}
             artist_id_set = {a.id for a in all_artists} if artist_ids else None
-            logger.info(f"Pre-loaded {len(artist_cache)} artists" + (f" (filtered to {len(artist_ids)} IDs)" if artist_ids else ""))
+            filter_info = f" (filtered to {len(artist_ids)} IDs)" if artist_ids else ""
+            logger.info("Pre-loaded %d artists%s", len(artist_cache), filter_info)
 
             # PRE-LOAD all contracts into cache (avoid N+1)
             # Build validity conditions

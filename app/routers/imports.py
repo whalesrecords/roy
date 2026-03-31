@@ -331,8 +331,8 @@ async def _process_import_background(
                     if rec:
                         rec.status = ImportStatus.FAILED.value
                         await err_session.commit()
-            except Exception:
-                pass
+            except Exception as db_err:
+                logger.error("Failed to mark import %s as FAILED: %s", import_id, db_err)
 
 
 @router.post("", response_model=ImportResponse)
