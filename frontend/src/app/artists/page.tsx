@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Spinner } from '@heroui/react';
@@ -96,20 +96,20 @@ export default function ArtistsPage() {
     return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
-  const filteredArtists = artists.filter(a => {
+  const filteredArtists = useMemo(() => artists.filter(a => {
     const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || a.category === categoryFilter;
     return matchesSearch && matchesCategory;
-  });
+  }), [artists, searchQuery, categoryFilter]);
 
-  const signedCount = artists.filter(a => a.category === 'signed').length;
-  const collaboratorCount = artists.filter(a => a.category === 'collaborator').length;
+  const signedCount = useMemo(() => artists.filter(a => a.category === 'signed').length, [artists]);
+  const collaboratorCount = useMemo(() => artists.filter(a => a.category === 'collaborator').length, [artists]);
 
-  const inactiveCatalog = catalogArtists.filter(ca =>
+  const inactiveCatalog = useMemo(() => catalogArtists.filter(ca =>
     !artists.some(a => a.name.toLowerCase() === ca.artist_name.toLowerCase())
   ).filter(ca =>
     ca.artist_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ), [catalogArtists, artists, searchQuery]);
 
   const ArtistAvatar = ({ artist, name }: { artist?: Artist; name: string }) => {
     const imageUrl = artist?.image_url_small || artist?.image_url;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Spinner } from '@heroui/react';
@@ -26,6 +26,8 @@ const VIEW_LABELS: Record<DashboardView, string> = {
   artists: 'Artistes',
 };
 
+const DASHBOARD_VIEWS = Object.keys(VIEW_LABELS) as DashboardView[];
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [view, setView] = useState<DashboardView>('overview');
@@ -39,24 +41,19 @@ export default function DashboardPage() {
   const [recentImports, setRecentImports] = useState<{ id: string; source: string; period_start: string; period_end: string; total_rows: number }[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
 
-  useEffect(() => {
-    if (!user) return;
-    loadAll();
-  }, [user, selectedYear]);
-
-  const loadAll = async () => {
+  const loadAll = useCallback(async (yearOverride?: number) => {
     setLoading(true);
     try {
-      const [artists, imports, runs, tickets, summary, artSummary] = await Promise.all([
+      // First batch: metadata needed to determine the year
+      const [artists, imports, runs, tickets, artSummary] = await Promise.all([
         getArtists(),
         getImports(),
         getRoyaltyRuns(),
         getTicketStats().catch(() => ({ open: 0 })),
-        selectedYear > 0 ? getAnalyticsSummary(selectedYear).catch(() => null) : Promise.resolve(null),
         getArtistsSummary().catch(() => []),
       ]);
 
-      // Compute years that actually have import data
+      // Compute available years from import data
       const yearSet = new Set<number>();
       imports.forEach(imp => {
         const startY = new Date(imp.period_start).getFullYear();
@@ -67,11 +64,16 @@ export default function DashboardPage() {
       const importYears = Array.from(yearSet).sort((a, b) => b - a);
       setAvailableYears(importYears);
 
-      // Auto-detect most recent year from imports if not yet set
-      if (selectedYear === 0 && importYears.length > 0) {
-        setSelectedYear(importYears[0]);
-        return; // Will re-run with correct year via useEffect
+      // Resolve which year to use — no second pass needed
+      const effectiveYear = yearOverride ?? (selectedYear > 0 ? selectedYear : importYears[0] ?? 0);
+      if (effectiveYear !== selectedYear) {
+        setSelectedYear(effectiveYear);
       }
+
+      // Fetch analytics with the resolved year (single pass)
+      const summary = effectiveYear > 0
+        ? await getAnalyticsSummary(effectiveYear).catch(() => null)
+        : null;
 
       setBasicStats({
         artists: artists.filter(a => a.category === 'signed').length,
@@ -87,7 +89,12 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadAll();
+  }, [user]); // Only re-run on user change — year changes call loadAll(year) directly
 
   // Derived chart data
   const monthlyChartData = useMemo(() => {
@@ -142,7 +149,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <select
             value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            onChange={(e) => loadAll(parseInt(e.target.value))}
             className="text-sm bg-background border border-divider rounded-lg px-3 py-1.5 text-foreground"
           >
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
@@ -152,7 +159,7 @@ export default function DashboardPage() {
 
       {/* View Tabs */}
       <div className="flex gap-1 bg-default-100 rounded-xl p-1">
-        {(Object.keys(VIEW_LABELS) as DashboardView[]).map(v => (
+        {DASHBOARD_VIEWS.map(v => (
           <button
             key={v}
             onClick={() => setView(v)}
