@@ -164,12 +164,10 @@ async def merge_artists(
 ) -> dict:
     """
     Merge source artist into target artist.
-    - Transfers all track-artist links from source to target
-    - Transfers all advances from source to target
-    - Transfers all contracts from source to target
-    - Updates all transactions artist_name to target name
-    - Deletes the source artist
+    Transfers ALL FK references from source to target, then deletes source.
     """
+    from sqlalchemy import update as sa_update
+
     from app.models.track_artist_link import TrackArtistLink
 
     # Get both artists
@@ -183,63 +181,97 @@ async def merge_artists(
     if not target:
         raise HTTPException(status_code=404, detail=f"Target artist {target_id} not found")
 
-    # Transfer track-artist links
+    # --- Track-artist links (handle ISRC duplicates) ---
     links_result = await db.execute(
         select(TrackArtistLink).where(TrackArtistLink.artist_id == source_id)
     )
     links = links_result.scalars().all()
+    links_transferred = 0
     for link in links:
-        # Check if target already has this link
         existing = await db.execute(
             select(TrackArtistLink).where(
                 TrackArtistLink.artist_id == target_id,
-                TrackArtistLink.isrc == link.isrc
+                TrackArtistLink.isrc == link.isrc,
             )
         )
         if not existing.scalar_one_or_none():
             link.artist_id = target_id
+            links_transferred += 1
         else:
             await db.delete(link)
+    await db.flush()
 
-    # Transfer advances
-    advances_result = await db.execute(
-        select(AdvanceLedgerEntry).where(AdvanceLedgerEntry.artist_id == source_id)
-    )
-    advances = advances_result.scalars().all()
-    for advance in advances:
-        advance.artist_id = target_id
+    # --- Bulk-update all other FK tables ---
+    tables_updated: dict[str, int] = {}
 
-    # Transfer contracts
-    contracts_result = await db.execute(
-        select(Contract).where(Contract.artist_id == source_id)
-    )
-    contracts = contracts_result.scalars().all()
-    for contract in contracts:
-        contract.artist_id = target_id
+    async def bulk_update(model, column_attr) -> int:
+        r = await db.execute(
+            sa_update(model)
+            .where(column_attr == source_id)
+            .values({column_attr.key: target_id})
+        )
+        return r.rowcount  # type: ignore[return-value]
 
-    # Update transactions with source artist name to use target name
+    from app.models.advance_ledger import AdvanceLedgerEntry
+    from app.models.contract import Contract
+    from app.models.royalty_line_item import RoyaltyLineItem
+    from app.models.statement import Statement
+
+    tables_updated["advances"] = await bulk_update(AdvanceLedgerEntry, AdvanceLedgerEntry.artist_id)
+    tables_updated["contracts"] = await bulk_update(Contract, Contract.artist_id)
+    tables_updated["statements"] = await bulk_update(Statement, Statement.artist_id)
+    tables_updated["line_items"] = await bulk_update(RoyaltyLineItem, RoyaltyLineItem.artist_id)
+
+    # Optional tables — import if models exist, skip gracefully if not
+    optional_models = [
+        ("app.models.ticket", "Ticket", "artist_id"),
+        ("app.models.notification", "ArtistNotification", "artist_id"),
+        ("app.models.promo_submission", "PromoSubmission", "artist_id"),
+        ("app.models.promo_campaign", "PromoCampaign", "artist_id"),
+        ("app.models.match_suggestion", "MatchSuggestion", "artist_id"),
+        ("app.models.artist_token", "ArtistToken", "artist_id"),
+    ]
+    for module_path, class_name, col_name in optional_models:
+        try:
+            import importlib
+            mod = importlib.import_module(module_path)
+            model_cls = getattr(mod, class_name, None)
+            if model_cls is not None:
+                col = getattr(model_cls, col_name, None)
+                if col is not None:
+                    tables_updated[class_name.lower()] = await bulk_update(model_cls, col)
+        except Exception:
+            pass
+
+    await db.flush()
+
+    # Update transactions artist_name (text field, no FK)
     await db.execute(
         text("""
             UPDATE transactions_normalized
             SET artist_name = :target_name
             WHERE LOWER(artist_name) = LOWER(:source_name)
         """),
-        {"target_name": target.name, "source_name": source.name}
+        {"target_name": target.name, "source_name": source.name},
     )
 
-    # Delete source artist
+    # Delete source artist — all FK references have been transferred
     source_name = source.name
     await db.delete(source)
     await db.flush()
+
+    logger.info(
+        "Merged artist '%s' (%s) into '%s' (%s): %s",
+        source_name, source_id, target.name, target_id, tables_updated,
+    )
 
     return {
         "success": True,
         "message": f"Merged '{source_name}' into '{target.name}'",
         "source_id": str(source_id),
         "target_id": str(target_id),
-        "links_transferred": len(links),
-        "advances_transferred": len(advances),
-        "contracts_transferred": len(contracts),
+        "links_transferred": links_transferred,
+        **tables_updated,
     }
 
 
