@@ -1663,9 +1663,7 @@ export function getExportPdfUrl(periodStart: string, periodEnd: string): string 
 }
 
 export async function downloadExport(url: string, filename: string): Promise<void> {
-  const res = await fetch(url, {
-    headers: { 'X-Admin-Token': ADMIN_TOKEN },
-  });
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`Export failed: ${res.status}`);
   const blob = await res.blob();
   const a = document.createElement('a');
