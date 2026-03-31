@@ -26,6 +26,7 @@ class LabelSettingsResponse(BaseModel):
     label_name: str
     logo_url: Optional[str] = None
     logo_base64: Optional[str] = None
+    logo_dark_base64: Optional[str] = None
     address_line1: Optional[str] = None
     address_line2: Optional[str] = None
     city: Optional[str] = None
@@ -170,6 +171,59 @@ async def delete_logo(
 
     settings.logo_base64 = None
     settings.logo_url = None
+    await db.commit()
+    await db.refresh(settings)
+    return settings
+
+
+@router.post("/label/logo-dark", response_model=LabelSettingsResponse)
+async def upload_logo_dark(
+    file: UploadFile = File(...),
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload dark mode logo as base64. Accepts PNG, JPG, WEBP."""
+    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}",
+        )
+
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 2MB.")
+
+    b64 = base64.b64encode(content).decode("utf-8")
+    data_uri = f"data:{file.content_type};base64,{b64}"
+
+    result = await db.execute(select(LabelSettings).limit(1))
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        settings = LabelSettings(label_name="Mon Label", logo_dark_base64=data_uri)
+        db.add(settings)
+    else:
+        settings.logo_dark_base64 = data_uri
+
+    await db.commit()
+    await db.refresh(settings)
+    return settings
+
+
+@router.delete("/label/logo-dark", response_model=LabelSettingsResponse)
+async def delete_logo_dark(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove the dark mode logo."""
+    result = await db.execute(select(LabelSettings).limit(1))
+    settings = result.scalar_one_or_none()
+
+    if not settings:
+        raise HTTPException(status_code=404, detail="Settings not found")
+
+    settings.logo_dark_base64 = None
     await db.commit()
     await db.refresh(settings)
     return settings

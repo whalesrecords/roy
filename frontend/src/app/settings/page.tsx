@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Spinner } from '@heroui/react';
-import { getLabelSettings, updateLabelSettings, uploadLabelLogo, deleteLabelLogo, type LabelSettings } from '@/lib/api';
+import { getLabelSettings, updateLabelSettings, uploadLabelLogo, deleteLabelLogo, uploadLabelLogoDark, deleteLabelLogoDark, type LabelSettings } from '@/lib/api';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<LabelSettings | null>(null);
@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputDarkRef = useRef<HTMLInputElement>(null);
 
   // Form fields
   const [labelName, setLabelName] = useState('');
@@ -125,6 +126,39 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLogoDarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await uploadLabelLogoDark(file);
+      setSettings(updated);
+      setSuccess('Logo mode sombre uploade');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upload');
+    } finally {
+      setSaving(false);
+      if (fileInputDarkRef.current) fileInputDarkRef.current.value = '';
+    }
+  };
+
+  const handleDeleteLogoDark = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      const updated = await deleteLabelLogoDark();
+      setSettings(updated);
+      setSuccess('Logo mode sombre supprime');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la suppression');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -134,6 +168,7 @@ export default function SettingsPage() {
   }
 
   const logoSrc = settings?.logo_base64 || settings?.logo_url;
+  const logoDarkSrc = settings?.logo_dark_base64;
 
   return (
     <>
@@ -212,8 +247,56 @@ export default function SettingsPage() {
                 </button>
               )}
               <p className="text-xs text-secondary-500">
-                PNG, JPG, WEBP ou GIF. Max 2 Mo.
+                Logo mode clair (PNG, JPG, WEBP). Max 2 Mo.
               </p>
+            </div>
+          </div>
+
+          {/* Dark mode logo */}
+          <div className="mt-6 pt-6 border-t border-divider">
+            <p className="text-sm font-medium text-foreground mb-3">Logo mode sombre</p>
+            <div className="flex items-start gap-6">
+              {logoDarkSrc ? (
+                <div className="shrink-0">
+                  <img
+                    src={logoDarkSrc}
+                    alt="Logo mode sombre"
+                    className="w-32 h-auto max-h-20 object-contain rounded-xl bg-zinc-900 p-2"
+                  />
+                </div>
+              ) : (
+                <div className="w-32 h-20 border-2 border-dashed border-default-300 rounded-xl flex items-center justify-center text-secondary-400 text-xs bg-zinc-900">
+                  Pas de logo
+                </div>
+              )}
+              <div className="flex flex-col gap-3">
+                <input
+                  type="file"
+                  ref={fileInputDarkRef}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleLogoDarkUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputDarkRef.current?.click()}
+                  disabled={saving}
+                  className="px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 disabled:opacity-50 transition-colors border-2 border-default-200"
+                >
+                  {logoDarkSrc ? 'Changer' : 'Ajouter'}
+                </button>
+                {logoDarkSrc && (
+                  <button
+                    onClick={handleDeleteLogoDark}
+                    disabled={saving}
+                    className="px-4 py-2.5 bg-danger/10 text-danger font-medium text-sm rounded-full hover:bg-danger/20 disabled:opacity-50 transition-colors"
+                  >
+                    Supprimer
+                  </button>
+                )}
+                <p className="text-xs text-secondary-500">
+                  Version blanche/claire pour fond sombre.
+                </p>
+              </div>
             </div>
           </div>
         </div>

@@ -803,6 +803,7 @@ export interface LabelSettings {
   label_name: string;
   logo_url?: string;
   logo_base64?: string;
+  logo_dark_base64?: string;
   address_line1?: string;
   address_line2?: string;
   city?: string;
@@ -839,6 +840,21 @@ export async function uploadLabelLogo(file: File): Promise<LabelSettings> {
 
 export async function deleteLabelLogo(): Promise<LabelSettings> {
   return fetchApi<LabelSettings>('/settings/label/logo', {
+    method: 'DELETE',
+  });
+}
+
+export async function uploadLabelLogoDark(file: File): Promise<LabelSettings> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return fetchApi<LabelSettings>('/settings/label/logo-dark', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function deleteLabelLogoDark(): Promise<LabelSettings> {
+  return fetchApi<LabelSettings>('/settings/label/logo-dark', {
     method: 'DELETE',
   });
 }

@@ -30,7 +30,8 @@ class LabelSettings(Base):
     # Label info
     label_name: Mapped[str] = mapped_column(String(255), nullable=False)
     logo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    logo_base64: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # For embedded logos
+    logo_base64: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # For embedded logos (light mode)
+    logo_dark_base64: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Dark mode logo
 
     # Address
     address_line1: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

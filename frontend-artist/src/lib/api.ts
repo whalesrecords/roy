@@ -136,6 +136,7 @@ export interface LabelSettings {
   label_logo_url?: string;
   logo_url?: string;
   logo_base64?: string;
+  logo_dark_base64?: string;
 }
 
 export interface Statement {

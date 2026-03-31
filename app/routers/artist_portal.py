@@ -154,6 +154,7 @@ class LabelSettingsResponse(BaseModel):
     label_name: Optional[str] = None
     logo_url: Optional[str] = None
     logo_base64: Optional[str] = None
+    logo_dark_base64: Optional[str] = None
 
 
 class StatementResponse(BaseModel):
@@ -1082,12 +1083,13 @@ async def get_label_settings(
     settings = result.scalar_one_or_none()
 
     if not settings:
-        return {"label_name": None, "logo_url": None, "logo_base64": None}
+        return {"label_name": None, "logo_url": None, "logo_base64": None, "logo_dark_base64": None}
 
     return {
         "label_name": settings.label_name,
         "logo_url": settings.logo_url,
         "logo_base64": settings.logo_base64,
+        "logo_dark_base64": settings.logo_dark_base64,
     }
 
 

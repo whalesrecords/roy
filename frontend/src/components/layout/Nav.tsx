@@ -149,11 +149,11 @@ export default function Nav() {
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            {labelSettings?.logo_base64 ? (
+            {(labelSettings?.logo_base64 || labelSettings?.logo_dark_base64) ? (
               <img
-                src={labelSettings.logo_base64}
+                src={(theme === 'dark' && labelSettings?.logo_dark_base64) ? labelSettings.logo_dark_base64 : (labelSettings?.logo_base64 || labelSettings?.logo_dark_base64)!}
                 alt="Logo"
-                className="h-7 w-7 object-contain transition-transform group-hover:scale-110"
+                className="h-8 w-auto max-w-[140px] object-contain transition-transform group-hover:scale-110"
               />
             ) : (
               <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">

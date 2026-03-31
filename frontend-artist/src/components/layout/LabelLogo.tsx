@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLabelSettings, LabelSettings } from '@/lib/api';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface LabelLogoProps {
   className?: string;
@@ -14,6 +15,7 @@ export default function LabelLogo({
   fallbackSrc = "/icon.svg",
   showName = false
 }: LabelLogoProps) {
+  const { theme } = useTheme();
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -56,7 +58,9 @@ export default function LabelLogo({
     );
   }
 
-  const logoSrc = labelSettings?.logo_base64 || labelSettings?.logo_url || fallbackSrc;
+  const logoLight = labelSettings?.logo_base64 || labelSettings?.logo_url;
+  const logoDark = labelSettings?.logo_dark_base64;
+  const logoSrc = (theme === 'dark' && logoDark) ? logoDark : (logoLight || logoDark || fallbackSrc);
   const labelName = labelSettings?.label_name || 'Artist Portal';
 
   return (
