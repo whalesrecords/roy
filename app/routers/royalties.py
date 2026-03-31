@@ -38,12 +38,16 @@ router = APIRouter(prefix="/royalty-runs", tags=["royalties"])
 async def list_royalty_runs(
     db: Annotated[AsyncSession, Depends(get_db)],
     _token: Annotated[str, Depends(verify_admin_token)],
+    limit: int = 50,
+    offset: int = 0,
 ) -> list[RoyaltyRunResponse]:
-    """List all royalty runs, ordered by creation date descending."""
+    """List royalty runs, ordered by creation date descending. Paginated (default 50)."""
     result = await db.execute(
         select(RoyaltyRun)
         .options(selectinload(RoyaltyRun.statements))
         .order_by(RoyaltyRun.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
     runs = result.scalars().all()
 

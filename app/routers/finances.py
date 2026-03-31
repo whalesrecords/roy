@@ -4,6 +4,7 @@ Finances Router
 Manages all expenses, advances, and payments with document upload support.
 """
 
+import logging
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
@@ -23,6 +24,8 @@ from app.models.artist import Artist
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.transaction import TransactionNormalized
 
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/finances", tags=["finances"])
 
@@ -211,25 +214,38 @@ async def list_expenses(
     result = await db.execute(query)
     entries = result.scalars().all()
 
+    # Bulk-load scope titles to avoid N+1 queries
+    track_scope_ids = [e.scope_id for e in entries if e.scope == 'track' and e.scope_id]
+    release_scope_ids = [e.scope_id for e in entries if e.scope == 'release' and e.scope_id]
+
+    track_titles: dict[str, str] = {}
+    if track_scope_ids:
+        from sqlalchemy import distinct
+        tr = await db.execute(
+            select(TransactionNormalized.isrc, TransactionNormalized.track_title)
+            .where(TransactionNormalized.isrc.in_(track_scope_ids))
+            .distinct(TransactionNormalized.isrc)
+        )
+        track_titles = {row.isrc: row.track_title for row in tr.all() if row.track_title}
+
+    release_titles: dict[str, str] = {}
+    if release_scope_ids:
+        rr = await db.execute(
+            select(TransactionNormalized.upc, TransactionNormalized.release_title)
+            .where(TransactionNormalized.upc.in_(release_scope_ids))
+            .distinct(TransactionNormalized.upc)
+        )
+        release_titles = {row.upc: row.release_title for row in rr.all() if row.release_title}
+
     # Build responses with scope titles
     responses = []
     for entry in entries:
         try:
             scope_title = None
-
-            # Fetch scope title from transactions
             if entry.scope == 'track' and entry.scope_id:
-                track_query = select(TransactionNormalized.track_title).where(
-                    TransactionNormalized.isrc == entry.scope_id
-                ).limit(1)
-                track_result = await db.execute(track_query)
-                scope_title = track_result.scalar_one_or_none()
+                scope_title = track_titles.get(entry.scope_id)
             elif entry.scope == 'release' and entry.scope_id:
-                release_query = select(TransactionNormalized.release_title).where(
-                    TransactionNormalized.upc == entry.scope_id
-                ).limit(1)
-                release_result = await db.execute(release_query)
-                scope_title = release_result.scalar_one_or_none()
+                scope_title = release_titles.get(entry.scope_id)
 
             # Safely get artist name
             artist_name = None
@@ -237,7 +253,6 @@ async def list_expenses(
                 if entry.artist:
                     artist_name = entry.artist.name
             except Exception:
-                # If artist relationship fails to load, skip it
                 pass
 
             responses.append(ExpenseResponse(
@@ -260,8 +275,7 @@ async def list_expenses(
                 created_at=entry.created_at.isoformat(),
             ))
         except Exception as e:
-            # Log and skip problematic entries
-            print(f"Error processing expense entry {entry.id}: {e}")
+            logger.error("Error processing expense entry %s: %s", entry.id, e)
             continue
 
     return responses

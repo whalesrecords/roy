@@ -900,22 +900,36 @@ async def get_expenses(
         .order_by(AdvanceLedgerEntry.effective_date.desc())
     )
 
+    entries = result.scalars().all()
+
+    # Bulk-load artwork to avoid N+1 queries
+    release_scope_ids = [e.scope_id for e in entries if e.scope == "release" and e.scope_id]
+    track_scope_ids = [e.scope_id for e in entries if e.scope == "track" and e.scope_id]
+
+    release_names: dict[str, str] = {}
+    if release_scope_ids:
+        ra = await db.execute(
+            select(ReleaseArtwork.upc, ReleaseArtwork.name)
+            .where(ReleaseArtwork.upc.in_(release_scope_ids))
+        )
+        release_names = {row.upc: row.name for row in ra.all()}
+
+    track_names: dict[str, str] = {}
+    if track_scope_ids:
+        ta = await db.execute(
+            select(TrackArtwork.isrc, TrackArtwork.name)
+            .where(TrackArtwork.isrc.in_(track_scope_ids))
+        )
+        track_names = {row.isrc: row.name for row in ta.all()}
+
     expenses = []
-    for entry in result.scalars().all():
-        # Get scope title if applicable
+    for entry in entries:
+        # Get scope title from pre-loaded dicts
         scope_title = None
         if entry.scope == "release" and entry.scope_id:
-            artwork_result = await db.execute(
-                select(ReleaseArtwork).where(ReleaseArtwork.upc == entry.scope_id)
-            )
-            artwork = artwork_result.scalar_one_or_none()
-            scope_title = artwork.name if artwork else entry.scope_id
+            scope_title = release_names.get(entry.scope_id, entry.scope_id)
         elif entry.scope == "track" and entry.scope_id:
-            track_result = await db.execute(
-                select(TrackArtwork).where(TrackArtwork.isrc == entry.scope_id)
-            )
-            track = track_result.scalar_one_or_none()
-            scope_title = track.name if track else entry.scope_id
+            scope_title = track_names.get(entry.scope_id, entry.scope_id)
 
         expenses.append({
             "id": str(entry.id),
@@ -947,8 +961,30 @@ async def get_contracts(
         .order_by(Contract.start_date.desc())
     )
 
+    contract_list = result.scalars().all()
+
+    # Bulk-load artwork to avoid N+1 queries
+    c_release_ids = [c.scope_id for c in contract_list if c.scope == "release" and c.scope_id]
+    c_track_ids = [c.scope_id for c in contract_list if c.scope == "track" and c.scope_id]
+
+    c_release_names: dict[str, str] = {}
+    if c_release_ids:
+        cr = await db.execute(
+            select(ReleaseArtwork.upc, ReleaseArtwork.name)
+            .where(ReleaseArtwork.upc.in_(c_release_ids))
+        )
+        c_release_names = {row.upc: row.name for row in cr.all()}
+
+    c_track_names: dict[str, str] = {}
+    if c_track_ids:
+        ct = await db.execute(
+            select(TrackArtwork.isrc, TrackArtwork.name)
+            .where(TrackArtwork.isrc.in_(c_track_ids))
+        )
+        c_track_names = {row.isrc: row.name for row in ct.all()}
+
     contracts = []
-    for contract in result.scalars().all():
+    for contract in contract_list:
         # Calculate shares
         artist_share = 0.0
         label_share = 0.0
@@ -958,20 +994,12 @@ async def get_contracts(
             else:
                 label_share += float(party.share_percent or 0)
 
-        # Get scope title
+        # Get scope title from pre-loaded dicts
         scope_title = None
         if contract.scope == "release" and contract.scope_id:
-            artwork_result = await db.execute(
-                select(ReleaseArtwork).where(ReleaseArtwork.upc == contract.scope_id)
-            )
-            artwork = artwork_result.scalar_one_or_none()
-            scope_title = artwork.name if artwork else contract.scope_id
+            scope_title = c_release_names.get(contract.scope_id, contract.scope_id)
         elif contract.scope == "track" and contract.scope_id:
-            track_result = await db.execute(
-                select(TrackArtwork).where(TrackArtwork.isrc == contract.scope_id)
-            )
-            track = track_result.scalar_one_or_none()
-            scope_title = track.name if track else contract.scope_id
+            scope_title = c_track_names.get(contract.scope_id, contract.scope_id)
 
         contracts.append({
             "id": str(contract.id),
@@ -1427,7 +1455,7 @@ async def update_profile(
                 changed_fields=changed_fields,
             )
         except Exception as e:
-            print(f"Failed to send profile update email: {e}")
+            logger.error("Failed to send profile update email: %s", e)
 
     return ArtistProfileResponse(
         email=profile.email,
@@ -1575,7 +1603,7 @@ async def request_payment(
             contact_info=contact_info,
         )
     except Exception as e:
-        print(f"Failed to send payment request email: {e}")
+        logger.error("Failed to send payment request email: %s", e)
         # Don't fail the request if email fails
 
     return {"message": "Demande de paiement envoyee", "statement_id": str(stmt.id)}
