@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner, Button } from '@heroui/react';
 import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage, LANGUAGES } from '@/contexts/LanguageContext';
 
 function FieldInput({ label, placeholder, value, onChange, type = 'text' }: {
   label: string; placeholder: string; value?: string; onChange: (v: string) => void; type?: string;
@@ -422,27 +422,21 @@ export default function SettingsPage() {
             </svg>
             {t('settings.language')}
           </h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setLanguage('fr')}
-              className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
-                language === 'fr'
-                  ? 'bg-primary text-white'
-                  : 'bg-content2 text-foreground hover:bg-content3'
-              }`}
-            >
-              Francais
-            </button>
-            <button
-              onClick={() => setLanguage('en')}
-              className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
-                language === 'en'
-                  ? 'bg-primary text-white'
-                  : 'bg-content2 text-foreground hover:bg-content3'
-              }`}
-            >
-              English
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => setLanguage(lang.code)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                  language === lang.code
+                    ? 'bg-primary text-white'
+                    : 'bg-content2 text-foreground hover:bg-content3'
+                }`}
+              >
+                <span className="text-base">{lang.flag}</span>
+                <span>{lang.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
