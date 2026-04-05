@@ -171,7 +171,7 @@ async def get_analytics_summary(
         total_revenue += amount
         month = int(row.month)
         year_val = int(row.year_val)
-        source = row.source.value if row.source else "other"
+        source = (row.source.value if hasattr(row.source, 'value') else row.source) if row.source else "other"
 
         key = (year_val, month)
         if key not in monthly_revenue_data:
