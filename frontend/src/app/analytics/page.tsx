@@ -124,6 +124,13 @@ export default function AnalyticsPage() {
               <h1 className="text-xl font-bold text-foreground">Analytics</h1>
               <p className="text-secondary-500 text-sm mt-0.5">Vue d'ensemble financière</p>
             </div>
+            <div className="flex items-center gap-3">
+              <a
+                href="/analytics/streaming"
+                className="text-sm text-primary hover:underline whitespace-nowrap"
+              >
+                Streaming & Social →
+              </a>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
@@ -135,6 +142,7 @@ export default function AnalyticsPage() {
                 </option>
               ))}
             </select>
+            </div>
           </div>
         </div>
       </header>
