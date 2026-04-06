@@ -16,6 +16,10 @@ async function handler(req: Request, { params }: { params: { path: string[] } })
   headers.set('X-Admin-Token', ADMIN_TOKEN);
   // Don't forward host header
   headers.delete('host');
+  // Remove Accept-Encoding so the backend returns plain (uncompressed) JSON.
+  // Node.js fetch() decompresses automatically but keeps Content-Encoding
+  // in the response headers, which causes the browser to double-decompress.
+  headers.delete('accept-encoding');
 
   const res = await fetch(target, {
     method: req.method,
@@ -25,9 +29,15 @@ async function handler(req: Request, { params }: { params: { path: string[] } })
     duplex: 'half',
   });
 
+  // Strip hop-by-hop headers that must not be forwarded to the browser
+  const responseHeaders = new Headers(res.headers);
+  responseHeaders.delete('content-encoding');
+  responseHeaders.delete('transfer-encoding');
+  responseHeaders.delete('connection');
+
   return new Response(res.body, {
     status: res.status,
-    headers: res.headers,
+    headers: responseHeaders,
   });
 }
 
