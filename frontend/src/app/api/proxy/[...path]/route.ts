@@ -29,9 +29,13 @@ async function handler(req: Request, { params }: { params: { path: string[] } })
     duplex: 'half',
   });
 
-  // Strip hop-by-hop headers that must not be forwarded to the browser
+  // Strip hop-by-hop headers that must not be forwarded to the browser.
+  // Also remove Content-Length: the backend's value reflects the compressed
+  // size; after decompression the body is larger, so keeping it causes the
+  // browser to truncate the JSON mid-stream.
   const responseHeaders = new Headers(res.headers);
   responseHeaders.delete('content-encoding');
+  responseHeaders.delete('content-length');
   responseHeaders.delete('transfer-encoding');
   responseHeaders.delete('connection');
 
