@@ -138,7 +138,7 @@ async def _compute_all_artists_royalties(
         for tx in transactions:
             if tx.upc and tx.release_title:
                 key = tx.release_title.strip().lower()
-                tx_source = tx.source.value.lower() if tx.source else "other"
+                tx_source = (tx.source.value if hasattr(tx.source, 'value') else tx.source).lower() if tx.source else "other"
                 existing_source = release_title_upc_source.get(key)
                 is_auth = tx_source in authoritative_sources
                 existing_is_auth = existing_source in authoritative_sources if existing_source else False
@@ -176,7 +176,7 @@ async def _compute_all_artists_royalties(
         # Aggregate by UPC
         albums: dict[str, dict] = {}
         for tx in transactions:
-            source = tx.source.value.lower() if tx.source else "other"
+            source = (tx.source.value if hasattr(tx.source, 'value') else tx.source).lower() if tx.source else "other"
             title_key = tx.release_title.strip().lower() if tx.release_title else None
             auth_upc = release_title_to_upc.get(title_key) if title_key else None
             auth_src = release_title_upc_source.get(title_key) if title_key else None

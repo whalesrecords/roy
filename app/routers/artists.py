@@ -2004,7 +2004,7 @@ async def calculate_artist_royalties(
     for tx in transactions:
         if tx.upc and tx.release_title:
             key = tx.release_title.strip().lower()
-            tx_source = tx.source.value.lower() if tx.source else "other"
+            tx_source = (tx.source.value if hasattr(tx.source, 'value') else tx.source).lower() if tx.source else "other"
             existing_source = release_title_upc_source.get(key)
             # Always prefer authoritative source UPCs over non-authoritative
             is_authoritative = tx_source in authoritative_sources
@@ -2055,7 +2055,7 @@ async def calculate_artist_royalties(
         # Try to get UPC: authoritative title match > direct > from ISRC > from title > UNKNOWN
         # For non-authoritative sources (Bandcamp/Squarespace), always prefer the
         # authoritative UPC (TuneCore/Believe) if the same title exists
-        source = tx.source.value.lower() if tx.source else "other"
+        source = (tx.source.value if hasattr(tx.source, 'value') else tx.source).lower() if tx.source else "other"
         title_key = tx.release_title.strip().lower() if tx.release_title else None
         authoritative_upc = release_title_to_upc.get(title_key) if title_key else None
         authoritative_src = release_title_upc_source.get(title_key) if title_key else None

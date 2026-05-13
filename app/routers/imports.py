@@ -232,7 +232,7 @@ async def analyze_import(
             duplicate = {
                 "id": str(dup_record.id),
                 "created_at": dup_record.created_at.isoformat(),
-                "status": dup_record.status.value,
+                "status": dup_record.status.value if hasattr(dup_record.status, 'value') else dup_record.status,
                 "rows_inserted": dup_record.rows_inserted,
             }
 
