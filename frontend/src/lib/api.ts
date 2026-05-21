@@ -769,6 +769,18 @@ export async function getTrackDetails(isrc: string): Promise<CatalogTrackWithLin
   return fetchApi<CatalogTrackWithLinks>(`/catalog/tracks/${encodeURIComponent(isrc)}`);
 }
 
+export async function downloadCatalogCsv(): Promise<void> {
+  const res = await fetch(`${PROXY_BASE}/catalog/export.csv`);
+  if (!res.ok) throw new Error('Erreur export CSV');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'catalogue-whales.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function linkArtistsToTrack(
   isrc: string,
   links: { artist_id: string; share_percent: number }[]

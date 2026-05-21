@@ -11,6 +11,7 @@ import {
   linkArtistsToTrack,
   getArtists,
   createArtist,
+  downloadCatalogCsv,
   CatalogArtist,
   CatalogTrackWithLinks,
   CollaborationSuggestion,
@@ -38,6 +39,7 @@ export default function CatalogPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLinked, setFilterLinked] = useState<boolean | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // Link modal state
   const [linkingTrack, setLinkingTrack] = useState<CatalogTrackWithLinks | null>(null);
@@ -230,6 +232,19 @@ export default function CatalogPage() {
               <h1 className="text-2xl font-bold text-foreground">Catalogue</h1>
               <p className="text-secondary-500 text-sm mt-0.5">Donnees extraites des imports</p>
             </div>
+            <button
+              onClick={async () => {
+                setExporting(true);
+                try { await downloadCatalogCsv(); } finally { setExporting(false); }
+              }}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-content2 hover:bg-content3 text-sm font-medium text-foreground transition-colors disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              {exporting ? 'Export…' : 'Export CSV'}
+            </button>
           </div>
 
           {/* Tabs */}
