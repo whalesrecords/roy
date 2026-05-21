@@ -479,7 +479,7 @@ async def list_imports(
     return [
         ImportListItem(
             id=imp.id,
-            source=imp.source.value if hasattr(imp.source, 'value') else imp.source,
+            source=(imp.source.value if hasattr(imp.source, 'value') else imp.source or '').lower(),
             status=imp.status.value if hasattr(imp.status, 'value') else imp.status,
             period_start=imp.period_start,
             period_end=imp.period_end,

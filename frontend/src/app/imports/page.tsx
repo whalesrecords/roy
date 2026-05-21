@@ -43,7 +43,7 @@ export default function ImportsPage() {
     const groups: Record<string, Record<string, ImportRecord[]>> = {};
 
     for (const imp of imports) {
-      const source = imp.source;
+      const source = (imp.source ?? '').toLowerCase();
       const startYear = new Date(imp.period_start).getFullYear();
       const endYear = new Date(imp.period_end).getFullYear();
       const year = startYear === endYear
