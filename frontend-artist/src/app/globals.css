@@ -2,54 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── Font rendering ── */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ── Scrollbar — minimal ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
+/* ── No tap highlight ── */
+* { -webkit-tap-highlight-color: transparent; }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
-}
+/* ── Safe area — notch devices ── */
+.safe-top  { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-/* Smooth transitions */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+/* ── Overscroll ── */
+html { overscroll-behavior-y: contain; }
 
-/* Safe area for notch devices */
-.safe-top {
-  padding-top: env(safe-area-inset-top);
-}
+/* ── Tabular numbers ── */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
+/* ── Hide scrollbar (keep scroll) ── */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Pull to refresh feel */
-html {
-  overscroll-behavior-y: contain;
-}
+/* ── Smooth transitions ── */
+.transition-all { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
 
-/* Number formatting in tables */
-.tabular-nums {
+/* ── Number display — for big KPI figures ── */
+.num-display {
   font-variant-numeric: tabular-nums;
-}
-
-/* Hide scrollbar (keep scroll functionality) */
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+  letter-spacing: -0.03em;
+  font-feature-settings: "tnum" 1, "kern" 1;
 }

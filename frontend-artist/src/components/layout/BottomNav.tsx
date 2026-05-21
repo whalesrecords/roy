@@ -44,14 +44,12 @@ export default function BottomNav() {
       const tickets = await getMyTickets();
       const total = tickets.reduce((sum, t) => sum + (t.unread_count || 0), 0);
       setUnreadTickets(total);
-    } catch {
-      // silently ignore
-    }
+    } catch { /* silently ignore */ }
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-content1/95 backdrop-blur-xl border-t border-divider safe-bottom z-50">
-      <div className="flex items-center justify-around py-1.5 max-w-lg mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-divider safe-bottom z-50">
+      <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
           const showBadge = item.badge && unreadTickets > 0;
@@ -59,21 +57,30 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
-                isActive ? 'text-primary' : 'text-default-400 active:scale-95'
-              }`}
+              className="relative flex flex-col items-center gap-1 px-4 py-1.5 rounded-2xl transition-colors"
             >
               <div className="relative">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2.5 : 1.5} d={item.icon} />
+                <svg
+                  className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-default-400'}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2 : 1.5} d={item.icon} />
                 </svg>
                 {showBadge && (
-                  <span className="absolute -top-1 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-white text-[9px] font-bold">
+                  <span className="absolute -top-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-danger text-white text-[8px] font-bold">
                     {unreadTickets > 9 ? '9+' : unreadTickets}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
+              <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-primary' : 'text-default-400'}`}>
+                {item.label}
+              </span>
+              {/* Indicateur actif — point sous le label */}
+              {isActive && (
+                <div className="absolute bottom-0 w-1 h-1 rounded-full bg-primary" />
+              )}
             </Link>
           );
         })}

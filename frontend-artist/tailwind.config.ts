@@ -13,62 +13,49 @@ const config: Config = {
   },
   darkMode: 'class',
   plugins: [
-    // Cast to any to fix type incompatibility between tailwindcss and @heroui/react
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     heroui({
       themes: {
         light: {
           colors: {
-            background: '#FFFFFF',
-            foreground: '#1a1a2e',
+            background: '#fafafa',        // zinc-50
+            foreground: '#09090b',        // zinc-950
             primary: {
-              50: '#f0f4ff',
-              100: '#e0e9ff',
-              200: '#c7d7fe',
-              300: '#a3bdfc',
-              400: '#7c9af8',
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
               500: '#6366f1',
               600: '#4f46e5',
               700: '#4338ca',
               800: '#3730a3',
               900: '#312e81',
               DEFAULT: '#6366f1',
-              foreground: '#FFFFFF',
-            },
-            secondary: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              200: '#e2e8f0',
-              300: '#cbd5e1',
-              400: '#94a3b8',
-              500: '#64748b',
-              600: '#475569',
-              700: '#334155',
-              800: '#1e293b',
-              900: '#0f172a',
-              DEFAULT: '#64748b',
-              foreground: '#FFFFFF',
+              foreground: '#ffffff',
             },
             success: {
               DEFAULT: '#10b981',
-              foreground: '#FFFFFF',
+              foreground: '#ffffff',
             },
             warning: {
               DEFAULT: '#f59e0b',
-              foreground: '#FFFFFF',
+              foreground: '#ffffff',
             },
             danger: {
               DEFAULT: '#ef4444',
-              foreground: '#FFFFFF',
+              foreground: '#ffffff',
             },
-            divider: '#e2e8f0',
-            content2: '#f8fafc',
-            content3: '#f1f5f9',
+            divider: '#e4e4e7',           // zinc-200 — discret
+            content1: '#ffffff',          // carte principale
+            content2: '#f4f4f5',          // zinc-100
+            content3: '#e4e4e7',          // zinc-200
           },
         },
         dark: {
           colors: {
-            background: '#0f172a',
-            foreground: '#f8fafc',
+            background: '#09090b',        // zinc-950 — vrai noir neutre (pas bleuté)
+            foreground: '#fafafa',        // zinc-50
             primary: {
               50: '#312e81',
               100: '#3730a3',
@@ -80,42 +67,28 @@ const config: Config = {
               700: '#c7d2fe',
               800: '#e0e7ff',
               900: '#eef2ff',
-              DEFAULT: '#818cf8',
-              foreground: '#0f172a',
-            },
-            secondary: {
-              50: '#0f172a',
-              100: '#1e293b',
-              200: '#334155',
-              300: '#475569',
-              400: '#64748b',
-              500: '#94a3b8',
-              600: '#cbd5e1',
-              700: '#e2e8f0',
-              800: '#f1f5f9',
-              900: '#f8fafc',
-              DEFAULT: '#94a3b8',
-              foreground: '#0f172a',
+              DEFAULT: '#818cf8',         // indigo-400 — lisible sur fond sombre
+              foreground: '#ffffff',
             },
             success: {
-              DEFAULT: '#34d399',
-              foreground: '#0f172a',
+              DEFAULT: '#34d399',         // emerald-400
+              foreground: '#022c22',
             },
             warning: {
               DEFAULT: '#fbbf24',
-              foreground: '#0f172a',
+              foreground: '#451a03',
             },
             danger: {
-              DEFAULT: '#f87171',
-              foreground: '#0f172a',
+              DEFAULT: '#f87171',         // red-400
+              foreground: '#450a0a',
             },
-            divider: '#334155',
-            content2: '#1e293b',
-            content3: '#334155',
+            divider: 'rgba(255,255,255,0.07)',  // quasi-invisible, moderne
+            content1: '#18181b',          // zinc-900 — surface carte
+            content2: '#27272a',          // zinc-800 — surface élevée
+            content3: '#3f3f46',          // zinc-700
           },
         },
       },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any,
   ],
 };
