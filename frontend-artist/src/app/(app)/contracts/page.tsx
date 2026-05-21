@@ -8,12 +8,12 @@ import { getContracts, Contract } from '@/lib/api';
 
 const scopeConfig: Record<string, { label: string; color: string; bg: string }> = {
   catalog: { label: 'Catalogue', color: 'text-primary', bg: 'bg-primary/10' },
-  release: { label: 'Release', color: 'text-warning', bg: 'bg-warning/10' },
-  track: { label: 'Track', color: 'text-success', bg: 'bg-success/10' },
+  release: { label: 'Release', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  track: { label: 'Track', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 };
 
 function getScopeStyle(scope: string) {
-  return scopeConfig[scope] || { label: scope, color: 'text-secondary-600', bg: 'bg-secondary/10' };
+  return scopeConfig[scope] || { label: scope, color: 'text-default-500', bg: 'bg-default-100' };
 }
 
 function isActive(contract: Contract): boolean {
@@ -28,9 +28,7 @@ export default function ContractsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (artist) {
-      loadContracts();
-    }
+    if (artist) loadContracts();
   }, [artist]);
 
   const loadContracts = async () => {
@@ -44,182 +42,145 @@ export default function ContractsPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const sortedContracts = useMemo(
-    () =>
-      [...contracts].sort(
-        (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-      ),
+    () => [...contracts].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()),
     [contracts]
   );
 
   const activeCount = useMemo(() => contracts.filter(isActive).length, [contracts]);
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
-
-  if (!artist) {
-    return null;
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
+    <div className="min-h-screen bg-background safe-top">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
+        <div className="px-4 py-3 flex items-center gap-3 max-w-lg mx-auto">
+          <Link href="/" className="p-2 -ml-2 rounded-xl hover:bg-content1 transition-colors">
             <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Mes contrats</h1>
-            <p className="text-xs text-secondary-500">Accords de partage des revenus</p>
+            <h1 className="font-semibold text-foreground text-sm">Mes contrats</h1>
+            <p className="text-[10px] text-default-400">Partage des revenus</p>
           </div>
         </div>
       </header>
 
-      <main className="px-4 py-6 pb-24 space-y-6">
+      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
         {error && (
-          <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
 
         {/* Summary */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-background border border-divider rounded-2xl p-4">
-            <p className="text-xs text-secondary-500 mb-1">Total contrats</p>
-            <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
-          </div>
-          <div className="bg-background border border-divider rounded-2xl p-4">
-            <p className="text-xs text-secondary-500 mb-1">Contrats actifs</p>
-            <p className="text-2xl font-bold text-success">{activeCount}</p>
-          </div>
-        </div>
-
-        {/* Contracts list */}
-        {sortedContracts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">📄</span>
+        {contracts.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
+              <p className="text-[10px] text-default-500 mb-1">Total</p>
+              <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
             </div>
-            <p className="text-secondary-500">Aucun contrat enregistré</p>
+            <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
+              <p className="text-[10px] text-default-500 mb-1">Actifs</p>
+              <p className="text-2xl font-bold text-emerald-400">{activeCount}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {sortedContracts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-default-500 text-sm">Aucun contrat enregistré</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {sortedContracts.map((contract) => {
+          <div className="space-y-3">
+            {sortedContracts.map(contract => {
               const active = isActive(contract);
               const scope = getScopeStyle(contract.scope);
+              const PARTY_LABELS: Record<string, string> = {
+                manager: 'Manager', booker: 'Booker', agent: 'Agent', publisher: 'Éditeur', other: 'Autre',
+              };
+              const PARTY_COLORS: Record<string, string> = {
+                manager: 'bg-amber-500/10 text-amber-500',
+                booker: 'bg-default-100 text-default-600',
+                agent: 'bg-danger/10 text-danger',
+                publisher: 'bg-cyan-500/10 text-cyan-500',
+                other: 'bg-default-100 text-default-500',
+              };
 
               return (
                 <div
                   key={contract.id}
-                  className={`bg-background border rounded-2xl p-4 space-y-4 ${
-                    active ? 'border-divider' : 'border-divider opacity-70'
-                  }`}
+                  className={`bg-content1 border border-divider rounded-2xl p-4 space-y-4 ${!active && 'opacity-60'}`}
                 >
-                  {/* Top row: scope badge + status */}
+                  {/* Top row */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`px-3 py-1 ${scope.bg} ${scope.color} text-xs font-semibold rounded-full shrink-0`}>
+                      <span className={`px-2.5 py-1 ${scope.bg} ${scope.color} text-xs font-semibold rounded-full shrink-0`}>
                         {scope.label}
                       </span>
                       {contract.scope_title && (
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {contract.scope_title}
-                        </span>
+                        <span className="text-sm font-medium text-foreground truncate">{contract.scope_title}</span>
                       )}
                     </div>
-                    <span
-                      className={`px-2.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${
-                        active
-                          ? 'bg-success/10 text-success'
-                          : 'bg-secondary/10 text-secondary-500'
-                      }`}
-                    >
+                    <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full shrink-0 ${
+                      active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-default-100 text-default-500'
+                    }`}>
                       {active ? 'Actif' : 'Expiré'}
                     </span>
                   </div>
 
-                  {/* Date range */}
-                  <div className="flex items-center gap-2 text-sm text-secondary-500">
-                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* Dates */}
+                  <div className="flex items-center gap-2 text-xs text-default-500">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>
-                      {formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : 'En cours'}
-                    </span>
+                    <span>{formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : 'En cours'}</span>
                   </div>
 
-                  {/* Split visualization */}
-                  <div className="space-y-2">
+                  {/* Split bar */}
+                  <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-success">Artiste {contract.artist_share}%</span>
-                      <span className="text-secondary-500">Label {contract.label_share}%</span>
+                      <span className="text-emerald-500">Artiste {contract.artist_share}%</span>
+                      <span className="text-default-400">Label {contract.label_share}%</span>
                     </div>
-                    <div className="flex h-3 rounded-full overflow-hidden">
-                      <div
-                        className="bg-success rounded-l-full transition-all"
-                        style={{ width: `${contract.artist_share}%` }}
-                      />
-                      <div
-                        className="bg-secondary-300 rounded-r-full transition-all"
-                        style={{ width: `${contract.label_share}%` }}
-                      />
+                    <div className="flex h-2 rounded-full overflow-hidden bg-default-100">
+                      <div className="bg-emerald-500 rounded-l-full" style={{ width: `${contract.artist_share}%` }} />
+                      <div className="bg-default-200 rounded-r-full flex-1" />
                     </div>
                   </div>
 
-                  {/* Intermediaries / Team */}
+                  {/* Team */}
                   {contract.parties && contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-secondary-500 uppercase tracking-wider">Equipe</p>
-                      <div className="flex flex-wrap gap-2">
-                        {contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).map((p, i) => {
-                          const typeLabels: Record<string, string> = {
-                            manager: 'Manager',
-                            booker: 'Booker',
-                            agent: 'Agent',
-                            publisher: 'Editeur',
-                            other: 'Autre',
-                          };
-                          const typeColors: Record<string, string> = {
-                            manager: 'bg-warning/10 text-warning',
-                            booker: 'bg-secondary/10 text-secondary',
-                            agent: 'bg-danger/10 text-danger',
-                            publisher: 'bg-cyan-500/10 text-cyan-500',
-                            other: 'bg-default-100 text-default-500',
-                          };
-                          return (
-                            <div key={i} className={`px-3 py-1.5 rounded-xl text-xs ${typeColors[p.party_type] || typeColors.other}`}>
-                              <span className="font-semibold">{typeLabels[p.party_type] || p.party_type}</span>
-                              {p.label_name && <span className="ml-1">— {p.label_name}</span>}
-                              <span className="ml-1 opacity-75">({(parseFloat(p.share_percentage) * 100).toFixed(0)}%)</span>
-                              {p.contact_email && (
-                                <a href={`mailto:${p.contact_email}`} className="ml-2 underline opacity-75">{p.contact_email}</a>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">Équipe</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).map((p, i) => (
+                          <div key={i} className={`px-2.5 py-1 rounded-xl text-xs ${PARTY_COLORS[p.party_type] || PARTY_COLORS.other}`}>
+                            <span className="font-semibold">{PARTY_LABELS[p.party_type] || p.party_type}</span>
+                            {p.label_name && <span className="ml-1 opacity-75">— {p.label_name}</span>}
+                            <span className="ml-1 opacity-60">({(parseFloat(p.share_percentage) * 100).toFixed(0)}%)</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
 
                   {/* Description */}
                   {contract.description && (
-                    <p className="text-xs text-secondary-500 italic">{contract.description}</p>
+                    <p className="text-xs text-default-400 italic">{contract.description}</p>
                   )}
                 </div>
               );

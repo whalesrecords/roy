@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Spinner, Button } from '@heroui/react';
+import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
 import { useLanguage, LANGUAGES } from '@/contexts/LanguageContext';
@@ -12,23 +12,33 @@ function FieldInput({ label, placeholder, value, onChange, type = 'text' }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground block">{label}</label>
+      <label className="text-xs font-medium text-default-500 block uppercase tracking-wide">{label}</label>
       <input
         type={type}
         placeholder={placeholder}
         value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-4 py-3 bg-content2 border-2 border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
+        onChange={e => onChange(e.target.value)}
+        className="w-full px-4 py-3 bg-content1 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
       />
     </div>
+  );
+}
+
+function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="bg-content1 border border-divider rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-divider flex items-center gap-2">
+        <span className="text-primary">{icon}</span>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      </div>
+      <div className="p-4 space-y-4">{children}</div>
+    </section>
   );
 }
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const [profile, setProfile] = useState<ArtistProfile>({});
-  const [socialMedia, setSocialMedia] = useState<SocialMedia>({});
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -36,46 +46,23 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState<ArtistProfile>({
-    email: '',
-    phone: '',
-    address_line1: '',
-    address_line2: '',
-    city: '',
-    postal_code: '',
-    country: '',
-    bank_name: '',
-    account_holder: '',
-    iban: '',
-    bic: '',
-    siret: '',
-    vat_number: '',
+    email: '', phone: '', address_line1: '', address_line2: '',
+    city: '', postal_code: '', country: '',
+    bank_name: '', account_holder: '', iban: '', bic: '', siret: '', vat_number: '',
   });
 
   const [socialData, setSocialData] = useState<SocialMedia>({
-    instagram_url: '',
-    twitter_url: '',
-    facebook_url: '',
-    tiktok_url: '',
-    youtube_url: '',
+    instagram_url: '', twitter_url: '', facebook_url: '', tiktok_url: '', youtube_url: '',
   });
 
   useEffect(() => {
-    if (artist) {
-      loadData();
-    }
+    if (artist) loadData();
   }, [artist]);
 
   const loadData = async () => {
     try {
-      const [profileData, socialData, settings] = await Promise.all([
-        getProfile(),
-        getSocialMedia(),
-        getLabelSettings(),
-      ]);
-      setProfile(profileData);
-      setSocialMedia(socialData);
+      const [profileData, social, settings] = await Promise.all([getProfile(), getSocialMedia(), getLabelSettings()]);
       setLabelSettings(settings);
       setFormData({
         email: profileData.email || '',
@@ -93,14 +80,14 @@ export default function SettingsPage() {
         vat_number: profileData.vat_number || '',
       });
       setSocialData({
-        instagram_url: socialData.instagram_url || '',
-        twitter_url: socialData.twitter_url || '',
-        facebook_url: socialData.facebook_url || '',
-        tiktok_url: socialData.tiktok_url || '',
-        youtube_url: socialData.youtube_url || '',
+        instagram_url: social.instagram_url || '',
+        twitter_url: social.twitter_url || '',
+        facebook_url: social.facebook_url || '',
+        tiktok_url: social.tiktok_url || '',
+        youtube_url: social.youtube_url || '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
@@ -111,33 +98,19 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
     setSaving(true);
-
     try {
-      // Only send fields that have values
       const dataToSend: Partial<ArtistProfile> = {};
       Object.entries(formData).forEach(([key, value]) => {
-        if (value && value.trim()) {
-          dataToSend[key as keyof ArtistProfile] = value.trim();
-        }
+        if (value && value.trim()) dataToSend[key as keyof ArtistProfile] = value.trim();
       });
-
-      const updated = await updateProfile(dataToSend);
-      setProfile(updated);
-      setSuccess('Profile updated successfully');
+      await updateProfile(dataToSend);
+      setSuccess('Modifications enregistrées');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save error');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleChange = (field: keyof ArtistProfile, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSocialChange = (field: keyof SocialMedia, value: string) => {
-    setSocialData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSocialSubmit = async (e: React.FormEvent) => {
@@ -145,332 +118,202 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
     setSavingSocial(true);
-
     try {
-      // Only send fields that have values
       const dataToSend: Partial<SocialMedia> = {};
       Object.entries(socialData).forEach(([key, value]) => {
-        if (value !== undefined) {
-          dataToSend[key as keyof SocialMedia] = value.trim() || '';
-        }
+        dataToSend[key as keyof SocialMedia] = value?.trim() || '';
       });
-
-      const updated = await updateSocialMedia(dataToSend);
-      setSocialMedia(updated);
-      setSuccess('Social media links updated successfully');
+      await updateSocialMedia(dataToSend);
+      setSuccess('Réseaux sociaux mis à jour');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save error');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
       setSavingSocial(false);
     }
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
+  const handleChange = (field: keyof ArtistProfile, value: string) =>
+    setFormData(prev => ({ ...prev, [field]: value }));
 
-  if (!artist) {
-    return null;
+  const handleSocialChange = (field: keyof SocialMedia, value: string) =>
+    setSocialData(prev => ({ ...prev, [field]: value }));
+
+  if (authLoading || loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
+    <div className="min-h-screen bg-background safe-top">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
+        <div className="px-4 py-3 flex items-center gap-3 max-w-lg mx-auto">
+          <Link href="/" className="p-2 -ml-2 rounded-xl hover:bg-content1 transition-colors">
             <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div className="flex-1">
-            <h1 className="font-semibold text-foreground">Settings</h1>
-            <p className="text-xs text-secondary-500">Contact and bank information</p>
+            <h1 className="font-semibold text-foreground text-sm">Mon profil</h1>
+            <p className="text-[10px] text-default-400">{artist?.name}</p>
           </div>
-          {/* Label Logo */}
-          {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
+          {(labelSettings?.logo_base64 || labelSettings?.logo_url) && (
             <img
               src={labelSettings.logo_base64 || labelSettings.logo_url}
               alt={labelSettings.label_name || 'Label'}
-              className="h-8 w-auto max-w-[100px] object-contain"
-            />
-          ) : (
-            <img
-              src="/icon.svg"
-              alt="Artist Portal"
-              className="h-8 w-auto"
+              className="h-7 w-auto max-w-[80px] object-contain opacity-70"
             />
           )}
         </div>
       </header>
 
-      <main className="px-4 py-6 pb-24">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Messages */}
-          {error && (
-            <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
-              <p className="text-danger text-sm">{error}</p>
-            </div>
-          )}
-          {success && (
-            <div className="p-4 bg-success/10 border border-success/20 rounded-2xl">
-              <p className="text-success text-sm">{success}</p>
-            </div>
-          )}
+      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
+        {/* Alerts */}
+        {error && (
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
+            <p className="text-danger text-sm">{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-emerald-400 text-sm">{success}</p>
+          </div>
+        )}
 
-          {/* Contact Section */}
-          <section className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-              </svg>
-              Contact
-            </h2>
-            <div className="space-y-4">
-              <FieldInput label="Email" type="email" placeholder="your@email.com" value={formData.email} onChange={(v) => handleChange('email', v)} />
-              <FieldInput label="Phone" type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={(v) => handleChange('phone', v)} />
-            </div>
-          </section>
+        {/* Profile form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Section title="Contact" icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+            </svg>
+          }>
+            <FieldInput label="Email" type="email" placeholder="votre@email.com" value={formData.email} onChange={v => handleChange('email', v)} />
+            <FieldInput label="Téléphone" type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={v => handleChange('phone', v)} />
+          </Section>
 
-          {/* Address Section */}
-          <section className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Adresse
-            </h2>
-            <div className="space-y-4">
-              <FieldInput label="Adresse" placeholder="123 rue de la Musique" value={formData.address_line1} onChange={(v) => handleChange('address_line1', v)} />
-              <FieldInput label="Complement" placeholder="Appartement, batiment..." value={formData.address_line2} onChange={(v) => handleChange('address_line2', v)} />
-              <div className="grid grid-cols-2 gap-3">
-                <FieldInput label="Code postal" placeholder="33210" value={formData.postal_code} onChange={(v) => handleChange('postal_code', v)} />
-                <FieldInput label="Ville" placeholder="Langon" value={formData.city} onChange={(v) => handleChange('city', v)} />
-              </div>
-              <FieldInput label="Pays" placeholder="France" value={formData.country} onChange={(v) => handleChange('country', v)} />
+          <Section title="Adresse" icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          }>
+            <FieldInput label="Adresse" placeholder="123 rue de la Musique" value={formData.address_line1} onChange={v => handleChange('address_line1', v)} />
+            <FieldInput label="Complément" placeholder="Appartement, bâtiment…" value={formData.address_line2} onChange={v => handleChange('address_line2', v)} />
+            <div className="grid grid-cols-2 gap-3">
+              <FieldInput label="Code postal" placeholder="75001" value={formData.postal_code} onChange={v => handleChange('postal_code', v)} />
+              <FieldInput label="Ville" placeholder="Paris" value={formData.city} onChange={v => handleChange('city', v)} />
             </div>
-          </section>
+            <FieldInput label="Pays" placeholder="France" value={formData.country} onChange={v => handleChange('country', v)} />
+          </Section>
 
-          {/* Bank Details Section */}
-          <section className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              Coordonnees bancaires
-            </h2>
-            <div className="space-y-4">
-              <FieldInput label="Titulaire du compte" placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={(v) => handleChange('account_holder', v)} />
-              <FieldInput label="Banque" placeholder="Credit Agricole" value={formData.bank_name} onChange={(v) => handleChange('bank_name', v)} />
-              <FieldInput label="IBAN" placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={(v) => handleChange('iban', v)} />
-              <FieldInput label="BIC / SWIFT" placeholder="AGRIFRPP" value={formData.bic} onChange={(v) => handleChange('bic', v)} />
-            </div>
-          </section>
+          <Section title="Coordonnées bancaires" icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+            </svg>
+          }>
+            <FieldInput label="Titulaire du compte" placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={v => handleChange('account_holder', v)} />
+            <FieldInput label="Banque" placeholder="Crédit Agricole" value={formData.bank_name} onChange={v => handleChange('bank_name', v)} />
+            <FieldInput label="IBAN" placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={v => handleChange('iban', v)} />
+            <FieldInput label="BIC / SWIFT" placeholder="AGRIFRPP" value={formData.bic} onChange={v => handleChange('bic', v)} />
+          </Section>
 
-          {/* Legal Section */}
-          <section className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Informations legales (optionnel)
-            </h2>
-            <p className="text-xs text-secondary-500 mb-4">
-              Si vous avez une structure juridique
-            </p>
-            <div className="space-y-4">
-              <FieldInput label="SIRET" placeholder="123 456 789 00012" value={formData.siret} onChange={(v) => handleChange('siret', v)} />
-              <FieldInput label="Numero de TVA" placeholder="FR12345678901" value={formData.vat_number} onChange={(v) => handleChange('vat_number', v)} />
-            </div>
-          </section>
+          <Section title="Informations légales (optionnel)" icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          }>
+            <FieldInput label="SIRET" placeholder="123 456 789 00012" value={formData.siret} onChange={v => handleChange('siret', v)} />
+            <FieldInput label="N° de TVA" placeholder="FR12345678901" value={formData.vat_number} onChange={v => handleChange('vat_number', v)} />
+          </Section>
 
-          {/* Submit Button for Profile */}
-          <Button
+          <button
             type="submit"
-            color="primary"
-            className="w-full"
-            size="lg"
-            isLoading={saving}
+            disabled={saving}
+            className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving ? 'Saving...' : 'Save changes'}
-          </Button>
+            {saving ? <><Spinner size="sm" color="white" />Enregistrement…</> : 'Enregistrer les modifications'}
+          </button>
         </form>
 
-        {/* Social Media Section - Separate form */}
-        <form onSubmit={handleSocialSubmit} className="space-y-6 mt-6">
-          <section className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              Social Media
-            </h2>
-            <p className="text-xs text-secondary-500 mb-4">
-              Share your social media profiles with your label
-            </p>
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">Instagram</label>
-                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
-                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
-                  <input
-                    type="url"
-                    placeholder="https://instagram.com/yourname"
-                    value={socialData.instagram_url}
-                    onChange={(e) => handleSocialChange('instagram_url', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
-                  />
-                </div>
-              </div>
+        {/* Social media form */}
+        <form onSubmit={handleSocialSubmit} className="space-y-4">
+          <Section title="Réseaux sociaux" icon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          }>
+            <p className="text-xs text-default-400">Partagez vos profils avec votre label</p>
+            {[
+              { field: 'instagram_url' as keyof SocialMedia, label: 'Instagram', placeholder: 'https://instagram.com/…' },
+              { field: 'twitter_url' as keyof SocialMedia, label: 'Twitter / X', placeholder: 'https://x.com/…' },
+              { field: 'facebook_url' as keyof SocialMedia, label: 'Facebook', placeholder: 'https://facebook.com/…' },
+              { field: 'tiktok_url' as keyof SocialMedia, label: 'TikTok', placeholder: 'https://tiktok.com/@…' },
+              { field: 'youtube_url' as keyof SocialMedia, label: 'YouTube', placeholder: 'https://youtube.com/@…' },
+            ].map(({ field, label, placeholder }) => (
+              <FieldInput
+                key={field}
+                label={label}
+                placeholder={placeholder}
+                value={socialData[field]}
+                onChange={v => handleSocialChange(field, v)}
+                type="url"
+              />
+            ))}
+          </Section>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">Twitter / X</label>
-                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
-                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  <input
-                    type="url"
-                    placeholder="https://twitter.com/yourname"
-                    value={socialData.twitter_url}
-                    onChange={(e) => handleSocialChange('twitter_url', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">Facebook</label>
-                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
-                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                  <input
-                    type="url"
-                    placeholder="https://facebook.com/yourname"
-                    value={socialData.facebook_url}
-                    onChange={(e) => handleSocialChange('facebook_url', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">TikTok</label>
-                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
-                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
-                  </svg>
-                  <input
-                    type="url"
-                    placeholder="https://tiktok.com/@yourname"
-                    value={socialData.tiktok_url}
-                    onChange={(e) => handleSocialChange('tiktok_url', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground block">YouTube</label>
-                <div className="flex items-center gap-2 px-4 py-3 border-2 border-divider rounded-xl focus-within:border-primary transition-colors">
-                  <svg className="w-5 h-5 text-secondary-400 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                  </svg>
-                  <input
-                    type="url"
-                    placeholder="https://youtube.com/@yourname"
-                    value={socialData.youtube_url}
-                    onChange={(e) => handleSocialChange('youtube_url', e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-foreground placeholder:text-secondary-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Submit Button for Social Media */}
-          <Button
+          <button
             type="submit"
-            color="primary"
-            className="w-full"
-            size="lg"
-            isLoading={savingSocial}
+            disabled={savingSocial}
+            className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {savingSocial ? 'Saving...' : 'Save social media'}
-          </Button>
+            {savingSocial ? <><Spinner size="sm" color="white" />Enregistrement…</> : 'Enregistrer les réseaux'}
+          </button>
 
-          {/* Info notice */}
-          <p className="text-xs text-secondary-500 text-center">
-            Changes to your information will be sent to {labelSettings?.label_name || 'our team'} for verification.
+          <p className="text-[10px] text-default-400 text-center">
+            Vos modifications seront transmises à {labelSettings?.label_name || 'votre label'} pour vérification.
           </p>
         </form>
 
-        {/* Language Section */}
-        <div className="mt-8 pt-6 border-t border-divider">
-          <h3 className="text-sm font-semibold text-secondary-500 mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Language */}
+        <div className="bg-content1 border border-divider rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-divider flex items-center gap-2">
+            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
             </svg>
-            {t('settings.language')}
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {LANGUAGES.map((lang) => (
+            <h2 className="text-sm font-semibold text-foreground">{t('settings.language')}</h2>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-2">
+            {LANGUAGES.map(lang => (
               <button
                 key={lang.code}
                 onClick={() => setLanguage(lang.code)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                   language === lang.code
                     ? 'bg-primary text-white'
                     : 'bg-content2 text-foreground hover:bg-content3'
                 }`}
               >
-                <span className="text-base">{lang.flag}</span>
+                <span>{lang.flag}</span>
                 <span>{lang.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Logout Section */}
-        <div className="mt-6 pt-6 border-t border-divider">
-          <button
-            onClick={logout}
-            className="w-full py-3 text-danger hover:bg-danger/10 rounded-xl transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {t('settings.logout')}
-          </button>
-        </div>
-
-        {/* Footer with label logo */}
-        <div className="mt-8 text-center">
-          {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
-            <img
-              src={labelSettings.logo_base64 || labelSettings.logo_url}
-              alt={labelSettings.label_name || 'Label'}
-              className="h-10 w-auto mx-auto opacity-50"
-            />
-          ) : (
-            <img
-              src="/icon.svg"
-              alt="Artist Portal"
-              className="h-10 w-auto mx-auto opacity-50"
-            />
-          )}
-        </div>
+        {/* Logout */}
+        <button
+          onClick={logout}
+          className="w-full py-3 text-danger hover:bg-danger/10 rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm font-medium border border-divider bg-content1"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          {t('settings.logout')}
+        </button>
       </main>
-
     </div>
   );
 }
