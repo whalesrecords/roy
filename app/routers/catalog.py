@@ -4,6 +4,8 @@ Catalog Router
 Endpoints for managing track-artist links and viewing catalog data.
 """
 
+import csv
+import io
 import logging
 import re
 from decimal import Decimal
@@ -11,6 +13,7 @@ from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -167,6 +170,88 @@ async def list_catalog_tracks(
         ))
 
     return response
+
+
+@router.get("/export.csv")
+async def export_catalog_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> StreamingResponse:
+    """
+    Export the full catalog as CSV.
+    Columns: ISRC, Track Title, Release Title, UPC, Original Artist,
+             Linked Artists, Shares (%), Total Streams, Total Gross (EUR)
+    One row per ISRC; artists/shares are joined with ' | ' when multiple.
+    """
+    # Fetch all unique tracks (no pagination)
+    tracks_query = (
+        select(
+            TransactionNormalized.isrc,
+            TransactionNormalized.track_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+            TransactionNormalized.artist_name,
+            func.sum(TransactionNormalized.gross_amount).label("total_gross"),
+            func.sum(TransactionNormalized.quantity).label("total_streams"),
+        )
+        .where(TransactionNormalized.isrc.isnot(None))
+        .group_by(
+            TransactionNormalized.isrc,
+            TransactionNormalized.track_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+            TransactionNormalized.artist_name,
+        )
+        .order_by(func.sum(TransactionNormalized.gross_amount).desc())
+    )
+    result = await db.execute(tracks_query)
+    tracks = result.all()
+
+    # Fetch all artist links for these ISRCs in one query
+    isrcs = [t.isrc for t in tracks if t.isrc]
+    links_result = await db.execute(
+        select(TrackArtistLink)
+        .options(selectinload(TrackArtistLink.artist))
+        .where(TrackArtistLink.isrc.in_(isrcs))
+    )
+    links_by_isrc: dict[str, list] = {}
+    for link in links_result.scalars().all():
+        links_by_isrc.setdefault(link.isrc, []).append(link)
+
+    # Build CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output, dialect="excel")
+    writer.writerow([
+        "ISRC", "Track Title", "Release Title", "UPC",
+        "Original Artist", "Linked Artists", "Shares (%)",
+        "Total Streams", "Total Gross (EUR)",
+    ])
+    for track in tracks:
+        track_links = links_by_isrc.get(track.isrc, [])
+        linked_names = " | ".join(
+            link.artist.name if link.artist else "" for link in track_links
+        )
+        linked_shares = " | ".join(
+            str(round(float(link.share_percent) * 100, 2)) for link in track_links
+        )
+        writer.writerow([
+            track.isrc or "",
+            track.track_title or "",
+            track.release_title or "",
+            track.upc or "",
+            track.artist_name or "",
+            linked_names,
+            linked_shares,
+            track.total_streams or 0,
+            str(round(float(track.total_gross or 0), 2)),
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=catalogue-whales.csv"},
+    )
 
 
 @router.get("/tracks/{isrc}", response_model=CatalogTrackResponse)
