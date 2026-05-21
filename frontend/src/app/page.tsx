@@ -434,9 +434,9 @@ export default function DashboardPage() {
 
 function StatCard({ label, value, color, href }: { label: string; value: string; color?: string; href?: string }) {
   const content = (
-    <div className={`bg-background rounded-2xl p-4 border border-divider ${href ? 'hover:border-primary/30 transition-colors' : ''}`}>
-      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${color || 'text-foreground'}`}>{value}</p>
+    <div className={`bg-background rounded-2xl p-4 border border-divider ${href ? 'hover:border-primary/30 transition-colors cursor-pointer' : ''}`}>
+      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-[0.12em]">{label}</p>
+      <p className={`text-xl font-bold mt-1 num-display ${color || 'text-foreground'}`}>{value}</p>
     </div>
   );
   return href ? <Link href={href}>{content}</Link> : content;

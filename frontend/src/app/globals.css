@@ -2,17 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure smooth theme transitions */
-html {
-  color-scheme: light;
-}
-
-html.dark {
-  color-scheme: dark;
-}
-
-/* Prevent flash of wrong theme */
-html,
+/* ── Font rendering ── */
 body {
-  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Theme transitions ── */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+/* ── Scrollbar — minimal ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+/* ── No tap highlight ── */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* ── Overscroll ── */
+html { overscroll-behavior-y: contain; }
+
+/* ── Tabular numbers ── */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ── Hide scrollbar (keep scroll) ── */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Smooth transitions ── */
+.transition-all { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* ── Number display — for big KPI figures ── */
+.num-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-feature-settings: "tnum" 1, "kern" 1;
 }

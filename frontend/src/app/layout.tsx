@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Roboto } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -7,9 +7,9 @@ import { MaintenanceProvider } from '@/contexts/MaintenanceContext';
 import AppShell from '@/components/layout/AppShell';
 import { HeroUIProvider } from '@heroui/react';
 
-const roboto = Roboto({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['100', '300', '400', '500', '700', '900'],
+  variable: '--font-inter',
 });
 
 export const metadata: Metadata = {
@@ -57,7 +57,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${roboto.className} bg-background text-foreground min-h-screen`}>
+      <body className={`${inter.variable} font-sans bg-background text-foreground min-h-screen`}>
         <ThemeProvider>
           <HeroUIProvider>
             <MaintenanceProvider>
