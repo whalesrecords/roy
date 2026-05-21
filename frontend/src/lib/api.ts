@@ -34,7 +34,7 @@ function cacheSet(key: string, data: unknown) {
 /** Call after mutations to bust stale data for a path prefix. */
 export function invalidateCache(prefix?: string) {
   if (!prefix) { _cache.clear(); return; }
-  for (const key of _cache.keys()) {
+  for (const key of Array.from(_cache.keys())) {
     if (key.startsWith(prefix)) _cache.delete(key);
   }
 }
