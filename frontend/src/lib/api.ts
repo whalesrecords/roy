@@ -15,13 +15,43 @@ import type {
 // and never exposed in the browser bundle.
 const PROXY_BASE = '/api/proxy';
 
+// ---------------------------------------------------------------------------
+// In-memory GET cache — 30 second TTL.
+// Makes repeated navigation instant; mutations call invalidateCache() below.
+// ---------------------------------------------------------------------------
+interface CacheEntry { data: unknown; ts: number }
+const _cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30_000;
+
+function cacheGet<T>(key: string): T | null {
+  const entry = _cache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data as T;
+  return null;
+}
+function cacheSet(key: string, data: unknown) {
+  _cache.set(key, { data, ts: Date.now() });
+}
+/** Call after mutations to bust stale data for a path prefix. */
+export function invalidateCache(prefix?: string) {
+  if (!prefix) { _cache.clear(); return; }
+  for (const key of _cache.keys()) {
+    if (key.startsWith(prefix)) _cache.delete(key);
+  }
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const headers: HeadersInit = {
-    ...options?.headers,
-  };
+  const isGet = !options?.method || options.method === 'GET';
+
+  // Return cached data for GETs
+  if (isGet) {
+    const cached = cacheGet<T>(endpoint);
+    if (cached !== null) return cached;
+  }
+
+  const headers: HeadersInit = { ...options?.headers };
 
   const res = await fetch(`${PROXY_BASE}${endpoint}`, {
     ...options,
@@ -36,7 +66,9 @@ async function fetchApi<T>(
     throw new Error(message);
   }
 
-  return res.json();
+  const data = await res.json();
+  if (isGet) cacheSet(endpoint, data);
+  return data as T;
 }
 
 export async function getImports(): Promise<ImportRecord[]> {
@@ -44,9 +76,11 @@ export async function getImports(): Promise<ImportRecord[]> {
 }
 
 export async function deleteImport(importId: string): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(`/imports/${importId}`, {
+  const result = await fetchApi<{ success: boolean; deleted_id: string }>(`/imports/${importId}`, {
     method: 'DELETE',
   });
+  invalidateCache('/imports');
+  return result;
 }
 
 export interface SaleTypeBreakdown {
@@ -154,9 +188,17 @@ export async function mergeArtists(sourceId: string, targetId: string): Promise<
   advances_transferred: number;
   contracts_transferred: number;
 }> {
-  return fetchApi(`/artists/merge?source_id=${sourceId}&target_id=${targetId}`, {
+  const result = await fetchApi<{
+    success: boolean;
+    message: string;
+    links_transferred: number;
+    advances_transferred: number;
+    contracts_transferred: number;
+  }>(`/artists/merge?source_id=${sourceId}&target_id=${targetId}`, {
     method: 'POST',
   });
+  invalidateCache('/artists');
+  return result;
 }
 
 export async function getArtist(artistId: string): Promise<Artist> {
@@ -164,28 +206,34 @@ export async function getArtist(artistId: string): Promise<Artist> {
 }
 
 export async function createArtist(name: string, externalId?: string): Promise<Artist> {
-  return fetchApi<Artist>('/artists', {
+  const result = await fetchApi<Artist>('/artists', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, external_id: externalId }),
   });
+  invalidateCache('/artists');
+  return result;
 }
 
 export async function updateArtist(
   artistId: string,
   data: { name?: string; spotify_id?: string; image_url?: string; image_url_small?: string; category?: 'signed' | 'collaborator' }
 ): Promise<Artist> {
-  return fetchApi<Artist>(`/artists/${artistId}`, {
+  const result = await fetchApi<Artist>(`/artists/${artistId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/artists');
+  return result;
 }
 
 export async function deleteArtist(artistId: string): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(`/artists/${artistId}`, {
+  const result = await fetchApi<{ success: boolean; deleted_id: string }>(`/artists/${artistId}`, {
     method: 'DELETE',
   });
+  invalidateCache('/artists');
+  return result;
 }
 
 export async function generateAccessCode(artistId: string): Promise<{ access_code: string }> {
@@ -295,7 +343,7 @@ export async function createRoyaltyRun(
   baseCurrency: string = 'EUR',
   artistIds?: string[]
 ): Promise<RoyaltyRun> {
-  return fetchApi<RoyaltyRun>('/royalty-runs', {
+  const result = await fetchApi<RoyaltyRun>('/royalty-runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -305,19 +353,25 @@ export async function createRoyaltyRun(
       artist_ids: artistIds && artistIds.length > 0 ? artistIds : null,
     }),
   });
+  invalidateCache('/royalty-runs');
+  return result;
 }
 
 export async function lockRoyaltyRun(runId: string): Promise<RoyaltyRun> {
-  return fetchApi<RoyaltyRun>(`/royalty-runs/${runId}/lock`, {
+  const result = await fetchApi<RoyaltyRun>(`/royalty-runs/${runId}/lock`, {
     method: 'POST',
   });
+  invalidateCache('/royalty-runs');
+  return result;
 }
 
 export async function deleteRoyaltyRun(runId: string, force: boolean = false): Promise<{ success: boolean; deleted_id: string }> {
   const url = force ? `/royalty-runs/${runId}?force=true` : `/royalty-runs/${runId}`;
-  return fetchApi<{ success: boolean; deleted_id: string }>(url, {
+  const result = await fetchApi<{ success: boolean; deleted_id: string }>(url, {
     method: 'DELETE',
   });
+  invalidateCache('/royalty-runs');
+  return result;
 }
 
 // Create statement for artist (publish to artist portal)
