@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Spinner } from '@heroui/react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart,
@@ -33,6 +32,9 @@ export default function DashboardPage() {
   const [view, setView] = useState<DashboardView>('overview');
   const [selectedYear, setSelectedYear] = useState(0); // 0 = not yet determined
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [loadingStep, setLoadingStep] = useState('');
+  const progressRef = useRef(0);
 
   // Data
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
@@ -41,45 +43,61 @@ export default function DashboardPage() {
   const [recentImports, setRecentImports] = useState<{ id: string; source: string; period_start: string; period_end: string; total_rows: number }[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
 
+  // Weighted steps: must sum to 100
+  const STEPS = [
+    { label: 'Artistes',  weight: 15 },
+    { label: 'Imports',   weight: 20 },
+    { label: 'Calculs',   weight: 15 },
+    { label: 'Tickets',   weight: 10 },
+    { label: 'Résumés',   weight: 15 },
+    { label: 'Analytics', weight: 25 },
+  ];
+
+  const tick = useCallback((stepIdx: number) => {
+    const added = STEPS[stepIdx].weight;
+    progressRef.current = Math.min(100, progressRef.current + added);
+    setProgress(progressRef.current);
+    setLoadingStep(STEPS[stepIdx].label);
+  }, []);
+
   const loadAll = useCallback(async (yearOverride?: number) => {
     setLoading(true);
+    progressRef.current = 0;
+    setProgress(0);
+    setLoadingStep('Démarrage…');
+
     try {
-      // First batch: metadata needed to determine the year
       const [artists, imports, runs, tickets, artSummary] = await Promise.all([
-        getArtists(),
-        getImports(),
-        getRoyaltyRuns(),
-        getTicketStats().catch(() => ({ open: 0 })),
-        getArtistsSummary().catch(() => []),
+        getArtists()                       .then(r => { tick(0); return r; }),
+        getImports()                       .then(r => { tick(1); return r; }),
+        getRoyaltyRuns()                   .then(r => { tick(2); return r; }),
+        getTicketStats().catch(() => ({ open: 0 })).then(r => { tick(3); return r; }),
+        getArtistsSummary().catch(() => []).then(r => { tick(4); return r; }),
       ]);
 
-      // Compute available years from import data
       const yearSet = new Set<number>();
       imports.forEach(imp => {
         const startY = new Date(imp.period_start).getFullYear();
-        const endY = new Date(imp.period_end || imp.period_start).getFullYear();
+        const endY   = new Date(imp.period_end || imp.period_start).getFullYear();
         yearSet.add(startY);
         if (endY !== startY) yearSet.add(endY);
       });
       const importYears = Array.from(yearSet).sort((a, b) => b - a);
       setAvailableYears(importYears);
 
-      // Resolve which year to use — no second pass needed
       const effectiveYear = yearOverride ?? (selectedYear > 0 ? selectedYear : importYears[0] ?? 0);
-      if (effectiveYear !== selectedYear) {
-        setSelectedYear(effectiveYear);
-      }
+      if (effectiveYear !== selectedYear) setSelectedYear(effectiveYear);
 
-      // Fetch analytics with the resolved year (single pass)
       const summary = effectiveYear > 0
         ? await getAnalyticsSummary(effectiveYear).catch(() => null)
         : null;
+      tick(5);
 
       setBasicStats({
-        artists: artists.filter(a => a.category === 'signed').length,
-        imports: imports.length,
-        pendingRuns: runs.filter(r => r.status === 'draft' || r.status === 'completed').length,
-        openTickets: (tickets as any).open || 0,
+        artists:      artists.filter(a => a.category === 'signed').length,
+        imports:      imports.length,
+        pendingRuns:  runs.filter(r => r.status === 'draft' || r.status === 'completed').length,
+        openTickets:  (tickets as any).open || 0,
       });
       setRecentImports(imports.slice(0, 5));
       setAnalytics(summary);
@@ -87,6 +105,9 @@ export default function DashboardPage() {
     } catch (e) {
       console.error('Dashboard load failed:', e);
     } finally {
+      setProgress(100);
+      // short delay so the circle hits 100% visually before disappearing
+      await new Promise(r => setTimeout(r, 300));
       setLoading(false);
     }
   }, [selectedYear]);
@@ -131,7 +152,7 @@ export default function DashboardPage() {
   }, [artistsSummary]);
 
   if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" color="primary" /></div>;
+    return <LoadingCircle progress={0} step="Authentification…" />;
   }
   if (!user) {
     if (typeof window !== 'undefined') window.location.href = '/login';
@@ -175,7 +196,9 @@ export default function DashboardPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20"><Spinner size="lg" color="primary" /></div>
+        <div className="flex items-center justify-center py-24">
+          <LoadingCircle progress={progress} step={loadingStep} />
+        </div>
       ) : (
         <>
           {/* ===== OVERVIEW ===== */}
@@ -431,6 +454,46 @@ export default function DashboardPage() {
 }
 
 // --- Helper Components ---
+
+const CIRCUMFERENCE = 2 * Math.PI * 44; // r=44
+
+function LoadingCircle({ progress, step }: { progress: number; step: string }) {
+  const offset = CIRCUMFERENCE * (1 - progress / 100);
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-28 h-28">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+          {/* Track */}
+          <circle
+            cx="50" cy="50" r="44"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="5"
+            className="text-default-200"
+          />
+          {/* Progress arc */}
+          <circle
+            cx="50" cy="50" r="44"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offset}
+            className="text-primary transition-all duration-500 ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xl font-bold num-display text-foreground">{Math.round(progress)}<span className="text-sm font-medium text-default-400">%</span></span>
+        </div>
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-medium text-foreground">Chargement</p>
+        <p className="text-xs text-default-400 mt-0.5">{step}</p>
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, color, href }: { label: string; value: string; color?: string; href?: string }) {
   const content = (
