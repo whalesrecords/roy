@@ -247,6 +247,8 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
   }
 
   if (step === 'preview' && previewData) {
+    const needsArtistSelection = previewData.unmatched_artists?.length > 0 && !selectedArtistId;
+
     return (
       <div className="space-y-6">
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -258,13 +260,45 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
           </p>
         </div>
 
-        {previewData.warnings.length > 0 && (
+        {/* Artist not found warning — must select manually */}
+        {previewData.unmatched_artists?.length > 0 && (
+          <div className={`border rounded-lg p-4 ${needsArtistSelection ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-200'}`}>
+            <p className={`font-medium mb-2 ${needsArtistSelection ? 'text-red-800' : 'text-green-800'}`}>
+              {needsArtistSelection
+                ? `⚠️ Artiste non trouvé : "${previewData.unmatched_artists.join(', ')}"`
+                : `✓ Artiste sélectionné manuellement`}
+            </p>
+            {needsArtistSelection && (
+              <>
+                <p className="text-red-700 text-sm mb-3">
+                  Sélectionnez l&apos;artiste dans le menu déroulant pour pouvoir importer.
+                </p>
+                <select
+                  value={selectedArtistId}
+                  onChange={(e) => setSelectedArtistId(e.target.value)}
+                  className="w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 bg-white text-gray-900"
+                >
+                  <option value="">— Sélectionner l&apos;artiste —</option>
+                  {artists.map((artist) => (
+                    <option key={artist.id} value={artist.id}>
+                      {artist.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+        )}
+
+        {previewData.warnings.filter((w: string) => !w.includes('non trouvé')).length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-yellow-800 font-medium mb-2">Avertissements:</p>
             <ul className="list-disc list-inside text-sm text-yellow-700">
-              {previewData.warnings.map((warning: string, i: number) => (
-                <li key={i}>{warning}</li>
-              ))}
+              {previewData.warnings
+                .filter((w: string) => !w.includes('non trouvé'))
+                .map((warning: string, i: number) => (
+                  <li key={i}>{warning}</li>
+                ))}
             </ul>
           </div>
         )}
@@ -312,8 +346,9 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
           </button>
           <button
             onClick={handleImport}
-            disabled={loading}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            disabled={loading || needsArtistSelection}
+            title={needsArtistSelection ? 'Sélectionnez d\'abord l\'artiste' : ''}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Spinner size="sm" color="white" />}
             Importer

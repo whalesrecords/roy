@@ -72,6 +72,8 @@ class GrooverAnalyzeResponse(BaseModel):
     sample_rows: List[dict]
     columns_detected: List[str]
     warnings: List[str] = Field(default_factory=list)
+    unmatched_artists: List[str] = Field(default_factory=list)
+    detected_band_names: List[str] = Field(default_factory=list)
 
 
 class SongMatch(BaseModel):

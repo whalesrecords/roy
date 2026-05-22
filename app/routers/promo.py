@@ -543,11 +543,27 @@ async def analyze_groover_csv(
         if first_row.sent_date:
             columns_detected.append("Sent")
 
+    # Check which band names from the CSV are not found in the DB
+    detected_band_names = list({r.band_name for r in result.rows if r.band_name})
+    unmatched_artists = []
+    for band_name in detected_band_names:
+        artist_id_found = await match_artist_by_name(band_name, db)
+        if not artist_id_found:
+            unmatched_artists.append(band_name)
+
+    if unmatched_artists:
+        warnings.append(
+            f"Artiste(s) non trouvé(s) automatiquement : {', '.join(unmatched_artists)}. "
+            "Sélectionnez l'artiste manuellement dans le menu déroulant."
+        )
+
     return GrooverAnalyzeResponse(
         total_rows=len(result.rows),
         sample_rows=sample_rows,
         columns_detected=columns_detected,
         warnings=warnings,
+        unmatched_artists=unmatched_artists,
+        detected_band_names=detected_band_names,
     )
 
 
