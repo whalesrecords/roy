@@ -29,6 +29,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import NotificationBell from '@/components/layout/NotificationBell';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const PLATFORM_COLORS: Record<string, string> = {
   spotify: '#1DB954',
@@ -48,6 +49,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
 
   const [data, setData] = useState<ArtistDashboard | null>(null);
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
@@ -219,20 +221,20 @@ export default function DashboardPage() {
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
           <p className="text-[10px] font-semibold text-default-400 uppercase tracking-[0.15em] mb-3">
-            Solde disponible
+            {t('dashboard.balance')}
           </p>
           <p className="num-display text-[2.75rem] font-black text-foreground leading-none mb-1">
             {data ? fmt(data.total_net) : '—'}
           </p>
           <p className="text-sm text-default-400 mb-5">
-            Brut · {data ? fmt(data.total_gross) : '—'}
+            {t('dashboard.gross')} · {data ? fmt(data.total_gross) : '—'}
           </p>
 
           {data && parseFloat(data.advance_balance) > 0 && (
             <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-amber-500/10 rounded-xl border border-amber-500/15">
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
               <span className="text-xs text-amber-400">
-                Avance restante · {fmt(data.advance_balance)}
+                {t('dashboard.advanceRemaining')} · {fmt(data.advance_balance)}
               </span>
             </div>
           )}
@@ -250,7 +252,7 @@ export default function DashboardPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  Demander un paiement
+                  {t('dashboard.requestPayment')}
                 </>
               )}
             </button>
@@ -260,9 +262,9 @@ export default function DashboardPage() {
         {/* ── Quick stats ── */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { value: data?.release_count ?? 0, label: 'Sorties' },
-            { value: data?.track_count ?? 0, label: 'Titres' },
-            { value: fmtN(data?.total_streams ?? 0), label: 'Streams' },
+            { value: data?.release_count ?? 0, label: t('dashboard.releases') },
+            { value: data?.track_count ?? 0, label: t('dashboard.tracks') },
+            { value: fmtN(data?.total_streams ?? 0), label: t('dashboard.streams') },
           ].map(({ value, label }) => (
             <div key={label} className="bg-content1 border border-divider rounded-2xl p-3.5 text-center">
               <p className="num-display text-xl font-bold text-foreground">{value}</p>
@@ -277,8 +279,8 @@ export default function DashboardPage() {
         ) : chartData.length > 0 && (
           <div className="bg-content1 border border-divider rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-semibold text-default-400 uppercase tracking-widest">Revenus</p>
-              <Link href="/statements" className="text-[11px] text-primary">Voir relevés →</Link>
+              <p className="text-[10px] font-semibold text-default-400 uppercase tracking-widest">{t('nav.revenue')}</p>
+              <Link href="/statements" className="text-[11px] text-primary">{t('dashboard.seeStatements')}</Link>
             </div>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
@@ -304,7 +306,7 @@ export default function DashboardPage() {
                       borderRadius: 12,
                       fontSize: 12,
                     }}
-                    formatter={(v: number, name: string) => [fmt(v), name === 'gross' ? 'Brut' : 'Net']}
+                    formatter={(v: number, name: string) => [fmt(v), name === 'gross' ? t('dashboard.gross') : t('dashboard.net')]}
                   />
                   <Area type="monotone" dataKey="gross" stroke="#34d399" fill="url(#gGross)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} />
                   <Area type="monotone" dataKey="net" stroke="#818cf8" fill="url(#gNet)" strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} />
@@ -314,11 +316,11 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 mt-2 justify-center">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-[10px] text-default-400">Brut</span>
+                <span className="text-[10px] text-default-400">{t('dashboard.gross')}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                <span className="text-[10px] text-default-400">Net</span>
+                <span className="text-[10px] text-default-400">{t('dashboard.net')}</span>
               </div>
             </div>
           </div>
@@ -328,8 +330,8 @@ export default function DashboardPage() {
         {!chartsLoading && top3Platforms.length > 0 && (
           <div className="bg-content1 border border-divider rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] font-semibold text-default-400 uppercase tracking-widest">Top plateformes</p>
-              <Link href="/musique" className="text-[11px] text-primary">Tout voir →</Link>
+              <p className="text-[10px] font-semibold text-default-400 uppercase tracking-widest">{t('dashboard.topPlatforms')}</p>
+              <Link href="/musique" className="text-[11px] text-primary">{t('dashboard.seeAll')}</Link>
             </div>
             <div className="space-y-3">
               {top3Platforms.map(p => {

@@ -40,8 +40,11 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         from sqlalchemy import text
 
-        # Create sequences
-        await conn.execute(text("CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1"))
+        # Create sequences (PostgreSQL only)
+        try:
+            await conn.execute(text("CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1"))
+        except Exception:
+            pass  # SQLite doesn't support sequences
 
         # Add new enum values
         enum_updates = [
@@ -108,7 +111,10 @@ async def lifespan(app: FastAPI):
             "CREATE INDEX IF NOT EXISTS idx_tx_artist_id ON transactions_normalized(artist_id) WHERE artist_id IS NOT NULL",
         ]
         for idx_sql in indexes:
-            await conn.execute(text(idx_sql))
+            try:
+                await conn.execute(text(idx_sql))
+            except Exception:
+                pass  # Column or table may not exist yet
 
     yield
     # Cleanup on shutdown

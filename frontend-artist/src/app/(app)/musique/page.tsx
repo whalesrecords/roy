@@ -23,6 +23,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Tab = 'sorties' | 'titres' | 'stats';
 
@@ -43,6 +44,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 
 export default function MusiquePage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>('sorties');
 
   // Data per tab (loaded lazily)
@@ -131,9 +133,9 @@ export default function MusiquePage() {
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'sorties', label: 'Sorties' },
-    { id: 'titres', label: 'Titres' },
-    { id: 'stats', label: 'Stats' },
+    { id: 'sorties', label: t('dashboard.releases') },
+    { id: 'titres', label: t('dashboard.tracks') },
+    { id: 'stats', label: t('stats.title') },
   ];
 
   return (
@@ -141,20 +143,20 @@ export default function MusiquePage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
         <div className="px-4 pt-4 pb-0 max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-foreground mb-3">Musique</h1>
+          <h1 className="text-xl font-bold text-foreground mb-3">{t('nav.music')}</h1>
           {/* Tabs */}
           <div className="flex gap-1">
-            {tabs.map(t => (
+            {tabs.map(tabItem => (
               <button
-                key={t.id}
-                onClick={() => { setTab(t.id); setSearch(''); }}
+                key={tabItem.id}
+                onClick={() => { setTab(tabItem.id); setSearch(''); }}
                 className={`flex-1 py-2 text-sm font-medium rounded-t-xl transition-colors border-b-2 ${
-                  tab === t.id
+                  tab === tabItem.id
                     ? 'text-primary border-primary'
                     : 'text-default-400 border-transparent hover:text-foreground'
                 }`}
               >
-                {t.label}
+                {tabItem.label}
               </button>
             ))}
           </div>
@@ -177,7 +179,7 @@ export default function MusiquePage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder={tab === 'sorties' ? 'Rechercher une sortie…' : 'Rechercher un titre…'}
+              placeholder={tab === 'sorties' ? t('releases.search') : t('releases.search')}
               className="w-full pl-9 pr-4 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary/50"
             />
           </div>
@@ -193,7 +195,7 @@ export default function MusiquePage() {
         {!loading && tab === 'sorties' && (
           <div className="space-y-2">
             {filteredReleases.length === 0 && (
-              <p className="text-default-500 text-sm text-center py-10">Aucune sortie trouvée</p>
+              <p className="text-default-500 text-sm text-center py-10">{t('releases.noReleases')}</p>
             )}
             {filteredReleases.map(release => (
               <div key={release.upc} className="bg-content1 border border-divider rounded-2xl flex items-center gap-3 px-4 py-3">
@@ -224,20 +226,20 @@ export default function MusiquePage() {
         {!loading && tab === 'titres' && (
           <div className="space-y-2">
             {filteredTracks.length === 0 && (
-              <p className="text-default-500 text-sm text-center py-10">Aucun titre trouvé</p>
+              <p className="text-default-500 text-sm text-center py-10">{t('tracks.noTracks')}</p>
             )}
-            {filteredTracks.map((t, i) => (
-              <div key={t.isrc || t.title} className="bg-content1 border border-divider rounded-2xl flex items-center gap-3 px-4 py-3">
+            {filteredTracks.map((track, i) => (
+              <div key={track.isrc || track.title} className="bg-content1 border border-divider rounded-2xl flex items-center gap-3 px-4 py-3">
                 <span className="text-xs font-bold text-default-400 w-5 text-center flex-shrink-0">
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{t.title}</p>
-                  {t.isrc && <p className="text-[10px] text-default-500">{t.isrc}</p>}
+                  <p className="text-sm font-semibold text-foreground truncate">{track.title}</p>
+                  {track.isrc && <p className="text-[10px] text-default-500">{track.isrc}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-emerald-400 font-bold text-sm">{fmt(t.gross)}</p>
-                  <p className="text-[10px] text-default-500">{fmtN(t.streams)} streams</p>
+                  <p className="text-emerald-400 font-bold text-sm">{fmt(track.gross)}</p>
+                  <p className="text-[10px] text-default-500">{fmtN(track.streams)} streams</p>
                 </div>
               </div>
             ))}
@@ -250,7 +252,7 @@ export default function MusiquePage() {
             {/* Quarterly chart */}
             {chartData.length > 0 && (
               <div className="bg-content1 border border-divider rounded-2xl p-5">
-                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">Revenus par trimestre</h3>
+                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">{t('dashboard.quarterly')}</h3>
                 <div className="h-44">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
@@ -260,7 +262,7 @@ export default function MusiquePage() {
                         tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`} />
                       <Tooltip
                         contentStyle={{ backgroundColor: 'var(--content1,#18181b)', border: '1px solid var(--divider,#27272a)', borderRadius: 12, fontSize: 12 }}
-                        formatter={(v: number) => [fmt(v), 'Brut']}
+                        formatter={(v: number) => [fmt(v), t('statements.gross')]}
                       />
                       <Bar dataKey="brut" fill="#6366f1" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -272,7 +274,7 @@ export default function MusiquePage() {
             {/* Platforms */}
             {sortedPlatforms.length > 0 && (
               <div className="bg-content1 border border-divider rounded-2xl p-5">
-                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">Plateformes</h3>
+                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">{t('dashboard.topPlatforms')}</h3>
                 <div className="space-y-3">
                   {sortedPlatforms.map(p => {
                     const rev = parseFloat(p.gross);

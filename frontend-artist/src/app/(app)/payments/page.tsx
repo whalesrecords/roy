@@ -5,9 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistPayments, ArtistPayment } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function PaymentsPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +82,8 @@ export default function PaymentsPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Payments</h1>
-            <p className="text-xs text-secondary-500">Transaction history</p>
+            <h1 className="font-semibold text-foreground">{t('payments.title')}</h1>
+            <p className="text-xs text-secondary-500">{t('payments.subtitle')}</p>
           </div>
         </div>
       </header>
@@ -99,17 +101,17 @@ export default function PaymentsPage() {
             <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
-            <span className="text-white/70 text-sm font-medium">Total received</span>
+            <span className="text-white/70 text-sm font-medium">{t('payments.totalReceived')}</span>
           </div>
           <p className="text-3xl font-bold mb-4">{formatCurrency(totalReceived, currency)}</p>
           <div className="flex justify-between text-sm">
             <div>
-              <p className="text-white/60 text-xs">Payments</p>
+              <p className="text-white/60 text-xs">{t('payments.title')}</p>
               <p className="font-semibold">{payments.length}</p>
             </div>
             {lastPaymentDate && (
               <div className="text-right">
-                <p className="text-white/60 text-xs">Last payment</p>
+                <p className="text-white/60 text-xs">{t('payments.lastPayment')}</p>
                 <p className="font-semibold">{formatDate(lastPaymentDate)}</p>
               </div>
             )}
@@ -125,7 +127,7 @@ export default function PaymentsPage() {
             <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="text-sm font-medium text-foreground">Voir mes relev&eacute;s</span>
+            <span className="text-sm font-medium text-foreground">{t('payments.viewStatements')}</span>
           </div>
           <svg className="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -140,8 +142,8 @@ export default function PaymentsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <p className="text-foreground font-medium mb-1">Aucun paiement re&ccedil;u</p>
-            <p className="text-xs text-secondary-400">Your payments will appear here once processed</p>
+            <p className="text-foreground font-medium mb-1">{t('payments.noPayments')}</p>
+            <p className="text-xs text-secondary-400">{t('payments.statementsGeneratedByLabel')}</p>
           </div>
         )}
 

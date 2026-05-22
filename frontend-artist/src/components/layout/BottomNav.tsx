@@ -4,34 +4,26 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getMyTickets } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const navItems = [
-  {
-    href: '/',
-    label: 'Accueil',
-    icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-  },
-  {
-    href: '/musique',
-    label: 'Musique',
-    icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z',
-  },
-  {
-    href: '/statements',
-    label: 'Revenus',
-    icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
-  },
-  {
-    href: '/support',
-    label: 'Support',
-    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
-    badge: true,
-  },
-];
+const NAV_ICONS = {
+  home: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+  music: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z',
+  revenue: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
+  support: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+};
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const [unreadTickets, setUnreadTickets] = useState(0);
+
+  const navItems = [
+    { href: '/', labelKey: 'nav.home', iconKey: 'home' as const },
+    { href: '/musique', labelKey: 'nav.music', iconKey: 'music' as const },
+    { href: '/statements', labelKey: 'nav.revenue', iconKey: 'revenue' as const },
+    { href: '/support', labelKey: 'support.title', iconKey: 'support' as const, badge: true },
+  ];
 
   useEffect(() => {
     loadUnreadTickets();
@@ -66,7 +58,7 @@ export default function BottomNav() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2 : 1.5} d={item.icon} />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2 : 1.5} d={NAV_ICONS[item.iconKey]} />
                 </svg>
                 {showBadge && (
                   <span className="absolute -top-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-danger text-white text-[8px] font-bold">
@@ -75,7 +67,7 @@ export default function BottomNav() {
                 )}
               </div>
               <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-primary' : 'text-default-400'}`}>
-                {item.label}
+                {t(item.labelKey)}
               </span>
               {/* Indicateur actif — point sous le label */}
               {isActive && (

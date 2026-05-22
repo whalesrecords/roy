@@ -10,15 +10,11 @@ import {
   Statement,
   StatementDetail,
 } from '@/lib/api';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Brouillon', className: 'bg-default-100 text-default-600' },
-  published: { label: 'Publié', className: 'bg-primary/15 text-primary' },
-  paid: { label: 'Payé', className: 'bg-emerald-500/15 text-emerald-500' },
-};
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StatementsPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +35,7 @@ export default function StatementsPage() {
       const data = await getStatements();
       setStatements(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +89,7 @@ export default function StatementsPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
         <div className="px-4 py-3 max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-foreground">Revenus</h1>
+          <h1 className="text-xl font-bold text-foreground">{t('nav.revenue')}</h1>
         </div>
       </header>
 
@@ -108,9 +104,9 @@ export default function StatementsPage() {
         {statements.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Brut total', value: totalGross.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-foreground' },
-              { label: 'Net total', value: totalNet.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-foreground' },
-              { label: 'Payé', value: totalPaid.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-emerald-400' },
+              { label: t('statements.totalGross'), value: totalGross.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-foreground' },
+              { label: t('statements.totalNet'), value: totalNet.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-foreground' },
+              { label: t('statements.totalPaid'), value: totalPaid.toLocaleString('fr-FR', { style: 'currency', currency }), color: 'text-emerald-400' },
             ].map(({ label, value, color }) => (
               <div key={label} className="bg-content1 border border-divider rounded-2xl p-3 text-center">
                 <p className="text-[10px] text-default-500 mb-1">{label}</p>
@@ -128,7 +124,7 @@ export default function StatementsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-default-500 text-sm">Aucun relevé disponible</p>
+            <p className="text-default-500 text-sm">{t('statements.noStatements')}</p>
           </div>
         )}
 
@@ -138,6 +134,11 @@ export default function StatementsPage() {
             const isExpanded = expandedId === statement.id;
             const detail = details[statement.id];
             const isLoadingDetail = detailLoading === statement.id;
+            const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+              draft: { label: t('statements.draft'), className: 'bg-default-100 text-default-600' },
+              published: { label: t('statements.published'), className: 'bg-primary/15 text-primary' },
+              paid: { label: t('payments.paid'), className: 'bg-emerald-500/15 text-emerald-500' },
+            };
             const statusConfig = STATUS_CONFIG[statement.status] || STATUS_CONFIG.draft;
             const canRequestPayment = statement.status === 'published' && parseFloat(statement.net_payable) > 0;
 
@@ -155,9 +156,9 @@ export default function StatementsPage() {
                   {/* Revenue breakdown — 2 cols */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                     {[
-                      { label: 'Brut', val: statement.gross_revenue },
-                      { label: 'Royalties', val: statement.artist_royalties },
-                      { label: 'Récoupé', val: statement.recouped },
+                      { label: t('statements.gross'), val: statement.gross_revenue },
+                      { label: t('payments.royalties'), val: statement.artist_royalties },
+                      { label: t('statements.recouped'), val: statement.recouped },
                     ].map(({ label, val }) => (
                       <div key={label} className="flex justify-between">
                         <span className="text-default-500">{label}</span>
@@ -176,7 +177,7 @@ export default function StatementsPage() {
                       onClick={() => toggleExpand(statement.id)}
                       className="flex-1 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/15 py-2 rounded-xl transition-colors"
                     >
-                      {isExpanded ? 'Réduire' : 'Voir détail'}
+                      {isExpanded ? t('statements.collapse') : t('statements.viewDetail')}
                     </button>
                     {canRequestPayment && (
                       <button
@@ -185,8 +186,8 @@ export default function StatementsPage() {
                         className="flex-1 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-500/90 disabled:opacity-50 py-2 rounded-xl transition-colors"
                       >
                         {paymentLoading === statement.id ? <Spinner size="sm" color="white" />
-                          : paymentSuccess === statement.id ? 'Demande envoyée !'
-                          : 'Demander paiement'}
+                          : paymentSuccess === statement.id ? t('statements.requestSent')
+                          : t('statements.requestPayment')}
                       </button>
                     )}
                   </div>
@@ -205,7 +206,7 @@ export default function StatementsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <div>
-                              <p className="text-xs text-amber-400 font-medium">Avance restante</p>
+                              <p className="text-xs text-amber-400 font-medium">{t('statements.advanceRemaining')}</p>
                               <p className="text-sm text-foreground font-semibold">{fmt(detail.advance_balance, detail.currency)}</p>
                             </div>
                           </div>
@@ -213,7 +214,7 @@ export default function StatementsPage() {
 
                         {detail.releases.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-2">Par sortie</p>
+                            <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-2">{t('statements.byRelease')}</p>
                             <div className="space-y-1.5">
                               {detail.releases.map(rel => (
                                 <div key={rel.upc} className="flex items-center justify-between bg-content1 rounded-xl px-3 py-2.5">
@@ -233,7 +234,7 @@ export default function StatementsPage() {
 
                         {detail.sources.length > 0 && (
                           <div>
-                            <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-2">Par plateforme</p>
+                            <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-2">{t('statements.byPlatform')}</p>
                             <div className="space-y-1.5">
                               {detail.sources.map(src => (
                                 <div key={src.source} className="flex items-center justify-between bg-content1 rounded-xl px-3 py-2.5">

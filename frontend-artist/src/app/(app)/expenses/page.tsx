@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getExpenses, Expense } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const categoryEmojis: Record<string, string> = {
   production: '🎛️',
@@ -30,6 +31,7 @@ function getCategoryEmoji(category?: string): string {
 
 export default function ExpensesPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -158,8 +160,8 @@ export default function ExpensesPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Dépenses du label</h1>
-            <p className="text-xs text-secondary-500">Investissements sur vos projets</p>
+            <h1 className="font-semibold text-foreground">{t('expenses.title')}</h1>
+            <p className="text-xs text-secondary-500">{t('expenses.subtitle')}</p>
           </div>
         </div>
       </header>
@@ -173,7 +175,7 @@ export default function ExpensesPage() {
 
         {/* Summary Card */}
         <div className="bg-gradient-to-br from-warning/80 to-warning/60 rounded-3xl p-6 text-white">
-          <p className="text-white/70 text-sm font-medium mb-1">Total des dépenses</p>
+          <p className="text-white/70 text-sm font-medium mb-1">{t('expenses.total')}</p>
           <p className="text-3xl font-bold">{formatCurrency(totalExpenses)}</p>
           <p className="text-white/70 text-sm mt-2">
             {expenses.length} dépense{expenses.length > 1 ? 's' : ''}
@@ -183,7 +185,7 @@ export default function ExpensesPage() {
         {/* Category breakdown */}
         {categoryBreakdown.length > 0 && (
           <div className="bg-background border border-divider rounded-2xl p-4 space-y-3">
-            <p className="text-sm font-semibold text-foreground">Répartition par catégorie</p>
+            <p className="text-sm font-semibold text-foreground">{t('expenses.byCategory')}</p>
             {/* Stacked bar */}
             <div className="flex h-3 rounded-full overflow-hidden">
               {categoryBreakdown.map((cat, i) => (
@@ -226,7 +228,7 @@ export default function ExpensesPage() {
                   : 'bg-content2 text-secondary-600 hover:bg-content3'
               }`}
             >
-              Toutes
+              {t('expenses.all')}
             </button>
             {categories.map(([key, label]) => (
               <button
@@ -250,7 +252,7 @@ export default function ExpensesPage() {
             <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">🧾</span>
             </div>
-            <p className="text-secondary-500">Aucune dépense enregistrée</p>
+            <p className="text-secondary-500">{t('expenses.noExpenses')}</p>
           </div>
         ) : (
           <div className="space-y-6">

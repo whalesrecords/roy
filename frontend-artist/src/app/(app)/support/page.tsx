@@ -5,25 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTickets, createMyTicket, Ticket, CreateTicketRequest } from '@/lib/api';
-
-const CATEGORY_OPTIONS = [
-  { key: 'payment', label: 'Paiement' },
-  { key: 'profile', label: 'Profil' },
-  { key: 'technical', label: 'Technique' },
-  { key: 'royalties', label: 'Royalties' },
-  { key: 'contracts', label: 'Contrats' },
-  { key: 'catalog', label: 'Catalogue' },
-  { key: 'general', label: 'Général' },
-  { key: 'other', label: 'Autre' },
-];
-
-const STATUS_OPTIONS = [
-  { key: '', label: 'Tous' },
-  { key: 'open', label: 'Ouvert' },
-  { key: 'in_progress', label: 'En cours' },
-  { key: 'resolved', label: 'Résolu' },
-  { key: 'closed', label: 'Fermé' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const STATUS_DOT: Record<string, string> = {
   open: 'bg-blue-500',
@@ -34,6 +16,7 @@ const STATUS_DOT: Record<string, string> = {
 
 export default function SupportPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +30,25 @@ export default function SupportPage() {
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const CATEGORY_OPTIONS = [
+    { key: 'payment', label: t('support.cat.payment') },
+    { key: 'profile', label: t('support.cat.profile') },
+    { key: 'technical', label: t('support.cat.technical') },
+    { key: 'royalties', label: t('support.cat.royalties') },
+    { key: 'contracts', label: t('support.cat.contracts') },
+    { key: 'catalog', label: t('support.cat.catalog') },
+    { key: 'general', label: t('support.cat.general') },
+    { key: 'other', label: t('support.cat.other') },
+  ];
+
+  const STATUS_OPTIONS = [
+    { key: '', label: t('support.statusAll') },
+    { key: 'open', label: t('support.open') },
+    { key: 'in_progress', label: t('support.inProgress') },
+    { key: 'resolved', label: t('support.resolved') },
+    { key: 'closed', label: t('support.closed') },
+  ];
+
   useEffect(() => {
     if (artist) loadTickets();
   }, [artist, statusFilter]);
@@ -57,7 +59,7 @@ export default function SupportPage() {
       const data = await getMyTickets({ status: statusFilter || undefined });
       setTickets(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setLoading(false);
     }
@@ -65,7 +67,7 @@ export default function SupportPage() {
 
   const handleCreateTicket = async () => {
     if (!subject.trim() || !message.trim()) {
-      setFormError('Veuillez remplir tous les champs');
+      setFormError(t('support.fillAllFields'));
       return;
     }
     setCreating(true);
@@ -79,7 +81,7 @@ export default function SupportPage() {
       setSheetOpen(false);
       await loadTickets();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erreur lors de la création');
+      setFormError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setCreating(false);
     }
@@ -90,11 +92,11 @@ export default function SupportPage() {
     const mins = Math.floor(diffMs / 60000);
     const hours = Math.floor(mins / 60);
     const days = Math.floor(hours / 24);
-    if (mins < 1) return "À l'instant";
-    if (mins < 60) return `il y a ${mins}m`;
-    if (hours < 24) return `il y a ${hours}h`;
-    if (days < 7) return `il y a ${days}j`;
-    return new Date(dateStr).toLocaleDateString('fr-FR');
+    if (mins < 1) return "—";
+    if (mins < 60) return `${mins}m`;
+    if (hours < 24) return `${hours}h`;
+    if (days < 7) return `${days}d`;
+    return new Date(dateStr).toLocaleDateString();
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
@@ -104,7 +106,7 @@ export default function SupportPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
         <div className="px-4 pt-4 pb-3 max-w-lg mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">Support</h1>
+          <h1 className="text-xl font-bold text-foreground">{t('support.title')}</h1>
           <button
             onClick={() => { setSheetOpen(true); setFormError(null); }}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-xl"
@@ -112,7 +114,7 @@ export default function SupportPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Nouveau
+            {t('support.new')}
           </button>
         </div>
 
@@ -156,8 +158,8 @@ export default function SupportPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <p className="text-default-500 text-sm">Aucun ticket</p>
-            <p className="text-default-400 text-xs mt-1">Créez un nouveau ticket pour contacter le label</p>
+            <p className="text-default-500 text-sm">{t('support.noTickets')}</p>
+            <p className="text-default-400 text-xs mt-1">{t('support.subtitle')}</p>
           </div>
         )}
 
@@ -207,7 +209,7 @@ export default function SupportPage() {
 
             <div className="px-5 pb-8 pt-3 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-foreground">Nouveau ticket</h2>
+                <h2 className="text-lg font-bold text-foreground">{t('support.newTicket')}</h2>
                 <button
                   onClick={() => !creating && setSheetOpen(false)}
                   className="p-1.5 rounded-xl hover:bg-content2 transition-colors"
@@ -226,7 +228,7 @@ export default function SupportPage() {
 
               {/* Category */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">Catégorie</label>
+                <label className="text-sm font-medium text-foreground block">{t('support.category')}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {CATEGORY_OPTIONS.map(c => (
                     <button
@@ -247,10 +249,10 @@ export default function SupportPage() {
 
               {/* Subject */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">Sujet</label>
+                <label className="text-sm font-medium text-foreground block">{t('support.subject')}</label>
                 <input
                   type="text"
-                  placeholder="Résumé de votre demande"
+                  placeholder={t('support.subjectPlaceholder')}
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
                   className="w-full px-4 py-3 bg-content1 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
@@ -259,9 +261,9 @@ export default function SupportPage() {
 
               {/* Message */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">Message</label>
+                <label className="text-sm font-medium text-foreground block">{t('support.send')}</label>
                 <textarea
-                  placeholder="Décrivez votre problème en détail…"
+                  placeholder={t('support.detailPlaceholder')}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   rows={5}
@@ -276,14 +278,14 @@ export default function SupportPage() {
                   disabled={creating}
                   className="flex-1 py-3 rounded-xl text-sm font-medium bg-content1 border border-divider text-default-500 hover:text-foreground transition-colors disabled:opacity-50"
                 >
-                  Annuler
+                  {t('app.cancel')}
                 </button>
                 <button
                   onClick={handleCreateTicket}
                   disabled={creating || !subject.trim() || !message.trim()}
                   className="flex-1 py-3 rounded-xl text-sm font-semibold bg-primary text-white disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {creating ? <Spinner size="sm" color="white" /> : 'Envoyer'}
+                  {creating ? <Spinner size="sm" color="white" /> : t('support.send')}
                 </button>
               </div>
             </div>

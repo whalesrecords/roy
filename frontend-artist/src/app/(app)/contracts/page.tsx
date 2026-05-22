@@ -5,15 +5,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getContracts, Contract } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-const scopeConfig: Record<string, { label: string; color: string; bg: string }> = {
-  catalog: { label: 'Catalogue', color: 'text-primary', bg: 'bg-primary/10' },
-  release: { label: 'Release', color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  track: { label: 'Track', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+const SCOPE_COLORS: Record<string, { color: string; bg: string }> = {
+  catalog: { color: 'text-primary', bg: 'bg-primary/10' },
+  release: { color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  track: { color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 };
 
-function getScopeStyle(scope: string) {
-  return scopeConfig[scope] || { label: scope, color: 'text-default-500', bg: 'bg-default-100' };
+function getScopeColors(scope: string) {
+  return SCOPE_COLORS[scope] || { color: 'text-default-500', bg: 'bg-default-100' };
 }
 
 function isActive(contract: Contract): boolean {
@@ -23,6 +24,7 @@ function isActive(contract: Contract): boolean {
 
 export default function ContractsPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,8 +69,8 @@ export default function ContractsPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground text-sm">Mes contrats</h1>
-            <p className="text-[10px] text-default-400">Partage des revenus</p>
+            <h1 className="font-semibold text-foreground text-sm">{t('contracts.title')}</h1>
+            <p className="text-[10px] text-default-400">{t('contracts.subtitle')}</p>
           </div>
         </div>
       </header>
@@ -84,11 +86,11 @@ export default function ContractsPage() {
         {contracts.length > 0 && (
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
-              <p className="text-[10px] text-default-500 mb-1">Total</p>
+              <p className="text-[10px] text-default-500 mb-1">{t('contracts.total')}</p>
               <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
             </div>
             <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
-              <p className="text-[10px] text-default-500 mb-1">Actifs</p>
+              <p className="text-[10px] text-default-500 mb-1">{t('contracts.activeCount')}</p>
               <p className="text-2xl font-bold text-emerald-400">{activeCount}</p>
             </div>
           </div>
@@ -102,15 +104,15 @@ export default function ContractsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p className="text-default-500 text-sm">Aucun contrat enregistré</p>
+            <p className="text-default-500 text-sm">{t('contracts.noContracts')}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {sortedContracts.map(contract => {
               const active = isActive(contract);
-              const scope = getScopeStyle(contract.scope);
+              const scope = getScopeColors(contract.scope);
               const PARTY_LABELS: Record<string, string> = {
-                manager: 'Manager', booker: 'Booker', agent: 'Agent', publisher: 'Éditeur', other: 'Autre',
+                manager: 'Manager', booker: 'Booker', agent: 'Agent', publisher: 'Publisher', other: 'Other',
               };
               const PARTY_COLORS: Record<string, string> = {
                 manager: 'bg-amber-500/10 text-amber-500',
@@ -129,7 +131,7 @@ export default function ContractsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`px-2.5 py-1 ${scope.bg} ${scope.color} text-xs font-semibold rounded-full shrink-0`}>
-                        {scope.label}
+                        {t('contracts.' + contract.scope)}
                       </span>
                       {contract.scope_title && (
                         <span className="text-sm font-medium text-foreground truncate">{contract.scope_title}</span>
@@ -138,7 +140,7 @@ export default function ContractsPage() {
                     <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full shrink-0 ${
                       active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-default-100 text-default-500'
                     }`}>
-                      {active ? 'Actif' : 'Expiré'}
+                      {active ? t('contracts.active') : t('contracts.expired')}
                     </span>
                   </div>
 
@@ -147,14 +149,14 @@ export default function ContractsPage() {
                     <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>{formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : 'En cours'}</span>
+                    <span>{formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : t('contracts.ongoing')}</span>
                   </div>
 
                   {/* Split bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-emerald-500">Artiste {contract.artist_share}%</span>
-                      <span className="text-default-400">Label {contract.label_share}%</span>
+                      <span className="text-emerald-500">{t('contracts.artistShare')} {contract.artist_share}%</span>
+                      <span className="text-default-400">{t('contracts.labelShare')} {contract.label_share}%</span>
                     </div>
                     <div className="flex h-2 rounded-full overflow-hidden bg-default-100">
                       <div className="bg-emerald-500 rounded-l-full" style={{ width: `${contract.artist_share}%` }} />
@@ -165,7 +167,7 @@ export default function ContractsPage() {
                   {/* Team */}
                   {contract.parties && contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">Équipe</p>
+                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">{t('contracts.team')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).map((p, i) => (
                           <div key={i} className={`px-2.5 py-1 rounded-xl text-xs ${PARTY_COLORS[p.party_type] || PARTY_COLORS.other}`}>

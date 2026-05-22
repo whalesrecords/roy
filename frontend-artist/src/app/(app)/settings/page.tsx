@@ -87,7 +87,7 @@ export default function SettingsPage() {
         youtube_url: social.youtube_url || '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
+      setError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setLoading(false);
     }
@@ -104,10 +104,10 @@ export default function SettingsPage() {
         if (value && value.trim()) dataToSend[key as keyof ArtistProfile] = value.trim();
       });
       await updateProfile(dataToSend);
-      setSuccess('Modifications enregistrées');
+      setSuccess(t('settings.profileSaved'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setSaving(false);
     }
@@ -124,10 +124,10 @@ export default function SettingsPage() {
         dataToSend[key as keyof SocialMedia] = value?.trim() || '';
       });
       await updateSocialMedia(dataToSend);
-      setSuccess('Réseaux sociaux mis à jour');
+      setSuccess(t('settings.socialSaved'));
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
+      setError(err instanceof Error ? err.message : t('app.error'));
     } finally {
       setSavingSocial(false);
     }
@@ -154,7 +154,7 @@ export default function SettingsPage() {
             </svg>
           </Link>
           <div className="flex-1">
-            <h1 className="font-semibold text-foreground text-sm">Mon profil</h1>
+            <h1 className="font-semibold text-foreground text-sm">{t('settings.myProfile')}</h1>
             <p className="text-[10px] text-default-400">{artist?.name}</p>
           </div>
           {(labelSettings?.logo_base64 || labelSettings?.logo_url) && (
@@ -185,48 +185,48 @@ export default function SettingsPage() {
 
         {/* Profile form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Section title="Contact" icon={
+          <Section title={t('settings.contact')} icon={
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
             </svg>
           }>
-            <FieldInput label="Email" type="email" placeholder="votre@email.com" value={formData.email} onChange={v => handleChange('email', v)} />
-            <FieldInput label="Téléphone" type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={v => handleChange('phone', v)} />
+            <FieldInput label={t('settings.email')} type="email" placeholder="votre@email.com" value={formData.email} onChange={v => handleChange('email', v)} />
+            <FieldInput label={t('settings.phone')} type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={v => handleChange('phone', v)} />
           </Section>
 
-          <Section title="Adresse" icon={
+          <Section title={t('settings.address')} icon={
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           }>
-            <FieldInput label="Adresse" placeholder="123 rue de la Musique" value={formData.address_line1} onChange={v => handleChange('address_line1', v)} />
-            <FieldInput label="Complément" placeholder="Appartement, bâtiment…" value={formData.address_line2} onChange={v => handleChange('address_line2', v)} />
+            <FieldInput label={t('settings.addressLine1')} placeholder="123 rue de la Musique" value={formData.address_line1} onChange={v => handleChange('address_line1', v)} />
+            <FieldInput label={t('settings.addressLine2')} placeholder="Appartement, bâtiment…" value={formData.address_line2} onChange={v => handleChange('address_line2', v)} />
             <div className="grid grid-cols-2 gap-3">
-              <FieldInput label="Code postal" placeholder="75001" value={formData.postal_code} onChange={v => handleChange('postal_code', v)} />
-              <FieldInput label="Ville" placeholder="Paris" value={formData.city} onChange={v => handleChange('city', v)} />
+              <FieldInput label={t('settings.postalCode')} placeholder="75001" value={formData.postal_code} onChange={v => handleChange('postal_code', v)} />
+              <FieldInput label={t('settings.city')} placeholder="Paris" value={formData.city} onChange={v => handleChange('city', v)} />
             </div>
-            <FieldInput label="Pays" placeholder="France" value={formData.country} onChange={v => handleChange('country', v)} />
+            <FieldInput label={t('settings.country')} placeholder="France" value={formData.country} onChange={v => handleChange('country', v)} />
           </Section>
 
-          <Section title="Coordonnées bancaires" icon={
+          <Section title={t('settings.bankDetails')} icon={
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
           }>
-            <FieldInput label="Titulaire du compte" placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={v => handleChange('account_holder', v)} />
-            <FieldInput label="Banque" placeholder="Crédit Agricole" value={formData.bank_name} onChange={v => handleChange('bank_name', v)} />
-            <FieldInput label="IBAN" placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={v => handleChange('iban', v)} />
-            <FieldInput label="BIC / SWIFT" placeholder="AGRIFRPP" value={formData.bic} onChange={v => handleChange('bic', v)} />
+            <FieldInput label={t('settings.accountHolder')} placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={v => handleChange('account_holder', v)} />
+            <FieldInput label={t('settings.bankName')} placeholder="Crédit Agricole" value={formData.bank_name} onChange={v => handleChange('bank_name', v)} />
+            <FieldInput label={t('settings.iban')} placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={v => handleChange('iban', v)} />
+            <FieldInput label={t('settings.bic')} placeholder="AGRIFRPP" value={formData.bic} onChange={v => handleChange('bic', v)} />
           </Section>
 
-          <Section title="Informations légales (optionnel)" icon={
+          <Section title={t('settings.legalInfo')} icon={
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           }>
-            <FieldInput label="SIRET" placeholder="123 456 789 00012" value={formData.siret} onChange={v => handleChange('siret', v)} />
-            <FieldInput label="N° de TVA" placeholder="FR12345678901" value={formData.vat_number} onChange={v => handleChange('vat_number', v)} />
+            <FieldInput label={t('settings.siret')} placeholder="123 456 789 00012" value={formData.siret} onChange={v => handleChange('siret', v)} />
+            <FieldInput label={t('settings.vatNumber')} placeholder="FR12345678901" value={formData.vat_number} onChange={v => handleChange('vat_number', v)} />
           </Section>
 
           <button
@@ -234,18 +234,18 @@ export default function SettingsPage() {
             disabled={saving}
             className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {saving ? <><Spinner size="sm" color="white" />Enregistrement…</> : 'Enregistrer les modifications'}
+            {saving ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveChanges')}
           </button>
         </form>
 
         {/* Social media form */}
         <form onSubmit={handleSocialSubmit} className="space-y-4">
-          <Section title="Réseaux sociaux" icon={
+          <Section title={t('settings.socialMedia')} icon={
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
           }>
-            <p className="text-xs text-default-400">Partagez vos profils avec votre label</p>
+            <p className="text-xs text-default-400">{t('settings.socialMediaDesc')}</p>
             {[
               { field: 'instagram_url' as keyof SocialMedia, label: 'Instagram', placeholder: 'https://instagram.com/…' },
               { field: 'twitter_url' as keyof SocialMedia, label: 'Twitter / X', placeholder: 'https://x.com/…' },
@@ -269,11 +269,11 @@ export default function SettingsPage() {
             disabled={savingSocial}
             className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {savingSocial ? <><Spinner size="sm" color="white" />Enregistrement…</> : 'Enregistrer les réseaux'}
+            {savingSocial ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveNetworks')}
           </button>
 
           <p className="text-[10px] text-default-400 text-center">
-            Vos modifications seront transmises à {labelSettings?.label_name || 'votre label'} pour vérification.
+            {t('settings.notificationInfo')} {labelSettings?.label_name || 'label'} {t('settings.forVerification')}
           </p>
         </form>
 

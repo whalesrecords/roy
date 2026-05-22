@@ -5,11 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getArtistReleases, ArtistRelease } from '@/lib/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type SortKey = 'date' | 'revenue' | 'streams';
 
 export default function ReleasesPage() {
   const { artist, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [releases, setReleases] = useState<ArtistRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,7 @@ export default function ReleasesPage() {
             </svg>
           </Link>
           <div>
-            <h1 className="font-semibold text-foreground">Mes Sorties</h1>
+            <h1 className="font-semibold text-foreground">{t('releases.title')}</h1>
             <p className="text-xs text-default-500">
               {releases.length} album{releases.length > 1 ? 's' : ''}
             </p>
@@ -123,17 +125,17 @@ export default function ReleasesPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
               <p className="text-2xl font-bold text-foreground">{releases.length}</p>
-              <p className="text-xs text-default-500">Sorties</p>
+              <p className="text-xs text-default-500">{t('dashboard.releases')}</p>
             </div>
             <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
               <p className="text-2xl font-bold text-foreground">{formatNumber(totalStreams)}</p>
-              <p className="text-xs text-default-500">Streams</p>
+              <p className="text-xs text-default-500">{t('dashboard.streams')}</p>
             </div>
             <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
               <p className="text-2xl font-bold text-emerald-400">
                 {totalRevenue.toLocaleString('fr-FR', { style: 'currency', currency })}
               </p>
-              <p className="text-xs text-default-500">Revenus</p>
+              <p className="text-xs text-default-500">{t('releases.sortRevenue')}</p>
             </div>
           </div>
         )}
@@ -157,7 +159,7 @@ export default function ReleasesPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder={t('releases.search')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground placeholder:text-default-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -168,9 +170,9 @@ export default function ReleasesPage() {
               onChange={(e) => setSortBy(e.target.value as SortKey)}
               className="px-3 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
-              <option value="date">Date</option>
-              <option value="revenue">Revenus</option>
-              <option value="streams">Streams</option>
+              <option value="date">{t('releases.sortDate')}</option>
+              <option value="revenue">{t('releases.sortRevenue')}</option>
+              <option value="streams">{t('dashboard.streams')}</option>
             </select>
           </div>
         )}
@@ -188,7 +190,7 @@ export default function ReleasesPage() {
                 />
               </svg>
             </div>
-            <p className="text-default-500">Aucune sortie pour le moment</p>
+            <p className="text-default-500">{t('releases.noReleases')}</p>
           </div>
         )}
 
@@ -256,13 +258,13 @@ export default function ReleasesPage() {
               {expandedUpc === release.upc && (
                 <div className="border-t border-divider px-3 py-3 space-y-2 bg-content2/30">
                   <div className="flex justify-between text-xs">
-                    <span className="text-default-500">Brut</span>
+                    <span className="text-default-500">{t('releases.gross')}</span>
                     <span className="text-foreground font-medium">
                       {formatCurrency(release.gross, release.currency)}
                     </span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-default-500">Net</span>
+                    <span className="text-default-500">{t('releases.net')}</span>
                     <span className="text-emerald-400 font-medium">
                       {formatCurrency(release.net, release.currency)}
                     </span>
