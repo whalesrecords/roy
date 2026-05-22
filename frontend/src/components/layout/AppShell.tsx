@@ -48,17 +48,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pageTitle = getPageTitle(pathname);
 
   return (
-    <div className="min-h-screen bg-content2 flex">
+    // h-screen + overflow-hidden bounds the layout so <main> becomes the real
+    // scroll container. All page sticky headers can then use top-0.
+    <div className="h-screen overflow-hidden bg-content2 flex">
       {/* Sidebar */}
       <Sidebar
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-56">
-        {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 h-14 px-4 bg-content1 border-b border-divider">
+      {/* Main column */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-56 overflow-hidden">
+        {/* Mobile top bar — flex item, no sticky needed (bounded parent) */}
+        <header className="lg:hidden flex-shrink-0 flex items-center gap-3 h-14 px-4 bg-content1 border-b border-divider z-30">
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="p-2 -ml-1 rounded-xl text-default-500 hover:bg-default-100 transition-colors"
@@ -73,8 +75,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <span className="font-semibold text-sm text-foreground">{pageTitle || 'Royalties'}</span>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        {/* Scroll container — ALL page content scrolls here */}
+        <main className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>

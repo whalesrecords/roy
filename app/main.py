@@ -81,6 +81,8 @@ async def lifespan(app: FastAPI):
             END $$""",
             # Drop old constraint and add new one that allows intermediaries
             "ALTER TABLE contract_parties DROP CONSTRAINT IF EXISTS check_party_type_consistency",
+            # Dark mode logo support
+            "ALTER TABLE label_settings ADD COLUMN IF NOT EXISTS logo_dark_base64 TEXT",
         ]
         for sql in migrations:
             try:

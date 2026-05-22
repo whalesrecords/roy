@@ -122,9 +122,9 @@ async def upload_logo(
     _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload logo as base64. Accepts PNG, JPG, WEBP."""
+    """Upload logo as base64. Accepts PNG, JPG, WEBP, SVG."""
     # Validate file type
-    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=400,
@@ -182,8 +182,8 @@ async def upload_logo_dark(
     _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
-    """Upload dark mode logo as base64. Accepts PNG, JPG, WEBP."""
-    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
+    """Upload dark mode logo as base64. Accepts PNG, JPG, WEBP, SVG."""
+    allowed_types = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=400,

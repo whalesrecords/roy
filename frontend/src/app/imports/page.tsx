@@ -161,7 +161,7 @@ export default function ImportsPage() {
   return (
     <>
       {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Imports</h1>

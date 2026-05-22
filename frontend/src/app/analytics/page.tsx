@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
 
   return (
     <>
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>

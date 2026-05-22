@@ -687,7 +687,7 @@ export default function ContractsPage() {
   return (
     <>
       {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-14 z-30">
+      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between gap-4">
             <div>
