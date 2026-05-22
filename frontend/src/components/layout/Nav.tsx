@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect, useRef } from 'react';
-import { getLabelSettings, LabelSettings, getNotifications, markNotificationRead, markAllNotificationsRead, Notification, getTicketStats } from '@/lib/api';
+import { getLabelSettings, LabelSettings, getNotifications, markNotificationRead, markAllNotificationsRead, Notification, getTicketStats, getPendingSuggestionsCount } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface NavItem {
   href: string;
   label: string;
   icon: string;
-  badge?: boolean;
+  badge?: 'tickets' | 'spotify';
 }
 
 interface NavGroup {
@@ -41,8 +41,9 @@ const navGroups: NavGroup[] = [
     label: 'Outils',
     items: [
       { href: '/promo', label: 'Promo', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
+      { href: '/spotify-suggestions', label: 'Spotify', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3', badge: 'spotify' },
       { href: '/analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-      { href: '/tickets', label: 'Support', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: true },
+      { href: '/tickets', label: 'Support', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: 'tickets' },
     ],
   },
   {
@@ -65,6 +66,7 @@ export default function Nav() {
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
+  const [spotifySuggestionsCount, setSpotifySuggestionsCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -77,10 +79,13 @@ export default function Nav() {
     getNotifications().then(setNotifications).catch(() => {});
     // Fetch ticket stats
     getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
-    // Refresh notifications and tickets every 30 seconds
+    // Fetch Spotify pending suggestions count
+    getPendingSuggestionsCount().then(r => setSpotifySuggestionsCount(r.pending_count)).catch(() => {});
+    // Refresh every 30 seconds
     const interval = setInterval(() => {
       getNotifications().then(setNotifications).catch(() => {});
       getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
+      getPendingSuggestionsCount().then(r => setSpotifySuggestionsCount(r.pending_count)).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -329,9 +334,14 @@ export default function Nav() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                               </svg>
                               {item.label}
-                              {item.badge && openTicketsCount > 0 && (
+                              {item.badge === 'tickets' && openTicketsCount > 0 && (
                                 <span className="ml-auto px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
                                   {openTicketsCount}
+                                </span>
+                              )}
+                              {item.badge === 'spotify' && spotifySuggestionsCount > 0 && (
+                                <span className="ml-auto px-2 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full">
+                                  {spotifySuggestionsCount}
                                 </span>
                               )}
                             </Link>

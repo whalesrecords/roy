@@ -4,12 +4,16 @@ Royalties MVP - FastAPI Application
 Music royalties calculation tool for independent labels.
 """
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.database import Base, engine
+from app.core.database import Base, engine, async_session_maker
+
+logger = logging.getLogger(__name__)
 from app.routers import imports
 from app.routers.analytics import router as analytics_router
 from app.routers.artist_portal import router as artist_portal_router
@@ -116,9 +120,43 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass  # Column or table may not exist yet
 
+    # Start weekly Spotify scanner background task
+    scanner_task = asyncio.create_task(_weekly_spotify_scanner())
+
     yield
+
     # Cleanup on shutdown
+    scanner_task.cancel()
+    try:
+        await scanner_task
+    except asyncio.CancelledError:
+        pass
     await engine.dispose()
+
+
+async def _weekly_spotify_scanner():
+    """
+    Background task that runs the Spotify new-release scanner once a week.
+
+    On first run it waits 5 minutes (to let the app fully start), then
+    repeats every 7 days.
+    """
+    INTERVAL_SECONDS = 7 * 24 * 3600  # 1 week
+    STARTUP_DELAY = 5 * 60            # 5 minutes after boot
+
+    await asyncio.sleep(STARTUP_DELAY)
+
+    while True:
+        try:
+            from app.services.spotify_scanner import scan_new_releases
+            async with async_session_maker() as db:
+                logger.info("Weekly Spotify scanner: starting scan…")
+                summary = await scan_new_releases(db)
+                logger.info(f"Weekly Spotify scanner: {summary}")
+        except Exception as exc:
+            logger.error(f"Weekly Spotify scanner error: {exc}", exc_info=True)
+
+        await asyncio.sleep(INTERVAL_SECONDS)
 
 
 app = FastAPI(

@@ -1877,3 +1877,51 @@ export async function autoDiscoverProducts(): Promise<Product[]> {
   invalidateCache('/inventory');
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// Spotify Track Suggestions
+// ---------------------------------------------------------------------------
+
+export interface SpotifyTrackSuggestion {
+  id: string;
+  artist_id: string;
+  artist_name?: string;
+  spotify_track_id: string;
+  spotify_album_id: string;
+  track_name: string;
+  album_name: string;
+  album_type?: string;
+  label_name?: string;
+  release_date?: string;
+  isrc?: string;
+  duration_ms?: number;
+  image_url?: string;
+  spotify_url?: string;
+  track_number?: number;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_at?: string;
+  created_at: string;
+}
+
+export async function triggerSpotifyScan(): Promise<{ status: string; message: string }> {
+  return fetchApi('/spotify/scan', { method: 'POST' });
+}
+
+export async function getSpotifySuggestions(
+  statusFilter?: 'pending' | 'approved' | 'rejected' | 'all'
+): Promise<SpotifyTrackSuggestion[]> {
+  const params = statusFilter ? `?status_filter=${statusFilter}` : '';
+  return fetchApi<SpotifyTrackSuggestion[]>(`/spotify/suggestions${params}`);
+}
+
+export async function getPendingSuggestionsCount(): Promise<{ pending_count: number }> {
+  return fetchApi<{ pending_count: number }>('/spotify/suggestions/count');
+}
+
+export async function approveSpotifySuggestion(id: string): Promise<{ status: string; track_name: string; isrc?: string }> {
+  return fetchApi(`/spotify/suggestions/${id}/approve`, { method: 'POST' });
+}
+
+export async function rejectSpotifySuggestion(id: string): Promise<{ status: string; track_name: string }> {
+  return fetchApi(`/spotify/suggestions/${id}/reject`, { method: 'POST' });
+}

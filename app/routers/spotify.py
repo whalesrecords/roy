@@ -5,10 +5,11 @@ Endpoints for fetching artwork from Spotify API.
 """
 
 import logging
-from typing import Annotated, Optional
+from datetime import datetime, timezone
+from typing import Annotated, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,9 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.artist import Artist
 from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.spotify_track_suggestion import SpotifyTrackSuggestion, SuggestionStatus
 from app.services.spotify import spotify_service
+from app.services.spotify_scanner import scan_new_releases
 
 logger = logging.getLogger(__name__)
 
@@ -899,3 +902,174 @@ async def populate_releases_from_catalog(
         "failed_count": len(results["failed"]),
         "results": results,
     }
+
+
+# ---------------------------------------------------------------------------
+# Spotify Scanner — weekly new-release detection
+# ---------------------------------------------------------------------------
+
+class SpotifyTrackSuggestionResponse(BaseModel):
+    """Public shape of a track suggestion."""
+    id: UUID
+    artist_id: UUID
+    artist_name: Optional[str] = None
+    spotify_track_id: str
+    spotify_album_id: str
+    track_name: str
+    album_name: str
+    album_type: Optional[str] = None
+    label_name: Optional[str] = None
+    release_date: Optional[str] = None
+    isrc: Optional[str] = None
+    duration_ms: Optional[int] = None
+    image_url: Optional[str] = None
+    spotify_url: Optional[str] = None
+    track_number: Optional[int] = None
+    status: str
+    reviewed_at: Optional[str] = None
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/scan", status_code=202)
+async def trigger_spotify_scan(
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Manually trigger a Spotify new-release scan.
+
+    The scan runs in the background. Returns immediately with a 202.
+    """
+    async def _run(session: AsyncSession):
+        try:
+            summary = await scan_new_releases(session)
+            logger.info(f"Manual scan complete: {summary}")
+        except Exception as e:
+            logger.error(f"Manual scan failed: {e}")
+
+    background_tasks.add_task(_run, db)
+    return {"status": "scan_started", "message": "Le scan Spotify a été lancé en arrière-plan."}
+
+
+@router.get("/suggestions", response_model=List[SpotifyTrackSuggestionResponse])
+async def list_spotify_suggestions(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    status_filter: Optional[str] = None,  # pending | approved | rejected | all
+) -> List[SpotifyTrackSuggestionResponse]:
+    """List Spotify track suggestions, optionally filtered by status."""
+    query = select(SpotifyTrackSuggestion).order_by(
+        SpotifyTrackSuggestion.created_at.desc()
+    )
+    if status_filter and status_filter != "all":
+        query = query.where(SpotifyTrackSuggestion.status == status_filter)
+    else:
+        # Default: only show pending
+        if not status_filter:
+            query = query.where(SpotifyTrackSuggestion.status == SuggestionStatus.PENDING)
+
+    result = await db.execute(query)
+    suggestions = result.scalars().all()
+
+    # Enrich with artist names
+    artist_ids = list({s.artist_id for s in suggestions})
+    artists_result = await db.execute(
+        select(Artist).where(Artist.id.in_(artist_ids))
+    )
+    artist_map = {a.id: a.name for a in artists_result.scalars().all()}
+
+    return [
+        SpotifyTrackSuggestionResponse(
+            id=s.id,
+            artist_id=s.artist_id,
+            artist_name=artist_map.get(s.artist_id),
+            spotify_track_id=s.spotify_track_id,
+            spotify_album_id=s.spotify_album_id,
+            track_name=s.track_name,
+            album_name=s.album_name,
+            album_type=s.album_type,
+            label_name=s.label_name,
+            release_date=s.release_date.isoformat() if s.release_date else None,
+            isrc=s.isrc,
+            duration_ms=s.duration_ms,
+            image_url=s.image_url,
+            spotify_url=s.spotify_url,
+            track_number=s.track_number,
+            status=s.status,
+            reviewed_at=s.reviewed_at.isoformat() if s.reviewed_at else None,
+            created_at=s.created_at.isoformat(),
+        )
+        for s in suggestions
+    ]
+
+
+@router.get("/suggestions/count")
+async def count_pending_suggestions(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """Return the count of pending Spotify suggestions (for nav badge)."""
+    from sqlalchemy import func as sqlfunc
+    result = await db.execute(
+        select(sqlfunc.count(SpotifyTrackSuggestion.id)).where(
+            SpotifyTrackSuggestion.status == SuggestionStatus.PENDING
+        )
+    )
+    count = result.scalar_one()
+    return {"pending_count": count}
+
+
+@router.post("/suggestions/{suggestion_id}/approve")
+async def approve_suggestion(
+    suggestion_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Approve a Spotify track suggestion.
+
+    Marks the suggestion as approved. The track will appear in the catalog
+    once imported via the normal import flow (the ISRC is now known).
+    """
+    result = await db.execute(
+        select(SpotifyTrackSuggestion).where(SpotifyTrackSuggestion.id == suggestion_id)
+    )
+    suggestion = result.scalar_one_or_none()
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion introuvable")
+
+    suggestion.status = SuggestionStatus.APPROVED
+    suggestion.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {
+        "status": "approved",
+        "track_name": suggestion.track_name,
+        "isrc": suggestion.isrc,
+        "message": "Piste approuvée. ISRC disponible pour import.",
+    }
+
+
+@router.post("/suggestions/{suggestion_id}/reject")
+async def reject_suggestion(
+    suggestion_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """Reject a Spotify track suggestion (will not be shown again)."""
+    result = await db.execute(
+        select(SpotifyTrackSuggestion).where(SpotifyTrackSuggestion.id == suggestion_id)
+    )
+    suggestion = result.scalar_one_or_none()
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion introuvable")
+
+    suggestion.status = SuggestionStatus.REJECTED
+    suggestion.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {"status": "rejected", "track_name": suggestion.track_name}

@@ -12,6 +12,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.product import MovementType, Product, ProductFormat, ProductStatus, StockMovement
 from app.models.promo_campaign import CampaignStatus, PromoCampaign
 from app.models.promo_submission import PromoSource, PromoSubmission, SubmitHubAction
+from app.models.spotify_track_suggestion import SpotifyTrackSuggestion, SuggestionStatus
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.statement import Statement, StatementStatus
@@ -73,6 +74,9 @@ __all__ = [
     "SubmitHubAction",
     "PromoCampaign",
     "CampaignStatus",
+    # Spotify suggestions
+    "SpotifyTrackSuggestion",
+    "SuggestionStatus",
     # Inventory
     "Product",
     "StockMovement",
