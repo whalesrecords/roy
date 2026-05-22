@@ -452,7 +452,7 @@ export default function InventoryPage() {
                             {product.variant && <span>{product.variant}</span>}
                             {product.artist_name && <span>{product.artist_name}</span>}
                             {product.limited_edition && (
-                              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-semibold">
+                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-semibold">
                                 LTD{product.edition_size ? ` /${product.edition_size}` : ''}
                               </span>
                             )}

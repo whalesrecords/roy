@@ -126,8 +126,8 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
     return (
       <div className="space-y-6">
         {/* Info box */}
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <p className="text-sm text-purple-800">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
             <strong>Auto-détection:</strong> L'artiste et le titre sont extraits depuis les colonnes "Band" et "Track" du CSV Groover
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
           <select
             value={selectedArtistId}
             onChange={(e) => setSelectedArtistId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="">Auto-détection depuis le CSV</option>
             {artists.map((artist) => (
@@ -162,7 +162,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
             onDrop={handleDrop}
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
               isDragging
-                ? 'border-purple-500 bg-purple-50'
+                ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
@@ -184,7 +184,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
                 <p className="text-gray-600 mb-2">
                   Glissez-déposez votre CSV ici ou
                 </p>
-                <label className="inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer">
+                <label className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
                   Parcourir
                   <input
                     type="file"
@@ -209,7 +209,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
               value={campaignName}
               onChange={(e) => setCampaignName(e.target.value)}
               placeholder="Ex: Q1 2026 Campaign"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div>
@@ -221,7 +221,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
               placeholder="Ex: 500"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
           <button
             onClick={handleAnalyze}
             disabled={loading || !file}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading && <Spinner size="sm" color="white" />}
             Analyser
@@ -251,11 +251,11 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
 
     return (
       <div className="space-y-6">
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <p className="text-purple-800 font-medium">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-blue-800 font-medium">
             {previewData.total_rows} ligne{previewData.total_rows > 1 ? 's' : ''} détectée{previewData.total_rows > 1 ? 's' : ''}
           </p>
-          <p className="text-purple-700 text-sm mt-1">
+          <p className="text-blue-700 text-sm mt-1">
             Colonnes: {previewData.columns_detected.join(', ')}
           </p>
         </div>
@@ -379,8 +379,8 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
         </div>
 
         {importResult.matched_songs.length > 0 && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <p className="text-purple-800 font-medium mb-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 font-medium mb-2">
               {importResult.matched_songs.length} song{importResult.matched_songs.length > 1 ? 's' : ''} associée{importResult.matched_songs.length > 1 ? 's' : ''} au catalogue
             </p>
           </div>
@@ -417,7 +417,7 @@ export default function GrooverUploadFlow({ onSuccess }: GrooverUploadFlowProps)
           </button>
           <button
             onClick={onSuccess}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Terminer
           </button>

@@ -297,7 +297,7 @@ export const ROYALTY_STATUS_COLORS: Record<RoyaltyRunStatus, string> = {
   draft: 'bg-gray-100 text-gray-700',
   processing: 'bg-blue-100 text-blue-700',
   completed: 'bg-green-100 text-green-700',
-  locked: 'bg-purple-100 text-purple-700',
+  locked: 'bg-blue-100 text-blue-700',
   failed: 'bg-red-100 text-red-700',
 };
 

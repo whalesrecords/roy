@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
   submithub: { label: 'SubmitHub', color: 'bg-blue-100 text-blue-800' },
-  groover: { label: 'Groover', color: 'bg-purple-100 text-purple-800' },
+  groover: { label: 'Groover', color: 'bg-blue-100 text-blue-800' },
   manual: { label: 'Manuel', color: 'bg-gray-100 text-gray-800' },
 };
 
@@ -15,8 +15,8 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   listen: { label: 'Écouté', color: 'bg-blue-100 text-blue-800' },
   declined: { label: 'Refusé', color: 'bg-red-100 text-red-800' },
   approved: { label: 'Approuvé', color: 'bg-green-100 text-green-800' },
-  shared: { label: 'Partagé', color: 'bg-purple-100 text-purple-800' },
-  playlist: { label: 'Playlist', color: 'bg-purple-600 text-white' },
+  shared: { label: 'Partagé', color: 'bg-blue-100 text-blue-800' },
+  playlist: { label: 'Playlist', color: 'bg-blue-600 text-white' },
 };
 
 export default function PromoSubmissionsPage() {
@@ -265,10 +265,10 @@ export default function PromoSubmissionsPage() {
                       <div className="text-xs text-gray-500">{approvalRate}%</div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="text-sm font-medium text-purple-600">{track.total_playlists}</div>
+                      <div className="text-sm font-medium text-blue-600">{track.total_playlists}</div>
                       <div className="text-xs text-gray-500">{playlistRate}%</div>
                     </td>
-                    <td className="px-6 py-4 text-center text-sm text-purple-600">
+                    <td className="px-6 py-4 text-center text-sm text-blue-600">
                       {track.total_shared}
                     </td>
                     <td className="px-6 py-4 text-center text-sm text-red-600">
@@ -327,11 +327,11 @@ export default function PromoSubmissionsPage() {
                 <div className="text-xs text-gray-500">Approuvés</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{selectedTrack.total_playlists}</div>
+                <div className="text-2xl font-bold text-blue-600">{selectedTrack.total_playlists}</div>
                 <div className="text-xs text-gray-500">Playlists</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-purple-500">{selectedTrack.total_shared}</div>
+                <div className="text-2xl font-bold text-blue-500">{selectedTrack.total_shared}</div>
                 <div className="text-xs text-gray-500">Partagés</div>
               </div>
               <div className="text-center">
@@ -377,7 +377,7 @@ export default function PromoSubmissionsPage() {
               onClick={() => setStatusFilter('playlist')}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
                 statusFilter === 'playlist'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -387,7 +387,7 @@ export default function PromoSubmissionsPage() {
               onClick={() => setStatusFilter('shared')}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
                 statusFilter === 'shared'
-                  ? 'bg-purple-500 text-white'
+                  ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >

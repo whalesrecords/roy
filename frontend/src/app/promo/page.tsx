@@ -32,10 +32,10 @@ export default function PromoPage() {
         {/* Submissions */}
         <Link
           href="/promo/submissions"
-          className="bg-white rounded-lg border border-gray-200 p-6 hover:border-purple-500 hover:shadow-lg transition-all group"
+          className="bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-lg transition-all group"
         >
-          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-500 transition-colors">
-            <svg className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-500 transition-colors">
+            <svg className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
@@ -63,7 +63,7 @@ export default function PromoPage() {
       </div>
 
       {/* Quick Stats Overview */}
-      <div className="mt-8 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-gray-200 p-6">
+      <div className="mt-8 bg-gradient-to-br from-blue-50 to-blue-50 rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-semibold mb-4">Fonctionnalités</h3>
         <ul className="space-y-2 text-sm text-gray-700">
           <li className="flex items-center gap-2">
