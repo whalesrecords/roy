@@ -21,13 +21,16 @@ async function handler(req: Request, { params }: { params: { path: string[] } })
   // in the response headers, which causes the browser to double-decompress.
   headers.delete('accept-encoding');
 
-  // keepalive reuses the TCP connection to the backend across requests,
-  // avoiding a fresh TLS handshake on every call (~100-200ms saved).
+  const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+  const body = hasBody ? req.body : undefined;
+
+  // keepalive cannot be used with a streaming body (Node.js throws TypeError).
+  // Disable it for requests that carry a body (file uploads, JSON POSTs, etc.).
   const res = await fetch(target, {
     method: req.method,
     headers,
-    body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
-    keepalive: true,
+    body,
+    keepalive: !hasBody,
     // @ts-expect-error — Next.js streams
     duplex: 'half',
   });
