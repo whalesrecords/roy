@@ -148,11 +148,14 @@ async def _weekly_spotify_scanner():
 
     while True:
         try:
-            from app.services.spotify_scanner import scan_new_releases
+            from app.services.spotify_scanner import refresh_artist_photos, scan_new_releases
             async with async_session_maker() as db:
-                logger.info("Weekly Spotify scanner: starting scan…")
+                logger.info("Weekly Spotify scanner: refreshing artist photos…")
+                photo_summary = await refresh_artist_photos(db)
+                logger.info(f"Weekly Spotify scanner photos: {photo_summary}")
+                logger.info("Weekly Spotify scanner: scanning new releases…")
                 summary = await scan_new_releases(db)
-                logger.info(f"Weekly Spotify scanner: {summary}")
+                logger.info(f"Weekly Spotify scanner releases: {summary}")
         except Exception as exc:
             logger.error(f"Weekly Spotify scanner error: {exc}", exc_info=True)
 

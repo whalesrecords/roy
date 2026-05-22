@@ -1925,3 +1925,7 @@ export async function approveSpotifySuggestion(id: string): Promise<{ status: st
 export async function rejectSpotifySuggestion(id: string): Promise<{ status: string; track_name: string }> {
   return fetchApi(`/spotify/suggestions/${id}/reject`, { method: 'POST' });
 }
+
+export async function syncAllArtistPhotos(): Promise<{ status: string; message: string }> {
+  return fetchApi('/spotify/sync-artists', { method: 'POST' });
+}

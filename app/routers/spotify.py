@@ -933,6 +933,26 @@ class SpotifyTrackSuggestionResponse(BaseModel):
         from_attributes = True
 
 
+@router.post("/sync-artists", status_code=202)
+async def sync_all_artist_photos(
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """Refresh Spotify profile photos for all artists with a spotify_id."""
+    from app.services.spotify_scanner import refresh_artist_photos
+
+    async def _run(session: AsyncSession):
+        try:
+            summary = await refresh_artist_photos(session)
+            logger.info(f"Sync artists complete: {summary}")
+        except Exception as e:
+            logger.error(f"Sync artists failed: {e}")
+
+    background_tasks.add_task(_run, db)
+    return {"status": "sync_started", "message": "Mise à jour des photos en arrière-plan."}
+
+
 @router.post("/scan", status_code=202)
 async def trigger_spotify_scan(
     background_tasks: BackgroundTasks,

@@ -24,6 +24,53 @@ logger = logging.getLogger(__name__)
 SCAN_LOOKBACK_DAYS = 8
 
 
+async def refresh_artist_photos(db: AsyncSession) -> dict:
+    """
+    Refresh Spotify profile photos for all artists that have a spotify_id.
+
+    Fetches the current artist data from Spotify and updates image_url /
+    image_url_small in the Artist record if they have changed.
+
+    Returns a summary dict: {updated, skipped, errors}.
+    """
+    summary = {"updated": 0, "skipped": 0, "errors": []}
+
+    artists_result = await db.execute(
+        select(Artist).where(Artist.spotify_id.isnot(None))
+    )
+    artists = artists_result.scalars().all()
+
+    for artist in artists:
+        try:
+            data = await spotify_service.get_artist(artist.spotify_id)
+            if not data:
+                summary["skipped"] += 1
+                continue
+
+            new_image = data.get("image_url")
+            new_image_small = data.get("image_url_small")
+
+            if new_image and (new_image != artist.image_url or new_image_small != artist.image_url_small):
+                artist.image_url = new_image
+                artist.image_url_small = new_image_small
+                summary["updated"] += 1
+                logger.info(f"Updated photo for {artist.name}")
+            else:
+                summary["skipped"] += 1
+
+        except Exception as e:
+            msg = f"Error refreshing photo for {artist.name}: {e}"
+            logger.error(msg)
+            summary["errors"].append(msg)
+
+    await db.commit()
+    logger.info(
+        f"Photo refresh: {summary['updated']} updated, "
+        f"{summary['skipped']} unchanged, {len(summary['errors'])} errors"
+    )
+    return summary
+
+
 def _parse_release_date(date_str: str) -> Optional[date]:
     """Parse Spotify release date string (YYYY-MM-DD or YYYY-MM or YYYY)."""
     if not date_str:

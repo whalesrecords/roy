@@ -5,6 +5,7 @@ import { Spinner } from '@heroui/react';
 import {
   getSpotifySuggestions,
   triggerSpotifyScan,
+  syncAllArtistPhotos,
   approveSpotifySuggestion,
   rejectSpotifySuggestion,
   SpotifyTrackSuggestion,
@@ -36,6 +37,7 @@ export default function SpotifySuggestionsPage() {
   const [filter, setFilter] = useState<FilterStatus>('pending');
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [syncingPhotos, setSyncingPhotos] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,19 @@ export default function SpotifySuggestionsPage() {
       setScanMessage(`Erreur: ${e.message}`);
     } finally {
       setScanning(false);
+    }
+  };
+
+  const handleSyncPhotos = async () => {
+    setSyncingPhotos(true);
+    setScanMessage(null);
+    try {
+      const res = await syncAllArtistPhotos();
+      setScanMessage(res.message);
+    } catch (e: any) {
+      setScanMessage(`Erreur: ${e.message}`);
+    } finally {
+      setSyncingPhotos(false);
     }
   };
 
@@ -120,21 +135,38 @@ export default function SpotifySuggestionsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleScan}
-          disabled={scanning}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-        >
-          {scanning ? (
-            <Spinner size="sm" color="white" />
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          )}
-          Scanner maintenant
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSyncPhotos}
+            disabled={syncingPhotos}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            {syncingPhotos ? (
+              <Spinner size="sm" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            )}
+            Sync photos
+          </button>
+          <button
+            onClick={handleScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            {scanning ? (
+              <Spinner size="sm" color="white" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            Scanner maintenant
+          </button>
+        </div>
       </div>
 
       {scanMessage && (
