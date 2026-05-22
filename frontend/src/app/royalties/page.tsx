@@ -75,10 +75,8 @@ export default function RoyaltiesPage() {
     setExportingPdf(true);
     try {
       const url = getExportPdfUrl(periodStart, periodEnd);
-      // Open PDF in new tab for print
-      const res = await fetch(url, {
-        headers: { 'X-Admin-Token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || '' },
-      });
+      // Token is injected server-side by /api/proxy — no client-side header needed
+      const res = await fetch(url);
       if (!res.ok) throw new Error(`Export failed: ${res.status}`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);

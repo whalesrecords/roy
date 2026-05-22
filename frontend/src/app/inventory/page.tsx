@@ -84,6 +84,7 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
@@ -91,6 +92,9 @@ export default function InventoryPage() {
   const [formatFilter, setFormatFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+
+  const [autoDiscovering, setAutoDiscovering] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -107,6 +111,7 @@ export default function InventoryPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
+    setFetching(true);
     try {
       setError(null);
       const params: { format?: string; status?: string; low_stock?: boolean; search?: string } = {};
@@ -125,6 +130,7 @@ export default function InventoryPage() {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+      setFetching(false);
     }
   }, [formatFilter, statusFilter, lowStockOnly, search]);
 
@@ -249,24 +255,36 @@ export default function InventoryPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            disabled={autoDiscovering}
             onClick={async () => {
+              setAutoDiscovering(true);
+              setError(null);
+              setSuccessMsg(null);
               try {
-                setError(null);
                 const discovered = await autoDiscoverProducts();
+                await loadData();
                 if (discovered.length === 0) {
-                  setError('Aucun nouveau produit physique trouvé dans les imports.');
+                  setSuccessMsg('Catalogue déjà à jour — aucun nouveau produit trouvé.');
                 } else {
-                  loadData();
+                  setSuccessMsg(`${discovered.length} produit${discovered.length > 1 ? 's' : ''} ajouté${discovered.length > 1 ? 's' : ''} à l'inventaire.`);
                 }
               } catch (err: any) {
                 setError(err.message || 'Erreur lors de la découverte');
+              } finally {
+                setAutoDiscovering(false);
               }
             }}
-            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
+            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            {autoDiscovering ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            )}
             Auto-découvrir
           </button>
           <button
@@ -286,9 +304,17 @@ export default function InventoryPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-danger/10 border border-danger/30 text-danger rounded-xl p-4 text-sm">
-          {error}
-          <button onClick={() => setError(null)} className="ml-2 underline">Fermer</button>
+        <div className="bg-danger/10 border border-danger/30 text-danger rounded-xl p-4 text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ml-4 underline shrink-0">Fermer</button>
+        </div>
+      )}
+
+      {/* Success */}
+      {successMsg && (
+        <div className="bg-success/10 border border-success/30 text-success rounded-xl p-4 text-sm flex items-center justify-between">
+          <span>{successMsg}</span>
+          <button onClick={() => setSuccessMsg(null)} className="ml-4 underline shrink-0">Fermer</button>
         </div>
       )}
 
@@ -321,9 +347,15 @@ export default function InventoryPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          {fetching ? (
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          ) : (
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          )}
           <input
             type="text"
             placeholder="Rechercher un produit..."

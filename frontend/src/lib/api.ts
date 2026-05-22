@@ -839,21 +839,25 @@ export async function linkArtistsToTrack(
   isrc: string,
   links: { artist_id: string; share_percent: number }[]
 ): Promise<TrackArtistLink[]> {
-  return fetchApi<TrackArtistLink[]>(`/catalog/tracks/${encodeURIComponent(isrc)}/artists`, {
+  const result = await fetchApi<TrackArtistLink[]>(`/catalog/tracks/${encodeURIComponent(isrc)}/artists`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(links),
   });
+  invalidateCache('/catalog');
+  return result;
 }
 
 export async function unlinkArtistFromTrack(
   isrc: string,
   artistId: string
 ): Promise<{ success: boolean; message: string }> {
-  return fetchApi<{ success: boolean; message: string }>(
+  const result = await fetchApi<{ success: boolean; message: string }>(
     `/catalog/tracks/${encodeURIComponent(isrc)}/artists/${artistId}`,
     { method: 'DELETE' }
   );
+  invalidateCache('/catalog');
+  return result;
 }
 
 export async function getCollaborationSuggestions(
@@ -1156,11 +1160,13 @@ export async function createExpense(data: {
   reference?: string;
   effective_date?: string;
 }): Promise<ExpenseEntry> {
-  return fetchApi<ExpenseEntry>('/finances/expenses', {
+  const result = await fetchApi<ExpenseEntry>('/finances/expenses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/finances');
+  return result;
 }
 
 export async function updateExpense(
@@ -1177,32 +1183,40 @@ export async function updateExpense(
     effective_date?: string;
   }
 ): Promise<ExpenseEntry> {
-  return fetchApi<ExpenseEntry>(`/finances/expenses/${expenseId}`, {
+  const result = await fetchApi<ExpenseEntry>(`/finances/expenses/${expenseId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/finances');
+  return result;
 }
 
 export async function deleteExpense(expenseId: string): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(`/finances/expenses/${expenseId}`, {
+  const result = await fetchApi<{ success: boolean; deleted_id: string }>(`/finances/expenses/${expenseId}`, {
     method: 'DELETE',
   });
+  invalidateCache('/finances');
+  return result;
 }
 
 export async function uploadExpenseDocument(expenseId: string, file: File): Promise<{ success: boolean; expense_id: string }> {
   const formData = new FormData();
   formData.append('file', file);
-  return fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
+  const result = await fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
     method: 'POST',
     body: formData,
   });
+  invalidateCache('/finances');
+  return result;
 }
 
 export async function deleteExpenseDocument(expenseId: string): Promise<{ success: boolean; expense_id: string }> {
-  return fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
+  const result = await fetchApi<{ success: boolean; expense_id: string }>(`/finances/expenses/${expenseId}/document`, {
     method: 'DELETE',
   });
+  invalidateCache('/finances');
+  return result;
 }
 
 export async function getRoyaltyPayments(year?: number): Promise<RoyaltyPayment[]> {
@@ -1242,25 +1256,31 @@ export async function getContract(contractId: string): Promise<ContractData> {
 }
 
 export async function createContract(data: Omit<ContractData, 'id' | 'created_at' | 'updated_at'>): Promise<ContractData> {
-  return fetchApi<ContractData>('/contracts', {
+  const result = await fetchApi<ContractData>('/contracts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/contracts');
+  return result;
 }
 
 export async function updateContract(contractId: string, data: Partial<ContractData>): Promise<ContractData> {
-  return fetchApi<ContractData>(`/contracts/${contractId}`, {
+  const result = await fetchApi<ContractData>(`/contracts/${contractId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/contracts');
+  return result;
 }
 
 export async function deleteContract(contractId: string): Promise<{ success: boolean; deleted_id: string }> {
-  return fetchApi<{ success: boolean; deleted_id: string }>(`/contracts/${contractId}`, {
+  const result = await fetchApi<{ success: boolean; deleted_id: string }>(`/contracts/${contractId}`, {
     method: 'DELETE',
   });
+  invalidateCache('/contracts');
+  return result;
 }
 
 export async function uploadContractDocument(contractId: string, file: File): Promise<{ success: boolean; contract_id: string }> {
@@ -1814,31 +1834,38 @@ export async function getInventorySummary(): Promise<InventorySummary> {
 }
 
 export async function createProduct(data: Partial<Product>): Promise<Product> {
-  return fetchApi<Product>('/inventory/products', {
+  const result = await fetchApi<Product>('/inventory/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/inventory');
+  return result;
 }
 
 export async function updateProduct(id: string, data: Partial<Product>): Promise<Product> {
-  return fetchApi<Product>(`/inventory/products/${id}`, {
+  const result = await fetchApi<Product>(`/inventory/products/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/inventory');
+  return result;
 }
 
 export async function deleteProduct(id: string): Promise<void> {
   await fetchApi(`/inventory/products/${id}`, { method: 'DELETE' });
+  invalidateCache('/inventory');
 }
 
 export async function adjustStock(productId: string, data: { quantity: number; movement_type: string; reason?: string; source?: string }): Promise<Product> {
-  return fetchApi<Product>(`/inventory/products/${productId}/stock`, {
+  const result = await fetchApi<Product>(`/inventory/products/${productId}/stock`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
+  invalidateCache('/inventory');
+  return result;
 }
 
 export async function getStockMovements(productId: string): Promise<StockMovement[]> {
@@ -1846,5 +1873,7 @@ export async function getStockMovements(productId: string): Promise<StockMovemen
 }
 
 export async function autoDiscoverProducts(): Promise<Product[]> {
-  return fetchApi<Product[]>('/inventory/auto-discover', { method: 'POST' });
+  const result = await fetchApi<Product[]>('/inventory/auto-discover', { method: 'POST' });
+  invalidateCache('/inventory');
+  return result;
 }

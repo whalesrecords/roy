@@ -40,6 +40,7 @@ export default function ContractsPage() {
   const [importResult, setImportResult] = useState<{ updated: number; errors: string[] } | null>(null);
   const [refreshingMetadata, setRefreshingMetadata] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -244,6 +245,7 @@ export default function ContractsPage() {
       setScopeInfo(info);
     } catch (error) {
       console.error('Error loading data:', error);
+      setLoadError(error instanceof Error ? error.message : 'Erreur de chargement des contrats');
     } finally {
       setLoading(false);
     }
@@ -805,6 +807,16 @@ export default function ContractsPage() {
           </div>
         </div>
       </header>
+
+      {/* Load error */}
+      {loadError && (
+        <div className="max-w-4xl mx-auto px-6 pt-4">
+          <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm flex items-center justify-between">
+            <span>{loadError}</span>
+            <button onClick={() => setLoadError(null)} className="ml-4 underline shrink-0">Fermer</button>
+          </div>
+        </div>
+      )}
 
       {/* Import result notification */}
       {importResult && (
