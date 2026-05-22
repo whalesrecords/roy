@@ -1878,6 +1878,24 @@ export async function autoDiscoverProducts(): Promise<Product[]> {
   return result;
 }
 
+export interface ImportCSVResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function importInventoryCSV(file: File, source: 'bandcamp' | 'squarespace'): Promise<ImportCSVResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('source', source);
+  const result = await fetchApi<ImportCSVResult>('/inventory/import-csv', {
+    method: 'POST',
+    body: formData,
+  });
+  invalidateCache('/inventory');
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Spotify Track Suggestions
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {
   getProducts,
   getInventorySummary,
   autoDiscoverProducts,
+  importInventoryCSV,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -95,6 +96,12 @@ export default function InventoryPage() {
 
   const [autoDiscovering, setAutoDiscovering] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // CSV import state
+  const [showCsvImport, setShowCsvImport] = useState(false);
+  const [csvSource, setCsvSource] = useState<'bandcamp' | 'squarespace'>('bandcamp');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -237,6 +244,28 @@ export default function InventoryPage() {
     }
   };
 
+  const handleCsvImport = async () => {
+    if (!csvFile) return;
+    setCsvImporting(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await importInventoryCSV(csvFile, csvSource);
+      await loadData();
+      const parts: string[] = [];
+      if (res.created > 0) parts.push(`${res.created} produit${res.created > 1 ? 's' : ''} ajouté${res.created > 1 ? 's' : ''}`);
+      if (res.skipped > 0) parts.push(`${res.skipped} ignoré${res.skipped > 1 ? 's' : ''} (déjà présents)`);
+      setSuccessMsg(parts.length > 0 ? parts.join(', ') + '.' : 'Aucun nouveau produit à importer.');
+      if (res.errors.length > 0) setError(res.errors.join(' | '));
+      setShowCsvImport(false);
+      setCsvFile(null);
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'import');
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-center min-h-[60vh]">
@@ -254,6 +283,15 @@ export default function InventoryPage() {
           <p className="text-sm text-secondary-500 mt-1">Gestion du stock physique et merch</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowCsvImport(true); setCsvFile(null); }}
+            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import CSV
+          </button>
           <button
             disabled={autoDiscovering}
             onClick={async () => {
@@ -839,6 +877,82 @@ export default function InventoryPage() {
                 className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {saving ? 'Enregistrement...' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {showCsvImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCsvImport(false)}>
+          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-divider">
+              <h2 className="text-lg font-bold text-foreground">Import CSV</h2>
+              <p className="text-sm text-secondary-500 mt-1">Importer des produits physiques depuis Bandcamp ou Squarespace</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-secondary-500 mb-2">Source</label>
+                <div className="flex gap-2">
+                  {(['bandcamp', 'squarespace'] as const).map(src => (
+                    <button
+                      key={src}
+                      onClick={() => setCsvSource(src)}
+                      className={`flex-1 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                        csvSource === src
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-default-50 text-secondary-600 border-divider hover:bg-default-100'
+                      }`}
+                    >
+                      {src === 'bandcamp' ? 'Bandcamp' : 'Squarespace'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-secondary-500 mb-2">Fichier CSV</label>
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-divider rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
+                  />
+                  {csvFile ? (
+                    <div className="text-center px-4">
+                      <svg className="w-6 h-6 text-primary mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm font-medium text-foreground truncate max-w-xs">{csvFile.name}</p>
+                      <p className="text-xs text-secondary-500 mt-0.5">{(csvFile.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <svg className="w-8 h-8 text-secondary-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      <p className="text-sm text-secondary-500">Cliquer pour sélectionner un fichier</p>
+                      <p className="text-xs text-secondary-400 mt-0.5">CSV uniquement</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+            </div>
+            <div className="p-6 border-t border-divider flex justify-end gap-3">
+              <button
+                onClick={() => { setShowCsvImport(false); setCsvFile(null); }}
+                className="px-4 py-2 rounded-xl bg-default-100 text-secondary-600 text-sm font-medium hover:bg-default-200 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCsvImport}
+                disabled={!csvFile || csvImporting}
+                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {csvImporting ? <Spinner size="sm" color="white" /> : null}
+                {csvImporting ? 'Import en cours...' : 'Importer'}
               </button>
             </div>
           </div>

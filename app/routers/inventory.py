@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -312,6 +312,22 @@ async def get_stock_movements(
     return result.scalars().all()
 
 
+def _guess_product_format(text: str) -> str:
+    """Guess ProductFormat from a title or package description string."""
+    t = (text or '').lower()
+    if any(w in t for w in ['vinyl', 'lp', '12"', '12 inch', '10"', '7"', 'vinyle']):
+        return ProductFormat.VINYL
+    if any(w in t for w in ['cassette', 'tape', 'k7']):
+        return ProductFormat.CASSETTE
+    if any(w in t for w in ['bundle', 'pack', 'coffret']):
+        return ProductFormat.BUNDLE
+    if any(w in t for w in ['shirt', 'tee', 'hoodie', 'tote', 'poster', 'patch', 'pin', 'sticker', 'merch']):
+        return ProductFormat.MERCH
+    if any(w in t for w in ['cd', 'compact disc']):
+        return ProductFormat.CD
+    return ProductFormat.CD
+
+
 @router.post("/auto-discover", response_model=List[ProductResponse])
 async def auto_discover_products(
     _token: str = Depends(verify_admin_token),
@@ -322,9 +338,15 @@ async def auto_discover_products(
     Creates inventory items for any physical sale items not already tracked.
     """
     # Find distinct physical items from transactions
+    # Use COALESCE(release_title, track_title) since item_title column does not exist
+    item_title_col = func.coalesce(
+        TransactionNormalized.release_title,
+        TransactionNormalized.track_title,
+    ).label('item_title')
+
     result = await db.execute(
         select(
-            TransactionNormalized.item_title,
+            item_title_col,
             TransactionNormalized.artist_name,
             TransactionNormalized.upc,
             TransactionNormalized.store_name,
@@ -333,7 +355,8 @@ async def auto_discover_products(
         )
         .where(TransactionNormalized.sale_type == SaleType.PHYSICAL)
         .group_by(
-            TransactionNormalized.item_title,
+            TransactionNormalized.release_title,
+            TransactionNormalized.track_title,
             TransactionNormalized.artist_name,
             TransactionNormalized.upc,
             TransactionNormalized.store_name,
@@ -356,22 +379,9 @@ async def auto_discover_products(
         if (title.lower(), artist.lower()) in existing_titles:
             continue
 
-        # Guess format from title
-        title_lower = title.lower()
-        if any(w in title_lower for w in ['vinyl', 'lp', '12"', '12 inch', '10"', '7"']):
-            fmt = ProductFormat.VINYL
-        elif any(w in title_lower for w in ['cassette', 'tape', 'k7']):
-            fmt = ProductFormat.CASSETTE
-        elif any(w in title_lower for w in ['bundle', 'pack', 'coffret']):
-            fmt = ProductFormat.BUNDLE
-        elif any(w in title_lower for w in ['shirt', 'tee', 'hoodie', 'tote', 'poster', 'patch', 'pin', 'sticker']):
-            fmt = ProductFormat.MERCH
-        else:
-            fmt = ProductFormat.CD
-
         product = Product(
             title=title,
-            format=fmt,
+            format=_guess_product_format(title),
             artist_name=artist,
             release_upc=item.upc,
             status=ProductStatus.AVAILABLE,
@@ -388,3 +398,96 @@ async def auto_discover_products(
             await db.refresh(p)
 
     return created
+
+
+class ImportCSVResult(BaseModel):
+    created: int
+    skipped: int
+    errors: List[str]
+
+
+@router.post("/import-csv", response_model=ImportCSVResult)
+async def import_inventory_csv(
+    file: UploadFile = File(...),
+    source: str = Form(...),
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Import physical products from a Bandcamp or Squarespace CSV export.
+    Only 'package' rows (physical items) are imported.
+    """
+    if source not in ("bandcamp", "squarespace"):
+        raise HTTPException(status_code=400, detail="source must be 'bandcamp' or 'squarespace'")
+
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")  # handle BOM
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    # Parse the CSV using the appropriate parser
+    errors: list[str] = []
+    rows = []
+    try:
+        if source == "bandcamp":
+            from app.services.parsers.bandcamp import BandcampParser
+            result_obj = BandcampParser().parse(text)
+            rows = result_obj.rows
+        else:
+            from app.services.parsers.squarespace import SquarespaceParser
+            result_obj = SquarespaceParser().parse(text)
+            rows = result_obj.rows
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Erreur de lecture du fichier CSV: {e}")
+
+    # Keep only physical/package rows
+    package_rows = [r for r in rows if r.item_type == "package"]
+    if not package_rows:
+        return ImportCSVResult(created=0, skipped=0, errors=["Aucun article physique trouvé dans ce fichier."])
+
+    # Load existing products for dedup
+    existing_result = await db.execute(select(Product))
+    existing_products = existing_result.scalars().all()
+    existing_keys = {(p.title.lower(), (p.artist_name or '').lower()) for p in existing_products}
+
+    created_count = 0
+    skipped_count = 0
+
+    for row in package_rows:
+        title = (row.item_name or '').strip() or 'Unknown'
+        artist = (row.artist or '').strip()
+
+        key = (title.lower(), artist.lower())
+        if key in existing_keys:
+            skipped_count += 1
+            continue
+
+        # Guess format from package description (Bandcamp) or title
+        format_hint = getattr(row, 'package', None) or title
+        fmt = _guess_product_format(format_hint)
+
+        # Optional fields that differ between parsers
+        sku = getattr(row, 'sku', None) or None
+        variant = getattr(row, 'variant', None) or None
+        upc = getattr(row, 'upc', None) or None
+
+        product = Product(
+            title=title,
+            format=fmt,
+            artist_name=artist or None,
+            sku=sku,
+            variant=variant,
+            release_upc=upc,
+            status=ProductStatus.AVAILABLE,
+            stock_quantity=0,
+            notes=f"Importé depuis {source.capitalize()} CSV.",
+        )
+        db.add(product)
+        existing_keys.add(key)
+        created_count += 1
+
+    if created_count > 0:
+        await db.commit()
+
+    return ImportCSVResult(created=created_count, skipped=skipped_count, errors=errors)
