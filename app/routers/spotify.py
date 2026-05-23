@@ -1064,6 +1064,18 @@ async def approve_suggestion(
 
     suggestion.status = SuggestionStatus.APPROVED
     suggestion.reviewed_at = datetime.now(timezone.utc)
+
+    # If ISRC is missing, try to fetch it from Spotify now
+    if not suggestion.isrc and suggestion.spotify_track_id:
+        try:
+            track_data = await spotify_service._request(f"/tracks/{suggestion.spotify_track_id}")
+            fetched_isrc = track_data.get("external_ids", {}).get("isrc") if track_data else None
+            if fetched_isrc:
+                suggestion.isrc = fetched_isrc
+                logger.info(f"Fetched ISRC {fetched_isrc} for suggestion {suggestion.id}")
+        except Exception as e:
+            logger.warning(f"Could not fetch ISRC for suggestion {suggestion.id}: {e}")
+
     await db.commit()
 
     return {
@@ -1093,3 +1105,45 @@ async def reject_suggestion(
     await db.commit()
 
     return {"status": "rejected", "track_name": suggestion.track_name}
+
+
+@router.post("/suggestions/backfill-isrcs")
+async def backfill_suggestion_isrcs(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> dict:
+    """
+    Backfill missing ISRCs for approved suggestions by fetching from Spotify.
+    Call this once to fix existing suggestions that were saved without ISRC.
+    """
+    result = await db.execute(
+        select(SpotifyTrackSuggestion).where(
+            SpotifyTrackSuggestion.isrc.is_(None),
+            SpotifyTrackSuggestion.spotify_track_id.isnot(None),
+        )
+    )
+    suggestions = result.scalars().all()
+
+    updated = 0
+    failed = 0
+    for sug in suggestions:
+        try:
+            track_data = await spotify_service._request(f"/tracks/{sug.spotify_track_id}")
+            fetched_isrc = track_data.get("external_ids", {}).get("isrc") if track_data else None
+            if fetched_isrc:
+                sug.isrc = fetched_isrc
+                updated += 1
+                logger.info(f"Backfilled ISRC {fetched_isrc} for '{sug.track_name}'")
+            else:
+                failed += 1
+        except Exception as e:
+            logger.warning(f"Could not fetch ISRC for '{sug.track_name}': {e}")
+            failed += 1
+
+    await db.commit()
+    return {
+        "status": "done",
+        "updated": updated,
+        "failed": failed,
+        "total": len(suggestions),
+    }

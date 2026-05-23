@@ -1057,15 +1057,16 @@ async def get_artist_tracks(
         sug_query = select(SpotifyTrackSuggestion).where(
             SpotifyTrackSuggestion.artist_id == artist.id,
             SpotifyTrackSuggestion.status == SuggestionStatus.APPROVED,
-            SpotifyTrackSuggestion.isrc.isnot(None),
         )
         sug_result = await db.execute(sug_query)
         for sug in sug_result.scalars().all():
-            if sug.isrc not in seen_isrcs:
+            # Use ISRC if available, otherwise use spotify_track_id as fallback identifier
+            track_id = sug.isrc if sug.isrc else f"spt:{sug.spotify_track_id}"
+            if track_id not in seen_isrcs:
                 tracks.append({
                     "track_title": sug.track_name,
                     "release_title": sug.album_name,
-                    "isrc": sug.isrc,
+                    "isrc": track_id,
                     "total_gross": "0",
                     "total_streams": 0,
                     "currency": "EUR",
@@ -1073,7 +1074,7 @@ async def get_artist_tracks(
                     "original_artist": None,
                     "share_percent": None,
                 })
-                seen_isrcs.add(sug.isrc)
+                seen_isrcs.add(track_id)
 
     return tracks
 

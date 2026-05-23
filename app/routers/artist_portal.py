@@ -752,14 +752,15 @@ async def get_tracks(
         select(SpotifyTrackSuggestion).where(
             SpotifyTrackSuggestion.artist_id == artist.id,
             SpotifyTrackSuggestion.status == SuggestionStatus.APPROVED,
-            SpotifyTrackSuggestion.isrc.isnot(None),
         )
     )
     for sug in sug_result.scalars().all():
-        if sug.isrc not in seen_isrcs:
-            artist_share = track_contracts.get(sug.isrc, catalog_share)
+        # Use ISRC if available, otherwise use spotify_track_id as fallback identifier
+        track_id = sug.isrc if sug.isrc else f"spt:{sug.spotify_track_id}"
+        if track_id not in seen_isrcs:
+            artist_share = track_contracts.get(track_id, catalog_share)
             tracks.append({
-                "isrc": sug.isrc,
+                "isrc": track_id,
                 "title": sug.track_name,
                 "release_title": sug.album_name,
                 "artwork_url": sug.image_url,
@@ -768,7 +769,7 @@ async def get_tracks(
                 "streams": 0,
                 "currency": "EUR",
             })
-            seen_isrcs.add(sug.isrc)
+            seen_isrcs.add(track_id)
 
     return tracks
 
