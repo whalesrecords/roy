@@ -315,7 +315,7 @@ async def get_stock_movements(
 def _guess_product_format(text: str) -> str:
     """Guess ProductFormat from a title or package description string."""
     t = (text or '').lower()
-    if any(w in t for w in ['vinyl', 'lp', '12"', '12 inch', '10"', '7"', 'vinyle']):
+    if any(w in t for w in ['vinyl', 'lp', '12"', "12''", '12 inch', '10"', '7"', 'vinyle']):
         return ProductFormat.VINYL
     if any(w in t for w in ['cassette', 'tape', 'k7']):
         return ProductFormat.CASSETTE
@@ -323,8 +323,14 @@ def _guess_product_format(text: str) -> str:
         return ProductFormat.BUNDLE
     if any(w in t for w in ['shirt', 'tee', 'hoodie', 'tote', 'poster', 'patch', 'pin', 'sticker', 'merch']):
         return ProductFormat.MERCH
-    if any(w in t for w in ['cd', 'compact disc']):
+    if any(w in t for w in ['cd', 'compact disc', 'digipack', 'digipak', 'digi pack', 'digi-pack']):
         return ProductFormat.CD
+    # Color-only variants (Black, White, Natural & Black, etc.) = vinyl color press
+    _color_words = {'black', 'white', 'natural', 'red', 'blue', 'green', 'clear', 'transparent',
+                    'gold', 'silver', 'orange', 'purple', 'pink', 'yellow', 'splatter', 'marble'}
+    words = set(t.replace('&', ' ').replace('-', ' ').split())
+    if words and words.issubset(_color_words | {'edition', 'limited', 'and', ''}):
+        return ProductFormat.VINYL
     return ProductFormat.CD
 
 
@@ -339,6 +345,7 @@ async def auto_discover_products(
     """
     # Find distinct physical items from transactions
     # Use COALESCE(release_title, track_title) since item_title column does not exist
+    # Include physical_format which holds "Compact Disc (CD)", "Vinyl LP", "Cassette", etc.
     item_title_col = func.coalesce(
         TransactionNormalized.release_title,
         TransactionNormalized.track_title,
@@ -350,8 +357,9 @@ async def auto_discover_products(
             TransactionNormalized.artist_name,
             TransactionNormalized.upc,
             TransactionNormalized.store_name,
+            TransactionNormalized.physical_format,
             func.sum(TransactionNormalized.quantity).label('total_sold'),
-            func.sum(TransactionNormalized.net_amount).label('total_revenue'),
+            func.sum(TransactionNormalized.gross_amount).label('total_revenue'),
         )
         .where(TransactionNormalized.sale_type == SaleType.PHYSICAL)
         .group_by(
@@ -360,6 +368,7 @@ async def auto_discover_products(
             TransactionNormalized.artist_name,
             TransactionNormalized.upc,
             TransactionNormalized.store_name,
+            TransactionNormalized.physical_format,
         )
         .order_by(func.sum(TransactionNormalized.quantity).desc())
     )
@@ -368,20 +377,28 @@ async def auto_discover_products(
     # Get existing products to avoid duplicates
     existing = await db.execute(select(Product))
     existing_products = existing.scalars().all()
-    existing_titles = {(p.title.lower(), (p.artist_name or '').lower()) for p in existing_products}
+    # Dedup key includes physical_format so same album in different formats = separate products
+    existing_keys = {(p.title.lower(), (p.artist_name or '').lower(), (p.variant or '').lower()) for p in existing_products}
 
     created = []
     for item in physical_items:
         title = item.item_title or 'Unknown'
         artist = item.artist_name or ''
+        physical_fmt = item.physical_format or ''
 
-        # Skip if already exists
-        if (title.lower(), artist.lower()) in existing_titles:
+        # Use physical_format for accurate format detection, fallback to title keywords
+        fmt = _guess_product_format(physical_fmt or title)
+        # variant = the raw physical format string (e.g. "CD Digipack", "Vinyl LP")
+        variant = physical_fmt or None
+
+        key = (title.lower(), artist.lower(), (variant or '').lower())
+        if key in existing_keys:
             continue
 
         product = Product(
             title=title,
-            format=_guess_product_format(title),
+            format=fmt,
+            variant=variant,
             artist_name=artist,
             release_upc=item.upc,
             status=ProductStatus.AVAILABLE,
@@ -390,7 +407,7 @@ async def auto_discover_products(
         )
         db.add(product)
         created.append(product)
-        existing_titles.add((title.lower(), artist.lower()))
+        existing_keys.add(key)
 
     if created:
         await db.commit()
