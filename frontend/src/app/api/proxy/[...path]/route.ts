@@ -27,13 +27,14 @@ async function handler(req: Request, { params }: { params: { path: string[] } })
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
   const body = hasBody ? req.body : undefined;
 
-  // keepalive cannot be used with a streaming body (Node.js throws TypeError).
-  // Disable it for requests that carry a body (file uploads, JSON POSTs, etc.).
+  // Do NOT pass keepalive on body requests — Vercel's runtime throws
+  // TypeError: keepalive when the option is present (even as false)
+  // alongside a streaming body.  For GET/HEAD we enable it explicitly.
   const res = await fetch(target, {
     method: req.method,
     headers,
     body,
-    keepalive: !hasBody,
+    ...(hasBody ? {} : { keepalive: true }),
     // @ts-expect-error — Next.js streams
     duplex: 'half',
   });
