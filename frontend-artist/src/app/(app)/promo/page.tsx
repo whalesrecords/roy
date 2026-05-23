@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
-import { getArtistPromoStats, getArtistPromoSubmissions, PromoStats, PromoSubmission } from '@/lib/api';
+import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
 
 type SourceFilter = 'all' | 'groover' | 'submithub' | 'manual';
 
@@ -19,6 +19,13 @@ function formatListenTime(ms: number | null): string {
   const m = Math.floor(s / 60);
   const rem = s % 60;
   return m > 0 ? `${m}m${rem.toString().padStart(2, '0')}s` : `${s}s`;
+}
+
+function isPositive(sub: PromoSubmission): boolean {
+  const text = ((sub.decision || '') + ' ' + (sub.action || '')).toLowerCase();
+  if (!text.trim()) return false;
+  const negative = ['pass', 'declined', 'rejected', 'not added', 'no thanks', 'sorry'];
+  return !negative.some(n => text.includes(n));
 }
 
 function DecisionBadge({ decision, action }: { decision: string | null; action: string | null }) {
@@ -60,11 +67,13 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
 
 export default function PromoPage() {
   const { artist, loading: authLoading } = useAuth();
-  const [stats, setStats] = useState<PromoStats | null>(null);
   const [submissions, setSubmissions] = useState<PromoSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [trackFilter, setTrackFilter] = useState<string | null>(null);
+  const [releaseFilter, setReleaseFilter] = useState<string | null>(null);
+  const [filterDim, setFilterDim] = useState<'source' | 'track' | 'release'>('source');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,12 +84,8 @@ export default function PromoPage() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, subsData] = await Promise.all([
-        getArtistPromoStats(),
-        getArtistPromoSubmissions({ limit: 500 }),
-      ]);
-      setStats(statsData);
-      setSubmissions(subsData);
+      const data = await getArtistPromoSubmissions({ limit: 500 });
+      setSubmissions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
@@ -88,11 +93,25 @@ export default function PromoPage() {
     }
   };
 
-  const filtered = useMemo(() => {
-    if (sourceFilter === 'all') return submissions;
-    return submissions.filter(s => s.source?.toLowerCase() === sourceFilter);
-  }, [submissions, sourceFilter]);
+  // Stats computed from actual data (no reliance on buggy stats API)
+  const stats = useMemo(() => ({
+    total: submissions.length,
+    withFeedback: submissions.filter(s => !!s.feedback).length,
+    positive: submissions.filter(isPositive).length,
+    playlists: submissions.filter(s => s.decision?.toLowerCase().includes('playlist') || s.decision?.toLowerCase().includes('added')).length,
+  }), [submissions]);
 
+  // Unique tracks and releases for filters
+  const uniqueTracks = useMemo(() =>
+    [...new Set(submissions.map(s => s.song_title))].sort(),
+    [submissions]
+  );
+  const uniqueReleases = useMemo(() =>
+    [...new Set(submissions.filter(s => s.release_title).map(s => s.release_title!))].sort(),
+    [submissions]
+  );
+
+  // Source counts
   const sourceCounts = useMemo(() => {
     const counts: Record<string, number> = { all: submissions.length };
     submissions.forEach(s => {
@@ -101,6 +120,20 @@ export default function PromoPage() {
     });
     return counts;
   }, [submissions]);
+
+  // Filtered submissions
+  const filtered = useMemo(() => {
+    let result = submissions;
+    if (sourceFilter !== 'all') result = result.filter(s => s.source?.toLowerCase() === sourceFilter);
+    if (trackFilter) result = result.filter(s => s.song_title === trackFilter);
+    if (releaseFilter) result = result.filter(s => s.release_title === releaseFilter);
+    return result;
+  }, [submissions, sourceFilter, trackFilter, releaseFilter]);
+
+  const clearSecondaryFilter = () => {
+    setTrackFilter(null);
+    setReleaseFilter(null);
+  };
 
   if (authLoading || loading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
@@ -130,56 +163,139 @@ export default function PromoPage() {
           </div>
         )}
 
-        {/* Stats cards */}
-        {stats && (
+        {/* Stats cards — computed from real data */}
+        {submissions.length > 0 && (
           <div className="grid grid-cols-4 gap-2">
             <StatCard
               label="Envois"
-              value={stats.total_submissions}
+              value={stats.total}
               icon="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
               color="bg-primary/10 text-primary"
             />
             <StatCard
-              label="Écoutes"
-              value={stats.total_listens}
-              icon="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+              label="Feedback"
+              value={stats.withFeedback}
+              icon="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
               color="bg-cyan-500/10 text-cyan-500"
             />
             <StatCard
-              label="Validés"
-              value={stats.total_approvals}
+              label="Positif"
+              value={stats.positive}
               icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               color="bg-emerald-500/10 text-emerald-500"
             />
             <StatCard
               label="Playlists"
-              value={stats.total_playlists}
+              value={stats.playlists}
               icon="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"
               color="bg-amber-500/10 text-amber-500"
             />
           </div>
         )}
 
-        {/* Source filter */}
+        {/* Filter dimension tabs */}
         {submissions.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            {(['all', 'groover', 'submithub', 'manual'] as SourceFilter[]).map(src => {
-              const count = sourceCounts[src === 'all' ? 'all' : src] || 0;
-              if (src !== 'all' && !count) return null;
-              return (
+          <div className="space-y-2">
+            {/* Tab selector */}
+            <div className="flex gap-1 bg-content1 border border-divider rounded-xl p-1">
+              {(['source', 'track', 'release'] as const).map(dim => (
                 <button
-                  key={src}
-                  onClick={() => setSourceFilter(src)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                    sourceFilter === src
-                      ? 'bg-primary text-white'
-                      : 'bg-content1 border border-divider text-default-500'
+                  key={dim}
+                  onClick={() => { setFilterDim(dim); clearSecondaryFilter(); if (dim !== 'source') setSourceFilter('all'); }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    filterDim === dim ? 'bg-primary text-white' : 'text-default-500'
                   }`}
                 >
-                  {src === 'all' ? `Tout (${count})` : `${src.charAt(0).toUpperCase() + src.slice(1)} (${count})`}
+                  {dim === 'source' ? 'Source' : dim === 'track' ? 'Track' : 'Campagne'}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Filter chips */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {filterDim === 'source' && (
+                <>
+                  {(['all', 'groover', 'submithub', 'manual'] as SourceFilter[]).map(src => {
+                    const count = sourceCounts[src === 'all' ? 'all' : src] || 0;
+                    if (src !== 'all' && !count) return null;
+                    return (
+                      <button
+                        key={src}
+                        onClick={() => setSourceFilter(src)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                          sourceFilter === src
+                            ? 'bg-primary text-white'
+                            : 'bg-content1 border border-divider text-default-500'
+                        }`}
+                      >
+                        {src === 'all' ? `Tout (${count})` : `${src.charAt(0).toUpperCase() + src.slice(1)} (${count})`}
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {filterDim === 'track' && (
+                <>
+                  <button
+                    onClick={() => setTrackFilter(null)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                      !trackFilter ? 'bg-primary text-white' : 'bg-content1 border border-divider text-default-500'
+                    }`}
+                  >
+                    Tout ({submissions.length})
+                  </button>
+                  {uniqueTracks.map(track => {
+                    const count = submissions.filter(s => s.song_title === track).length;
+                    return (
+                      <button
+                        key={track}
+                        onClick={() => setTrackFilter(trackFilter === track ? null : track)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                          trackFilter === track
+                            ? 'bg-primary text-white'
+                            : 'bg-content1 border border-divider text-default-500'
+                        }`}
+                      >
+                        {track} ({count})
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+
+              {filterDim === 'release' && (
+                <>
+                  <button
+                    onClick={() => setReleaseFilter(null)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                      !releaseFilter ? 'bg-primary text-white' : 'bg-content1 border border-divider text-default-500'
+                    }`}
+                  >
+                    Tout ({submissions.length})
+                  </button>
+                  {uniqueReleases.map(release => {
+                    const count = submissions.filter(s => s.release_title === release).length;
+                    return (
+                      <button
+                        key={release}
+                        onClick={() => setReleaseFilter(releaseFilter === release ? null : release)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                          releaseFilter === release
+                            ? 'bg-primary text-white'
+                            : 'bg-content1 border border-divider text-default-500'
+                        }`}
+                      >
+                        {release} ({count})
+                      </button>
+                    );
+                  })}
+                  {uniqueReleases.length === 0 && (
+                    <span className="text-xs text-default-400 px-2 py-1.5">Aucune release liée</span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -196,6 +312,7 @@ export default function PromoPage() {
           </div>
         ) : (
           <div className="space-y-2">
+            <p className="text-[10px] text-default-400 px-1">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
             {filtered.map(sub => {
               const isExpanded = expandedId === sub.id;
               const hasFeedback = !!sub.feedback;
@@ -210,7 +327,6 @@ export default function PromoPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        {/* Song + release */}
                         <p className="text-sm font-semibold text-foreground truncate">{sub.song_title}</p>
                         {sub.release_title && (
                           <p className="text-[11px] text-default-400 truncate">{sub.release_title}</p>
@@ -226,7 +342,6 @@ export default function PromoPage() {
                       </div>
                     </div>
 
-                    {/* Row 2: outlet + source + date */}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       {(sub.outlet_name || sub.influencer_name) && (
                         <div className="flex items-center gap-1">

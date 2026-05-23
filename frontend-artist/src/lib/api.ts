@@ -123,6 +123,7 @@ export interface Expense {
   scope_title?: string;
   description?: string;
   date: string;
+  document_url?: string;
 }
 
 export interface ContractPartyInfo {

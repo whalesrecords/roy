@@ -10,6 +10,7 @@ import {
   Statement,
   StatementDetail,
 } from '@/lib/api';
+import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function StatementsPage() {
@@ -115,6 +116,27 @@ export default function StatementsPage() {
             ))}
           </div>
         )}
+
+        {/* Shortcut to Dépenses */}
+        <Link
+          href="/expenses"
+          className="flex items-center justify-between bg-content1 border border-divider rounded-2xl px-4 py-3 hover:bg-content2 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-danger/10 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Dépenses du label</p>
+              <p className="text-[10px] text-default-400">Mastering, promo, distribution…</p>
+            </div>
+          </div>
+          <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
 
         {/* Empty state */}
         {statements.length === 0 && !error && (

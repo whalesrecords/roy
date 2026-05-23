@@ -127,6 +127,7 @@ class ExpenseResponse(BaseModel):
     scope_title: Optional[str] = None
     description: Optional[str] = None
     date: str
+    document_url: Optional[str] = None
 
 
 class ContractResponse(BaseModel):
@@ -956,6 +957,7 @@ async def get_expenses(
             "scope_title": scope_title,
             "description": entry.description,
             "date": entry.effective_date.strftime("%Y-%m-%d") if entry.effective_date else entry.created_at.strftime("%Y-%m-%d"),
+            "document_url": entry.document_url,
         })
 
     return expenses
