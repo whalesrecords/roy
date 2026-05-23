@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// This route fetches from the backend at runtime — never statically generated
+export const dynamic = 'force-dynamic';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Serve the label logo as an image (for favicon / app icon)

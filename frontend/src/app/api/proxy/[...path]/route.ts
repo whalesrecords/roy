@@ -4,6 +4,9 @@
  * non-NEXT_PUBLIC_ environment variable and injected here.
  */
 
+// Dynamic route — always handled at runtime, never statically generated
+export const dynamic = 'force-dynamic';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
