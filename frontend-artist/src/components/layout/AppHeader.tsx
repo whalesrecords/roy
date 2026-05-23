@@ -65,7 +65,7 @@ export default function AppHeader() {
     : (labelSettings?.logo_base64 || labelSettings?.logo_url);
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-divider">
+    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-divider safe-top">
       <div className="px-4 py-3 flex items-center justify-between max-w-lg mx-auto">
         {isMainPage ? (
           /* ── Main page: branding left ── */
