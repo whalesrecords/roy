@@ -78,7 +78,9 @@ class SpotifyService:
         credentials = f"{client_id}:{client_secret}"
         encoded = base64.b64encode(credentials.encode()).decode()
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            headers={"User-Agent": "Mozilla/5.0 (compatible; WhalesRecordsBot/1.0)"}
+        ) as client:
             response = await client.post(
                 self.AUTH_URL,
                 headers={
@@ -89,7 +91,7 @@ class SpotifyService:
             )
 
             if response.status_code != 200:
-                logger.error(f"Failed to get Spotify token: {response.text}")
+                logger.error(f"Failed to get Spotify token: {response.status_code} {response.text[:200]}")
                 raise ValueError("Failed to authenticate with Spotify")
 
             data = response.json()
@@ -103,7 +105,9 @@ class SpotifyService:
         """Make an authenticated request to Spotify API."""
         token = await self._get_access_token()
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(
+            headers={"User-Agent": "Mozilla/5.0 (compatible; WhalesRecordsBot/1.0)"}
+        ) as client:
             response = await client.get(
                 f"{self.BASE_URL}{endpoint}",
                 headers={"Authorization": f"Bearer {token}"},
