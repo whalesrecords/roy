@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import {
   getLabelSettings, LabelSettings,
   getNotifications, markNotificationRead, markAllNotificationsRead, Notification,
-  getTicketStats,
+  getTicketStats, getSpotifySuggestions,
 } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -29,6 +29,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/artists', label: 'Artistes', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
       { href: '/catalog', label: 'Catalogue', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+      { href: '/spotify-suggestions', label: 'Suggestions', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3', badge: true },
     ],
   },
   {
@@ -88,18 +89,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
+  const [pendingSpotifyCount, setPendingSpotifyCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  useEffect(() => {
-    getLabelSettings().then(setLabelSettings).catch(() => {});
+  const refreshCounts = () => {
     getNotifications().then(setNotifications).catch(() => {});
     getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
-    const interval = setInterval(() => {
-      getNotifications().then(setNotifications).catch(() => {});
-      getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
-    }, 30000);
+    getSpotifySuggestions('pending').then(s => setPendingSpotifyCount(s.length)).catch(() => {});
+  };
+
+  useEffect(() => {
+    getLabelSettings().then(setLabelSettings).catch(() => {});
+    refreshCounts();
+    const interval = setInterval(refreshCounts, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -167,7 +171,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             <div className="space-y-0.5">
               {group.items.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-                const showBadge = item.badge && openTicketsCount > 0;
+                const badgeCount = item.href === '/spotify-suggestions' ? pendingSpotifyCount : openTicketsCount;
+                const showBadge = item.badge && badgeCount > 0;
                 return (
                   <Link
                     key={item.href}
@@ -185,7 +190,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     <span className="flex-1 truncate">{item.label}</span>
                     {showBadge && (
                       <span className="flex-shrink-0 h-4 min-w-4 px-1 bg-danger text-white text-[9px] font-bold rounded-full flex items-center justify-center tabular-nums">
-                        {openTicketsCount > 9 ? '9+' : openTicketsCount}
+                        {badgeCount > 9 ? '9+' : badgeCount}
                       </span>
                     )}
                     {isActive && (

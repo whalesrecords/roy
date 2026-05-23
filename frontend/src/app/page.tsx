@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   getArtists, getImports, getRoyaltyRuns, getTicketStats,
   getAnalyticsSummary, AnalyticsSummary, getArtistsSummary, ArtistSummary,
+  getSpotifySuggestions,
 } from '@/lib/api';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
 
@@ -42,6 +43,7 @@ export default function DashboardPage() {
   const [basicStats, setBasicStats] = useState({ artists: 0, imports: 0, pendingRuns: 0, openTickets: 0 });
   const [recentImports, setRecentImports] = useState<{ id: string; source: string; period_start: string; period_end: string; total_rows: number }[]>([]);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [pendingSpotify, setPendingSpotify] = useState(0);
 
   // Weighted steps: must sum to 100
   const STEPS = [
@@ -67,13 +69,15 @@ export default function DashboardPage() {
     setLoadingStep('Démarrage…');
 
     try {
-      const [artists, imports, runs, tickets, artSummary] = await Promise.all([
+      const [artists, imports, runs, tickets, artSummary, spotifySuggestions] = await Promise.all([
         getArtists()                       .then(r => { tick(0); return r; }),
         getImports()                       .then(r => { tick(1); return r; }),
         getRoyaltyRuns()                   .then(r => { tick(2); return r; }),
         getTicketStats().catch(() => ({ open: 0 })).then(r => { tick(3); return r; }),
         getArtistsSummary().catch(() => []).then(r => { tick(4); return r; }),
+        getSpotifySuggestions('pending').catch(() => []),
       ]);
+      setPendingSpotify(spotifySuggestions.length);
 
       const yearSet = new Set<number>();
       imports.forEach(imp => {
@@ -204,6 +208,28 @@ export default function DashboardPage() {
           {/* ===== OVERVIEW ===== */}
           {view === 'overview' && (
             <div className="space-y-5">
+              {/* Spotify suggestions banner */}
+              {pendingSpotify > 0 && (
+                <Link
+                  href="/spotify-suggestions"
+                  className="flex items-center gap-3 bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-2xl px-4 py-3 hover:bg-[#1DB954]/15 transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {pendingSpotify} nouvelle{pendingSpotify > 1 ? 's' : ''} suggestion{pendingSpotify > 1 ? 's' : ''} Spotify
+                    </p>
+                    <p className="text-xs text-default-500">Nouvelles pistes de votre label trouvées — cliquez pour valider</p>
+                  </div>
+                  <svg className="w-4 h-4 text-default-400 group-hover:text-foreground transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )}
               {/* KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <StatCard label="Revenus" value={analytics ? formatCurrency(analytics.total_revenue) : '—'} color="text-success" href="/analytics" />
