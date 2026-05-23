@@ -1947,3 +1947,7 @@ export async function rejectSpotifySuggestion(id: string): Promise<{ status: str
 export async function syncAllArtistPhotos(): Promise<{ status: string; message: string }> {
   return fetchApi('/spotify/sync-artists', { method: 'POST' });
 }
+
+export async function backfillSuggestionIsrcs(): Promise<{ status: string; updated: number; failed: number; total: number }> {
+  return fetchApi('/spotify/suggestions/backfill-isrcs', { method: 'POST' });
+}

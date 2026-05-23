@@ -6,6 +6,7 @@ import {
   getSpotifySuggestions,
   triggerSpotifyScan,
   syncAllArtistPhotos,
+  backfillSuggestionIsrcs,
   approveSpotifySuggestion,
   rejectSpotifySuggestion,
   SpotifyTrackSuggestion,
@@ -38,6 +39,7 @@ export default function SpotifySuggestionsPage() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [syncingPhotos, setSyncingPhotos] = useState(false);
+  const [backfillingIsrcs, setBackfillingIsrcs] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +84,20 @@ export default function SpotifySuggestionsPage() {
       setScanMessage(`Erreur: ${e.message}`);
     } finally {
       setSyncingPhotos(false);
+    }
+  };
+
+  const handleBackfillIsrcs = async () => {
+    setBackfillingIsrcs(true);
+    setScanMessage(null);
+    try {
+      const res = await backfillSuggestionIsrcs();
+      setScanMessage(`ISRCs récupérés : ${res.updated} mis à jour, ${res.failed} échecs sur ${res.total} suggestions`);
+      load(filter);
+    } catch (e: any) {
+      setScanMessage(`Erreur: ${e.message}`);
+    } finally {
+      setBackfillingIsrcs(false);
     }
   };
 
@@ -136,6 +152,22 @@ export default function SpotifySuggestionsPage() {
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={handleBackfillIsrcs}
+            disabled={backfillingIsrcs}
+            title="Récupère les ISRCs manquants depuis Spotify pour les suggestions approuvées"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+          >
+            {backfillingIsrcs ? (
+              <Spinner size="sm" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+            )}
+            Récupérer ISRCs
+          </button>
           <button
             onClick={handleSyncPhotos}
             disabled={syncingPhotos}
