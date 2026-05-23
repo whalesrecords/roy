@@ -8,12 +8,14 @@ Includes in-memory caching to minimize API requests and avoid rate limits.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any, Dict, Optional
 
-import httpx
+import requests
 
 from app.core.config import settings
 
@@ -78,57 +80,57 @@ class SpotifyService:
         credentials = f"{client_id}:{client_secret}"
         encoded = base64.b64encode(credentials.encode()).decode()
 
-        async with httpx.AsyncClient(
-            headers={"User-Agent": "Mozilla/5.0 (compatible; WhalesRecordsBot/1.0)"}
-        ) as client:
-            response = await client.post(
+        def _do_auth() -> requests.Response:
+            return requests.post(
                 self.AUTH_URL,
                 headers={
                     "Authorization": f"Basic {encoded}",
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
                 data={"grant_type": "client_credentials"},
+                timeout=15,
             )
 
-            if response.status_code != 200:
-                logger.error(f"Failed to get Spotify token: {response.status_code} {response.text[:200]}")
-                raise ValueError("Failed to authenticate with Spotify")
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, _do_auth)
 
-            data = response.json()
-            self._access_token = data["access_token"]
-            expires_in = data.get("expires_in", 3600)
-            self._token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+        if response.status_code != 200:
+            logger.error(f"Failed to get Spotify token: {response.status_code} {response.text[:200]}")
+            raise ValueError("Failed to authenticate with Spotify")
 
-            return self._access_token
+        data = response.json()
+        self._access_token = data["access_token"]
+        expires_in = data.get("expires_in", 3600)
+        self._token_expires = datetime.utcnow() + timedelta(seconds=expires_in)
+
+        return self._access_token
 
     async def _request(self, endpoint: str, params: dict = None) -> dict:
         """Make an authenticated request to Spotify API."""
         token = await self._get_access_token()
 
-        async with httpx.AsyncClient(
-            headers={"User-Agent": "Mozilla/5.0 (compatible; WhalesRecordsBot/1.0)"}
-        ) as client:
-            response = await client.get(
+        def _do_get(t: str) -> requests.Response:
+            return requests.get(
                 f"{self.BASE_URL}{endpoint}",
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"Authorization": f"Bearer {t}"},
                 params=params,
+                timeout=15,
             )
 
-            if response.status_code == 401:
-                # Token expired, refresh and retry
-                self._access_token = None
-                token = await self._get_access_token()
-                response = await client.get(
-                    f"{self.BASE_URL}{endpoint}",
-                    headers={"Authorization": f"Bearer {token}"},
-                    params=params,
-                )
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(None, partial(_do_get, token))
 
-            if response.status_code != 200:
-                logger.warning(f"Spotify API error: {response.status_code} - {response.text}")
-                return {}
+        if response.status_code == 401:
+            # Token expired, refresh and retry
+            self._access_token = None
+            token = await self._get_access_token()
+            response = await loop.run_in_executor(None, partial(_do_get, token))
 
-            return response.json()
+        if response.status_code != 200:
+            logger.warning(f"Spotify API error: {response.status_code} - {response.text[:200]}")
+            return {}
+
+        return response.json()
 
     async def search_artist(self, name: str) -> Optional[dict]:
         """
