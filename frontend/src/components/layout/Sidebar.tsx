@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import {
   getLabelSettings, LabelSettings,
   getNotifications, markNotificationRead, markAllNotificationsRead, Notification,
-  getTicketStats, getSpotifySuggestions,
+  getTicketStats, getPendingSuggestionsCount,
 } from '@/lib/api';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -97,7 +97,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const refreshCounts = () => {
     getNotifications().then(setNotifications).catch(() => {});
     getTicketStats().then(stats => setOpenTicketsCount(stats.open)).catch(() => {});
-    getSpotifySuggestions('pending').then(s => setPendingSpotifyCount(s.length)).catch(() => {});
+    getPendingSuggestionsCount().then(r => setPendingSpotifyCount(r.pending_count)).catch(() => {});
   };
 
   useEffect(() => {
