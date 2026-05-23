@@ -5,27 +5,51 @@ function getToken(): string | null {
   return localStorage.getItem('artist-token');
 }
 
-async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
-  const headers: HeadersInit = {
-    ...options.headers,
-  };
+// ---------------------------------------------------------------------------
+// In-memory GET cache — 60 second TTL.
+// Navigation between pages is instant on second visit within the same session.
+// ---------------------------------------------------------------------------
+interface CacheEntry { data: unknown; ts: number }
+const _cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 60_000;
 
-  if (token) {
-    (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+function cacheGet<T>(key: string): T | null {
+  const e = _cache.get(key);
+  if (e && Date.now() - e.ts < CACHE_TTL) return e.data as T;
+  return null;
+}
+function cacheSet(key: string, data: unknown) {
+  _cache.set(key, { data, ts: Date.now() });
+}
+export function invalidateCache(prefix?: string) {
+  if (!prefix) { _cache.clear(); return; }
+  for (const k of Array.from(_cache.keys())) {
+    if (k.startsWith(prefix)) _cache.delete(k);
+  }
+}
+
+async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const isGet = !options.method || options.method === 'GET';
+
+  if (isGet) {
+    const hit = cacheGet<T>(endpoint);
+    if (hit !== null) return hit;
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const token = getToken();
+  const headers: HeadersInit = { ...options.headers };
+  if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
     throw new Error(error.detail || 'Erreur serveur');
   }
 
-  return res.json();
+  const data = await res.json();
+  if (isGet) cacheSet(endpoint, data);
+  return data;
 }
 
 // Types

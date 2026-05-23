@@ -160,15 +160,23 @@ export default function DashboardPage() {
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-divider">
         <div className="px-4 py-3 flex items-center justify-between max-w-lg mx-auto">
-          <div className="flex items-center gap-3">
-            {(labelSettings?.logo_base64 || labelSettings?.logo_url) ? (
+          <div className="flex items-center gap-2.5">
+            {(labelSettings?.logo_base64 || labelSettings?.logo_url) && (
               <img
                 src={labelSettings.logo_base64 || labelSettings.logo_url}
                 alt={labelSettings.label_name || 'Label'}
-                className="h-7 w-auto max-w-[90px] object-contain"
+                className="h-6 w-auto max-w-[72px] object-contain opacity-90"
+              />
+            )}
+            {/* Circular artist photo */}
+            {artist.artwork_url ? (
+              <img
+                src={artist.artwork_url}
+                alt={artist.name}
+                className="w-8 h-8 rounded-full object-cover border border-divider shrink-0"
               />
             ) : (
-              <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
                 <span className="text-primary text-xs font-bold">{artist.name.charAt(0)}</span>
               </div>
             )}
@@ -219,6 +227,27 @@ export default function DashboardPage() {
         <div className="relative overflow-hidden rounded-3xl bg-content1 border border-white/[0.06] p-6">
           {/* Ligne accent indigo en haut */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+          {/* Artist identity */}
+          <div className="flex items-center gap-3 mb-5">
+            {artist.artwork_url ? (
+              <img
+                src={artist.artwork_url}
+                alt={artist.name}
+                className="w-14 h-14 rounded-2xl object-cover border border-white/10 shadow-lg shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center border border-white/10 shrink-0">
+                <span className="text-primary text-2xl font-bold">{artist.name.charAt(0)}</span>
+              </div>
+            )}
+            <div>
+              <p className="font-bold text-foreground text-base leading-tight">{artist.name}</p>
+              {labelSettings?.label_name && (
+                <p className="text-xs text-default-400 leading-tight mt-0.5">{labelSettings.label_name}</p>
+              )}
+            </div>
+          </div>
 
           <p className="text-[10px] font-semibold text-default-400 uppercase tracking-[0.15em] mb-3">
             {t('dashboard.balance')}
