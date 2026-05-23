@@ -27,6 +27,10 @@ class ImportResponse(BaseModel):
         default_factory=list,
         description="First 10 parsing errors for debugging",
     )
+    error_message: Optional[str] = Field(
+        default=None,
+        description="Human-readable error (e.g. duplicate import blocked)",
+    )
 
     class Config:
         from_attributes = True
@@ -47,6 +51,7 @@ class ImportStatusResponse(BaseModel):
     gross_total: Decimal
     created_at: str
     completed_at: Optional[str]
+    error_message: Optional[str] = None
 
     class Config:
         from_attributes = True

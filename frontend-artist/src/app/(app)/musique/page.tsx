@@ -140,11 +140,9 @@ export default function MusiquePage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 pt-4 pb-0 max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-foreground mb-3">{t('nav.music')}</h1>
-          {/* Tabs */}
+      {/* Tabs */}
+      <div className="sticky top-14 z-40 bg-background/90 backdrop-blur-md border-b border-divider">
+        <div className="px-4 pt-2 pb-0 max-w-lg mx-auto">
           <div className="flex gap-1">
             {tabs.map(tabItem => (
               <button
@@ -161,7 +159,7 @@ export default function MusiquePage() {
             ))}
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-3">
         {error && (

@@ -73,21 +73,6 @@ export default function PaymentsPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top safe-bottom">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="font-semibold text-foreground">{t('payments.title')}</h1>
-            <p className="text-xs text-secondary-500">{t('payments.subtitle')}</p>
-          </div>
-        </div>
-      </header>
-
       <main className="px-4 py-4 pb-24 space-y-5">
         {error && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">

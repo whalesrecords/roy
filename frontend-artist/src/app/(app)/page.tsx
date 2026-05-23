@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import {
@@ -28,7 +27,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import NotificationBell from '@/components/layout/NotificationBell';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -47,8 +45,7 @@ const PLATFORM_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const { artist, loading: authLoading, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { artist, loading: authLoading } = useAuth();
   const { t } = useLanguage();
 
   const [data, setData] = useState<ArtistDashboard | null>(null);
@@ -157,56 +154,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-divider">
-        <div className="px-4 py-3 flex items-center justify-between max-w-lg mx-auto">
-          <div className="flex items-center gap-2.5">
-            {(labelSettings?.logo_base64 || labelSettings?.logo_url) && (
-              <img
-                src={labelSettings.logo_base64 || labelSettings.logo_url}
-                alt={labelSettings.label_name || 'Label'}
-                className="h-6 w-auto max-w-[72px] object-contain opacity-90"
-              />
-            )}
-            {/* Circular artist photo */}
-            {artist.artwork_url ? (
-              <img
-                src={artist.artwork_url}
-                alt={artist.name}
-                className="w-8 h-8 rounded-full object-cover border border-divider shrink-0"
-              />
-            ) : (
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-primary text-xs font-bold">{artist.name.charAt(0)}</span>
-              </div>
-            )}
-            <div>
-              <p className="font-semibold text-foreground text-sm leading-tight">{artist.name}</p>
-              {labelSettings?.label_name && (
-                <p className="text-[10px] text-default-400 leading-tight">{labelSettings.label_name}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <NotificationBell />
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl hover:bg-content1 transition-colors"
-            >
-              {theme === 'light'
-                ? <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-                : <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-              }
-            </button>
-            <Link href="/settings" className="p-2 rounded-xl hover:bg-content1 transition-colors">
-              <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </header>
-
       <main className="px-4 py-4 pb-28 space-y-3 max-w-lg mx-auto">
         {/* Alerts */}
         {error && (

@@ -219,7 +219,9 @@ async def analyze_import(
     from sqlalchemy import String as SAString
     from sqlalchemy import cast
     duplicate = None
+    period_duplicate = None  # Same period regardless of filename
     if period_start and period_end:
+        # Level 1: exact filename match
         existing = await db.execute(
             select(Import)
             .where(cast(Import.source, SAString) == import_source.value)
@@ -236,12 +238,33 @@ async def analyze_import(
                 "rows_inserted": dup_record.rows_inserted,
             }
 
+        # Level 2: same period regardless of filename (catches renamed files)
+        # DetailsDetails is per-artist so multiple files per period is legitimate
+        if not duplicate and import_source.value != "detailsdetails":
+            existing_period = await db.execute(
+                select(Import)
+                .where(cast(Import.source, SAString) == import_source.value)
+                .where(Import.period_start == period_start)
+                .where(Import.period_end == period_end)
+                .where(cast(Import.status, SAString).in_(["completed", "partial"]))
+            )
+            period_dup_record = existing_period.scalars().first()
+            if period_dup_record:
+                period_duplicate = {
+                    "id": str(period_dup_record.id),
+                    "filename": period_dup_record.filename,
+                    "created_at": period_dup_record.created_at.isoformat(),
+                    "status": period_dup_record.status.value if hasattr(period_dup_record.status, 'value') else period_dup_record.status,
+                    "rows_inserted": period_dup_record.rows_inserted,
+                }
+
     return {
         "period_start": period_start.isoformat() if period_start else None,
         "period_end": period_end.isoformat() if period_end else None,
         "artists_with_ampersand": artists_with_ampersand,
         "total_artists": total_artists,
         "duplicate": duplicate,
+        "period_duplicate": period_duplicate,
     }
 
 
@@ -258,6 +281,34 @@ async def _process_import_background(
             import_record = await session.get(Import, uuid_lib.UUID(import_id))
             if not import_record:
                 return
+
+            # Hard-block: refuse to process if a completed import already covers
+            # the exact same (source, period_start, period_end). Skip for
+            # DetailsDetails which legitimately sends one file per artist.
+            from sqlalchemy import String as SAString
+            from sqlalchemy import cast as sa_cast
+            if import_source.value != "detailsdetails":
+                existing_check = await session.execute(
+                    select(Import)
+                    .where(sa_cast(Import.source, SAString) == import_source.value)
+                    .where(Import.period_start == period_start)
+                    .where(Import.period_end == period_end)
+                    .where(sa_cast(Import.status, SAString).in_(["completed", "partial"]))
+                    .where(Import.id != uuid_lib.UUID(import_id))
+                )
+                if existing_check.scalars().first():
+                    import_record.status = ImportStatus.FAILED.value
+                    import_record.error_message = (
+                        "Import en double : une importation complète existe déjà "
+                        "pour cette source et cette période. Supprimez l'import "
+                        "existant avant de le réimporter."
+                    )
+                    await session.commit()
+                    logger.warning(
+                        "Import %s blocked as duplicate for source=%s period=%s/%s",
+                        import_id, import_source.value, period_start, period_end,
+                    )
+                    return
 
             parser_map = {
                 ImportSource.TUNECORE: TuneCoreParser,
@@ -458,6 +509,7 @@ async def get_import_status(
         gross_total=import_record.gross_total or Decimal("0"),
         errors_count=import_record.errors_count or 0,
         sample_errors=[],
+        error_message=getattr(import_record, 'error_message', None),
     )
 
 

@@ -87,13 +87,6 @@ export default function StatementsPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 max-w-lg mx-auto">
-          <h1 className="text-xl font-bold text-foreground">{t('nav.revenue')}</h1>
-        </div>
-      </header>
-
       <main className="px-4 py-4 pb-28 space-y-3 max-w-lg mx-auto">
         {error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">

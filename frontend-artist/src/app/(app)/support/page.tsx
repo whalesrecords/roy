@@ -103,24 +103,11 @@ export default function SupportPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 pt-4 pb-3 max-w-lg mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">{t('support.title')}</h1>
-          <button
-            onClick={() => { setSheetOpen(true); setFormError(null); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-xl"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {t('support.new')}
-          </button>
-        </div>
-
-        {/* Status filter pills */}
-        <div className="px-4 pb-3 max-w-lg mx-auto">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+      {/* Filters + new ticket */}
+      <div className="sticky top-14 z-40 bg-background/90 backdrop-blur-md border-b border-divider">
+        <div className="px-4 pt-3 pb-2 max-w-lg mx-auto flex items-center justify-between gap-3">
+          {/* Status filter pills */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
             {STATUS_OPTIONS.map(opt => (
               <button
                 key={opt.key}
@@ -135,8 +122,17 @@ export default function SupportPage() {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => { setSheetOpen(true); setFormError(null); }}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-xl"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {t('support.new')}
+          </button>
         </div>
-      </header>
+      </div>
 
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-2">
         {error && (

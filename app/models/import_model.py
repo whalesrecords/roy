@@ -4,7 +4,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, DateTime, Integer, Numeric, String
+from sqlalchemy import Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -69,6 +69,9 @@ class Import(Base):
         Numeric(precision=15, scale=6),
         default=Decimal("0"),
     )
+
+    # Error message (set when status=FAILED, e.g. duplicate detection)
+    error_message: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

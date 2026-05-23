@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import Link from 'next/link';
 import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
 
 type SourceFilter = 'all' | 'groover' | 'submithub' | 'manual';
@@ -141,21 +140,6 @@ export default function PromoPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3 max-w-lg mx-auto">
-          <Link href="/" className="p-2 -ml-2 rounded-xl hover:bg-content1 transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="font-semibold text-foreground text-sm">Campagnes Promo</h1>
-            <p className="text-[10px] text-default-400">Groover · SubmitHub · Résultats</p>
-          </div>
-        </div>
-      </header>
-
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
         {error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">

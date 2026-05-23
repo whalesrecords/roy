@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import Link from 'next/link';
 import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
 import { useLanguage, LANGUAGES } from '@/contexts/LanguageContext';
 
@@ -145,28 +144,6 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background safe-top">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3 max-w-lg mx-auto">
-          <Link href="/" className="p-2 -ml-2 rounded-xl hover:bg-content1 transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div className="flex-1">
-            <h1 className="font-semibold text-foreground text-sm">{t('settings.myProfile')}</h1>
-            <p className="text-[10px] text-default-400">{artist?.name}</p>
-          </div>
-          {(labelSettings?.logo_base64 || labelSettings?.logo_url) && (
-            <img
-              src={labelSettings.logo_base64 || labelSettings.logo_url}
-              alt={labelSettings.label_name || 'Label'}
-              className="h-7 w-auto max-w-[80px] object-contain opacity-70"
-            />
-          )}
-        </div>
-      </header>
-
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
         {/* Alerts */}
         {error && (
