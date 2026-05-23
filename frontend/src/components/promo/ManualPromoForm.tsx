@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Spinner } from '@heroui/react';
-import { getArtists, Artist } from '@/lib/api';
+import { getArtists, createManualPromoSubmission, Artist } from '@/lib/api';
 
 interface ManualPromoFormProps {
   onSuccess: () => void;
@@ -28,8 +28,8 @@ export default function ManualPromoForm({ onSuccess }: ManualPromoFormProps) {
     try {
       const data = await getArtists();
       setArtists(data);
-    } catch (err: any) {
-      console.error('Error loading artists:', err);
+    } catch {
+      // Non-blocking — form still usable without artist list
     }
   };
 
@@ -45,17 +45,20 @@ export default function ManualPromoForm({ onSuccess }: ManualPromoFormProps) {
       setLoading(true);
       setError(null);
 
-      // For now, just simulate success
-      // TODO: Add API call to create manual promo submission
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await createManualPromoSubmission({
+        artist_id: selectedArtistId,
+        song_title: songTitle,
+        outlet_name: outletName,
+        link: link || undefined,
+        notes: notes || undefined,
+      });
 
       setSuccess(true);
       setTimeout(() => {
         onSuccess();
       }, 2000);
-    } catch (err: any) {
-      console.error('Error creating manual promo:', err);
-      setError(err.message || 'Erreur lors de la création');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la création');
     } finally {
       setLoading(false);
     }

@@ -45,6 +45,15 @@ class PromoSubmissionCreate(PromoSubmissionBase):
     pass
 
 
+class CreateManualPromoSubmission(BaseModel):
+    """Schema for manually creating a promo submission via the admin UI."""
+    artist_id: UUID
+    song_title: str
+    outlet_name: str
+    link: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class PromoSubmissionResponse(PromoSubmissionBase):
     """Schema for promo submission response."""
     id: UUID

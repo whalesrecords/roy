@@ -1755,6 +1755,24 @@ export async function deletePromoSubmission(submissionId: string): Promise<void>
   });
 }
 
+export interface CreateManualPromoSubmissionPayload {
+  artist_id: string;
+  song_title: string;
+  outlet_name: string;
+  link?: string;
+  notes?: string;
+}
+
+export async function createManualPromoSubmission(
+  payload: CreateManualPromoSubmissionPayload,
+): Promise<PromoSubmission> {
+  return fetchApi<PromoSubmission>('/promo/submissions/manual', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+}
+
 // Export functions
 export function getExportCsvUrl(periodStart: string, periodEnd: string): string {
   return `${PROXY_BASE}/exports/royalties/csv?period_start=${periodStart}&period_end=${periodEnd}`;

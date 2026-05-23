@@ -23,6 +23,7 @@ from app.models.promo_submission import PromoSource, PromoSubmission
 from app.schemas.promo import (
     AlbumPromoStats,
     ArtistPromoStats,
+    CreateManualPromoSubmission,
     DetailedPromoStatsResponse,
     GrooverAnalyzeResponse,
     ImportGrooverResponse,
@@ -1335,6 +1336,50 @@ async def import_submithub_batch(
 
     await db.commit()
     return results
+
+
+@router.post("/submissions/manual", response_model=PromoSubmissionResponse)
+async def create_manual_promo_submission(
+    payload: CreateManualPromoSubmission,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> PromoSubmission:
+    """
+    Manually create a promo submission from the admin UI.
+    Useful for recording organic placements, press coverage, or
+    playlist adds that were not sourced from SubmitHub/Groover.
+    """
+    # Verify artist exists
+    artist_result = await db.execute(
+        select(Artist).where(Artist.id == payload.artist_id)
+    )
+    artist = artist_result.scalar_one_or_none()
+    if not artist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artist not found",
+        )
+
+    submission = PromoSubmission(
+        artist_id=payload.artist_id,
+        song_title=payload.song_title,
+        source=PromoSource.MANUAL,
+        outlet_name=payload.outlet_name,
+        campaign_url=payload.link or None,
+        feedback=payload.notes or None,
+        submitted_at=date.today(),
+    )
+    db.add(submission)
+    await db.commit()
+    await db.refresh(submission)
+
+    # Return with artist name attached
+    response_data = {
+        **{c.key: getattr(submission, c.key) for c in submission.__table__.columns},
+        "artist_name": artist.name,
+        "release_title": None,
+    }
+    return PromoSubmissionResponse(**response_data)
 
 
 @router.delete("/submissions/{submission_id}")
