@@ -130,15 +130,7 @@ export default function DashboardPage() {
     : v >= 1_000 ? `${(v / 1_000).toFixed(1)}K`
     : v.toLocaleString('fr-FR');
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
-
-  if (!artist) return null;
+  if (!artist && !authLoading) return null;
 
   const chartData = quarterly.map(q => ({
     name: `${q.quarter} ${q.year}`,
@@ -155,13 +147,18 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background safe-top">
       <main className="px-4 py-4 pb-28 space-y-3 max-w-lg mx-auto">
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
+          </div>
+        )}
         {/* Alerts */}
-        {error && (
+        {!loading && error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
-        {paymentSuccess && (
+        {!loading && artist && paymentSuccess && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2">
             <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -170,6 +167,8 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── Main content (only when loaded) ── */}
+        {!loading && artist && (<>
         {/* ── Hero balance card — flat, sans gradient ── */}
         <div className="relative overflow-hidden rounded-3xl bg-content1 border border-white/[0.06] p-6">
           {/* Ligne accent indigo en haut */}
@@ -332,6 +331,7 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        </>)}
       </main>
     </div>
   );
