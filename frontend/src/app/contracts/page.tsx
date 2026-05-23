@@ -11,11 +11,15 @@ import {
   ContractData,
   ContractParty,
   Artist,
+  CatalogRelease,
+  CatalogTrack,
   searchAlbumByUPC,
   searchTrackByISRC,
   getReleaseMetadata,
   refreshReleaseMetadata,
   batchRefreshReleases,
+  getArtistReleases,
+  getArtistTracks,
 } from '@/lib/api';
 
 interface ScopeInfo {
@@ -57,6 +61,12 @@ export default function ContractsPage() {
   ]);
   const [formScopeInfo, setFormScopeInfo] = useState<{ name?: string; image_url?: string; release_date?: string } | null>(null);
   const [loadingFormScope, setLoadingFormScope] = useState(false);
+  // Catalog picker state
+  const [scopeInputMode, setScopeInputMode] = useState<'catalog' | 'manual'>('catalog');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogReleases, setCatalogReleases] = useState<CatalogRelease[]>([]);
+  const [catalogTracks, setCatalogTracks] = useState<CatalogTrack[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
 
   // Calculate end date when start date or duration changes
   const handleDurationChange = (newDuration: string) => {
@@ -109,6 +119,23 @@ export default function ContractsPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Load catalog entries when artist + scope changes (for the picker)
+  useEffect(() => {
+    if (!artistId || scope === 'catalog') {
+      setCatalogReleases([]);
+      setCatalogTracks([]);
+      return;
+    }
+    const artistName = artists.find(a => a.id === artistId)?.name;
+    if (!artistName) return;
+
+    setLoadingCatalog(true);
+    const fetch = scope === 'release'
+      ? getArtistReleases(artistName).then(data => { setCatalogReleases(data); setCatalogTracks([]); })
+      : getArtistTracks(artistName).then(data => { setCatalogTracks(data); setCatalogReleases([]); });
+    fetch.catch(() => {}).finally(() => setLoadingCatalog(false));
+  }, [artistId, scope, artists]);
 
   // Fetch album/track info when scopeId changes to auto-fill release date
   // Try database first, then refresh from Spotify if not found
@@ -268,6 +295,19 @@ export default function ContractsPage() {
     return contracts.filter(c => !c.end_date).length;
   }, [contracts]);
 
+  // Filtered catalog picker items
+  const filteredCatalogItems = useMemo(() => {
+    const q = catalogSearch.toLowerCase();
+    if (scope === 'release') {
+      return catalogReleases.filter(r =>
+        !q || r.release_title.toLowerCase().includes(q) || r.upc.includes(q)
+      );
+    }
+    return catalogTracks.filter(t =>
+      !q || t.track_title.toLowerCase().includes(q) || t.release_title.toLowerCase().includes(q) || t.isrc.toLowerCase().includes(q)
+    );
+  }, [catalogReleases, catalogTracks, catalogSearch, scope]);
+
   // Get unique artists from contracts for the filter
   const contractArtists = useMemo(() => {
     const artistIds = new Set(contracts.map(c => c.artist_id));
@@ -313,6 +353,10 @@ export default function ContractsPage() {
       { party_type: 'label', label_name: '', share_percentage: '0.5' },
     ]);
     setFormScopeInfo(null);
+    setScopeInputMode('catalog');
+    setCatalogSearch('');
+    setCatalogReleases([]);
+    setCatalogTracks([]);
   };
 
   const handleAddParty = (type: string) => {
@@ -327,6 +371,14 @@ export default function ContractsPage() {
     const newParties = [...parties];
     newParties[index] = { ...newParties[index], [field]: value };
     setParties(newParties);
+  };
+
+  const handleScopeChange = (newScope: 'track' | 'release' | 'catalog') => {
+    setScope(newScope);
+    setScopeId('');
+    setFormScopeInfo(null);
+    setCatalogSearch('');
+    setScopeInputMode('catalog');
   };
 
   const totalShare = parties.reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
@@ -1060,7 +1112,7 @@ export default function ContractsPage() {
                 </label>
                 <select
                   value={scope}
-                  onChange={(e) => setScope(e.target.value as any)}
+                  onChange={(e) => handleScopeChange(e.target.value as any)}
                   className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="catalog">Tout le catalogue</option>
@@ -1069,20 +1121,102 @@ export default function ContractsPage() {
                 </select>
               </div>
 
-              {/* Scope ID */}
+              {/* Scope ID — catalog picker or manual */}
               {scope !== 'catalog' && (
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    {scope === 'track' ? 'Code ISRC' : 'Code UPC'} <span className="text-danger">*</span>
+                    {scope === 'track' ? 'Piste' : 'Release'} <span className="text-danger">*</span>
                   </label>
-                  <input
-                    type="text"
-                    placeholder={scope === 'track' ? 'Ex: USRC17607839' : 'Ex: 0123456789012'}
-                    value={scopeId}
-                    onChange={(e) => setScopeId(e.target.value)}
-                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
-                  />
-                  {/* Album/Track preview */}
+
+                  {/* Mode toggle */}
+                  <div className="flex gap-1 p-1 bg-content2 rounded-xl mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setScopeInputMode('catalog')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${scopeInputMode === 'catalog' ? 'bg-background text-foreground shadow-sm' : 'text-default-500 hover:text-foreground'}`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      Choisir dans le catalogue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScopeInputMode('manual')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${scopeInputMode === 'manual' ? 'bg-background text-foreground shadow-sm' : 'text-default-500 hover:text-foreground'}`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Saisir {scope === 'track' ? 'un ISRC' : 'un UPC'}
+                    </button>
+                  </div>
+
+                  {scopeInputMode === 'catalog' ? (
+                    <div>
+                      {/* Search box */}
+                      <div className="relative mb-2">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                          type="text"
+                          placeholder={scope === 'release' ? 'Rechercher un album...' : 'Rechercher une piste...'}
+                          value={catalogSearch}
+                          onChange={(e) => setCatalogSearch(e.target.value)}
+                          className="w-full h-10 pl-9 pr-4 bg-background border-2 border-default-200 rounded-xl text-sm text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+
+                      {/* Catalog list */}
+                      <div className="border-2 border-default-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
+                        {loadingCatalog ? (
+                          <div className="flex items-center justify-center py-6 gap-2 text-sm text-default-400">
+                            <Spinner size="sm" /> Chargement...
+                          </div>
+                        ) : !artistId ? (
+                          <p className="text-center py-6 text-sm text-default-400">Selectionnez d'abord un artiste</p>
+                        ) : filteredCatalogItems.length === 0 ? (
+                          <p className="text-center py-6 text-sm text-default-400">
+                            {catalogSearch ? 'Aucun résultat' : 'Aucune entrée dans le catalogue'}
+                          </p>
+                        ) : (
+                          filteredCatalogItems.map((item, i) => {
+                            const id = scope === 'release' ? (item as CatalogRelease).upc : (item as CatalogTrack).isrc;
+                            const title = scope === 'release' ? (item as CatalogRelease).release_title : (item as CatalogTrack).track_title;
+                            const subtitle = scope === 'release' ? (item as CatalogRelease).upc : `${(item as CatalogTrack).release_title} · ${(item as CatalogTrack).isrc}`;
+                            const isSelected = scopeId === id;
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => { setScopeId(id); setCatalogSearch(''); }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-content2 transition-colors border-b border-divider last:border-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                              >
+                                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-default-300'}`}>
+                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">{title}</p>
+                                  <p className="text-xs text-default-400 truncate">{subtitle}</p>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={scope === 'track' ? 'Ex: USRC17607839' : 'Ex: 0123456789012'}
+                      value={scopeId}
+                      onChange={(e) => setScopeId(e.target.value)}
+                      className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                    />
+                  )}
+
+                  {/* Album/Track preview (shown in both modes) */}
                   {loadingFormScope && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-secondary-500">
                       <Spinner size="sm" />
