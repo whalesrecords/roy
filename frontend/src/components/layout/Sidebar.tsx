@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import {
@@ -56,8 +56,31 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
+function getNotificationUrl(n: Notification): string | null {
+  const data = n.data as Record<string, unknown> | null;
+  switch (n.type) {
+    case 'ticket_created':
+    case 'ticket_message':
+    case 'ticket_updated':
+    case 'ticket_resolved':
+    case 'ticket_closed': {
+      const ticketId = data?.ticket_id as string | undefined;
+      return ticketId ? `/tickets/${ticketId}` : '/tickets';
+    }
+    case 'payment_request':
+      return n.artist_id ? `/royalties?artist=${n.artist_id}` : '/royalties';
+    case 'profile_update':
+      return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
+    case 'new_artist':
+      return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
+    default:
+      return null;
+  }
+}
+
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
@@ -86,6 +109,16 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const handleMarkAsRead = async (id: string) => {
     await markNotificationRead(id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+  };
+
+  const handleNotificationClick = async (n: Notification) => {
+    await handleMarkAsRead(n.id);
+    const url = getNotificationUrl(n);
+    if (url) {
+      setNotifOpen(false);
+      onMobileClose?.();
+      router.push(url);
+    }
   };
 
   const formatTimeAgo = (dateStr: string) => {
@@ -206,7 +239,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                   notifications.slice(0, 10).map(n => (
                     <div
                       key={n.id}
-                      onClick={() => handleMarkAsRead(n.id)}
+                      onClick={() => handleNotificationClick(n)}
                       className={`flex items-start gap-2.5 px-3 py-2.5 border-b border-divider last:border-0 cursor-pointer hover:bg-default-50 transition-colors ${!n.is_read ? 'bg-primary/5' : ''}`}
                     >
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${n.type === 'payment_request' ? 'bg-success/15 text-success' : 'bg-primary/15 text-primary'}`}>
