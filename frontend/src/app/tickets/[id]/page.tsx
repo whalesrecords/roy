@@ -180,7 +180,10 @@ export default function TicketDetailPage() {
             <label className="block text-sm font-medium mb-2">Statut</label>
             <Select
               selectedKeys={[ticket.status]}
-              onChange={(e) => handleStatusChange(e.target.value)}
+              onSelectionChange={(keys) => {
+                const val = Array.from(keys as Set<string>)[0];
+                if (val) handleStatusChange(val);
+              }}
               isDisabled={updating}
             >
               <SelectItem key="open">Ouvert</SelectItem>
@@ -193,7 +196,10 @@ export default function TicketDetailPage() {
             <label className="block text-sm font-medium mb-2">Priorité</label>
             <Select
               selectedKeys={[ticket.priority]}
-              onChange={(e) => handlePriorityChange(e.target.value)}
+              onSelectionChange={(keys) => {
+                const val = Array.from(keys as Set<string>)[0];
+                if (val) handlePriorityChange(val);
+              }}
               isDisabled={updating}
             >
               <SelectItem key="low">Basse</SelectItem>

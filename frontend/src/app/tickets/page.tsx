@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Spinner, Button, Input, Select, SelectItem } from '@heroui/react';
+import { Spinner, Button, Input } from '@heroui/react';
 import { Ticket, TicketStats, getTickets, getTicketStats } from '@/lib/api';
 
 const CATEGORY_LABELS = {
@@ -132,43 +132,43 @@ export default function TicketsPage() {
               </svg>
             }
           />
-          <Select
-            placeholder="Statut"
-            selectedKeys={statusFilter ? [statusFilter] : []}
+          <select
+            value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="">Tous</SelectItem>
-            <SelectItem key="open">Ouvert</SelectItem>
-            <SelectItem key="in_progress">En cours</SelectItem>
-            <SelectItem key="resolved">Résolu</SelectItem>
-            <SelectItem key="closed">Fermé</SelectItem>
-          </Select>
-          <Select
-            placeholder="Catégorie"
-            selectedKeys={categoryFilter ? [categoryFilter] : []}
+            <option value="">Tous les statuts</option>
+            <option value="open">Ouvert</option>
+            <option value="in_progress">En cours</option>
+            <option value="resolved">Résolu</option>
+            <option value="closed">Fermé</option>
+          </select>
+          <select
+            value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
+            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="">Toutes</SelectItem>
-            <SelectItem key="payment">Paiements</SelectItem>
-            <SelectItem key="profile">Profil</SelectItem>
-            <SelectItem key="technical">Technique</SelectItem>
-            <SelectItem key="royalties">Royalties</SelectItem>
-            <SelectItem key="contracts">Contrats</SelectItem>
-            <SelectItem key="catalog">Catalogue</SelectItem>
-            <SelectItem key="general">Général</SelectItem>
-            <SelectItem key="other">Autre</SelectItem>
-          </Select>
-          <Select
-            placeholder="Priorité"
-            selectedKeys={priorityFilter ? [priorityFilter] : []}
+            <option value="">Toutes les catégories</option>
+            <option value="payment">Paiements</option>
+            <option value="profile">Profil</option>
+            <option value="technical">Technique</option>
+            <option value="royalties">Royalties</option>
+            <option value="contracts">Contrats</option>
+            <option value="catalog">Catalogue</option>
+            <option value="general">Général</option>
+            <option value="other">Autre</option>
+          </select>
+          <select
+            value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
+            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="">Toutes</SelectItem>
-            <SelectItem key="low">Basse</SelectItem>
-            <SelectItem key="medium">Moyenne</SelectItem>
-            <SelectItem key="high">Haute</SelectItem>
-            <SelectItem key="urgent">Urgente</SelectItem>
-          </Select>
+            <option value="">Toutes les priorités</option>
+            <option value="low">Basse</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Haute</option>
+            <option value="urgent">Urgente</option>
+          </select>
         </div>
       </div>
 

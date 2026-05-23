@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Input, Textarea, Select, SelectItem, Checkbox } from '@heroui/react';
+import { Button, Input, Textarea, Checkbox } from '@heroui/react';
 import { Artist, getArtists, createTicket } from '@/lib/api';
 
 const CATEGORY_OPTIONS = [
@@ -155,33 +155,35 @@ export default function NewTicketPage() {
         {/* Category */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">Catégorie *</label>
-          <Select
-            selectedKeys={[category]}
+          <select
+            value={category}
             onChange={(e) => setCategory(e.target.value)}
+            className="w-full h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="payment">💰 Paiements</SelectItem>
-            <SelectItem key="profile">👤 Profil</SelectItem>
-            <SelectItem key="technical">⚙️ Technique</SelectItem>
-            <SelectItem key="royalties">📊 Royalties</SelectItem>
-            <SelectItem key="contracts">📄 Contrats</SelectItem>
-            <SelectItem key="catalog">🎵 Catalogue</SelectItem>
-            <SelectItem key="general">💬 Général</SelectItem>
-            <SelectItem key="other">❓ Autre</SelectItem>
-          </Select>
+            <option value="payment">💰 Paiements</option>
+            <option value="profile">👤 Profil</option>
+            <option value="technical">⚙️ Technique</option>
+            <option value="royalties">📊 Royalties</option>
+            <option value="contracts">📄 Contrats</option>
+            <option value="catalog">🎵 Catalogue</option>
+            <option value="general">💬 Général</option>
+            <option value="other">❓ Autre</option>
+          </select>
         </div>
 
         {/* Priority */}
         <div className="mb-6">
           <label className="block text-sm font-medium mb-2">Priorité</label>
-          <Select
-            selectedKeys={[priority]}
+          <select
+            value={priority}
             onChange={(e) => setPriority(e.target.value)}
+            className="w-full h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
           >
-            <SelectItem key="low">Basse</SelectItem>
-            <SelectItem key="medium">Moyenne</SelectItem>
-            <SelectItem key="high">Haute</SelectItem>
-            <SelectItem key="urgent">Urgente</SelectItem>
-          </Select>
+            <option value="low">Basse</option>
+            <option value="medium">Moyenne</option>
+            <option value="high">Haute</option>
+            <option value="urgent">Urgente</option>
+          </select>
         </div>
 
         {/* Subject */}
