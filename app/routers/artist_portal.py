@@ -997,6 +997,31 @@ async def get_contracts(
         )
         c_track_names = {row.isrc: row.name for row in ct.all()}
 
+    # Also resolve track names from Spotify suggestions (tracks with no transactions yet)
+    missing_ids = [tid for tid in c_track_ids if tid not in c_track_names]
+    if missing_ids:
+        from app.models.spotify_track_suggestion import SpotifyTrackSuggestion
+        # Match by ISRC or by spt: prefix fallback
+        real_isrcs = [tid for tid in missing_ids if not tid.startswith("spt:")]
+        spt_ids = [tid[4:] for tid in missing_ids if tid.startswith("spt:")]
+
+        if real_isrcs:
+            sug_result = await db.execute(
+                select(SpotifyTrackSuggestion.isrc, SpotifyTrackSuggestion.track_name)
+                .where(SpotifyTrackSuggestion.isrc.in_(real_isrcs))
+            )
+            for row in sug_result.all():
+                if row.isrc:
+                    c_track_names[row.isrc] = row.track_name
+
+        if spt_ids:
+            sug_result = await db.execute(
+                select(SpotifyTrackSuggestion.spotify_track_id, SpotifyTrackSuggestion.track_name)
+                .where(SpotifyTrackSuggestion.spotify_track_id.in_(spt_ids))
+            )
+            for row in sug_result.all():
+                c_track_names[f"spt:{row.spotify_track_id}"] = row.track_name
+
     contracts = []
     for contract in contract_list:
         # Calculate shares
