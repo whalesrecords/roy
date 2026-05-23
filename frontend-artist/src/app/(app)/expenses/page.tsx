@@ -180,17 +180,19 @@ export default function ExpensesPage() {
     return Array.from(groups.entries());
   }, [filtered]);
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
-  }
-
-  if (!artist) return null;
+  if (!artist && !authLoading) return null;
 
   const scopeItems = scopeFilter === 'track' ? uniqueTracks : scopeFilter === 'release' ? uniqueReleases : [];
 
   return (
     <div className="min-h-screen bg-background safe-top">
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
+        {(authLoading || loading) ? (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
+          </div>
+        ) : (
+        <>
         {error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
@@ -379,6 +381,8 @@ export default function ExpensesPage() {
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </main>
     </div>

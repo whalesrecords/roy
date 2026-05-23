@@ -81,13 +81,15 @@ export default function StatementsPage() {
     finally { setPaymentLoading(null); }
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
-  }
-
   return (
     <div className="min-h-screen bg-background safe-top">
       <main className="px-4 py-4 pb-28 space-y-3 max-w-lg mx-auto">
+        {(authLoading || loading) ? (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
+          </div>
+        ) : (
+        <>
         {error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
@@ -274,6 +276,8 @@ export default function StatementsPage() {
             );
           })}
         </div>
+        </>
+        )}
       </main>
     </div>
   );

@@ -128,10 +128,6 @@ export default function MusiquePage() {
     streams: q.streams,
   }));
 
-  if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Spinner /></div>;
-  }
-
   const tabs: { id: Tab; label: string }[] = [
     { id: 'sorties', label: t('dashboard.releases') },
     { id: 'titres', label: t('dashboard.tracks') },
@@ -169,7 +165,7 @@ export default function MusiquePage() {
         )}
 
         {/* Search bar (Sorties + Titres) */}
-        {tab !== 'stats' && (
+        {!authLoading && tab !== 'stats' && (
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -183,14 +179,14 @@ export default function MusiquePage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex justify-center py-10">
-            <Spinner color="primary" />
+        {(authLoading || loading) && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
           </div>
         )}
 
         {/* ── TAB: SORTIES ── */}
-        {!loading && tab === 'sorties' && (
+        {!authLoading && !loading && tab === 'sorties' && (
           <div className="space-y-2">
             {filteredReleases.length === 0 && (
               <p className="text-default-500 text-sm text-center py-10">{t('releases.noReleases')}</p>
@@ -221,7 +217,7 @@ export default function MusiquePage() {
         )}
 
         {/* ── TAB: TITRES ── */}
-        {!loading && tab === 'titres' && (
+        {!authLoading && !loading && tab === 'titres' && (
           <div className="space-y-2">
             {filteredTracks.length === 0 && (
               <p className="text-default-500 text-sm text-center py-10">{t('tracks.noTracks')}</p>
@@ -245,7 +241,7 @@ export default function MusiquePage() {
         )}
 
         {/* ── TAB: STATS ── */}
-        {!loading && tab === 'stats' && (
+        {!authLoading && !loading && tab === 'stats' && (
           <div className="space-y-4">
             {/* Quarterly chart */}
             {chartData.length > 0 && (

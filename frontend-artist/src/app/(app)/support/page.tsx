@@ -99,8 +99,6 @@ export default function SupportPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
-
   return (
     <div className="min-h-screen bg-background safe-top">
       {/* Filters + new ticket */}
@@ -141,13 +139,13 @@ export default function SupportPage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex justify-center py-10">
-            <Spinner color="primary" />
+        {(authLoading || loading) && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
           </div>
         )}
 
-        {!loading && tickets.length === 0 && (
+        {!authLoading && !loading && tickets.length === 0 && (
           <div className="text-center py-16">
             <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -159,7 +157,7 @@ export default function SupportPage() {
           </div>
         )}
 
-        {!loading && tickets.map(ticket => (
+        {!authLoading && !loading && tickets.map(ticket => (
           <Link
             key={ticket.id}
             href={`/support/${ticket.id}`}
