@@ -102,11 +102,11 @@ export default function PromoPage() {
 
   // Unique tracks and releases for filters
   const uniqueTracks = useMemo(() =>
-    [...new Set(submissions.map(s => s.song_title))].sort(),
+    Array.from(new Set(submissions.map(s => s.song_title))).sort(),
     [submissions]
   );
   const uniqueReleases = useMemo(() =>
-    [...new Set(submissions.filter(s => s.release_title).map(s => s.release_title!))].sort(),
+    Array.from(new Set(submissions.filter(s => s.release_title).map(s => s.release_title!))).sort(),
     [submissions]
   );
 

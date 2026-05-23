@@ -122,11 +122,11 @@ export default function ExpensesPage() {
 
   // Unique scope items for second-level filter
   const uniqueTracks = useMemo(() =>
-    [...new Set(expenses.filter(e => e.scope === 'track' && e.scope_title).map(e => e.scope_title!))].sort(),
+    Array.from(new Set(expenses.filter(e => e.scope === 'track' && e.scope_title).map(e => e.scope_title!))).sort(),
     [expenses]
   );
   const uniqueReleases = useMemo(() =>
-    [...new Set(expenses.filter(e => e.scope === 'release' && e.scope_title).map(e => e.scope_title!))].sort(),
+    Array.from(new Set(expenses.filter(e => e.scope === 'release' && e.scope_title).map(e => e.scope_title!))).sort(),
     [expenses]
   );
 
