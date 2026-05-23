@@ -73,6 +73,8 @@ function getNotificationUrl(n: Notification): string | null {
       return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
     case 'new_artist':
       return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
+    case 'spotify_suggestions':
+      return '/spotify-suggestions';
     default:
       return null;
   }

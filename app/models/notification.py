@@ -21,6 +21,8 @@ class NotificationType(str, Enum):
     TICKET_UPDATED = "ticket_updated"  # Ticket status/priority updated
     TICKET_RESOLVED = "ticket_resolved"  # Ticket marked as resolved
     TICKET_CLOSED = "ticket_closed"  # Ticket closed
+    # Spotify
+    SPOTIFY_SUGGESTIONS = "spotify_suggestions"  # New Spotify track suggestions found
 
 
 class Notification(Base):

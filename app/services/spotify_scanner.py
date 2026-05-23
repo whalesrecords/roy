@@ -222,7 +222,7 @@ async def scan_new_releases(db: AsyncSession) -> dict:
     # 3. Create a notification if we found new suggestions
     if summary["new_suggestions"] > 0:
         notif = Notification(
-            notification_type=NotificationType.NEW_ARTIST,  # reuse closest type
+            notification_type=NotificationType.SPOTIFY_SUGGESTIONS,
             title="Nouvelles sorties Spotify détectées",
             message=(
                 f"{summary['new_suggestions']} nouvelle(s) piste(s) de votre label "
