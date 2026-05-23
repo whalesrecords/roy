@@ -14,9 +14,10 @@ Business rules:
    - label_amount = amount_base * label_share
 
 4. Advance recoupment:
-   - advance_balance = sum(advances) - sum(recoupments)
+   - advance_balance = sum(advances where effective_date <= period_end) - sum(recoupments)
    - recouped = min(total_artist_royalties, advance_balance)
    - net_payable = total_artist_royalties - recouped
+   - effective_date rule: advances given after period_end do NOT reduce royalties for that period
 """
 from __future__ import annotations
 
@@ -263,25 +264,33 @@ class RoyaltyCalculator:
         self,
         db: AsyncSession,
         artist_id: UUID,
+        as_of: date | None = None,
     ) -> Decimal:
         """
         Calculate current advance balance for an artist.
 
-        balance = sum(advances) - sum(recoupments)
+        balance = sum(advances where effective_date <= as_of) - sum(recoupments)
 
         Args:
             db: Database session
             artist_id: Artist UUID
+            as_of: Optional date — only count advances with effective_date <= end-of-day.
+                   If None, all advances are counted (current balance).
 
         Returns:
             Current advance balance (positive = unrecouped advance)
         """
-        # Sum advances
-        advance_result = await db.execute(
-            select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(
-                AdvanceLedgerEntry.artist_id == artist_id,
-                AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
+        # Sum advances (optionally filtered by effective_date)
+        advance_filters = [
+            AdvanceLedgerEntry.artist_id == artist_id,
+            AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
+        ]
+        if as_of is not None:
+            advance_filters.append(
+                AdvanceLedgerEntry.effective_date <= datetime.combine(as_of, datetime.max.time())
             )
+        advance_result = await db.execute(
+            select(func.coalesce(func.sum(AdvanceLedgerEntry.amount), 0)).where(*advance_filters)
         )
         total_advances = Decimal(str(advance_result.scalar()))
 
@@ -629,8 +638,12 @@ class RoyaltyCalculator:
             # PRE-LOAD advance balances for all artists in result (avoid N queries)
             artist_ids = list(result.artists.keys())
             advance_balances: Dict[UUID, Decimal] = {}
+            # Only count advances whose effective_date is on or before the end of this period.
+            # This ensures that an advance given AFTER the period does not reduce the
+            # royalties that artists have already earned during the period.
+            period_end_dt = datetime.combine(period_end, datetime.max.time())
             if artist_ids:
-                # Get sum of advances per artist
+                # Get sum of advances per artist (date-gated)
                 advances_result = await db.execute(
                     select(
                         AdvanceLedgerEntry.artist_id,
@@ -638,6 +651,7 @@ class RoyaltyCalculator:
                     ).where(
                         AdvanceLedgerEntry.artist_id.in_(artist_ids),
                         AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE,
+                        AdvanceLedgerEntry.effective_date <= period_end_dt,
                     ).group_by(AdvanceLedgerEntry.artist_id)
                 )
                 for row in advances_result:

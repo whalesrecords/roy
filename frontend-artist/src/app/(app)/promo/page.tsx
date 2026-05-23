@@ -134,21 +134,24 @@ export default function PromoPage() {
     setReleaseFilter(null);
   };
 
-  if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
-  }
-
   return (
     <div className="min-h-screen bg-background safe-top">
       <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
-        {error && (
+        {/* Loading skeleton */}
+        {(authLoading || loading) && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
+          </div>
+        )}
+
+        {!authLoading && !loading && error && (
           <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
 
         {/* Stats cards — computed from real data */}
-        {submissions.length > 0 && (
+        {!authLoading && !loading && submissions.length > 0 && (
           <div className="grid grid-cols-4 gap-2">
             <StatCard
               label="Envois"
@@ -178,7 +181,7 @@ export default function PromoPage() {
         )}
 
         {/* Filter dimension tabs */}
-        {submissions.length > 0 && (
+        {!authLoading && !loading && submissions.length > 0 && (
           <div className="space-y-2">
             {/* Tab selector */}
             <div className="flex gap-1 bg-content1 border border-divider rounded-xl p-1">
@@ -283,8 +286,8 @@ export default function PromoPage() {
           </div>
         )}
 
-        {/* Empty state */}
-        {filtered.length === 0 ? (
+        {/* Empty state / results */}
+        {!authLoading && !loading && filtered.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

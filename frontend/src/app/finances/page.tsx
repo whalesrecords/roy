@@ -492,8 +492,11 @@ export default function FinancesPage() {
                                   </p>
                                 )}
                                 <p className="text-xs text-secondary-400 mt-2">
+                                  <span className="font-medium text-secondary-500">
+                                    {expense.entry_type === 'advance' ? '⏱ Récup. à partir du ' : ''}
+                                  </span>
                                   {formatDate(expense.effective_date)}
-                                  {expense.reference && ` - Ref: ${expense.reference}`}
+                                  {expense.reference && ` · Ref: ${expense.reference}`}
                                 </p>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -717,7 +720,8 @@ export default function FinancesPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Date</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Date effective</label>
+                <p className="text-xs text-secondary-400 mb-2">Seules les royautés <strong>après cette date</strong> seront imputées sur cette avance.</p>
                 <input
                   type="date"
                   value={formDate}
