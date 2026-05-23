@@ -63,24 +63,22 @@ export default function PaymentsPage() {
     return Object.entries(groups).sort(([a], [b]) => parseInt(b) - parseInt(a));
   }, [payments]);
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background safe-top safe-bottom">
       <main className="px-4 py-4 pb-24 space-y-5">
-        {error && (
+        {(authLoading || loading) && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner size="lg" color="primary" />
+          </div>
+        )}
+        {!authLoading && !loading && error && (
           <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
             <p className="text-danger text-sm">{error}</p>
           </div>
         )}
 
-        {/* Summary Card */}
+        {!authLoading && !loading && (
+        <>{/* Summary Card */}
         <div className="bg-gradient-to-br from-success to-success/80 rounded-2xl p-5 text-white">
           <div className="flex items-center gap-2 mb-3">
             <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,6 +174,8 @@ export default function PaymentsPage() {
             </div>
           </div>
         ))}
+        </>
+        )}
       </main>
     </div>
   );
