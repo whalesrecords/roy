@@ -12,10 +12,14 @@ import {
   getRoyaltyPayments,
   getFinancesSummary,
   getArtists,
+  getArtistReleases,
+  getArtistTracks,
   ExpenseEntry,
   RoyaltyPayment,
   FinancesSummary,
   Artist,
+  CatalogRelease,
+  CatalogTrack,
 } from '@/lib/api';
 import InvoiceImportModal from '@/components/InvoiceImportModal';
 
@@ -71,6 +75,12 @@ export default function FinancesPage() {
   const [formScope, setFormScope] = useState<'catalog' | 'track' | 'release'>('catalog');
   const [formScopeId, setFormScopeId] = useState('');
 
+  // Catalog items for scope picker
+  const [catalogReleases, setCatalogReleases] = useState<CatalogRelease[]>([]);
+  const [catalogTracks, setCatalogTracks] = useState<CatalogTrack[]>([]);
+  const [scopeSearch, setScopeSearch] = useState('');
+  const [loadingScope, setLoadingScope] = useState(false);
+
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -84,6 +94,30 @@ export default function FinancesPage() {
   useEffect(() => {
     loadArtists();
   }, []);
+
+  // Load catalog items when artist or scope changes in form
+  useEffect(() => {
+    if (formScope === 'catalog' || !formArtistId) {
+      setCatalogReleases([]);
+      setCatalogTracks([]);
+      return;
+    }
+    const artistName = artists.find(a => a.id === formArtistId)?.name;
+    if (!artistName) return;
+
+    setLoadingScope(true);
+    if (formScope === 'release') {
+      getArtistReleases(artistName)
+        .then(r => setCatalogReleases(r.filter(rel => rel.upc)))
+        .catch(() => setCatalogReleases([]))
+        .finally(() => setLoadingScope(false));
+    } else {
+      getArtistTracks(artistName)
+        .then(t => setCatalogTracks(t.filter(tr => tr.isrc)))
+        .catch(() => setCatalogTracks([]))
+        .finally(() => setLoadingScope(false));
+    }
+  }, [formArtistId, formScope, artists]);
 
   const loadArtists = async () => {
     try {
@@ -132,6 +166,7 @@ export default function FinancesPage() {
     setFormDate(new Date().toISOString().split('T')[0]);
     setFormScope('catalog');
     setFormScopeId('');
+    setScopeSearch('');
     setIsModalOpen(true);
   };
 
@@ -145,6 +180,7 @@ export default function FinancesPage() {
     setFormDate(expense.effective_date.split('T')[0]);
     setFormScope(expense.scope as 'catalog' | 'track' | 'release');
     setFormScopeId(expense.scope_id || '');
+    setScopeSearch('');
     setIsModalOpen(true);
   };
 
@@ -692,14 +728,82 @@ export default function FinancesPage() {
               {formScope !== 'catalog' && (
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">
-                    {formScope === 'track' ? 'ISRC' : 'UPC'}
+                    {formScope === 'track' ? 'Track' : 'Album'}
+                    {formArtistId && (loadingScope ? (
+                      <span className="ml-2 text-xs text-secondary-400">Chargement…</span>
+                    ) : (
+                      <span className="ml-2 text-xs text-secondary-400">
+                        {formScope === 'track' ? `${catalogTracks.length} track(s)` : `${catalogReleases.length} album(s)`}
+                      </span>
+                    ))}
                   </label>
-                  <input
-                    value={formScopeId}
-                    onChange={(e) => setFormScopeId(e.target.value)}
-                    placeholder={formScope === 'track' ? 'Code ISRC du track' : "Code UPC de l'album"}
-                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
-                  />
+                  {/* If we have catalog items, show searchable list */}
+                  {formArtistId && (formScope === 'track' ? catalogTracks.length > 0 : catalogReleases.length > 0) ? (
+                    <div className="space-y-2">
+                      {/* Search input */}
+                      <input
+                        value={scopeSearch}
+                        onChange={(e) => setScopeSearch(e.target.value)}
+                        placeholder={`Rechercher un ${formScope === 'track' ? 'titre' : 'album'}…`}
+                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors text-sm"
+                      />
+                      {/* Selected item badge */}
+                      {formScopeId && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-xl">
+                          <span className="text-primary text-sm flex-1 truncate">
+                            {formScope === 'track'
+                              ? (catalogTracks.find(t => t.isrc === formScopeId)?.track_title || formScopeId)
+                              : (catalogReleases.find(r => r.upc === formScopeId)?.release_title || formScopeId)}
+                          </span>
+                          <span className="text-xs text-secondary-400 font-mono shrink-0">{formScopeId}</span>
+                          <button type="button" onClick={() => { setFormScopeId(''); setScopeSearch(''); }}
+                            className="text-secondary-400 hover:text-danger transition-colors shrink-0">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {/* Scrollable list */}
+                      {!formScopeId && (
+                        <div className="max-h-44 overflow-y-auto border-2 border-default-200 rounded-xl bg-background divide-y divide-default-100">
+                          {(formScope === 'track'
+                            ? catalogTracks.filter(t => !scopeSearch || t.track_title.toLowerCase().includes(scopeSearch.toLowerCase()))
+                            : catalogReleases.filter(r => !scopeSearch || r.release_title.toLowerCase().includes(scopeSearch.toLowerCase()))
+                          ).map((item) => {
+                            const id = formScope === 'track' ? (item as CatalogTrack).isrc : (item as CatalogRelease).upc;
+                            const label = formScope === 'track' ? (item as CatalogTrack).track_title : (item as CatalogRelease).release_title;
+                            const sub = formScope === 'track' ? (item as CatalogTrack).release_title : '';
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => { setFormScopeId(id!); setScopeSearch(''); }}
+                                className="w-full text-left px-3 py-2.5 hover:bg-content1 transition-colors"
+                              >
+                                <p className="text-sm text-foreground font-medium truncate">{label}</p>
+                                <p className="text-xs text-secondary-400 font-mono">{id}{sub ? ` · ${sub}` : ''}</p>
+                              </button>
+                            );
+                          })}
+                          {(formScope === 'track'
+                            ? catalogTracks.filter(t => !scopeSearch || t.track_title.toLowerCase().includes(scopeSearch.toLowerCase())).length === 0
+                            : catalogReleases.filter(r => !scopeSearch || r.release_title.toLowerCase().includes(scopeSearch.toLowerCase())).length === 0
+                          ) && (
+                            <p className="text-sm text-secondary-400 px-3 py-3 text-center">Aucun résultat</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Fallback: manual ISRC/UPC input when no catalog available */
+                    <input
+                      value={formScopeId}
+                      onChange={(e) => setFormScopeId(e.target.value)}
+                      placeholder={formScope === 'track' ? 'Code ISRC du track' : "Code UPC de l'album"}
+                      className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                    />
+                  )}
                 </div>
               )}
               <div>
