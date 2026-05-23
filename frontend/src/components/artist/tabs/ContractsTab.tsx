@@ -300,7 +300,8 @@ export default function ContractsTab({ artist, artistId }: ContractsTabProps) {
           {/* Track-level contracts */}
           {contracts.filter(c => c.scope === 'track').map((contract) => {
             const { artistShare } = getContractShares(contract, artistId);
-            const trackName = tracks.find(t => t.isrc === contract.scope_id)?.track_title;
+            const trackName = tracks.find(t => t.isrc === contract.scope_id)?.track_title
+              || (contract.description?.startsWith('Track: ') ? contract.description.replace('Track: ', '') : contract.description) || undefined;
             return (
               <div key={contract.id} className="px-4 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary-700">Track</span>{trackName && <span className="text-sm font-medium text-foreground truncate">{trackName}</span>}{contract.scope_id && <span className="text-xs font-mono text-secondary-400">{contract.scope_id}</span>}</div></div>

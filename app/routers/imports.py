@@ -1030,6 +1030,7 @@ async def get_artist_tracks(
 
     # Build response with collaboration share info
     tracks = []
+    seen_isrcs: set[str] = set()
     for row in rows:
         gross = row.total_gross or Decimal("0")
         is_collab = row.artist_name != decoded_name
@@ -1047,6 +1048,32 @@ async def get_artist_tracks(
             "original_artist": row.artist_name if is_collab else None,
             "share_percent": str(share) if is_collab else None,
         })
+        if row.isrc:
+            seen_isrcs.add(row.isrc)
+
+    # Also include approved Spotify suggestions that have no transactions yet
+    if artist:
+        from app.models.spotify_track_suggestion import SpotifyTrackSuggestion, SuggestionStatus
+        sug_query = select(SpotifyTrackSuggestion).where(
+            SpotifyTrackSuggestion.artist_id == artist.id,
+            SpotifyTrackSuggestion.status == SuggestionStatus.APPROVED,
+            SpotifyTrackSuggestion.isrc.isnot(None),
+        )
+        sug_result = await db.execute(sug_query)
+        for sug in sug_result.scalars().all():
+            if sug.isrc not in seen_isrcs:
+                tracks.append({
+                    "track_title": sug.track_name,
+                    "release_title": sug.album_name,
+                    "isrc": sug.isrc,
+                    "total_gross": "0",
+                    "total_streams": 0,
+                    "currency": "EUR",
+                    "is_collaboration": False,
+                    "original_artist": None,
+                    "share_percent": None,
+                })
+                seen_isrcs.add(sug.isrc)
 
     return tracks
 

@@ -720,6 +720,7 @@ async def get_tracks(
             track_contracts[contract.scope_id] = float(contract.artist_share)
 
     tracks = []
+    seen_isrcs: set[str] = set()
     for row in rows:
         gross = float(row.gross or 0)
 
@@ -742,6 +743,32 @@ async def get_tracks(
             "streams": int(row.streams or 0),
             "currency": "EUR",
         })
+        if row.isrc:
+            seen_isrcs.add(row.isrc)
+
+    # Also include approved Spotify suggestions with no transactions yet
+    from app.models.spotify_track_suggestion import SpotifyTrackSuggestion, SuggestionStatus
+    sug_result = await db.execute(
+        select(SpotifyTrackSuggestion).where(
+            SpotifyTrackSuggestion.artist_id == artist.id,
+            SpotifyTrackSuggestion.status == SuggestionStatus.APPROVED,
+            SpotifyTrackSuggestion.isrc.isnot(None),
+        )
+    )
+    for sug in sug_result.scalars().all():
+        if sug.isrc not in seen_isrcs:
+            artist_share = track_contracts.get(sug.isrc, catalog_share)
+            tracks.append({
+                "isrc": sug.isrc,
+                "title": sug.track_name,
+                "release_title": sug.album_name,
+                "artwork_url": sug.image_url,
+                "gross": "0.00",
+                "net": "0.00",
+                "streams": 0,
+                "currency": "EUR",
+            })
+            seen_isrcs.add(sug.isrc)
 
     return tracks
 
