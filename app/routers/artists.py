@@ -2316,8 +2316,34 @@ async def calculate_artist_royalties(
     total_scoped_recoupable = Decimal("0")
     total_already_recouped_from_history = Decimal("0")  # Track recoupments from previous periods
 
-    # Track which singles are included in albums (for display purposes)
-    singles_included_in: dict[str, str] = {}  # single_upc -> album_upc
+    # Pre-determine which releases (singles/EPs) are sub-releases of albums.
+    # A release S is a sub-release of album A if all of S's tracks form a proper subset of A's.
+    # This lets advances scoped to a single's UPC (or to one of its ISRCs) roll up to the
+    # parent album so the full advance balance is visible on the album card.
+    singles_included_in: dict[str, str] = {}  # child_upc -> parent_upc
+    _sorted_by_size = sorted(
+        albums_data.items(),
+        key=lambda kv: len(kv[1]["tracks"] - {None}),
+        reverse=True,
+    )
+    for _parent_upc, _parent_data in _sorted_by_size:
+        _parent_tracks = _parent_data["tracks"] - {None}
+        if len(_parent_tracks) <= 1:
+            continue
+        for _child_upc, _child_data in albums_data.items():
+            if _child_upc == _parent_upc or _child_upc in singles_included_in:
+                continue
+            _child_tracks = _child_data["tracks"] - {None}
+            if not _child_tracks or len(_child_tracks) >= len(_parent_tracks):
+                continue
+            if _child_tracks.issubset(_parent_tracks):
+                singles_included_in[_child_upc] = _parent_upc
+
+    # Snapshot of the pre-computed sub-release mapping.
+    # The inner loop below may also write to singles_included_in (for ISRC-sharing display),
+    # but advance roll-up must use ONLY the pre-computed subset relationships to avoid
+    # double-counting royalties that the ISRC-sharing block has already attributed.
+    _precomputed_sub_releases: dict[str, str] = dict(singles_included_in)
 
     for upc, album in albums_data.items():
         album_advance_balance = Decimal("0")
@@ -2326,7 +2352,10 @@ async def calculate_artist_royalties(
 
         # Add release-level advance for this album
         album_isrcs_for_release_advance = set()
-        if upc in release_advances:
+        # Skip adding this release's own advance when it is a proper sub-release of a parent album
+        # (pre-computed only — not the dynamic ISRC-sharing entries added later in the loop).
+        # The advance will be rolled up to the parent in the sub-releases block below.
+        if upc in release_advances and upc not in _precomputed_sub_releases:
             album_advance_balance += release_advances[upc]
             album_isrcs_for_release_advance = upc_to_isrcs.get(upc, set())
 
@@ -2339,7 +2368,9 @@ async def calculate_artist_royalties(
             # IMPORTANT: Include royalties from singles that contain the same tracks
             # Album advances should recoup from singles with same ISRC but different UPC
             for other_upc, other_album in albums_data.items():
-                if other_upc != upc:  # Don't include the album itself (already counted)
+                # Skip the album itself and skip sub-releases already handled by the
+                # "sub-releases roll-up" block below (to avoid double-counting royalties).
+                if other_upc != upc and other_upc not in singles_included_in:
                     # Check if this other release (single) contains any of our album's tracks
                     shared_isrcs = other_album["tracks"] & album_isrcs_for_release_advance
                     if shared_isrcs:
@@ -2362,6 +2393,28 @@ async def calculate_artist_royalties(
                 album_cumulative_revenues += cumulative_revenues_by_isrc.get(isrc, Decimal("0"))
                 key = f"{upc}_{isrc}"
                 album_historical_revenues += historical_revenues_before_period.get(key, Decimal("0"))
+
+        # Roll up advances and revenues from sub-releases (singles/EPs) that belong to this album.
+        # A sub-release's advance (scoped to its own UPC or to one of its ISRCs) counts toward
+        # the parent album's total advance balance.
+        # Use the PRE-COMPUTED snapshot to avoid double-counting royalties that the
+        # ISRC-sharing block above may have already attributed to this album.
+        for _child_upc, _parent_upc in _precomputed_sub_releases.items():
+            if _parent_upc != upc:
+                continue
+            _child_data = albums_data[_child_upc]
+            _child_tracks = _child_data["tracks"] - {None}
+            # Add the sub-release's release-level advance to the parent album's balance
+            if _child_upc in release_advances:
+                album_advance_balance += release_advances[_child_upc]
+            # Include sub-release's royalties so recoupment is calculated correctly
+            album["artist_royalties"] += _child_data.get("artist_royalties", Decimal("0"))
+            album["label_royalties"] += _child_data.get("label_royalties", Decimal("0"))
+            album["gross"] += _child_data.get("gross", Decimal("0"))
+            # Include sub-release's historical revenues for cumulative recoupment tracking
+            for _isrc in _child_tracks:
+                _hist_key = f"{_child_upc}_{_isrc}"
+                album_historical_revenues += historical_revenues_before_period.get(_hist_key, Decimal("0"))
 
         # Calculate recoupable for this album using CUMULATIVE logic
         # already_recouped = min(historical_revenues * artist_share, advance_balance)
