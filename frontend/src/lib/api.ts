@@ -1803,6 +1803,44 @@ export async function downloadExport(url: string, filename: string): Promise<voi
   URL.revokeObjectURL(a.href);
 }
 
+export interface ExportTransactionsParams {
+  artist_id?: string;
+  upc?: string;
+  isrc?: string;
+  year?: number;
+  quarter?: number;
+  source?: string;
+}
+
+export function getExportTransactionsCsvUrl(params: ExportTransactionsParams): string {
+  const q = new URLSearchParams();
+  if (params.artist_id) q.set('artist_id', params.artist_id);
+  if (params.upc) q.set('upc', params.upc);
+  if (params.isrc) q.set('isrc', params.isrc);
+  if (params.year) q.set('year', String(params.year));
+  if (params.quarter) q.set('quarter', String(params.quarter));
+  if (params.source) q.set('source', params.source);
+  const qs = q.toString();
+  return `${PROXY_BASE}/exports/transactions/csv${qs ? '?' + qs : ''}`;
+}
+
+export interface ExportExpensesParams {
+  artist_id?: string;
+  year?: number;
+  quarter?: number;
+  category?: string;
+}
+
+export function getExportExpensesCsvUrl(params: ExportExpensesParams): string {
+  const q = new URLSearchParams();
+  if (params.artist_id) q.set('artist_id', params.artist_id);
+  if (params.year) q.set('year', String(params.year));
+  if (params.quarter) q.set('quarter', String(params.quarter));
+  if (params.category) q.set('category', params.category);
+  const qs = q.toString();
+  return `${PROXY_BASE}/exports/expenses/csv${qs ? '?' + qs : ''}`;
+}
+
 // ============ Inventory ============
 
 export interface Product {

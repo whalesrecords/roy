@@ -380,7 +380,7 @@ async def import_submithub_csv(
                 PromoSubmission.outlet_name == row.outlet_name,
             )
             dup_result = await db.execute(dup_query)
-            if dup_result.scalar_one_or_none():
+            if dup_result.scalars().first():
                 skipped_duplicates += 1
                 continue
 
@@ -664,7 +664,7 @@ async def import_groover_csv(
                 PromoSubmission.influencer_name == row.influencer_name,
             )
             dup_result = await db.execute(dup_query)
-            if dup_result.scalar_one_or_none():
+            if dup_result.scalars().first():
                 skipped_duplicates += 1
                 continue
 

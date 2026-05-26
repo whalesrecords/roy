@@ -1,7 +1,7 @@
 """
 Exports Router
 
-Generates CSV and PDF exports for royalty reports.
+Generates CSV and PDF exports for royalty reports, transactions, and expenses.
 """
 
 import csv
@@ -9,11 +9,13 @@ import io
 import logging
 from datetime import date
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
+from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import String as SAString
+from sqlalchemy import and_, cast, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -472,4 +474,201 @@ async def export_royalties_pdf(
         iter([html_content]),
         media_type="text/html",
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+@router.get("/transactions/csv")
+async def export_transactions_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[PyUUID] = None,
+    upc: Optional[str] = None,
+    isrc: Optional[str] = None,
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    source: Optional[str] = None,
+):
+    """Export transactions as CSV with optional filters."""
+    conditions = []
+
+    if artist_id:
+        conditions.append(TransactionNormalized.artist_id == artist_id)
+    if upc:
+        conditions.append(TransactionNormalized.upc == upc)
+    if isrc:
+        conditions.append(TransactionNormalized.isrc == isrc)
+    if year:
+        conditions.append(extract("year", TransactionNormalized.period_start) == year)
+        if quarter and 1 <= quarter <= 4:
+            month_start = (quarter - 1) * 3 + 1
+            month_end = quarter * 3
+            conditions.append(extract("month", TransactionNormalized.period_start) >= month_start)
+            conditions.append(extract("month", TransactionNormalized.period_start) <= month_end)
+    if source:
+        conditions.append(func.lower(cast(Import.source, SAString)) == source.lower())
+
+    query = (
+        select(
+            TransactionNormalized.period_start,
+            TransactionNormalized.period_end,
+            Import.source,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.release_title,
+            TransactionNormalized.upc,
+            TransactionNormalized.track_title,
+            TransactionNormalized.isrc,
+            TransactionNormalized.sale_type,
+            TransactionNormalized.store_name,
+            TransactionNormalized.quantity,
+            TransactionNormalized.gross_amount,
+            TransactionNormalized.currency,
+        )
+        .join(Import, TransactionNormalized.import_id == Import.id)
+        .order_by(
+            TransactionNormalized.period_start,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.release_title,
+        )
+    )
+    if conditions:
+        query = query.where(and_(*conditions))
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow([
+        "Periode Debut", "Periode Fin", "Source", "Artiste",
+        "Sortie", "UPC", "Titre", "ISRC", "Type de vente",
+        "Store", "Quantite", "Montant Brut", "Devise",
+    ])
+    for row in rows:
+        source_val = (
+            (row.source.value if hasattr(row.source, "value") else row.source)
+            if row.source else ""
+        )
+        sale_type_val = (
+            (row.sale_type.value if hasattr(row.sale_type, "value") else row.sale_type)
+            if row.sale_type else ""
+        )
+        writer.writerow([
+            str(row.period_start),
+            str(row.period_end),
+            source_val,
+            row.artist_name or "",
+            row.release_title or "",
+            row.upc or "",
+            row.track_title or "",
+            row.isrc or "",
+            sale_type_val,
+            row.store_name or "",
+            row.quantity or 0,
+            _fmt(row.gross_amount),
+            row.currency or "EUR",
+        ])
+
+    output.seek(0)
+    parts = ["transactions"]
+    if year:
+        parts.append(str(year))
+        if quarter:
+            parts.append(f"Q{quarter}")
+    if source:
+        parts.append(source)
+    filename = "_".join(parts) + ".csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/expenses/csv")
+async def export_expenses_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[PyUUID] = None,
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    category: Optional[str] = None,
+):
+    """Export advance/expense ledger entries as CSV with optional filters."""
+    conditions = [AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE]
+
+    if artist_id:
+        conditions.append(AdvanceLedgerEntry.artist_id == artist_id)
+    if category:
+        conditions.append(AdvanceLedgerEntry.category == category)
+    if year:
+        conditions.append(extract("year", AdvanceLedgerEntry.effective_date) == year)
+        if quarter and 1 <= quarter <= 4:
+            month_start = (quarter - 1) * 3 + 1
+            month_end = quarter * 3
+            conditions.append(
+                extract("month", AdvanceLedgerEntry.effective_date) >= month_start
+            )
+            conditions.append(
+                extract("month", AdvanceLedgerEntry.effective_date) <= month_end
+            )
+
+    query = (
+        select(
+            AdvanceLedgerEntry.effective_date,
+            Artist.name.label("artist_name"),
+            AdvanceLedgerEntry.category,
+            AdvanceLedgerEntry.scope,
+            AdvanceLedgerEntry.scope_id,
+            AdvanceLedgerEntry.amount,
+            AdvanceLedgerEntry.currency,
+            AdvanceLedgerEntry.description,
+            AdvanceLedgerEntry.reference,
+        )
+        .outerjoin(Artist, AdvanceLedgerEntry.artist_id == Artist.id)
+        .where(and_(*conditions))
+        .order_by(AdvanceLedgerEntry.effective_date, Artist.name)
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=";")
+    writer.writerow([
+        "Date", "Artiste", "Categorie", "Perimetre", "ID Perimetre",
+        "Montant (EUR)", "Devise", "Description", "Reference",
+    ])
+    for row in rows:
+        date_val = (
+            row.effective_date.date().isoformat()
+            if hasattr(row.effective_date, "date")
+            else str(row.effective_date)
+        )
+        writer.writerow([
+            date_val,
+            row.artist_name or "Frais generaux",
+            row.category or "",
+            row.scope or "catalog",
+            row.scope_id or "",
+            _fmt(row.amount),
+            row.currency or "EUR",
+            row.description or "",
+            row.reference or "",
+        ])
+
+    output.seek(0)
+    parts = ["depenses"]
+    if year:
+        parts.append(str(year))
+        if quarter:
+            parts.append(f"Q{quarter}")
+    if category:
+        parts.append(category)
+    filename = "_".join(parts) + ".csv"
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

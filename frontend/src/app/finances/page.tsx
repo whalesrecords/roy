@@ -14,6 +14,10 @@ import {
   getArtists,
   getArtistReleases,
   getArtistTracks,
+  getExportTransactionsCsvUrl,
+  getExportExpensesCsvUrl,
+  getExportCsvUrl,
+  downloadExport,
   ExpenseEntry,
   RoyaltyPayment,
   FinancesSummary,
@@ -85,7 +89,31 @@ export default function FinancesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
+  // Export state
+  const [exportTxArtist, setExportTxArtist] = useState('');
+  const [exportTxUpc, setExportTxUpc] = useState('');
+  const [exportTxYear, setExportTxYear] = useState('');
+  const [exportTxQuarter, setExportTxQuarter] = useState('');
+  const [exportTxSource, setExportTxSource] = useState('');
+  const [exportingTx, setExportingTx] = useState(false);
+  const [exportExpArtist, setExportExpArtist] = useState('');
+  const [exportExpYear, setExportExpYear] = useState('');
+  const [exportExpQuarter, setExportExpQuarter] = useState('');
+  const [exportExpCategory, setExportExpCategory] = useState('');
+  const [exportingExp, setExportingExp] = useState(false);
+  const [exportRoyYear, setExportRoyYear] = useState('');
+  const [exportRoyQuarter, setExportRoyQuarter] = useState('');
+  const [exportingRoy, setExportingRoy] = useState(false);
+
   const years = Array.from({ length: 6 }, (_, i) => (new Date().getFullYear() - i).toString());
+  const TX_SOURCES = [
+    { value: 'bandcamp', label: 'Bandcamp' },
+    { value: 'tunecore', label: 'TuneCore' },
+    { value: 'believe_fr', label: 'Believe FR' },
+    { value: 'believe_uk', label: 'Believe UK' },
+    { value: 'squarespace', label: 'Squarespace' },
+    { value: 'detailsdetails', label: 'DetailsDetails' },
+  ];
 
   useEffect(() => {
     loadData();
@@ -298,6 +326,75 @@ export default function FinancesPage() {
     return acc;
   }, {} as Record<string, { artist_name: string; expenses: ExpenseEntry[]; total: number }>);
 
+  const handleExportTransactions = async () => {
+    setExportingTx(true);
+    try {
+      const params = {
+        artist_id: exportTxArtist || undefined,
+        upc: exportTxUpc || undefined,
+        year: exportTxYear ? parseInt(exportTxYear) : undefined,
+        quarter: exportTxQuarter ? parseInt(exportTxQuarter) : undefined,
+        source: exportTxSource || undefined,
+      };
+      const url = getExportTransactionsCsvUrl(params);
+      const parts = ['transactions'];
+      if (exportTxYear) { parts.push(exportTxYear); if (exportTxQuarter) parts.push(`Q${exportTxQuarter}`); }
+      if (exportTxSource) parts.push(exportTxSource);
+      await downloadExport(url, parts.join('_') + '.csv');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur export transactions');
+    } finally {
+      setExportingTx(false);
+    }
+  };
+
+  const handleExportExpenses = async () => {
+    setExportingExp(true);
+    try {
+      const params = {
+        artist_id: exportExpArtist || undefined,
+        year: exportExpYear ? parseInt(exportExpYear) : undefined,
+        quarter: exportExpQuarter ? parseInt(exportExpQuarter) : undefined,
+        category: exportExpCategory || undefined,
+      };
+      const url = getExportExpensesCsvUrl(params);
+      const parts = ['depenses'];
+      if (exportExpYear) { parts.push(exportExpYear); if (exportExpQuarter) parts.push(`Q${exportExpQuarter}`); }
+      if (exportExpCategory) parts.push(exportExpCategory);
+      await downloadExport(url, parts.join('_') + '.csv');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur export depenses');
+    } finally {
+      setExportingExp(false);
+    }
+  };
+
+  const handleExportRoyalties = async () => {
+    if (!exportRoyYear) return;
+    setExportingRoy(true);
+    try {
+      const q = exportRoyQuarter ? parseInt(exportRoyQuarter) : null;
+      let periodStart: string;
+      let periodEnd: string;
+      if (q) {
+        const monthStart = (q - 1) * 3 + 1;
+        const monthEnd = q * 3;
+        periodStart = `${exportRoyYear}-${String(monthStart).padStart(2, '0')}-01`;
+        const lastDay = new Date(parseInt(exportRoyYear), monthEnd, 0).getDate();
+        periodEnd = `${exportRoyYear}-${String(monthEnd).padStart(2, '0')}-${lastDay}`;
+      } else {
+        periodStart = `${exportRoyYear}-01-01`;
+        periodEnd = `${exportRoyYear}-12-31`;
+      }
+      const url = getExportCsvUrl(periodStart, periodEnd);
+      await downloadExport(url, `royalties_${exportRoyYear}${q ? `_Q${q}` : ''}.csv`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur export royalties');
+    } finally {
+      setExportingRoy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -430,6 +527,19 @@ export default function FinancesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             Royalties ({royaltyPayments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('exports')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
+              activeTab === 'exports'
+                ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                : 'bg-content2 text-secondary-600 hover:bg-content3'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exports CSV
           </button>
         </div>
 
@@ -653,6 +763,264 @@ export default function FinancesPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Exports CSV */}
+        {activeTab === 'exports' && (
+          <div className="space-y-6">
+            {/* Transactions export */}
+            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Ventes / Transactions</h2>
+                  <p className="text-xs text-secondary-500 mt-0.5">Toutes les transactions normalisees de toutes les sources</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Artiste</label>
+                    <select
+                      value={exportTxArtist}
+                      onChange={(e) => setExportTxArtist(e.target.value)}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Tous les artistes</option>
+                      {artists.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Source</label>
+                    <select
+                      value={exportTxSource}
+                      onChange={(e) => setExportTxSource(e.target.value)}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Toutes les sources</option>
+                      {TX_SOURCES.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee</label>
+                    <select
+                      value={exportTxYear}
+                      onChange={(e) => { setExportTxYear(e.target.value); setExportTxQuarter(''); }}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Toutes les annees</option>
+                      {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {exportTxYear && (
+                    <div>
+                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
+                      <select
+                        value={exportTxQuarter}
+                        onChange={(e) => setExportTxQuarter(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="">Toute l'annee</option>
+                        <option value="1">T1 (Jan–Mar)</option>
+                        <option value="2">T2 (Avr–Jun)</option>
+                        <option value="3">T3 (Jul–Sep)</option>
+                        <option value="4">T4 (Oct–Dec)</option>
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">UPC (optionnel)</label>
+                    <input
+                      value={exportTxUpc}
+                      onChange={(e) => setExportTxUpc(e.target.value)}
+                      placeholder="ex: 859735289811"
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleExportTransactions}
+                    disabled={exportingTx}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl disabled:opacity-50 transition-all"
+                  >
+                    {exportingTx ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    Telecharger CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Expenses export */}
+            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Avances &amp; Depenses</h2>
+                  <p className="text-xs text-secondary-500 mt-0.5">Toutes les avances et frais enregistres</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Artiste</label>
+                    <select
+                      value={exportExpArtist}
+                      onChange={(e) => setExportExpArtist(e.target.value)}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Tous les artistes</option>
+                      {artists.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Categorie</label>
+                    <select
+                      value={exportExpCategory}
+                      onChange={(e) => setExportExpCategory(e.target.value)}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Toutes les categories</option>
+                      {EXPENSE_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee</label>
+                    <select
+                      value={exportExpYear}
+                      onChange={(e) => { setExportExpYear(e.target.value); setExportExpQuarter(''); }}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">Toutes les annees</option>
+                      {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {exportExpYear && (
+                    <div>
+                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
+                      <select
+                        value={exportExpQuarter}
+                        onChange={(e) => setExportExpQuarter(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="">Toute l'annee</option>
+                        <option value="1">T1 (Jan–Mar)</option>
+                        <option value="2">T2 (Avr–Jun)</option>
+                        <option value="3">T3 (Jul–Sep)</option>
+                        <option value="4">T4 (Oct–Dec)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleExportExpenses}
+                    disabled={exportingExp}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-warning text-white font-medium text-sm rounded-full shadow-lg shadow-warning/30 hover:shadow-xl disabled:opacity-50 transition-all"
+                  >
+                    {exportingExp ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    Telecharger CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Royalties export */}
+            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Rapport de Royalties</h2>
+                  <p className="text-xs text-secondary-500 mt-0.5">Calcul des royalties par artiste et par release</p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3 max-w-xs">
+                  <div>
+                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee *</label>
+                    <select
+                      value={exportRoyYear}
+                      onChange={(e) => { setExportRoyYear(e.target.value); setExportRoyQuarter(''); }}
+                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                    >
+                      <option value="">-- Choisir --</option>
+                      {years.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {exportRoyYear && (
+                    <div>
+                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
+                      <select
+                        value={exportRoyQuarter}
+                        onChange={(e) => setExportRoyQuarter(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="">Toute l'annee</option>
+                        <option value="1">T1 (Jan–Mar)</option>
+                        <option value="2">T2 (Avr–Jun)</option>
+                        <option value="3">T3 (Jul–Sep)</option>
+                        <option value="4">T4 (Oct–Dec)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleExportRoyalties}
+                    disabled={exportingRoy || !exportRoyYear}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-secondary text-white font-medium text-sm rounded-full shadow-lg shadow-secondary/30 hover:shadow-xl disabled:opacity-50 transition-all"
+                  >
+                    {exportingRoy ? (
+                      <Spinner size="sm" color="white" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    )}
+                    Telecharger CSV
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
