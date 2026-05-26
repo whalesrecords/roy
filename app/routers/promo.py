@@ -497,77 +497,89 @@ async def analyze_groover_csv(
     Analyze a Groover CSV file before importing.
     Returns column detection, sample rows, and warnings.
     """
-    content = await file.read()
-    parser = GrooverParser()
-
     try:
-        result = parser.parse(content)
+        content = await file.read()
+        parser = GrooverParser()
+
+        try:
+            result = parser.parse(content)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to parse CSV: {str(e)}",
+            )
+
+        # Get sample rows (first 5)
+        sample_rows = []
+        for row in result.rows[:5]:
+            sample_rows.append({
+                "band_name": row.band_name,
+                "track_title": row.track_title,
+                "influencer_name": row.influencer_name,
+                "decision": row.decision,
+                "feedback": row.feedback[:100] + "..." if row.feedback and len(row.feedback) > 100 else row.feedback,
+                "sent_date": row.sent_date,
+            })
+
+        # Collect warnings
+        warnings = []
+        if result.errors:
+            warnings.append(f"{len(result.errors)} rows had parsing errors")
+
+        # Detect columns from first row
+        columns_detected = []
+        if result.rows:
+            first_row = result.rows[0]
+            if first_row.band_name:
+                columns_detected.append("Band")
+            if first_row.track_title:
+                columns_detected.append("Track")
+            if first_row.influencer_name:
+                columns_detected.append("Influencer")
+            if first_row.influencer_type:
+                columns_detected.append("Type")
+            if first_row.decision:
+                columns_detected.append("Decisions")
+            if first_row.feedback:
+                columns_detected.append("Feedback")
+            if first_row.sharing_link:
+                columns_detected.append("Sharing Link")
+            if first_row.sent_date:
+                columns_detected.append("Sent")
+
+        # Check which band names from the CSV are not found in the DB
+        detected_band_names = list({r.band_name for r in result.rows if r.band_name})
+        unmatched_artists = []
+        for band_name in detected_band_names:
+            artist_id_found = await match_artist_by_name(band_name, db)
+            if not artist_id_found:
+                unmatched_artists.append(band_name)
+
+        if unmatched_artists:
+            warnings.append(
+                f"Artiste(s) non trouvé(s) automatiquement : {', '.join(unmatched_artists)}. "
+                "Sélectionnez l'artiste manuellement dans le menu déroulant."
+            )
+
+        return GrooverAnalyzeResponse(
+            total_rows=len(result.rows),
+            sample_rows=sample_rows,
+            columns_detected=columns_detected,
+            warnings=warnings,
+            unmatched_artists=unmatched_artists,
+            detected_band_names=detected_band_names,
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        print(f"Error in analyze_groover_csv: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse CSV: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de l'analyse : {str(e)}",
         )
-
-    # Get sample rows (first 5)
-    sample_rows = []
-    for row in result.rows[:5]:
-        sample_rows.append({
-            "band_name": row.band_name,
-            "track_title": row.track_title,
-            "influencer_name": row.influencer_name,
-            "decision": row.decision,
-            "feedback": row.feedback[:100] + "..." if row.feedback and len(row.feedback) > 100 else row.feedback,
-            "sent_date": row.sent_date,
-        })
-
-    # Collect warnings
-    warnings = []
-    if result.errors:
-        warnings.append(f"{len(result.errors)} rows had parsing errors")
-
-    # Detect columns from first row
-    columns_detected = []
-    if result.rows:
-        first_row = result.rows[0]
-        if first_row.band_name:
-            columns_detected.append("Band")
-        if first_row.track_title:
-            columns_detected.append("Track")
-        if first_row.influencer_name:
-            columns_detected.append("Influencer")
-        if first_row.influencer_type:
-            columns_detected.append("Type")
-        if first_row.decision:
-            columns_detected.append("Decisions")
-        if first_row.feedback:
-            columns_detected.append("Feedback")
-        if first_row.sharing_link:
-            columns_detected.append("Sharing Link")
-        if first_row.sent_date:
-            columns_detected.append("Sent")
-
-    # Check which band names from the CSV are not found in the DB
-    detected_band_names = list({r.band_name for r in result.rows if r.band_name})
-    unmatched_artists = []
-    for band_name in detected_band_names:
-        artist_id_found = await match_artist_by_name(band_name, db)
-        if not artist_id_found:
-            unmatched_artists.append(band_name)
-
-    if unmatched_artists:
-        warnings.append(
-            f"Artiste(s) non trouvé(s) automatiquement : {', '.join(unmatched_artists)}. "
-            "Sélectionnez l'artiste manuellement dans le menu déroulant."
-        )
-
-    return GrooverAnalyzeResponse(
-        total_rows=len(result.rows),
-        sample_rows=sample_rows,
-        columns_detected=columns_detected,
-        warnings=warnings,
-        unmatched_artists=unmatched_artists,
-        detected_band_names=detected_band_names,
-    )
 
 
 @router.post("/import/groover", response_model=ImportGrooverResponse)
