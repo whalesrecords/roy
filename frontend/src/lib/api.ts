@@ -1841,6 +1841,16 @@ export function getExportExpensesCsvUrl(params: ExportExpensesParams): string {
   return `${PROXY_BASE}/exports/expenses/csv${qs ? '?' + qs : ''}`;
 }
 
+export function getExportExpensesPdfUrl(params: ExportExpensesParams): string {
+  const q = new URLSearchParams();
+  if (params.artist_id) q.set('artist_id', params.artist_id);
+  if (params.year) q.set('year', String(params.year));
+  if (params.quarter) q.set('quarter', String(params.quarter));
+  if (params.category) q.set('category', params.category);
+  const qs = q.toString();
+  return `${PROXY_BASE}/exports/expenses/pdf${qs ? '?' + qs : ''}`;
+}
+
 // ============ Inventory ============
 
 export interface Product {

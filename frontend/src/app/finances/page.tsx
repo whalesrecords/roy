@@ -16,6 +16,7 @@ import {
   getArtistTracks,
   getExportTransactionsCsvUrl,
   getExportExpensesCsvUrl,
+  getExportExpensesPdfUrl,
   getExportCsvUrl,
   downloadExport,
   ExpenseEntry,
@@ -61,6 +62,7 @@ export default function FinancesPage() {
   const [activeTab, setActiveTab] = useState<string>('expenses');
   const [selectedArtistFilter, setSelectedArtistFilter] = useState<string>('all');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+  const [selectedScopeFilter, setSelectedScopeFilter] = useState<string>('');
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,6 +103,7 @@ export default function FinancesPage() {
   const [exportExpQuarter, setExportExpQuarter] = useState('');
   const [exportExpCategory, setExportExpCategory] = useState('');
   const [exportingExp, setExportingExp] = useState(false);
+  const [exportingExpPdf, setExportingExpPdf] = useState(false);
   const [exportRoyYear, setExportRoyYear] = useState('');
   const [exportRoyQuarter, setExportRoyQuarter] = useState('');
   const [exportingRoy, setExportingRoy] = useState(false);
@@ -295,6 +298,11 @@ export default function FinancesPage() {
   const totalExpenses = summary ? parseFloat(summary.total_expenses) : 0;
   const totalRoyalties = summary ? parseFloat(summary.total_royalties_payable) : 0;
 
+  // Collect unique scope titles for the filter dropdown
+  const scopeTitles = Array.from(
+    new Set(expenses.map((e) => e.scope_title).filter(Boolean) as string[])
+  ).sort();
+
   // Filter expenses
   const filteredExpenses = expenses.filter((expense) => {
     if (selectedArtistFilter !== 'all') {
@@ -306,6 +314,9 @@ export default function FinancesPage() {
       }
     }
     if (selectedCategoryFilter !== 'all' && expense.category !== selectedCategoryFilter) {
+      return false;
+    }
+    if (selectedScopeFilter && expense.scope_title !== selectedScopeFilter) {
       return false;
     }
     return true;
@@ -367,6 +378,17 @@ export default function FinancesPage() {
     } finally {
       setExportingExp(false);
     }
+  };
+
+  const handleExportExpensesPdf = () => {
+    const params = {
+      artist_id: exportExpArtist || undefined,
+      year: exportExpYear ? parseInt(exportExpYear) : undefined,
+      quarter: exportExpQuarter ? parseInt(exportExpQuarter) : undefined,
+      category: exportExpCategory || undefined,
+    };
+    const url = getExportExpensesPdfUrl(params);
+    window.open(url, '_blank');
   };
 
   const handleExportRoyalties = async () => {
@@ -575,6 +597,21 @@ export default function FinancesPage() {
                   ))}
                 </select>
               </div>
+              {scopeTitles.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Album / Track</label>
+                  <select
+                    value={selectedScopeFilter}
+                    onChange={(e) => setSelectedScopeFilter(e.target.value)}
+                    className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                  >
+                    <option value="">Tous</option>
+                    {scopeTitles.map((title) => (
+                      <option key={title} value={title}>{title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
@@ -939,7 +976,21 @@ export default function FinancesPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={handleExportExpensesPdf}
+                    disabled={exportingExpPdf}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-background border-2 border-warning text-warning font-medium text-sm rounded-full hover:bg-warning/5 disabled:opacity-50 transition-all"
+                  >
+                    {exportingExpPdf ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                    Telecharger PDF
+                  </button>
                   <button
                     onClick={handleExportExpenses}
                     disabled={exportingExp}

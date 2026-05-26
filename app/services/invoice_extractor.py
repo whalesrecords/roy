@@ -155,6 +155,93 @@ def extract_pdf_text(content: bytes) -> str:
         return f"[Error extracting PDF text: {str(e)}]"
 
 
+async def parse_image_invoice_with_ai(
+    content: bytes,
+    filename: str,
+    filename_hints: FilenameData,
+    api_key: Optional[str] = None,
+) -> dict:
+    """
+    Use Claude vision to extract invoice data directly from an image file.
+    Supports JPEG, PNG, WEBP.
+    """
+    import base64
+    api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"error": "Clé API manquante – extraction IA impossible", "confidence": 0.0}
+
+    ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else "jpeg"
+    media_type_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    media_type = media_type_map.get(ext, "image/jpeg")
+    image_b64 = base64.standard_b64encode(content).decode()
+
+    hints_text = ""
+    if filename_hints.artist:
+        hints_text += f"\nArtiste probable : {filename_hints.artist}"
+    if filename_hints.category:
+        hints_text += f"\nCatégorie : {filename_hints.category}"
+
+    prompt = (
+        f"Voici une facture en image pour un label musical.{hints_text}\n\n"
+        "Analyse cette facture et retourne UNIQUEMENT un JSON valide avec ces champs :\n"
+        '{\n'
+        '  "invoice_number": "numéro de facture ou null",\n'
+        '  "vendor_name": "nom du fournisseur ou null",\n'
+        '  "total_amount": "montant total TTC en string (ex: \\"300.00\\") ou null",\n'
+        '  "currency": "EUR, USD, GBP ou PLN",\n'
+        '  "album_or_track": "nom de l\'album ou track mentionné ou null",\n'
+        '  "description": "description courte du service ou null",\n'
+        '  "confidence": 0.9\n'
+        "}\n\n"
+        "Règles : cherche le montant TOTAL TTC. confidence entre 0.0 et 1.0."
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": "claude-opus-4-5",
+                    "max_tokens": 512,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "image",
+                                    "source": {
+                                        "type": "base64",
+                                        "media_type": media_type,
+                                        "data": image_b64,
+                                    },
+                                },
+                                {"type": "text", "text": prompt},
+                            ],
+                        }
+                    ],
+                },
+            )
+
+        if response.status_code != 200:
+            return {"error": f"API error {response.status_code}", "confidence": 0.0}
+
+        data = response.json()
+        content_str = data["content"][0]["text"]
+        if "```json" in content_str:
+            content_str = content_str.split("```json")[1].split("```")[0]
+        elif "```" in content_str:
+            content_str = content_str.split("```")[1].split("```")[0]
+        return json.loads(content_str.strip())
+
+    except Exception as e:
+        return {"error": str(e), "confidence": 0.0}
+
+
 async def parse_invoice_with_ai(
     raw_text: str,
     filename_hints: FilenameData,
@@ -325,30 +412,42 @@ async def extract_invoice_data(
     result.category_from_filename = filename_data.category
     result.artist_from_filename = filename_data.artist
 
-    # 2. Extract PDF text
-    if filename.lower().endswith(".pdf"):
+    # 2. Extract text or use vision depending on file type
+    image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    file_ext = "." + filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+
+    if file_ext in image_extensions:
+        # Use Claude vision directly on the image
+        ai_result = await parse_image_invoice_with_ai(content, filename, filename_data, api_key)
+        result.raw_text = "[Image analysée par OCR vision]"
+    elif filename.lower().endswith(".pdf"):
         result.raw_text = extract_pdf_text(content)
+        ai_result = None  # will be parsed below
     else:
-        result.raw_text = "[Image file - OCR not implemented]"
-        result.warnings.append("Les fichiers image nécessitent OCR (non implémenté)")
+        result.raw_text = "[Format non supporté]"
+        result.warnings.append("Format de fichier non supporté. Utilisez PDF, JPG ou PNG.")
+        return result
 
-    # 3. Parse with AI or regex
-    if result.raw_text and not result.raw_text.startswith("["):
-        ai_result = await parse_invoice_with_ai(
-            result.raw_text,
-            filename_data,
-            api_key
-        )
+    # 3. For PDFs: parse extracted text with AI
+    if file_ext not in image_extensions:
+        if result.raw_text and not result.raw_text.startswith("["):
+            ai_result = await parse_invoice_with_ai(result.raw_text, filename_data, api_key)
+        else:
+            ai_result = {"confidence": 0.0}
+            result.warnings.append("Texte PDF illisible (PDF scanné ?). Essayez en JPG/PNG.")
 
+    if ai_result:
         result.invoice_number = ai_result.get("invoice_number")
         result.vendor_name = ai_result.get("vendor_name")
         result.total_amount = ai_result.get("total_amount")
         result.currency = ai_result.get("currency", "EUR")
         result.album_or_track = ai_result.get("album_or_track")
         result.description = ai_result.get("description")
-        result.confidence_score = ai_result.get("confidence", 0.5)
+        result.confidence_score = float(ai_result.get("confidence", 0.5))
 
         if ai_result.get("ai_error"):
             result.warnings.append(f"Extraction IA indisponible: {ai_result['ai_error']}")
+        if ai_result.get("error"):
+            result.warnings.append(f"OCR: {ai_result['error']}")
 
     return result

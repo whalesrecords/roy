@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Artist, EXPENSE_CATEGORIES, ExtractedInvoice, CreateAdvanceFromInvoice } from '@/lib/types';
-import { extractInvoiceData, createAdvanceFromInvoice } from '@/lib/api';
+import { extractInvoiceData, createAdvanceFromInvoice, getArtistReleases, getArtistTracks, CatalogRelease, CatalogTrack } from '@/lib/api';
 
 interface InvoiceImportModalProps {
   isOpen: boolean;
@@ -28,6 +28,10 @@ interface InvoiceFormData extends ExtractedInvoice {
   // Preview before API responds
   localPreviewUrl: string | null;
   showOcr: boolean;
+  // Catalog data for scope picker
+  catalogReleases: CatalogRelease[];
+  catalogTracks: CatalogTrack[];
+  loadingCatalog: boolean;
 }
 
 function isImageDataUri(src: string): boolean {
@@ -170,6 +174,9 @@ export default function InvoiceImportModal({
         createError: null,
         localPreviewUrl,
         showOcr: false,
+        catalogReleases: [],
+        catalogTracks: [],
+        loadingCatalog: false,
       };
     });
 
@@ -200,6 +207,9 @@ export default function InvoiceImportModal({
           createError: null,
           localPreviewUrl: initialItems[i].localPreviewUrl,
           showOcr: false,
+          catalogReleases: [],
+          catalogTracks: [],
+          loadingCatalog: false,
         };
       } catch (err) {
         results[i] = {
@@ -234,6 +244,25 @@ export default function InvoiceImportModal({
       i === index ? { ...inv, ...updates } : inv
     ));
   };
+
+  const loadCatalog = useCallback(async (index: number, artistId: string, scope: 'track' | 'release') => {
+    if (!artistId) return;
+    const artistName = artists.find(a => a.id === artistId)?.name;
+    if (!artistName) return;
+
+    updateInvoice(index, { loadingCatalog: true, catalogReleases: [], catalogTracks: [] });
+    try {
+      if (scope === 'release') {
+        const releases = await getArtistReleases(artistName);
+        updateInvoice(index, { catalogReleases: releases.filter(r => r.upc), loadingCatalog: false });
+      } else {
+        const tracks = await getArtistTracks(artistName);
+        updateInvoice(index, { catalogTracks: tracks.filter(t => t.isrc), loadingCatalog: false });
+      }
+    } catch {
+      updateInvoice(index, { loadingCatalog: false });
+    }
+  }, [artists]);
 
   const createAdvance = async (index: number) => {
     const invoice = extractedInvoices[index];
@@ -421,7 +450,13 @@ export default function InvoiceImportModal({
                                 <label className="block text-xs font-medium text-default-600 mb-1">Artiste *</label>
                                 <select
                                   value={invoice.selectedArtistId}
-                                  onChange={(e) => updateInvoice(index, { selectedArtistId: e.target.value })}
+                                  onChange={(e) => {
+                                    const newId = e.target.value;
+                                    updateInvoice(index, { selectedArtistId: newId, editedScopeId: '', catalogReleases: [], catalogTracks: [] });
+                                    if (newId && invoice.editedScope !== 'catalog') {
+                                      loadCatalog(index, newId, invoice.editedScope);
+                                    }
+                                  }}
                                   className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                 >
                                   <option value="">Sélectionner…</option>
@@ -500,6 +535,68 @@ export default function InvoiceImportModal({
                                   className="text-sm h-9"
                                 />
                               </div>
+                            </div>
+
+                            {/* Scope: Album / Track / Catalog */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-start">
+                              <div>
+                                <label className="block text-xs font-medium text-default-600 mb-1">Périmètre</label>
+                                <select
+                                  value={invoice.editedScope}
+                                  onChange={(e) => {
+                                    const newScope = e.target.value as 'catalog' | 'track' | 'release';
+                                    updateInvoice(index, { editedScope: newScope, editedScopeId: '', catalogReleases: [], catalogTracks: [] });
+                                    if (newScope !== 'catalog' && invoice.selectedArtistId) {
+                                      loadCatalog(index, invoice.selectedArtistId, newScope);
+                                    }
+                                  }}
+                                  className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                >
+                                  <option value="catalog">Catalogue général</option>
+                                  <option value="release">Album</option>
+                                  <option value="track">Track</option>
+                                </select>
+                              </div>
+                              {invoice.editedScope !== 'catalog' && (
+                                <div className="col-span-2">
+                                  <label className="block text-xs font-medium text-default-600 mb-1">
+                                    {invoice.editedScope === 'release' ? 'Album' : 'Track'}
+                                    {invoice.loadingCatalog && <span className="ml-1 text-default-400 text-xs">Chargement…</span>}
+                                  </label>
+                                  {(invoice.editedScope === 'release' ? invoice.catalogReleases.length > 0 : invoice.catalogTracks.length > 0) ? (
+                                    <select
+                                      value={invoice.editedScopeId}
+                                      onChange={(e) => updateInvoice(index, { editedScopeId: e.target.value })}
+                                      className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                      <option value="">— Sélectionner —</option>
+                                      {invoice.editedScope === 'release'
+                                        ? invoice.catalogReleases.map(r => (
+                                            <option key={r.upc} value={r.upc!}>{r.release_title} ({r.upc})</option>
+                                          ))
+                                        : invoice.catalogTracks.map(t => (
+                                            <option key={t.isrc} value={t.isrc!}>{t.track_title} ({t.isrc})</option>
+                                          ))
+                                      }
+                                    </select>
+                                  ) : (
+                                    <input
+                                      value={invoice.editedScopeId}
+                                      onChange={(e) => updateInvoice(index, { editedScopeId: e.target.value })}
+                                      placeholder={invoice.editedScope === 'release' ? 'UPC' : 'ISRC'}
+                                      onClick={() => {
+                                        if (!invoice.loadingCatalog && invoice.selectedArtistId && invoice.editedScope !== 'catalog') {
+                                          loadCatalog(index, invoice.selectedArtistId, invoice.editedScope);
+                                        }
+                                      }}
+                                      className="w-full h-9 px-3 text-sm rounded-lg bg-default-100 border border-default-200 focus:border-primary focus:outline-none"
+                                    />
+                                  )}
+                                  {invoice.album_or_track && !invoice.editedScopeId && (
+                                    <p className="text-xs text-yellow-600 mt-0.5">OCR a détecté : {invoice.album_or_track}</p>
+                                  )}
+                                </div>
+                              )}
                             </div>
 
                             {/* Bouton créer */}

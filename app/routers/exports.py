@@ -21,11 +21,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+from app.models.advance_ledger import AdvanceLedgerEntry, ExpenseCategory, LedgerEntryType
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
 from app.models.contract_party import ContractParty as ContractPartyModel
 from app.models.import_model import Import
+from app.models.label_settings import LabelSettings
 from app.models.track_artist_link import TrackArtistLink
 from app.models.transaction import TransactionNormalized
 
@@ -671,4 +672,183 @@ async def export_expenses_csv(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/expenses/pdf")
+async def export_expenses_pdf(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[PyUUID] = None,
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    category: Optional[str] = None,
+):
+    """Export advance/expense ledger entries as an HTML report (printable as PDF) with label logo."""
+    from collections import defaultdict
+
+    # Load label settings for logo
+    settings_result = await db.execute(select(LabelSettings).limit(1))
+    label = settings_result.scalars().first()
+    label_name = label.label_name if label else "Whales Records"
+    logo_src = (label.logo_base64 or label.logo_url) if label else None
+
+    # Build query
+    conditions = [AdvanceLedgerEntry.entry_type == LedgerEntryType.ADVANCE]
+    if artist_id:
+        conditions.append(AdvanceLedgerEntry.artist_id == artist_id)
+    if category:
+        conditions.append(AdvanceLedgerEntry.category == category)
+    if year:
+        conditions.append(extract("year", AdvanceLedgerEntry.effective_date) == year)
+        if quarter and 1 <= quarter <= 4:
+            month_start = (quarter - 1) * 3 + 1
+            month_end = quarter * 3
+            conditions.append(extract("month", AdvanceLedgerEntry.effective_date) >= month_start)
+            conditions.append(extract("month", AdvanceLedgerEntry.effective_date) <= month_end)
+
+    query = (
+        select(
+            AdvanceLedgerEntry.effective_date,
+            Artist.name.label("artist_name"),
+            AdvanceLedgerEntry.category,
+            AdvanceLedgerEntry.scope,
+            AdvanceLedgerEntry.scope_id,
+            AdvanceLedgerEntry.amount,
+            AdvanceLedgerEntry.currency,
+            AdvanceLedgerEntry.description,
+            AdvanceLedgerEntry.reference,
+        )
+        .outerjoin(Artist, AdvanceLedgerEntry.artist_id == Artist.id)
+        .where(and_(*conditions))
+        .order_by(Artist.name, AdvanceLedgerEntry.effective_date)
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Resolve scope titles (isrc→track_title, upc→release_title)
+    track_scope_ids = {r.scope_id for r in rows if r.scope == "track" and r.scope_id}
+    release_scope_ids = {r.scope_id for r in rows if r.scope == "release" and r.scope_id}
+    track_titles: dict[str, str] = {}
+    release_titles: dict[str, str] = {}
+    if track_scope_ids:
+        tr = await db.execute(
+            select(TransactionNormalized.isrc, TransactionNormalized.track_title)
+            .where(TransactionNormalized.isrc.in_(track_scope_ids))
+            .distinct(TransactionNormalized.isrc)
+        )
+        track_titles = {row.isrc: row.track_title for row in tr.all() if row.track_title}
+    if release_scope_ids:
+        rr = await db.execute(
+            select(TransactionNormalized.upc, TransactionNormalized.release_title)
+            .where(TransactionNormalized.upc.in_(release_scope_ids))
+            .distinct(TransactionNormalized.upc)
+        )
+        release_titles = {row.upc: row.release_title for row in rr.all() if row.release_title}
+
+    def _scope_label(r) -> str:
+        if not r.scope or r.scope == "catalog":
+            return "Catalogue"
+        if r.scope == "track" and r.scope_id:
+            title = track_titles.get(r.scope_id, r.scope_id)
+            return f"Track : {title}"
+        if r.scope == "release" and r.scope_id:
+            title = release_titles.get(r.scope_id, r.scope_id)
+            return f"Album : {title}"
+        return r.scope.capitalize()
+
+    # Group by artist
+    by_artist: dict[str, list] = defaultdict(list)
+    for row in rows:
+        by_artist[row.artist_name or "Frais generaux"].append(row)
+
+    # Period label
+    q_labels = {1: "T1 (Jan–Mar)", 2: "T2 (Avr–Jun)", 3: "T3 (Jul–Sep)", 4: "T4 (Oct–Dec)"}
+    if year:
+        period_label = f"{year}" + (f" – {q_labels[quarter]}" if quarter else "")
+    else:
+        period_label = "Toutes périodes"
+
+    cat_labels = {
+        "mastering": "Mastering", "mixing": "Mixage", "recording": "Enregistrement",
+        "photos": "Photos", "video": "Vidéo", "advertising": "Publicité",
+        "groover": "Groover", "submithub": "SubmitHub", "google_ads": "Google Ads",
+        "instagram": "Instagram", "tiktok": "TikTok", "facebook": "Facebook",
+        "spotify_ads": "Spotify Ads", "pr": "PR / Presse", "distribution": "Distribution",
+        "artwork": "Artwork", "cd": "CD", "vinyl": "Vinyles",
+        "goodies": "Goodies / Merch", "accommodation": "Hébergement",
+        "equipment_rental": "Location matériel", "other": "Autre",
+    }
+
+    logo_html = f'<img src="{logo_src}" class="logo" alt="{label_name}" />' if logo_src else ""
+
+    blocks: list[str] = []
+    for artist_nm, artist_rows in sorted(by_artist.items()):
+        total = sum(r.amount for r in artist_rows)
+        table_rows = []
+        for r in artist_rows:
+            date_str = r.effective_date.date().strftime("%d/%m/%Y") if hasattr(r.effective_date, "date") else str(r.effective_date)
+            scope_str = _scope_label(r)
+            table_rows.append(
+                f"<tr>"
+                f"<td>{date_str}</td>"
+                f"<td>{cat_labels.get(r.category or '', r.category or '—')}</td>"
+                f"<td class='mono'>{scope_str}</td>"
+                f"<td>{r.description or '—'}</td>"
+                f"<td class='mono'>{r.reference or '—'}</td>"
+                f"<td class='right amount'>{_fmt(r.amount)} {r.currency or 'EUR'}</td>"
+                f"</tr>"
+            )
+        blocks.append(
+            f"<div class='artist-block'>"
+            f"<div class='artist-header'>{artist_nm}</div>"
+            f"<table>"
+            f"<tr><th>Date</th><th>Categorie</th><th>Perimetre</th><th>Description</th><th>Ref</th><th class='right'>Montant</th></tr>"
+            + "".join(table_rows) +
+            f"<tr class='total-row'><td colspan='5'><strong>Total — {artist_nm}</strong></td>"
+            f"<td class='right'><strong>{_fmt(total)} EUR</strong></td></tr>"
+            f"</table></div>"
+        )
+
+    grand_total = sum(r.amount for r in rows)
+    cat_filter_label = f" — {cat_labels.get(category, category)}" if category else ""
+
+    html = f"""<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Avances et Depenses — {label_name}</title>
+<style>
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{ font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 11px; color: #1a1a1a; padding: 40px; }}
+.header {{ display: flex; align-items: center; gap: 20px; margin-bottom: 30px; border-bottom: 2px solid #1a1a1a; padding-bottom: 20px; }}
+.logo {{ max-height: 50px; max-width: 160px; object-fit: contain; }}
+.header-text h1 {{ font-size: 18px; font-weight: 700; }}
+.header-text .subtitle {{ color: #666; font-size: 12px; margin-top: 3px; }}
+.artist-block {{ margin-bottom: 28px; }}
+.artist-header {{ background: #1a1a1a; color: white; padding: 8px 12px; font-size: 13px; font-weight: 700; border-radius: 4px 4px 0 0; }}
+table {{ width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; border-top: none; }}
+th {{ background: #f5f5f3; padding: 7px 10px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; color: #666; border-bottom: 1px solid #e0e0e0; }}
+td {{ padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }}
+.right {{ text-align: right; white-space: nowrap; }}
+.mono {{ font-family: monospace; font-size: 10px; color: #555; }}
+.amount {{ font-weight: 600; color: #c0392b; }}
+.total-row td {{ background: #fafaf9; font-size: 12px; border-top: 2px solid #e0e0e0; }}
+.grand-total {{ margin-top: 24px; padding: 12px 16px; background: #f5f5f3; border-radius: 6px; text-align: right; font-size: 14px; font-weight: 700; }}
+@media print {{ body {{ padding: 20px; }} }}
+</style></head><body>
+<div class="header">
+  {logo_html}
+  <div class="header-text">
+    <h1>Avances &amp; Depenses</h1>
+    <div class="subtitle">{label_name} — Periode : {period_label}{cat_filter_label}</div>
+  </div>
+</div>
+{"".join(blocks)}
+<div class="grand-total">Total general : {_fmt(grand_total)} EUR</div>
+</body></html>"""
+
+    fn = "depenses_" + (f"{year}" if year else "all") + (f"_Q{quarter}" if quarter else "") + ".html"
+    return StreamingResponse(
+        iter([html]),
+        media_type="text/html",
+        headers={"Content-Disposition": f'inline; filename="{fn}"'},
     )

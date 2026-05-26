@@ -438,10 +438,14 @@ async def import_inventory_csv(
         raise HTTPException(status_code=400, detail="source must be 'bandcamp' or 'squarespace'")
 
     content = await file.read()
-    try:
-        text = content.decode("utf-8-sig")  # handle BOM
-    except UnicodeDecodeError:
-        text = content.decode("latin-1")
+    # Detect encoding from BOM: Bandcamp exports UTF-16 LE (0xFF 0xFE)
+    if content[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        text = content.decode("utf-16")
+    else:
+        try:
+            text = content.decode("utf-8-sig")  # UTF-8 with optional BOM
+        except UnicodeDecodeError:
+            text = content.decode("latin-1")
 
     # Parse the CSV using the appropriate parser
     errors: list[str] = []
