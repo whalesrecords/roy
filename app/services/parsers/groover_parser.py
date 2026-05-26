@@ -4,7 +4,7 @@ Groover CSV Parser
 Parses Groover promo submission history CSV exports.
 Returns raw parsed data for normalization.
 
-Groover CSV columns:
+Groover CSV columns (old format):
 - Band
 - Track
 - Track link
@@ -15,6 +15,25 @@ Groover CSV columns:
 - Sharing Link
 - Sent (date)
 - Answer date
+
+Groover CSV columns (new format, 2025+):
+- Submission Id
+- Band
+- Track
+- Track link
+- Influencer
+- Type
+- Website
+- Decisions
+- Feedback
+- Sharing Link
+- Campaign ID
+- Date of answer
+- Date of submission
+- Date of sharing
+- Agency Name
+- Influencer Email
+- User Email
 """
 
 import csv
@@ -28,6 +47,7 @@ from typing import Dict, Iterator, List, Optional, Union
 class GrooverRow:
     """Raw parsed row from Groover CSV."""
     row_number: int
+    submission_id: Optional[str]
     band_name: str
     track_title: str
     track_link: Optional[str]
@@ -56,8 +76,9 @@ class GrooverParseResult:
     total_rows: int = 0
 
 
-# Column name mappings - tolerant to variations
+# Column name mappings - tolerant to variations across old and new Groover export formats
 COLUMN_MAPPINGS = {
+    "submission_id": ["submission id", "submission_id", "id", "sub id"],
     "band": ["band", "artist", "artist name", "band name"],
     "track": ["track", "song", "track name", "song title", "title"],
     "track_link": ["track link", "track_link", "link", "url", "track url"],
@@ -66,8 +87,9 @@ COLUMN_MAPPINGS = {
     "decisions": ["decisions", "decision", "status", "result", "response"],
     "feedback": ["feedback", "comment", "notes", "review", "message"],
     "sharing_link": ["sharing link", "sharing_link", "share link", "playlist link", "post link"],
-    "sent": ["sent", "submitted", "submission date", "date sent", "sent date"],
-    "answer_date": ["answer date", "answer_date", "response date", "replied", "date answered"],
+    # New format uses "Date of submission" / "Date of answer"
+    "sent": ["sent", "submitted", "submission date", "date sent", "sent date", "date of submission"],
+    "answer_date": ["answer date", "answer_date", "response date", "replied", "date answered", "date of answer"],
 }
 
 
@@ -198,8 +220,11 @@ class GrooverParser:
         answer_date_raw = _get_value(row, self._column_indices.get("answer_date"))
         answer_date = _parse_date(answer_date_raw)
 
+        submission_id = _get_value(row, self._column_indices.get("submission_id")) or None
+
         return GrooverRow(
             row_number=row_number,
+            submission_id=submission_id,
             band_name=band_name,
             track_title=track_title,
             track_link=_get_value(row, self._column_indices.get("track_link")) or None,

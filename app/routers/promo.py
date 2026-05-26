@@ -85,7 +85,7 @@ async def match_artist_by_name(
         select(Artist)
         .where(func.lower(Artist.name) == func.lower(artist_name.strip()))
     )
-    artist = result.scalar_one_or_none()
+    artist = result.scalars().first()
     if artist:
         return artist.id
 
@@ -101,6 +101,7 @@ async def match_artist_by_name(
             return artist.id
 
     # Third: try partial match (artist name contains or is contained in database name)
+    # Use .first() rather than scalar_one_or_none() — multiple artists may partially match
     result = await db.execute(
         select(Artist)
         .where(or_(
@@ -108,7 +109,7 @@ async def match_artist_by_name(
             func.lower(artist_name.strip()).contains(func.lower(Artist.name))
         ))
     )
-    artist = result.scalar_one_or_none()
+    artist = result.scalars().first()
     if artist:
         return artist.id
 
@@ -132,11 +133,12 @@ async def match_song_to_catalog(
         (track_isrc, release_upc) or (None, None) if no match
     """
     # First: exact match on TrackArtwork.name
+    # Use .first() — multiple tracks may share a title across different releases
     result = await db.execute(
         select(TrackArtwork)
         .where(func.lower(TrackArtwork.name) == func.lower(song_title))
     )
-    track = result.scalar_one_or_none()
+    track = result.scalars().first()
     if track:
         return track.isrc, track.release_upc
 
@@ -145,7 +147,7 @@ async def match_song_to_catalog(
         select(ReleaseArtwork)
         .where(func.lower(ReleaseArtwork.name) == func.lower(song_title))
     )
-    release = result.scalar_one_or_none()
+    release = result.scalars().first()
     if release:
         return None, release.upc
 
@@ -639,6 +641,10 @@ async def import_groover_csv(
         artists_not_found = set()
 
         skipped_duplicates = 0
+        # Track within-batch duplicates: Groover new exports send one row per decision
+        # type for the same submission (e.g., "feedback-only" AND "allow-contact"),
+        # so we deduplicate on (artist_id, song_title, influencer_name) within this batch.
+        seen_in_batch: set = set()
 
         for row in parse_result.rows:
             # Determine which artist this submission belongs to
@@ -656,7 +662,15 @@ async def import_groover_csv(
                 errors.append(f"Row {row.row_number}: No artist specified and couldn't extract from CSV")
                 continue
 
-            # Check for duplicate submission
+            # Deduplicate within this CSV batch (Groover may send duplicate rows for
+            # the same submission with different "Type" values)
+            batch_key = (str(row_artist_id), row.track_title.lower(), row.influencer_name.lower())
+            if batch_key in seen_in_batch:
+                skipped_duplicates += 1
+                continue
+            seen_in_batch.add(batch_key)
+
+            # Check for duplicate submission already in the database
             dup_query = select(PromoSubmission).where(
                 PromoSubmission.artist_id == row_artist_id,
                 PromoSubmission.source == PromoSource.GROOVER,
