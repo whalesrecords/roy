@@ -901,11 +901,18 @@ async def get_artist_releases(
         artist_links = links_result.scalars().all()
         linked_isrcs = {link.isrc for link in artist_links}
 
-    # Query transactions where artist_name matches OR ISRC is in linked_isrcs
-    where_clause = TransactionNormalized.artist_name == decoded_name
+    # Query transactions where artist_name matches OR ISRC is in linked_isrcs.
+    # Also match collaboration names like "A & Artist" / "Artist & B" (Whales Records convention).
+    name_clause = or_(
+        TransactionNormalized.artist_name == decoded_name,
+        TransactionNormalized.artist_name.ilike(f"{decoded_name} & %"),
+        TransactionNormalized.artist_name.ilike(f"% & {decoded_name}"),
+        TransactionNormalized.artist_name.ilike(f"% & {decoded_name} & %"),
+    )
+    where_clause = name_clause
     if linked_isrcs:
         where_clause = or_(
-            TransactionNormalized.artist_name == decoded_name,
+            name_clause,
             TransactionNormalized.isrc.in_(linked_isrcs),
         )
 
