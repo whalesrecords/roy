@@ -76,6 +76,9 @@ async def list_royalty_runs(
                 recouped=stmt.recouped,
                 net_payable=stmt.net_payable,
                 transaction_count=stmt.transaction_count,
+                statement_id=stmt.id,
+                statement_status=stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+                paid_at=stmt.paid_at,
             )
             for stmt in run.statements
         ]
@@ -139,21 +142,32 @@ async def create_royalty_run(
             artist_ids=data.artist_ids,
         )
 
-        # Get the run for response
+        # Get the run for response (includes statements via selectinload)
         run = await calculator.get_run(db, result.run_id)
 
-        # Build artist results list
+        # Pre-load artist names from statements
+        artist_ids_set = {stmt.artist_id for stmt in run.statements}
+        artist_names_map: dict = {}
+        if artist_ids_set:
+            ar_result = await db.execute(select(Artist).where(Artist.id.in_(artist_ids_set)))
+            for a in ar_result.scalars().all():
+                artist_names_map[a.id] = a.name
+
+        # Build artist results from statements (gives us statement_id + status)
         artists = [
             ArtistRoyaltyResult(
-                artist_id=ar.artist_id,
-                artist_name=ar.artist_name,
-                gross=ar.gross,
-                artist_royalties=ar.artist_royalties,
-                recouped=ar.recouped,
-                net_payable=ar.net_payable,
-                transaction_count=ar.transaction_count,
+                artist_id=stmt.artist_id,
+                artist_name=artist_names_map.get(stmt.artist_id, "Inconnu"),
+                gross=stmt.gross_revenue,
+                artist_royalties=stmt.artist_royalties,
+                recouped=stmt.recouped,
+                net_payable=stmt.net_payable,
+                transaction_count=stmt.transaction_count,
+                statement_id=stmt.id,
+                statement_status=stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+                paid_at=stmt.paid_at,
             )
-            for ar in result.artists.values()
+            for stmt in run.statements
         ]
 
         return RoyaltyRunResponse(
@@ -224,6 +238,9 @@ async def get_royalty_run(
             recouped=stmt.recouped,
             net_payable=stmt.net_payable,
             transaction_count=stmt.transaction_count,
+            statement_id=stmt.id,
+            statement_status=stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+            paid_at=stmt.paid_at,
         )
         for stmt in run.statements
     ]
@@ -286,6 +303,9 @@ async def lock_royalty_run(
                 recouped=stmt.recouped,
                 net_payable=stmt.net_payable,
                 transaction_count=stmt.transaction_count,
+                statement_id=stmt.id,
+                statement_status=stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+                paid_at=stmt.paid_at,
             )
             for stmt in run.statements
         ]
@@ -315,6 +335,95 @@ async def lock_royalty_run(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.post("/{run_id}/pay-all", response_model=RoyaltyRunResponse)
+async def pay_all_royalty_run(
+    run_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> RoyaltyRunResponse:
+    """
+    Mark all finalized statements of a royalty run as paid.
+
+    Sets status=PAID and paid_at=now() on every statement that is
+    not already paid.  The run must be locked before calling this.
+    """
+    from datetime import datetime as dt
+    from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
+
+    run = await calculator.get_run(db, run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Royalty run {run_id} not found")
+    if not run.is_locked:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Le calcul doit être verrouillé avant de marquer les paiements.")
+
+    now = dt.utcnow()
+    for stmt in run.statements:
+        if stmt.status != StatementStatus.PAID and float(stmt.net_payable) > 0:
+            stmt.status = StatementStatus.PAID
+            stmt.paid_at = now
+
+            # Record a payment entry in the ledger for traceability
+            entry = AdvanceLedgerEntry(
+                artist_id=stmt.artist_id,
+                entry_type=LedgerEntryType.PAYMENT,
+                amount=stmt.net_payable,
+                currency=stmt.currency,
+                scope="catalog",
+                description=f"Paiement royalties {stmt.period_start} – {stmt.period_end}",
+                effective_date=now,
+            )
+            db.add(entry)
+
+    await db.commit()
+    await db.refresh(run)
+
+    # Reload statements after commit
+    run = await calculator.get_run(db, run_id)
+
+    artist_ids = [stmt.artist_id for stmt in run.statements]
+    artist_names: dict = {}
+    if artist_ids:
+        ar_result = await db.execute(select(Artist).where(Artist.id.in_(artist_ids)))
+        for a in ar_result.scalars().all():
+            artist_names[a.id] = a.name
+
+    artists = [
+        ArtistRoyaltyResult(
+            artist_id=stmt.artist_id,
+            artist_name=artist_names.get(stmt.artist_id, "Inconnu"),
+            gross=stmt.gross_revenue,
+            artist_royalties=stmt.artist_royalties,
+            recouped=stmt.recouped,
+            net_payable=stmt.net_payable,
+            transaction_count=stmt.transaction_count,
+            statement_id=stmt.id,
+            statement_status=stmt.status.value if hasattr(stmt.status, 'value') else stmt.status,
+            paid_at=stmt.paid_at,
+        )
+        for stmt in run.statements
+    ]
+
+    return RoyaltyRunResponse(
+        run_id=run.id,
+        period_start=run.period_start,
+        period_end=run.period_end,
+        base_currency=run.base_currency,
+        status=run.status.value if hasattr(run.status, 'value') else run.status,
+        is_locked=run.is_locked,
+        total_transactions=run.total_transactions,
+        total_gross=run.total_gross,
+        total_artist_royalties=run.total_artist_royalties,
+        total_label_royalties=run.total_label_royalties,
+        total_recouped=run.total_recouped,
+        total_net_payable=run.total_net_payable,
+        artists=artists,
+        import_ids=run.import_ids or [],
+        created_at=run.created_at,
+        completed_at=run.completed_at,
+        locked_at=run.locked_at,
+    )
 
 
 @router.delete("/{run_id}")

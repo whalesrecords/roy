@@ -43,6 +43,9 @@ class ArtistRoyaltyResult(BaseModel):
     recouped: Decimal = Field(description="Amount recouped from advance")
     net_payable: Decimal = Field(description="Net amount payable to artist")
     transaction_count: int = Field(description="Number of transactions processed")
+    statement_id: Optional[UUID] = Field(default=None, description="ID of the linked statement")
+    statement_status: Optional[str] = Field(default=None, description="Status of the statement: draft, finalized, paid")
+    paid_at: Optional[datetime] = Field(default=None, description="When the statement was marked as paid")
 
     class Config:
         from_attributes = True

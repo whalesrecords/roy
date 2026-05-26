@@ -283,6 +283,9 @@ export interface ArtistRoyaltyResult {
   recouped: string;
   net_payable: string;
   transaction_count: number;
+  statement_id?: string;
+  statement_status?: 'draft' | 'finalized' | 'paid';
+  paid_at?: string;
 }
 
 export const ROYALTY_STATUS_LABELS: Record<RoyaltyRunStatus, string> = {

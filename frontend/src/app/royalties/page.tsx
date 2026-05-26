@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardBody, CardHeader, Spinner, Divider } from '@heroui/react';
 import Button from '@/components/ui/Button';
 import { RoyaltyRun, ROYALTY_STATUS_LABELS, Artist, ImportRecord } from '@/lib/types';
-import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, getArtists, getImports, getExportCsvUrl, getExportPdfUrl, downloadExport } from '@/lib/api';
+import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, payAllRoyaltyRun, getArtists, getImports, getExportCsvUrl, getExportPdfUrl, downloadExport } from '@/lib/api';
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
@@ -26,6 +26,7 @@ export default function RoyaltiesPage() {
   const [creating, setCreating] = useState(false);
   const [locking, setLocking] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [payingAll, setPayingAll] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
 
@@ -127,6 +128,20 @@ export default function RoyaltiesPage() {
       setError(err instanceof Error ? err.message : 'Erreur de verrouillage');
     } finally {
       setLocking(false);
+    }
+  };
+
+  const handlePayAll = async (runId: string) => {
+    if (!confirm('Marquer tous les artistes de ce calcul comme payés ? Cette action enregistre les paiements dans le journal.')) return;
+    setPayingAll(true);
+    try {
+      const updated = await payAllRoyaltyRun(runId);
+      setSelectedRun(updated);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de paiement');
+    } finally {
+      setPayingAll(false);
     }
   };
 
@@ -440,6 +455,11 @@ export default function RoyaltiesPage() {
                             <p className="text-xs text-secondary-400">
                               sur {formatCurrency(run.total_gross, run.base_currency)} brut
                             </p>
+                            {run.is_locked && run.artists?.length > 0 && run.artists.every(a => a.statement_status === 'paid' || parseFloat(a.net_payable) === 0) && (
+                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700 mt-1">
+                                ✓ Payé
+                              </span>
+                            )}
                           </div>
                         </div>
                       </CardBody>
@@ -668,29 +688,48 @@ export default function RoyaltiesPage() {
                 <div>
                   <h3 className="font-medium text-foreground mb-3">Detail par artiste</h3>
                   <div className="space-y-2">
-                    {selectedRun.artists.map((artist) => (
-                      <div key={artist.artist_id} className="bg-content2 rounded-xl p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-content3 flex items-center justify-center text-sm font-medium text-secondary-600">
-                              {(artist.artist_name || '?').charAt(0).toUpperCase()}
+                    {selectedRun.artists.map((artist) => {
+                      const isPaid = artist.statement_status === 'paid';
+                      return (
+                        <div key={artist.artist_id} className={`rounded-xl p-4 ${isPaid ? 'bg-success-50 border border-success-100' : 'bg-content2'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${isPaid ? 'bg-success-100 text-success-700' : 'bg-content3 text-secondary-600'}`}>
+                                {isPaid ? (
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  (artist.artist_name || '?').charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">{artist.artist_name || 'Inconnu'}</p>
+                                <p className="text-xs text-secondary-500">
+                                  {artist.transaction_count.toLocaleString('fr-FR')} transactions
+                                  {isPaid && artist.paid_at && (
+                                    <> · <span className="text-success-600">Payé le {new Date(artist.paid_at).toLocaleDateString('fr-FR')}</span></>
+                                  )}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-foreground">{artist.artist_name || 'Inconnu'}</p>
-                              <p className="text-xs text-secondary-500">
-                                {artist.transaction_count.toLocaleString('fr-FR')} transactions
+                            <div className="text-right">
+                              <p className={`font-bold ${isPaid ? 'text-success-600' : 'text-success'}`}>
+                                {formatCurrency(artist.net_payable, selectedRun.base_currency)}
                               </p>
+                              {parseFloat(artist.recouped) > 0 && (
+                                <p className="text-xs text-warning-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupe</p>
+                              )}
+                              {isPaid && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700 mt-1">
+                                  Payé ✓
+                                </span>
+                              )}
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-success">{formatCurrency(artist.net_payable, selectedRun.base_currency)}</p>
-                            {parseFloat(artist.recouped) > 0 && (
-                              <p className="text-xs text-warning-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupe</p>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -718,6 +757,34 @@ export default function RoyaltiesPage() {
                   </Button>
                 )}
               </div>
+
+              {/* Pay all button — only visible on locked runs with unpaid artists */}
+              {selectedRun.is_locked && selectedRun.artists?.some(a => a.statement_status !== 'paid' && parseFloat(a.net_payable) > 0) && (
+                <button
+                  onClick={() => handlePayAll(selectedRun.run_id)}
+                  disabled={payingAll}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-success text-white rounded-xl font-medium text-sm hover:bg-success-600 disabled:opacity-50 transition-colors"
+                >
+                  {payingAll ? (
+                    <Spinner size="sm" color="white" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  Marquer tout comme payé
+                </button>
+              )}
+
+              {/* All paid confirmation */}
+              {selectedRun.is_locked && selectedRun.artists?.length > 0 && selectedRun.artists.every(a => a.statement_status === 'paid' || parseFloat(a.net_payable) === 0) && (
+                <div className="flex items-center justify-center gap-2 py-3 bg-success-50 rounded-xl border border-success-100">
+                  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm font-medium text-success-700">Tous les artistes ont été payés</span>
+                </div>
+              )}
 
               {/* Delete button - always visible */}
               <button

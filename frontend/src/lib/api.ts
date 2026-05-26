@@ -365,6 +365,14 @@ export async function lockRoyaltyRun(runId: string): Promise<RoyaltyRun> {
   return result;
 }
 
+export async function payAllRoyaltyRun(runId: string): Promise<RoyaltyRun> {
+  const result = await fetchApi<RoyaltyRun>(`/royalty-runs/${runId}/pay-all`, {
+    method: 'POST',
+  });
+  invalidateCache('/royalty-runs');
+  return result;
+}
+
 export async function deleteRoyaltyRun(runId: string, force: boolean = false): Promise<{ success: boolean; deleted_id: string }> {
   const url = force ? `/royalty-runs/${runId}?force=true` : `/royalty-runs/${runId}`;
   const result = await fetchApi<{ success: boolean; deleted_id: string }>(url, {
