@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // This route fetches from the backend at runtime — never statically generated
 export const dynamic = 'force-dynamic';
@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Serve the label logo as an image (for favicon / app icon)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const res = await fetch(`${API_BASE}/artist-portal/label-settings`, {
       next: { revalidate: 300 }, // Cache for 5 minutes
@@ -37,12 +37,6 @@ export async function GET() {
     // Fall through to default
   }
 
-  // Default whale SVG icon
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <rect width="100" height="100" rx="20" fill="#6366f1"/>
-    <text x="50" y="67" font-size="50" text-anchor="middle" fill="white">🐋</text>
-  </svg>`;
-  return new NextResponse(svg, {
-    headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=60' },
-  });
+  // Default: serve the static Whales Records logo
+  return NextResponse.redirect(new URL('/logo-black.png', request.url));
 }
