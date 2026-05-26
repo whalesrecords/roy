@@ -14,6 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine, async_session_maker
 
 logger = logging.getLogger(__name__)
+
+# Import models so SQLAlchemy registers them with Base.metadata
+import app.models.manual_release  # noqa: F401
+import app.models.manual_track  # noqa: F401
 from app.routers import imports
 from app.routers.analytics import router as analytics_router
 from app.routers.artist_portal import router as artist_portal_router

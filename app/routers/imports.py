@@ -990,6 +990,7 @@ async def get_artist_releases(
 
     # Build response - sorted by total_gross desc
     response = []
+    upcs_from_transactions: set[str] = set()
     for release in sorted(releases_map.values(), key=lambda x: x["total_gross"], reverse=True):
         sources = [
             {
@@ -1001,15 +1002,47 @@ async def get_artist_releases(
             }
             for s in sorted(release["sources_map"].values(), key=lambda x: x["gross"], reverse=True)
         ]
+        upc_val = release["upc"] or "UNKNOWN"
+        if upc_val and upc_val != "UNKNOWN":
+            upcs_from_transactions.add(upc_val)
         response.append({
             "release_title": release["release_title"],
-            "upc": release["upc"] or "UNKNOWN",
+            "upc": upc_val,
             "track_count": len(release["tracks"]),
             "total_gross": str(round(release["total_gross"], 2)),
             "total_streams": release["total_streams"],
             "currency": "EUR",
             "sources": sources,
         })
+
+    # Merge manually-registered releases that have no sales data yet
+    if artist:
+        from app.models.manual_release import ManualRelease
+        from app.models.manual_track import ManualTrack
+        from sqlalchemy.orm import selectinload as _sil
+        manual_q = (
+            select(ManualRelease)
+            .options(_sil(ManualRelease.tracks))
+            .where(ManualRelease.artist_id == artist.id)
+        )
+        manual_result = await db.execute(manual_q)
+        for mr in manual_result.scalars().all():
+            # Skip if the UPC already appeared in sales data (avoid duplicates)
+            if mr.upc and mr.upc in upcs_from_transactions:
+                continue
+            # Also skip if title already present (case-insensitive)
+            title_key = mr.title.strip().lower()
+            if any(r["release_title"].strip().lower() == title_key for r in response):
+                continue
+            response.append({
+                "release_title": mr.title,
+                "upc": mr.upc or "UNKNOWN",
+                "track_count": len(mr.tracks or []),
+                "total_gross": "0",
+                "total_streams": 0,
+                "currency": "EUR",
+                "sources": [],
+            })
 
     return response
 
@@ -1134,6 +1167,34 @@ async def get_artist_tracks(
                     "share_percent": None,
                 })
                 seen_isrcs.add(track_id)
+
+    # Also include manually-registered tracks from ManualRelease entries
+    if artist:
+        from app.models.manual_release import ManualRelease
+        from app.models.manual_track import ManualTrack
+        from sqlalchemy.orm import selectinload as _sil
+        mt_q = (
+            select(ManualTrack)
+            .join(ManualRelease, ManualTrack.release_id == ManualRelease.id, isouter=True)
+            .where(ManualRelease.artist_id == artist.id)
+            .options(_sil(ManualTrack.release))
+        )
+        mt_result = await db.execute(mt_q)
+        for mt in mt_result.scalars().all():
+            tid = mt.isrc if mt.isrc else f"manual:{mt.id}"
+            if tid not in seen_isrcs:
+                tracks.append({
+                    "track_title": mt.title,
+                    "release_title": mt.release.title if mt.release else None,
+                    "isrc": tid,
+                    "total_gross": "0",
+                    "total_streams": 0,
+                    "currency": "EUR",
+                    "is_collaboration": False,
+                    "original_artist": None,
+                    "share_percent": None,
+                })
+                seen_isrcs.add(tid)
 
     return tracks
 

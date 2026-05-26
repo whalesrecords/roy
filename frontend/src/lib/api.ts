@@ -831,6 +831,110 @@ export async function getTrackDetails(isrc: string): Promise<CatalogTrackWithLin
   return fetchApi<CatalogTrackWithLinks>(`/catalog/tracks/${encodeURIComponent(isrc)}`);
 }
 
+// ============ Manual Releases ============
+
+export interface ManualTrackData {
+  id: string;
+  title: string;
+  isrc: string | null;
+  position: number | null;
+  duration_seconds: number | null;
+  release_id: string | null;
+}
+
+export interface ManualReleaseData {
+  id: string;
+  title: string;
+  upc: string | null;
+  artist_id: string | null;
+  artist_name: string | null;
+  release_date: string | null;
+  format: string | null;
+  notes: string | null;
+  cover_url: string | null;
+  tracks: ManualTrackData[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ManualReleaseCreate {
+  title: string;
+  upc?: string;
+  artist_id?: string;
+  artist_name_override?: string;
+  release_date?: string;
+  format?: string;
+  notes?: string;
+  tracks?: { title: string; isrc?: string; position?: number }[];
+}
+
+export async function listManualReleases(params?: {
+  artist_id?: string;
+  search?: string;
+}): Promise<ManualReleaseData[]> {
+  const q = new URLSearchParams();
+  if (params?.artist_id) q.set('artist_id', params.artist_id);
+  if (params?.search) q.set('search', params.search);
+  const qs = q.toString();
+  return fetchApi<ManualReleaseData[]>(`/catalog/releases${qs ? '?' + qs : ''}`);
+}
+
+export async function createManualRelease(data: ManualReleaseCreate): Promise<ManualReleaseData> {
+  invalidateCache('/catalog/releases');
+  return fetchApi<ManualReleaseData>('/catalog/releases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateManualRelease(
+  id: string,
+  data: Partial<ManualReleaseCreate>
+): Promise<ManualReleaseData> {
+  invalidateCache('/catalog/releases');
+  return fetchApi<ManualReleaseData>(`/catalog/releases/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteManualRelease(id: string): Promise<void> {
+  invalidateCache('/catalog/releases');
+  await fetchApi<void>(`/catalog/releases/${id}`, { method: 'DELETE' });
+}
+
+export async function addTrackToRelease(
+  releaseId: string,
+  data: { title: string; isrc?: string; position?: number; duration_seconds?: number }
+): Promise<ManualTrackData> {
+  invalidateCache('/catalog/releases');
+  return fetchApi<ManualTrackData>(`/catalog/releases/${releaseId}/tracks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateManualTrack(
+  releaseId: string,
+  trackId: string,
+  data: { title?: string; isrc?: string; position?: number }
+): Promise<ManualTrackData> {
+  invalidateCache('/catalog/releases');
+  return fetchApi<ManualTrackData>(`/catalog/releases/${releaseId}/tracks/${trackId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteManualTrack(releaseId: string, trackId: string): Promise<void> {
+  invalidateCache('/catalog/releases');
+  await fetchApi<void>(`/catalog/releases/${releaseId}/tracks/${trackId}`, { method: 'DELETE' });
+}
+
 export async function downloadCatalogCsv(): Promise<void> {
   const res = await fetch(`${PROXY_BASE}/catalog/export.csv`);
   if (!res.ok) throw new Error('Erreur export CSV');

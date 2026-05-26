@@ -525,3 +525,364 @@ async def get_collaboration_suggestions(
             break
 
     return suggestions
+
+
+# ===========================================================================
+# Manual Releases & Tracks — CRUD
+# ===========================================================================
+
+from datetime import date as _date
+from app.models.manual_release import ManualRelease
+from app.models.manual_track import ManualTrack
+
+
+class ManualTrackCreate(BaseModel):
+    title: str
+    isrc: Optional[str] = None
+    position: Optional[int] = None
+    duration_seconds: Optional[int] = None
+
+
+class ManualTrackUpdate(BaseModel):
+    title: Optional[str] = None
+    isrc: Optional[str] = None
+    position: Optional[int] = None
+    duration_seconds: Optional[int] = None
+
+
+class ManualTrackResponse(BaseModel):
+    id: UUID
+    title: str
+    isrc: Optional[str] = None
+    position: Optional[int] = None
+    duration_seconds: Optional[int] = None
+    release_id: Optional[UUID] = None
+
+
+class ManualReleaseCreate(BaseModel):
+    title: str
+    upc: Optional[str] = None
+    artist_id: Optional[UUID] = None
+    artist_name_override: Optional[str] = None
+    release_date: Optional[_date] = None
+    format: Optional[str] = None  # album | ep | single | compilation
+    notes: Optional[str] = None
+    cover_url: Optional[str] = None
+    tracks: Optional[List[ManualTrackCreate]] = None
+
+
+class ManualReleaseUpdate(BaseModel):
+    title: Optional[str] = None
+    upc: Optional[str] = None
+    artist_id: Optional[UUID] = None
+    artist_name_override: Optional[str] = None
+    release_date: Optional[_date] = None
+    format: Optional[str] = None
+    notes: Optional[str] = None
+    cover_url: Optional[str] = None
+
+
+class ManualReleaseResponse(BaseModel):
+    id: UUID
+    title: str
+    upc: Optional[str] = None
+    artist_id: Optional[UUID] = None
+    artist_name: Optional[str] = None
+    release_date: Optional[_date] = None
+    format: Optional[str] = None
+    notes: Optional[str] = None
+    cover_url: Optional[str] = None
+    tracks: List[ManualTrackResponse] = []
+    created_at: str
+    updated_at: str
+
+
+def _release_response(r: ManualRelease) -> ManualReleaseResponse:
+    artist_name = None
+    if r.artist:
+        artist_name = r.artist.name
+    elif r.artist_name_override:
+        artist_name = r.artist_name_override
+    return ManualReleaseResponse(
+        id=r.id,
+        title=r.title,
+        upc=r.upc,
+        artist_id=r.artist_id,
+        artist_name=artist_name,
+        release_date=r.release_date,
+        format=r.format,
+        notes=r.notes,
+        cover_url=r.cover_url,
+        tracks=[
+            ManualTrackResponse(
+                id=t.id,
+                title=t.title,
+                isrc=t.isrc,
+                position=t.position,
+                duration_seconds=t.duration_seconds,
+                release_id=t.release_id,
+            )
+            for t in (r.tracks or [])
+        ],
+        created_at=r.created_at.isoformat(),
+        updated_at=r.updated_at.isoformat(),
+    )
+
+
+# --- List ---
+
+@router.get("/releases", response_model=List[ManualReleaseResponse])
+async def list_manual_releases(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[UUID] = None,
+    search: Optional[str] = Query(None),
+) -> List[ManualReleaseResponse]:
+    """List all manually-registered releases."""
+    q = select(ManualRelease).options(
+        selectinload(ManualRelease.artist),
+        selectinload(ManualRelease.tracks),
+    )
+    if artist_id:
+        q = q.where(ManualRelease.artist_id == artist_id)
+    if search:
+        q = q.where(ManualRelease.title.ilike(f"%{search}%"))
+    q = q.order_by(ManualRelease.title)
+    result = await db.execute(q)
+    return [_release_response(r) for r in result.scalars().all()]
+
+
+# --- Create ---
+
+@router.post("/releases", response_model=ManualReleaseResponse, status_code=201)
+async def create_manual_release(
+    payload: ManualReleaseCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ManualReleaseResponse:
+    """Create a new manual release, optionally with tracks."""
+    # Normalise UPC — strip whitespace, store None if empty
+    upc = (payload.upc or "").strip() or None
+    if upc:
+        existing = await db.execute(select(ManualRelease).where(ManualRelease.upc == upc))
+        if existing.scalars().first():
+            raise HTTPException(status_code=409, detail=f"Un album avec l'UPC {upc} existe déjà.")
+
+    release = ManualRelease(
+        title=payload.title.strip(),
+        upc=upc,
+        artist_id=payload.artist_id,
+        artist_name_override=(payload.artist_name_override or "").strip() or None,
+        release_date=payload.release_date,
+        format=payload.format,
+        notes=payload.notes,
+        cover_url=payload.cover_url,
+    )
+    db.add(release)
+    await db.flush()
+
+    if payload.tracks:
+        for i, t in enumerate(payload.tracks):
+            isrc = (t.isrc or "").strip().upper() or None
+            track = ManualTrack(
+                title=t.title.strip(),
+                isrc=isrc,
+                release_id=release.id,
+                position=t.position if t.position is not None else (i + 1),
+                duration_seconds=t.duration_seconds,
+            )
+            db.add(track)
+
+    await db.flush()
+    await db.refresh(release)
+    # Re-fetch with relationships loaded
+    result = await db.execute(
+        select(ManualRelease)
+        .options(selectinload(ManualRelease.artist), selectinload(ManualRelease.tracks))
+        .where(ManualRelease.id == release.id)
+    )
+    return _release_response(result.scalars().one())
+
+
+# --- Get one ---
+
+@router.get("/releases/{release_id}", response_model=ManualReleaseResponse)
+async def get_manual_release(
+    release_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ManualReleaseResponse:
+    result = await db.execute(
+        select(ManualRelease)
+        .options(selectinload(ManualRelease.artist), selectinload(ManualRelease.tracks))
+        .where(ManualRelease.id == release_id)
+    )
+    release = result.scalars().first()
+    if not release:
+        raise HTTPException(status_code=404, detail="Album introuvable")
+    return _release_response(release)
+
+
+# --- Update ---
+
+@router.put("/releases/{release_id}", response_model=ManualReleaseResponse)
+async def update_manual_release(
+    release_id: UUID,
+    payload: ManualReleaseUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ManualReleaseResponse:
+    result = await db.execute(
+        select(ManualRelease)
+        .options(selectinload(ManualRelease.artist), selectinload(ManualRelease.tracks))
+        .where(ManualRelease.id == release_id)
+    )
+    release = result.scalars().first()
+    if not release:
+        raise HTTPException(status_code=404, detail="Album introuvable")
+
+    if payload.title is not None:
+        release.title = payload.title.strip()
+    if payload.upc is not None:
+        upc = payload.upc.strip() or None
+        if upc and upc != release.upc:
+            clash = await db.execute(select(ManualRelease).where(ManualRelease.upc == upc))
+            if clash.scalars().first():
+                raise HTTPException(status_code=409, detail=f"UPC {upc} déjà utilisé.")
+        release.upc = upc
+    if payload.artist_id is not None:
+        release.artist_id = payload.artist_id
+    if payload.artist_name_override is not None:
+        release.artist_name_override = payload.artist_name_override.strip() or None
+    if payload.release_date is not None:
+        release.release_date = payload.release_date
+    if payload.format is not None:
+        release.format = payload.format
+    if payload.notes is not None:
+        release.notes = payload.notes
+    if payload.cover_url is not None:
+        release.cover_url = payload.cover_url
+
+    await db.flush()
+    result2 = await db.execute(
+        select(ManualRelease)
+        .options(selectinload(ManualRelease.artist), selectinload(ManualRelease.tracks))
+        .where(ManualRelease.id == release_id)
+    )
+    return _release_response(result2.scalars().one())
+
+
+# --- Delete ---
+
+@router.delete("/releases/{release_id}", status_code=204)
+async def delete_manual_release(
+    release_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> None:
+    result = await db.execute(select(ManualRelease).where(ManualRelease.id == release_id))
+    release = result.scalars().first()
+    if not release:
+        raise HTTPException(status_code=404, detail="Album introuvable")
+    await db.delete(release)
+
+
+# --- Track sub-resources ---
+
+@router.post("/releases/{release_id}/tracks", response_model=ManualTrackResponse, status_code=201)
+async def add_track_to_release(
+    release_id: UUID,
+    payload: ManualTrackCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ManualTrackResponse:
+    # Verify release exists
+    res = await db.execute(select(ManualRelease).where(ManualRelease.id == release_id))
+    if not res.scalars().first():
+        raise HTTPException(status_code=404, detail="Album introuvable")
+
+    isrc = (payload.isrc or "").strip().upper() or None
+    if isrc:
+        clash = await db.execute(select(ManualTrack).where(ManualTrack.isrc == isrc))
+        if clash.scalars().first():
+            raise HTTPException(status_code=409, detail=f"ISRC {isrc} déjà enregistré.")
+
+    track = ManualTrack(
+        title=payload.title.strip(),
+        isrc=isrc,
+        release_id=release_id,
+        position=payload.position,
+        duration_seconds=payload.duration_seconds,
+    )
+    db.add(track)
+    await db.flush()
+    return ManualTrackResponse(
+        id=track.id,
+        title=track.title,
+        isrc=track.isrc,
+        position=track.position,
+        duration_seconds=track.duration_seconds,
+        release_id=track.release_id,
+    )
+
+
+@router.put("/releases/{release_id}/tracks/{track_id}", response_model=ManualTrackResponse)
+async def update_track(
+    release_id: UUID,
+    track_id: UUID,
+    payload: ManualTrackUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> ManualTrackResponse:
+    result = await db.execute(
+        select(ManualTrack).where(
+            ManualTrack.id == track_id,
+            ManualTrack.release_id == release_id,
+        )
+    )
+    track = result.scalars().first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Titre introuvable")
+
+    if payload.title is not None:
+        track.title = payload.title.strip()
+    if payload.isrc is not None:
+        isrc = payload.isrc.strip().upper() or None
+        if isrc and isrc != track.isrc:
+            clash = await db.execute(select(ManualTrack).where(ManualTrack.isrc == isrc))
+            if clash.scalars().first():
+                raise HTTPException(status_code=409, detail=f"ISRC {isrc} déjà enregistré.")
+        track.isrc = isrc
+    if payload.position is not None:
+        track.position = payload.position
+    if payload.duration_seconds is not None:
+        track.duration_seconds = payload.duration_seconds
+
+    await db.flush()
+    return ManualTrackResponse(
+        id=track.id,
+        title=track.title,
+        isrc=track.isrc,
+        position=track.position,
+        duration_seconds=track.duration_seconds,
+        release_id=track.release_id,
+    )
+
+
+@router.delete("/releases/{release_id}/tracks/{track_id}", status_code=204)
+async def delete_track(
+    release_id: UUID,
+    track_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+) -> None:
+    result = await db.execute(
+        select(ManualTrack).where(
+            ManualTrack.id == track_id,
+            ManualTrack.release_id == release_id,
+        )
+    )
+    track = result.scalars().first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Titre introuvable")
+    await db.delete(track)

@@ -12,13 +12,22 @@ import {
   getArtists,
   createArtist,
   downloadCatalogCsv,
+  listManualReleases,
+  createManualRelease,
+  updateManualRelease,
+  deleteManualRelease,
+  addTrackToRelease,
+  updateManualTrack,
+  deleteManualTrack,
   CatalogArtist,
   CatalogTrackWithLinks,
   CollaborationSuggestion,
   Artist,
+  ManualReleaseData,
+  ManualTrackData,
 } from '@/lib/api';
 
-type Tab = 'artists' | 'tracks' | 'collaborations';
+type Tab = 'artists' | 'tracks' | 'collaborations' | 'releases';
 
 export default function CatalogPage() {
   const searchParams = useSearchParams();
@@ -49,6 +58,26 @@ export default function CatalogPage() {
   // Create artist state
   const [creatingArtist, setCreatingArtist] = useState<string | null>(null);
 
+  // Manual releases state
+  const [releases, setReleases] = useState<ManualReleaseData[]>([]);
+  const [releaseSearch, setReleaseSearch] = useState('');
+  const [releaseArtistFilter, setReleaseArtistFilter] = useState('');
+  const [showReleaseForm, setShowReleaseForm] = useState(false);
+  const [editingRelease, setEditingRelease] = useState<ManualReleaseData | null>(null);
+  const [savingRelease, setSavingRelease] = useState(false);
+  const [deletingReleaseId, setDeletingReleaseId] = useState<string | null>(null);
+  const [expandedReleaseId, setExpandedReleaseId] = useState<string | null>(null);
+  // Track editing within a release
+  const [addingTrackReleaseId, setAddingTrackReleaseId] = useState<string | null>(null);
+  const [newTrackTitle, setNewTrackTitle] = useState('');
+  const [newTrackIsrc, setNewTrackIsrc] = useState('');
+  const [newTrackPos, setNewTrackPos] = useState('');
+  const [savingTrack, setSavingTrack] = useState(false);
+  // Release form state
+  const [releaseForm, setReleaseForm] = useState({
+    title: '', upc: '', artist_id: '', release_date: '', format: 'album', notes: '',
+  });
+
   useEffect(() => {
     loadData();
   }, []);
@@ -66,8 +95,10 @@ export default function CatalogPage() {
       loadTracks();
     } else if (tab === 'collaborations') {
       loadSuggestions();
+    } else if (tab === 'releases') {
+      loadReleases();
     }
-  }, [tab, searchQuery, filterLinked]);
+  }, [tab, searchQuery, filterLinked, releaseSearch, releaseArtistFilter]);
 
   const loadData = async () => {
     try {
@@ -109,6 +140,107 @@ export default function CatalogPage() {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReleases = async () => {
+    setLoading(true);
+    try {
+      const data = await listManualReleases({
+        artist_id: releaseArtistFilter || undefined,
+        search: releaseSearch || undefined,
+      });
+      setReleases(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur chargement albums');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openNewReleaseForm = () => {
+    setEditingRelease(null);
+    setReleaseForm({ title: '', upc: '', artist_id: '', release_date: '', format: 'album', notes: '' });
+    setShowReleaseForm(true);
+  };
+
+  const openEditReleaseForm = (r: ManualReleaseData) => {
+    setEditingRelease(r);
+    setReleaseForm({
+      title: r.title,
+      upc: r.upc || '',
+      artist_id: r.artist_id || '',
+      release_date: r.release_date || '',
+      format: r.format || 'album',
+      notes: r.notes || '',
+    });
+    setShowReleaseForm(true);
+  };
+
+  const handleSaveRelease = async () => {
+    if (!releaseForm.title.trim()) return;
+    setSavingRelease(true);
+    try {
+      const payload = {
+        title: releaseForm.title.trim(),
+        upc: releaseForm.upc.trim() || undefined,
+        artist_id: releaseForm.artist_id || undefined,
+        release_date: releaseForm.release_date || undefined,
+        format: releaseForm.format || undefined,
+        notes: releaseForm.notes.trim() || undefined,
+      };
+      if (editingRelease) {
+        await updateManualRelease(editingRelease.id, payload);
+      } else {
+        await createManualRelease(payload);
+      }
+      setShowReleaseForm(false);
+      setEditingRelease(null);
+      loadReleases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur sauvegarde album');
+    } finally {
+      setSavingRelease(false);
+    }
+  };
+
+  const handleDeleteRelease = async (id: string) => {
+    setDeletingReleaseId(id);
+    try {
+      await deleteManualRelease(id);
+      loadReleases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur suppression');
+    } finally {
+      setDeletingReleaseId(null);
+    }
+  };
+
+  const handleAddTrack = async (releaseId: string) => {
+    if (!newTrackTitle.trim()) return;
+    setSavingTrack(true);
+    try {
+      await addTrackToRelease(releaseId, {
+        title: newTrackTitle.trim(),
+        isrc: newTrackIsrc.trim() || undefined,
+        position: newTrackPos ? parseInt(newTrackPos) : undefined,
+      });
+      setAddingTrackReleaseId(null);
+      setNewTrackTitle(''); setNewTrackIsrc(''); setNewTrackPos('');
+      loadReleases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur ajout titre');
+    } finally {
+      setSavingTrack(false);
+    }
+  };
+
+  const handleDeleteTrack = async (releaseId: string, trackId: string) => {
+    try {
+      await deleteManualTrack(releaseId, trackId);
+      loadReleases();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur suppression titre');
     }
   };
 
@@ -248,10 +380,11 @@ export default function CatalogPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {[
               { key: 'artists', label: 'Artistes', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z' },
-              { key: 'tracks', label: 'Tracks', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
+              { key: 'releases', label: 'Albums', icon: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
+              { key: 'tracks', label: 'Tracks', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
               { key: 'collaborations', label: 'Collabs', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
             ].map((t) => (
               <button
@@ -531,7 +664,313 @@ export default function CatalogPage() {
             </div>
           )
         )}
+
+        {/* ===== Albums tab ===== */}
+        {tab === 'releases' && (
+          <div className="space-y-6">
+            {/* Toolbar */}
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <input
+                  type="text"
+                  placeholder="Rechercher un album…"
+                  value={releaseSearch}
+                  onChange={(e) => setReleaseSearch(e.target.value)}
+                  className="w-full h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+              <div>
+                <select
+                  value={releaseArtistFilter}
+                  onChange={(e) => setReleaseArtistFilter(e.target.value)}
+                  className="h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="">Tous les artistes</option>
+                  {managedArtists.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={openNewReleaseForm}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl transition-all"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Nouvel album
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12"><Spinner /></div>
+            ) : releases.length === 0 ? (
+              <div className="text-center py-16 text-secondary-500">
+                <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <p className="font-medium">Aucun album enregistré</p>
+                <p className="text-sm mt-1">Cliquez sur « Nouvel album » pour en ajouter un</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {releases.map((rel) => (
+                  <div key={rel.id} className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
+                    {/* Release header */}
+                    <div className="px-5 py-4 flex items-center gap-4">
+                      <button
+                        onClick={() => setExpandedReleaseId(expandedReleaseId === rel.id ? null : rel.id)}
+                        className="flex-1 flex items-center gap-4 text-left min-w-0"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground truncate">{rel.title}</p>
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                            {rel.artist_name && (
+                              <span className="text-sm text-secondary-500">{rel.artist_name}</span>
+                            )}
+                            {rel.upc && (
+                              <span className="text-xs font-mono text-secondary-400 bg-content2 px-2 py-0.5 rounded">UPC: {rel.upc}</span>
+                            )}
+                            {rel.format && (
+                              <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full capitalize">{rel.format}</span>
+                            )}
+                            {rel.release_date && (
+                              <span className="text-xs text-secondary-400">{rel.release_date}</span>
+                            )}
+                            <span className="text-xs text-secondary-400">{rel.tracks.length} titre{rel.tracks.length !== 1 ? 's' : ''}</span>
+                          </div>
+                        </div>
+                        <svg
+                          className={`w-5 h-5 text-secondary-400 shrink-0 transition-transform ${expandedReleaseId === rel.id ? 'rotate-180' : ''}`}
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => openEditReleaseForm(rel)}
+                          className="p-2 text-secondary-400 hover:text-primary transition-colors"
+                          title="Modifier"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => { if (confirm(`Supprimer « ${rel.title} » ?`)) handleDeleteRelease(rel.id); }}
+                          disabled={deletingReleaseId === rel.id}
+                          className="p-2 text-secondary-400 hover:text-danger transition-colors disabled:opacity-50"
+                          title="Supprimer"
+                        >
+                          {deletingReleaseId === rel.id ? <Spinner size="sm" /> : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Expanded: track list */}
+                    {expandedReleaseId === rel.id && (
+                      <div className="border-t border-divider px-5 py-4 space-y-3">
+                        {rel.tracks.length === 0 && addingTrackReleaseId !== rel.id && (
+                          <p className="text-sm text-secondary-400 text-center py-2">Aucun titre — ajoutez-en un</p>
+                        )}
+                        {rel.tracks.map((t) => (
+                          <div key={t.id} className="flex items-center gap-3 p-3 bg-content2 rounded-xl">
+                            {t.position !== null && (
+                              <span className="text-xs font-mono text-secondary-400 w-6 text-center shrink-0">{t.position}</span>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{t.title}</p>
+                              {t.isrc && (
+                                <p className="text-xs font-mono text-secondary-400 mt-0.5">ISRC: {t.isrc}</p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => { if (confirm(`Supprimer « ${t.title} » ?`)) handleDeleteTrack(rel.id, t.id); }}
+                              className="p-1.5 text-secondary-400 hover:text-danger transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* Add track inline */}
+                        {addingTrackReleaseId === rel.id ? (
+                          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
+                            <p className="text-sm font-semibold text-foreground">Nouveau titre</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input
+                                type="text"
+                                placeholder="Titre *"
+                                value={newTrackTitle}
+                                onChange={(e) => setNewTrackTitle(e.target.value)}
+                                className="h-9 px-3 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                              />
+                              <input
+                                type="text"
+                                placeholder="ISRC (ex: FR1234567890)"
+                                value={newTrackIsrc}
+                                onChange={(e) => setNewTrackIsrc(e.target.value.toUpperCase())}
+                                className="h-9 px-3 bg-background border border-default-200 rounded-lg text-sm font-mono focus:outline-none focus:border-primary"
+                              />
+                              <input
+                                type="number"
+                                placeholder="N° (position)"
+                                value={newTrackPos}
+                                onChange={(e) => setNewTrackPos(e.target.value)}
+                                className="h-9 px-3 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAddTrack(rel.id)}
+                                disabled={savingTrack || !newTrackTitle.trim()}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg disabled:opacity-50"
+                              >
+                                {savingTrack ? <Spinner size="sm" color="white" /> : 'Ajouter'}
+                              </button>
+                              <button
+                                onClick={() => { setAddingTrackReleaseId(null); setNewTrackTitle(''); setNewTrackIsrc(''); setNewTrackPos(''); }}
+                                className="px-4 py-2 text-sm text-secondary-600 hover:text-foreground"
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setAddingTrackReleaseId(rel.id); setNewTrackTitle(''); setNewTrackIsrc(''); setNewTrackPos(''); }}
+                            className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Ajouter un titre
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Release Form Modal */}
+      {showReleaseForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowReleaseForm(false)} />
+          <div className="relative bg-background rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-5 border-b border-divider flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">{editingRelease ? 'Modifier album' : 'Nouvel album'}</h2>
+              <button onClick={() => setShowReleaseForm(false)} className="p-2 -mr-2 text-secondary-400 hover:text-foreground">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Titre *</label>
+                <input
+                  type="text"
+                  value={releaseForm.title}
+                  onChange={(e) => setReleaseForm({ ...releaseForm, title: e.target.value })}
+                  placeholder="Nom de l'album / EP / single"
+                  className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-secondary-500 mb-1.5 block">UPC</label>
+                  <input
+                    type="text"
+                    value={releaseForm.upc}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, upc: e.target.value })}
+                    placeholder="0012345678901"
+                    className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm font-mono focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Format</label>
+                  <select
+                    value={releaseForm.format}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, format: e.target.value })}
+                    className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="album">Album</option>
+                    <option value="ep">EP</option>
+                    <option value="single">Single</option>
+                    <option value="compilation">Compilation</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Artiste</label>
+                  <select
+                    value={releaseForm.artist_id}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, artist_id: e.target.value })}
+                    className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="">Aucun / compilation</option>
+                    {managedArtists.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Date de sortie</label>
+                  <input
+                    type="date"
+                    value={releaseForm.release_date}
+                    onChange={(e) => setReleaseForm({ ...releaseForm, release_date: e.target.value })}
+                    className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Notes</label>
+                <textarea
+                  value={releaseForm.notes}
+                  onChange={(e) => setReleaseForm({ ...releaseForm, notes: e.target.value })}
+                  placeholder="Notes internes…"
+                  rows={2}
+                  className="w-full px-3 py-2 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-divider flex justify-end gap-3">
+              <button
+                onClick={() => setShowReleaseForm(false)}
+                className="px-5 py-2.5 text-sm text-secondary-600 hover:text-foreground transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveRelease}
+                disabled={savingRelease || !releaseForm.title.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl disabled:opacity-50 transition-all"
+              >
+                {savingRelease ? <Spinner size="sm" color="white" /> : (editingRelease ? 'Enregistrer' : 'Créer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Link Modal */}
       {linkingTrack && (
