@@ -493,6 +493,9 @@ async def import_inventory_csv(
         variant = getattr(row, 'variant', None) or None
         upc = getattr(row, 'upc', None) or None
 
+        # Use the actual stock count when the CSV provides it (products format)
+        initial_stock = getattr(row, 'stock_quantity', 0) or 0
+
         product = Product(
             title=title,
             format=fmt,
@@ -501,7 +504,7 @@ async def import_inventory_csv(
             variant=variant,
             release_upc=upc,
             status=ProductStatus.AVAILABLE,
-            stock_quantity=0,
+            stock_quantity=initial_stock,
             notes=f"Importé depuis {source.capitalize()} CSV.",
         )
         db.add(product)

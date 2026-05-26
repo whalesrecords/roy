@@ -1,17 +1,19 @@
 """
-Squarespace Orders CSV Parser
+Squarespace CSV Parser
 
-Parses Squarespace order exports (e-commerce).
-Returns raw parsed data for normalization.
+Supports two Squarespace export formats:
 
-Squarespace CSV columns include:
-- Order ID
-- Email, Paid at, Created at
-- Currency, Subtotal, Shipping, Taxes, Total
-- Lineitem name (format: "Artist - Album - Format" or "Album by Artist - Format")
-- Lineitem price, Lineitem quantity
-- Lineitem sku, Lineitem variant
-- Payment Method, Payment Reference
+1. Orders CSV (Squarespace order exports):
+   Columns: Order ID, Email, Paid at, Currency, Subtotal, Shipping, Taxes, Total,
+            Lineitem name, Lineitem price, Lineitem quantity, Lineitem sku, Lineitem variant,
+            Payment Method, Payment Reference
+
+2. Products CSV (Squarespace catalogue export):
+   Columns: Product ID [Non Editable], Variant ID [Non Editable], Product Type [Non Editable],
+            Title, Description, SKU, GTIN, Option Name 1, Option Value 1, ...,
+            Price, Sale Price, Stock, Categories, Tags, ...
+
+The parser auto-detects the format from the CSV headers.
 """
 
 import csv
@@ -49,9 +51,23 @@ class ParseError:
 
 
 @dataclass
+class SquarespaceProductRow:
+    """Raw parsed row from Squarespace Products CSV export."""
+    row_number: int
+    item_name: str          # Parsed album/product name (e.g., "Eclipses")
+    artist: str             # Parsed artist name (e.g., "Lissom")
+    item_type: str          # "package" for PHYSICAL products
+    sku: Optional[str]
+    variant: Optional[str]  # Option Value 1 (colour, edition, etc.)
+    stock_quantity: int     # Current stock from the Stock column
+    package: Optional[str]  # Full original title — used by _guess_product_format
+    upc: Optional[str] = None  # GTIN column
+
+
+@dataclass
 class SquarespaceParseResult:
-    """Result of parsing a Squarespace CSV."""
-    rows: List[SquarespaceRow] = field(default_factory=list)
+    """Result of parsing a Squarespace CSV (orders or products format)."""
+    rows: List[Union[SquarespaceRow, "SquarespaceProductRow"]] = field(default_factory=list)
     errors: List[ParseError] = field(default_factory=list)
     total_rows: int = 0
 
@@ -272,9 +288,73 @@ class SquarespaceParser:
             payment_method=order_data['payment_method'] or None,
         )
 
+    # ------------------------------------------------------------------
+    # Products-format parsing (Squarespace catalogue / inventory export)
+    # ------------------------------------------------------------------
+
+    def _parse_products(self, content: str) -> SquarespaceParseResult:
+        """
+        Parse a Squarespace Products CSV export.
+
+        Each physical row becomes a SquarespaceProductRow.  Variant rows
+        (where Title is empty) inherit the title of the preceding product.
+        """
+        result = SquarespaceParseResult()
+        reader = csv.DictReader(io.StringIO(content))
+
+        current_title: str = ""
+        current_is_physical: bool = False
+
+        for row_number, row in enumerate(reader, start=2):
+            result.total_rows += 1
+
+            raw_title = row.get("Title", "").strip()
+            product_type = row.get("Product Type [Non Editable]", "").strip().upper()
+
+            # A non-empty Title marks a new product (or the first variant row)
+            if raw_title:
+                current_title = raw_title
+                current_is_physical = product_type == "PHYSICAL"
+
+            # Skip digital / non-physical products entirely
+            if not current_is_physical or not current_title:
+                continue
+
+            sku = row.get("SKU", "").strip() or None
+            gtin = row.get("GTIN", "").strip() or None
+            option1 = row.get("Option Value 1", "").strip() or None
+            stock_str = row.get("Stock", "0").strip()
+
+            try:
+                stock = int(float(stock_str)) if stock_str else 0
+            except (ValueError, TypeError):
+                stock = 0
+
+            # Re-use the orders-format artist/album parser — handles the same
+            # "Artist - Album - Format" and "Album by Artist - Format" patterns.
+            artist, album, item_type = _parse_artist_and_album(current_title, sku or "")
+
+            result.rows.append(SquarespaceProductRow(
+                row_number=row_number,
+                item_name=album,
+                artist=artist,
+                item_type=item_type,
+                sku=sku,
+                variant=option1,
+                stock_quantity=stock,
+                package=current_title,   # full title for _guess_product_format
+                upc=gtin if gtin else None,
+            ))
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
     def parse(self, content: Union[str, bytes]) -> SquarespaceParseResult:
         """
-        Parse Squarespace CSV content.
+        Parse Squarespace CSV content (auto-detects orders vs products format).
 
         Args:
             content: CSV file content as string or bytes
@@ -288,6 +368,20 @@ class SquarespaceParser:
             except UnicodeDecodeError:
                 content = content.decode("latin-1")
 
+        # --- Format detection from first header line ---
+        first_line = content.split("\n")[0] if content else ""
+        if "Order ID" in first_line:
+            is_products_format = False
+        elif "Product ID" in first_line or "Variant ID" in first_line or "Product Type" in first_line:
+            is_products_format = True
+        else:
+            # Default to orders format for backward-compatibility
+            is_products_format = False
+
+        if is_products_format:
+            return self._parse_products(content)
+
+        # --- Orders format (original logic) ---
         result = SquarespaceParseResult()
 
         try:
