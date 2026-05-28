@@ -304,7 +304,15 @@ export default function InventoryPage() {
                 if (discovered.length === 0) {
                   setSuccessMsg('Catalogue déjà à jour — aucun nouveau produit trouvé.');
                 } else {
-                  setSuccessMsg(`${discovered.length} produit${discovered.length > 1 ? 's' : ''} ajouté${discovered.length > 1 ? 's' : ''} à l'inventaire.`);
+                  const byFormat = discovered.reduce<Record<string, number>>((acc, p) => {
+                    acc[p.format] = (acc[p.format] || 0) + 1;
+                    return acc;
+                  }, {});
+                  const breakdown = Object.entries(byFormat)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([fmt, n]) => `${n} ${FORMAT_LABELS[fmt] || fmt}`)
+                    .join(', ');
+                  setSuccessMsg(`${discovered.length} produit${discovered.length > 1 ? 's' : ''} ajouté${discovered.length > 1 ? 's' : ''} à l'inventaire : ${breakdown}.`);
                 }
               } catch (err: any) {
                 setError(err.message || 'Erreur lors de la découverte');
@@ -378,6 +386,30 @@ export default function InventoryPage() {
             <p className="text-2xl font-bold text-foreground mt-1">
               {summary.total_value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Par format */}
+      {summary && Object.keys(summary.by_format || {}).length > 0 && (
+        <div className="bg-default-50 rounded-2xl p-4 border border-divider">
+          <p className="text-xs text-secondary-500 uppercase tracking-wide mb-3">Répartition par format</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(summary.by_format)
+              .sort(([, a], [, b]) => b - a)
+              .map(([fmt, count]) => (
+                <button
+                  key={fmt}
+                  onClick={() => setFormatFilter(formatFilter === fmt ? '' : fmt)}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${
+                    formatFilter === fmt
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-default-100 text-foreground border-divider hover:bg-default-200'
+                  }`}
+                >
+                  {FORMAT_LABELS[fmt] || fmt} · {count}
+                </button>
+              ))}
           </div>
         </div>
       )}
