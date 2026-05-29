@@ -16,6 +16,7 @@ import {
   InventorySummary,
   StockMovement,
 } from '@/lib/api';
+import AssetsTab from './AssetsTab';
 
 const FORMAT_LABELS: Record<string, string> = {
   vinyl: 'Vinyle',
@@ -96,6 +97,7 @@ export default function InventoryPage() {
 
   const [autoDiscovering, setAutoDiscovering] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'products' | 'assets'>('products');
 
   // CSV import state
   const [showCsvImport, setShowCsvImport] = useState(false);
@@ -280,9 +282,11 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Inventaire</h1>
-          <p className="text-sm text-secondary-500 mt-1">Gestion du stock physique et merch</p>
+          <p className="text-sm text-secondary-500 mt-1">
+            {activeTab === 'products' ? 'Gestion du stock physique et merch' : 'Immobilisations corporelles & incorporelles'}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${activeTab === 'assets' ? 'hidden' : ''}`}>
           <button
             onClick={() => { setShowCsvImport(true); setCsvFile(null); }}
             className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
@@ -347,6 +351,35 @@ export default function InventoryPage() {
           </button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-divider">
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'products'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-secondary-500 hover:text-foreground'
+          }`}
+        >
+          Produits & merch
+        </button>
+        <button
+          onClick={() => setActiveTab('assets')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'assets'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-secondary-500 hover:text-foreground'
+          }`}
+        >
+          Immobilisations
+        </button>
+      </div>
+
+      {activeTab === 'assets' ? (
+        <AssetsTab />
+      ) : (
+      <>
 
       {/* Error */}
       {error && (
@@ -1058,6 +1091,8 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

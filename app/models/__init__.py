@@ -2,9 +2,11 @@ from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.artist_notification import ArtistNotification, ArtistNotificationType
 from app.models.artist_profile import ArtistProfile
+from app.models.artist_token import ArtistToken
 from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.contract import Contract, ContractScope
 from app.models.contract_party import ContractParty, PartyType
+from app.models.fixed_asset import AssetCategory, AssetStatus, DepreciationMethod, FixedAsset
 from app.models.import_model import Import, ImportSource, ImportStatus
 from app.models.label_settings import LabelSettings
 from app.models.match_suggestion import MatchMethod, MatchStatus, MatchSuggestion
@@ -83,4 +85,11 @@ __all__ = [
     "ProductFormat",
     "ProductStatus",
     "MovementType",
+    # Fixed assets
+    "FixedAsset",
+    "AssetCategory",
+    "AssetStatus",
+    "DepreciationMethod",
+    # Artist tokens
+    "ArtistToken",
 ]
