@@ -25,6 +25,7 @@ from app.routers.artists import router as artists_router
 from app.routers.catalog import router as catalog_router
 from app.routers.contracts import router as contracts_router
 from app.routers.exports import router as exports_router
+from app.routers.assets import router as assets_router
 from app.routers.finances import router as finances_router
 from app.routers.inventory import router as inventory_router
 from app.routers.invoice_import import router as invoice_import_router
@@ -208,6 +209,7 @@ app.include_router(tickets_router)
 app.include_router(promo_router)
 app.include_router(exports_router)
 app.include_router(inventory_router)
+app.include_router(assets_router)
 
 
 @app.get("/health")

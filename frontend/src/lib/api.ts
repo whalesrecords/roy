@@ -1974,6 +1974,7 @@ export interface Product {
   edition_size?: number;
   image_url?: string;
   notes?: string;
+  total_sold?: number;
   created_at: string;
   updated_at: string;
 }
@@ -2128,4 +2129,106 @@ export async function syncAllArtistPhotos(): Promise<{ status: string; message: 
 
 export async function backfillSuggestionIsrcs(): Promise<{ status: string; updated: number; failed: number; total: number }> {
   return fetchApi('/spotify/suggestions/backfill-isrcs', { method: 'POST' });
+}
+
+// ---- Fixed assets (immobilisations) ----
+
+export interface DepreciationYear {
+  year: number;
+  opening_value: number;
+  annual_charge: number;
+  accumulated: number;
+  closing_value: number;
+}
+
+export interface FixedAsset {
+  id: string;
+  name: string;
+  category: string;
+  pcg_account: string;
+  internal_ref?: string;
+  purchase_date: string;
+  purchase_amount_ht: number;
+  vat_rate: number;
+  useful_life_months: number;
+  depreciation_method: string;
+  location?: string;
+  serial_number?: string;
+  supplier?: string;
+  invoice_reference?: string;
+  image_url?: string;
+  notes?: string;
+  status: string;
+  disposal_date?: string;
+  disposal_amount?: number;
+  accumulated_depreciation: number;
+  net_book_value: number;
+  annual_charge_current_year: number;
+  schedule: DepreciationYear[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetsSummary {
+  total_count: number;
+  total_gross_value: number;
+  total_accumulated: number;
+  total_net_book_value: number;
+  current_year_charge: number;
+  by_category: Record<string, { count: number; gross: number; nbv: number }>;
+  by_pcg_account: Record<string, number>;
+}
+
+export interface AssetImportResult {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function getAssets(params?: { category?: string; pcg_account?: string; status?: string; search?: string }): Promise<FixedAsset[]> {
+  const qs = new URLSearchParams();
+  if (params?.category) qs.set('category', params.category);
+  if (params?.pcg_account) qs.set('pcg_account', params.pcg_account);
+  if (params?.status) qs.set('status', params.status);
+  if (params?.search) qs.set('search', params.search);
+  const q = qs.toString();
+  return fetchApi<FixedAsset[]>(`/assets/${q ? `?${q}` : ''}`);
+}
+
+export async function getAssetsSummary(): Promise<AssetsSummary> {
+  return fetchApi<AssetsSummary>('/assets/summary');
+}
+
+export async function createAsset(data: Partial<FixedAsset>): Promise<FixedAsset> {
+  const result = await fetchApi<FixedAsset>('/assets/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  invalidateCache('/assets');
+  return result;
+}
+
+export async function updateAsset(id: string, data: Partial<FixedAsset>): Promise<FixedAsset> {
+  const result = await fetchApi<FixedAsset>(`/assets/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  invalidateCache('/assets');
+  return result;
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  await fetchApi(`/assets/${id}`, { method: 'DELETE' });
+  invalidateCache('/assets');
+}
+
+export async function importReverbAssets(file: File, defaultPurchaseDate?: string): Promise<AssetImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (defaultPurchaseDate) formData.append('default_purchase_date', defaultPurchaseDate);
+  const result = await fetchApi<AssetImportResult>('/assets/import/reverb', { method: 'POST', body: formData });
+  invalidateCache('/assets');
+  return result;
 }

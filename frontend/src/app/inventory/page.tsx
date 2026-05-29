@@ -16,6 +16,7 @@ import {
   InventorySummary,
   StockMovement,
 } from '@/lib/api';
+import AssetsTab from './AssetsTab';
 
 const FORMAT_LABELS: Record<string, string> = {
   vinyl: 'Vinyle',
@@ -96,6 +97,7 @@ export default function InventoryPage() {
 
   const [autoDiscovering, setAutoDiscovering] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'products' | 'assets'>('products');
 
   // CSV import state
   const [showCsvImport, setShowCsvImport] = useState(false);
@@ -280,9 +282,11 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Inventaire</h1>
-          <p className="text-sm text-secondary-500 mt-1">Gestion du stock physique et merch</p>
+          <p className="text-sm text-secondary-500 mt-1">
+            {activeTab === 'products' ? 'Gestion du stock physique et merch' : 'Immobilisations corporelles & incorporelles'}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${activeTab === 'assets' ? 'hidden' : ''}`}>
           <button
             onClick={() => { setShowCsvImport(true); setCsvFile(null); }}
             className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
@@ -304,7 +308,15 @@ export default function InventoryPage() {
                 if (discovered.length === 0) {
                   setSuccessMsg('Catalogue déjà à jour — aucun nouveau produit trouvé.');
                 } else {
-                  setSuccessMsg(`${discovered.length} produit${discovered.length > 1 ? 's' : ''} ajouté${discovered.length > 1 ? 's' : ''} à l'inventaire.`);
+                  const byFormat = discovered.reduce<Record<string, number>>((acc, p) => {
+                    acc[p.format] = (acc[p.format] || 0) + 1;
+                    return acc;
+                  }, {});
+                  const breakdown = Object.entries(byFormat)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([fmt, n]) => `${n} ${FORMAT_LABELS[fmt] || fmt}`)
+                    .join(', ');
+                  setSuccessMsg(`${discovered.length} produit${discovered.length > 1 ? 's' : ''} ajouté${discovered.length > 1 ? 's' : ''} à l'inventaire : ${breakdown}.`);
                 }
               } catch (err: any) {
                 setError(err.message || 'Erreur lors de la découverte');
@@ -339,6 +351,35 @@ export default function InventoryPage() {
           </button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-divider">
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'products'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-secondary-500 hover:text-foreground'
+          }`}
+        >
+          Produits & merch
+        </button>
+        <button
+          onClick={() => setActiveTab('assets')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'assets'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-secondary-500 hover:text-foreground'
+          }`}
+        >
+          Immobilisations
+        </button>
+      </div>
+
+      {activeTab === 'assets' ? (
+        <AssetsTab />
+      ) : (
+      <>
 
       {/* Error */}
       {error && (
@@ -378,6 +419,30 @@ export default function InventoryPage() {
             <p className="text-2xl font-bold text-foreground mt-1">
               {summary.total_value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Par format */}
+      {summary && Object.keys(summary.by_format || {}).length > 0 && (
+        <div className="bg-default-50 rounded-2xl p-4 border border-divider">
+          <p className="text-xs text-secondary-500 uppercase tracking-wide mb-3">Répartition par format</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(summary.by_format)
+              .sort(([, a], [, b]) => b - a)
+              .map(([fmt, count]) => (
+                <button
+                  key={fmt}
+                  onClick={() => setFormatFilter(formatFilter === fmt ? '' : fmt)}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${
+                    formatFilter === fmt
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-default-100 text-foreground border-divider hover:bg-default-200'
+                  }`}
+                >
+                  {FORMAT_LABELS[fmt] || fmt} · {count}
+                </button>
+              ))}
           </div>
         </div>
       )}
@@ -508,32 +573,39 @@ export default function InventoryPage() {
 
                     {/* Stock with quick adjust */}
                     <td className="py-3 pr-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleQuickAdjust(product, -1)}
-                          className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                          title="Retirer 1"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                          </svg>
-                        </button>
-                        <span className={`font-bold min-w-[2rem] text-center ${isLowStock ? 'text-danger' : 'text-foreground'}`}>
-                          {product.stock_quantity}
-                        </span>
-                        <button
-                          onClick={() => handleQuickAdjust(product, 1)}
-                          className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                          title="Ajouter 1"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                        {isLowStock && (
-                          <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleQuickAdjust(product, -1)}
+                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
+                            title="Retirer 1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          </button>
+                          <span className={`font-bold min-w-[2rem] text-center ${isLowStock ? 'text-danger' : 'text-foreground'}`}>
+                            {product.stock_quantity}
+                          </span>
+                          <button
+                            onClick={() => handleQuickAdjust(product, 1)}
+                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
+                            title="Ajouter 1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                          {isLowStock && (
+                            <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                          )}
+                        </div>
+                        {(product.total_sold ?? 0) > 0 && (
+                          <span className="text-[11px] text-secondary-500">
+                            {product.total_sold} vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}
+                          </span>
                         )}
                       </div>
                     </td>
@@ -1019,6 +1091,8 @@ export default function InventoryPage() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
