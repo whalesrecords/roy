@@ -451,10 +451,11 @@ async def import_reverb_csv(
 
     existing_q = await db.execute(select(FixedAsset))
     existing = existing_q.scalars().all()
-    seen = {(a.name.lower(), (a.serial_number or "").lower()) for a in existing}
+    by_key = {(a.name.lower(), (a.serial_number or "").lower()): a for a in existing}
 
     created = 0
     skipped = 0
+    updated = 0
     errors: List[str] = []
 
     for row in reader:
@@ -486,9 +487,6 @@ async def import_reverb_csv(
 
             serial = (row.get("serial_number") or "").strip()
             key = (title.lower(), serial.lower())
-            if key in seen:
-                skipped += 1
-                continue
 
             product_type = (row.get("product_type") or "").strip().lower()
             cat = _REVERB_CATEGORY_MAP.get(product_type, AssetCategory.STUDIO_GEAR)
@@ -499,6 +497,18 @@ async def import_reverb_csv(
                 if candidate:
                     image = candidate
                     break
+
+            # If the asset already exists, backfill the image when one is now
+            # available — useful when re-importing a CSV that has new photos.
+            existing_asset = by_key.get(key)
+            if existing_asset is not None:
+                if image and not existing_asset.image_url:
+                    existing_asset.image_url = image
+                    existing_asset.updated_at = datetime.utcnow()
+                    updated += 1
+                else:
+                    skipped += 1
+                continue
             condition = (row.get("condition") or "").strip()
             make = (row.get("make") or "").strip()
             model = (row.get("model") or "").strip()
@@ -524,12 +534,15 @@ async def import_reverb_csv(
                 status=AssetStatus.ACTIVE.value,
             )
             db.add(asset)
-            seen.add(key)
+            by_key[key] = asset
             created += 1
         except Exception as exc:  # noqa: BLE001
             errors.append(f"Ligne ignorée: {exc}")
 
-    if created:
+    if created or updated:
         await db.commit()
 
+    if updated:
+        # surface the number of photo backfills in the message via errors slot
+        errors.insert(0, f"{updated} photo(s) ajoutée(s) sur des immobilisations existantes")
     return ImportResult(created=created, skipped=skipped, errors=errors)
