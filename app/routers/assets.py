@@ -509,6 +509,7 @@ async def import_reverb_csv(
                 else:
                     skipped += 1
                 continue
+
             condition = (row.get("condition") or "").strip()
             make = (row.get("make") or "").strip()
             model = (row.get("model") or "").strip()
