@@ -424,16 +424,19 @@ def _parse_reverb_year(year_str: str) -> Optional[date]:
 async def import_reverb_csv(
     file: UploadFile = File(...),
     default_purchase_date: Optional[str] = Form(None),
+    include_zero_cost: bool = Form(True),
     _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Import a Reverb gear collection CSV (Settings → Gear Collection → Export).
 
-    For each row we pick a purchase date from the `year` column when present,
-    otherwise from `default_purchase_date` (form field, ISO date), and use
-    `owner_cost` as the acquisition amount HT. Items with owner_cost == 0
-    and price == 0 are skipped unless a default value is provided in notes.
+    Purchase date comes from the `year` column when present, else from
+    `default_purchase_date` (ISO date). Acquisition amount HT is `owner_cost`
+    (or `price` if cost is empty). When include_zero_cost is True (default)
+    items without a declared cost are still imported with amount=0 so they
+    appear in the inventory — they just have no depreciation.
+    Image URL falls back through image_1..image_5.
     """
     raw = await file.read()
     text = raw.decode("utf-8-sig", errors="replace")
@@ -446,7 +449,6 @@ async def import_reverb_csv(
         except ValueError:
             fallback = None
 
-    # Index existing assets by serial + name to avoid duplicate imports
     existing_q = await db.execute(select(FixedAsset))
     existing = existing_q.scalars().all()
     seen = {(a.name.lower(), (a.serial_number or "").lower()) for a in existing}
@@ -472,9 +474,10 @@ async def import_reverb_csv(
             except ValueError:
                 price = 0.0
             amount = cost if cost > 0 else price
-            if amount <= 0:
+            if amount <= 0 and not include_zero_cost:
                 skipped += 1
                 continue
+            amount = max(amount, 0.0)
 
             purchase = _parse_reverb_year(row.get("year") or "") or fallback
             if not purchase:
@@ -490,11 +493,20 @@ async def import_reverb_csv(
             product_type = (row.get("product_type") or "").strip().lower()
             cat = _REVERB_CATEGORY_MAP.get(product_type, AssetCategory.STUDIO_GEAR)
             url = (row.get("url") or "").strip() or None
-            image = (row.get("image_1") or "").strip() or None
+            image: Optional[str] = None
+            for col in ("image_1", "image_2", "image_3", "image_4", "image_5"):
+                candidate = (row.get(col) or "").strip()
+                if candidate:
+                    image = candidate
+                    break
             condition = (row.get("condition") or "").strip()
             make = (row.get("make") or "").strip()
             model = (row.get("model") or "").strip()
-            notes_bits = [s for s in [make + " " + model if make or model else "", f"Condition: {condition}" if condition else "", f"Reverb: {url}" if url else ""] if s]
+            notes_bits = [s for s in [
+                make + " " + model if make or model else "",
+                f"Condition: {condition}" if condition else "",
+                f"Reverb: {url}" if url else "",
+            ] if s]
 
             asset = FixedAsset(
                 name=title[:300],

@@ -1975,6 +1975,7 @@ export interface Product {
   image_url?: string;
   notes?: string;
   total_sold?: number;
+  initial_stock_quantity?: number;
   created_at: string;
   updated_at: string;
 }
@@ -2053,6 +2054,18 @@ export async function getStockMovements(productId: string): Promise<StockMovemen
 
 export async function autoDiscoverProducts(): Promise<Product[]> {
   const result = await fetchApi<Product[]>('/inventory/auto-discover', { method: 'POST' });
+  invalidateCache('/inventory');
+  return result;
+}
+
+export interface RecalculateStockResult {
+  updated: number;
+  total: number;
+  initial_stock_default: number;
+}
+
+export async function recalculateStock(): Promise<RecalculateStockResult> {
+  const result = await fetchApi<RecalculateStockResult>('/inventory/recalculate-stock', { method: 'POST' });
   invalidateCache('/inventory');
   return result;
 }

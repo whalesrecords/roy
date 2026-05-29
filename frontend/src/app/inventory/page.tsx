@@ -12,6 +12,7 @@ import {
   deleteProduct,
   adjustStock,
   getStockMovements,
+  recalculateStock,
   Product,
   InventorySummary,
   StockMovement,
@@ -74,6 +75,7 @@ const emptyProduct: Partial<Product> = {
   price_eur: 0,
   cost_eur: 0,
   stock_quantity: 0,
+  initial_stock_quantity: 300,
   low_stock_threshold: 5,
   status: 'available',
   limited_edition: false,
@@ -96,6 +98,7 @@ export default function InventoryPage() {
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [autoDiscovering, setAutoDiscovering] = useState(false);
+  const [recalculatingStock, setRecalculatingStock] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'products' | 'assets'>('products');
 
@@ -295,6 +298,35 @@ export default function InventoryPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
             Import CSV
+          </button>
+          <button
+            disabled={recalculatingStock}
+            onClick={async () => {
+              setRecalculatingStock(true);
+              setError(null);
+              setSuccessMsg(null);
+              try {
+                const res = await recalculateStock();
+                await loadData();
+                setSuccessMsg(`Stock recalculé sur ${res.updated} / ${res.total} produit${res.total > 1 ? 's' : ''} à partir des ventes (base ${res.initial_stock_default}).`);
+              } catch (err: any) {
+                setError(err.message || 'Erreur lors du recalcul');
+              } finally {
+                setRecalculatingStock(false);
+              }
+            }}
+            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {recalculatingStock ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+            Recalculer stock
           </button>
           <button
             disabled={autoDiscovering}
@@ -602,9 +634,14 @@ export default function InventoryPage() {
                             </svg>
                           )}
                         </div>
-                        {(product.total_sold ?? 0) > 0 && (
+                        {((product.total_sold ?? 0) > 0 || (product.initial_stock_quantity ?? 0) > 0) && (
                           <span className="text-[11px] text-secondary-500">
-                            {product.total_sold} vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}
+                            {(product.initial_stock_quantity ?? 0) > 0 && (
+                              <>/ {product.initial_stock_quantity} pressés </>
+                            )}
+                            {(product.total_sold ?? 0) > 0 && (
+                              <>· {product.total_sold} vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}</>
+                            )}
                           </span>
                         )}
                       </div>
@@ -792,9 +829,19 @@ export default function InventoryPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Stock initial</label>
+                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Pressage (base)</label>
+                  <input
+                    type="number"
+                    value={formData.initial_stock_quantity ?? 300}
+                    onChange={e => setFormData({ ...formData, initial_stock_quantity: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    title="Nombre d'unités pressées (sert au recalcul stock = base − vendus)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Stock actuel</label>
                   <input
                     type="number"
                     value={formData.stock_quantity ?? 0}
@@ -803,7 +850,7 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Seuil stock faible</label>
+                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Seuil alerte</label>
                   <input
                     type="number"
                     value={formData.low_stock_threshold ?? 5}

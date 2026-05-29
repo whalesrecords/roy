@@ -58,6 +58,7 @@ class Product(Base):
 
     # Stock
     stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    initial_stock_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     low_stock_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
 
     # Status
