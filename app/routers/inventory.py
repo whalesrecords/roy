@@ -33,6 +33,7 @@ class ProductCreate(BaseModel):
     price_eur: Optional[float] = None
     cost_eur: Optional[float] = None
     stock_quantity: int = Field(default=0, ge=0)
+    initial_stock_quantity: int = Field(default=300, ge=0)
     low_stock_threshold: int = Field(default=10, ge=0)
     status: str = Field(default="available")
     limited_edition: bool = False
@@ -50,6 +51,7 @@ class ProductUpdate(BaseModel):
     artist_name: Optional[str] = None
     price_eur: Optional[float] = None
     cost_eur: Optional[float] = None
+    initial_stock_quantity: Optional[int] = None
     low_stock_threshold: Optional[int] = None
     status: Optional[str] = None
     limited_edition: Optional[bool] = None
@@ -76,6 +78,7 @@ class ProductResponse(BaseModel):
     price_eur: Optional[float]
     cost_eur: Optional[float]
     stock_quantity: int
+    initial_stock_quantity: int = 300
     low_stock_threshold: int
     status: str
     limited_edition: bool
@@ -433,11 +436,23 @@ async def auto_discover_products(
     )
     physical_items = result.all()
 
+    # Aggregate total_sold across all stores per (title, artist, format) — the
+    # raw query returns one row per (store, format) which the loop below would
+    # otherwise dedupe and lose the cross-store volume.
+    sold_per_key: dict[tuple[str, str, str], int] = {}
+    for item in physical_items:
+        t = (item.item_title or 'Unknown').lower()
+        a = (item.artist_name or '').lower()
+        v = (item.physical_format or '').lower()
+        sold_per_key[(t, a, v)] = sold_per_key.get((t, a, v), 0) + int(item.total_sold or 0)
+
     # Get existing products to avoid duplicates
     existing = await db.execute(select(Product))
     existing_products = existing.scalars().all()
     # Dedup key includes physical_format so same album in different formats = separate products
     existing_keys = {(p.title.lower(), (p.artist_name or '').lower(), (p.variant or '').lower()) for p in existing_products}
+
+    INITIAL_STOCK = 300  # Standard press run, can be adjusted per product later
 
     created = []
     for item in physical_items:
@@ -454,6 +469,8 @@ async def auto_discover_products(
         if key in existing_keys:
             continue
 
+        total_sold = sold_per_key.get(key, 0)
+        stock_remaining = max(INITIAL_STOCK - total_sold, 0)
         product = Product(
             title=title,
             format=fmt,
@@ -461,8 +478,9 @@ async def auto_discover_products(
             artist_name=artist,
             release_upc=item.upc,
             status=ProductStatus.AVAILABLE,
-            stock_quantity=0,  # Unknown stock — user will adjust
-            notes=f"Auto-découvert depuis {item.store_name}. {item.total_sold or 0} unités vendues.",
+            initial_stock_quantity=INITIAL_STOCK,
+            stock_quantity=stock_remaining,
+            notes=f"Auto-découvert depuis {item.store_name}. {total_sold} unités vendues sur {INITIAL_STOCK} (pressage standard).",
         )
         db.add(product)
         created.append(product)
@@ -475,6 +493,46 @@ async def auto_discover_products(
 
     sold_counts = await _build_sold_counts(db)
     return [_product_with_sold(p, sold_counts) for p in created]
+
+
+class RecalculateStockResult(BaseModel):
+    updated: int
+    total: int
+    initial_stock_default: int = 300
+
+
+@router.post("/recalculate-stock", response_model=RecalculateStockResult)
+async def recalculate_stock_from_sales(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh stock_quantity for every product as
+    max(initial_stock_quantity - total_sold, 0), where total_sold is the sum
+    of physical transactions matched on (title, artist, variant)."""
+    products_q = await db.execute(select(Product))
+    products = products_q.scalars().all()
+    sold_counts = await _build_sold_counts(db)
+    updated = 0
+    for p in products:
+        key = (
+            (p.title or '').lower(),
+            (p.artist_name or '').lower(),
+            (p.variant or '').lower(),
+        )
+        total_sold = sold_counts.get(key, 0)
+        new_stock = max((p.initial_stock_quantity or 300) - total_sold, 0)
+        if p.stock_quantity != new_stock:
+            p.stock_quantity = new_stock
+            p.updated_at = datetime.utcnow()
+            # Auto-status sync
+            if new_stock == 0 and p.status == "available":
+                p.status = "sold_out"
+            elif new_stock > 0 and p.status == "sold_out":
+                p.status = "available"
+            updated += 1
+    if updated:
+        await db.commit()
+    return RecalculateStockResult(updated=updated, total=len(products))
 
 
 class ImportCSVResult(BaseModel):
