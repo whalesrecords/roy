@@ -10,8 +10,9 @@ mapping, and CSV import from a Reverb gear collection export.
 import csv
 import io
 import re
+from calendar import monthrange
 from datetime import date, datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -163,20 +164,11 @@ def compute_schedule(asset: FixedAsset) -> List[DepreciationYear]:
     start = asset.purchase_date
     method = asset.depreciation_method
 
-    # End of depreciation period (exclusive of next day)
-    end_month = start.month + life_m - 1
-    end_year = start.year + (end_month - 1) // 12
-    end_month = ((end_month - 1) % 12) + 1
-    # Last day of end_month
-    if end_month == 12:
-        end = date(end_year, 12, 31)
-    else:
-        end = date(end_year, end_month + 1, 1)
-        end = date(end.year, end.month, 1)
-        end = date(end.year, end.month, 1)
-        # last day of end_month
-        from calendar import monthrange
-        end = date(end_year, end_month, monthrange(end_year, end_month)[1])
+    # Last day of the final depreciation month
+    final_month_index = start.month + life_m - 1
+    end_year = start.year + (final_month_index - 1) // 12
+    end_month = ((final_month_index - 1) % 12) + 1
+    end = date(end_year, end_month, monthrange(end_year, end_month)[1])
 
     schedule: List[DepreciationYear] = []
     accumulated = 0.0
@@ -267,7 +259,7 @@ def _project_asset(asset: FixedAsset, as_of: Optional[date] = None) -> dict:
 # --- Endpoints ---
 
 
-@router.get("/", response_model=List[AssetResponse])
+@router.get("", response_model=List[AssetResponse])
 async def list_assets(
     _token: str = Depends(verify_admin_token),
     db: AsyncSession = Depends(get_db),
@@ -328,7 +320,7 @@ async def assets_summary(
     )
 
 
-@router.post("/", response_model=AssetResponse, status_code=201)
+@router.post("", response_model=AssetResponse, status_code=201)
 async def create_asset(
     data: AssetCreate,
     _token: str = Depends(verify_admin_token),

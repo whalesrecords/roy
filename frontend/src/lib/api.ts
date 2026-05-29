@@ -2192,7 +2192,7 @@ export async function getAssets(params?: { category?: string; pcg_account?: stri
   if (params?.status) qs.set('status', params.status);
   if (params?.search) qs.set('search', params.search);
   const q = qs.toString();
-  return fetchApi<FixedAsset[]>(`/assets/${q ? `?${q}` : ''}`);
+  return fetchApi<FixedAsset[]>(`/assets${q ? `?${q}` : ''}`);
 }
 
 export async function getAssetsSummary(): Promise<AssetsSummary> {
@@ -2200,7 +2200,7 @@ export async function getAssetsSummary(): Promise<AssetsSummary> {
 }
 
 export async function createAsset(data: Partial<FixedAsset>): Promise<FixedAsset> {
-  const result = await fetchApi<FixedAsset>('/assets/', {
+  const result = await fetchApi<FixedAsset>('/assets', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

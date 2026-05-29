@@ -162,6 +162,14 @@ def _product_with_sold(product: Product, sold_counts: dict[tuple[str, str, str],
     return data
 
 
+def _product_without_sold(product: Product) -> dict:
+    """Serialize a product with total_sold=0 — used by single-item endpoints
+    to avoid the full transactions aggregation on every mutation."""
+    data = {c.name: getattr(product, c.name) for c in Product.__table__.columns}
+    data["total_sold"] = 0
+    return data
+
+
 @router.get("/products", response_model=List[ProductResponse])
 async def list_products(
     _token: str = Depends(verify_admin_token),
@@ -250,8 +258,7 @@ async def create_product(
 
     await db.commit()
     await db.refresh(product)
-    sold_counts = await _build_sold_counts(db)
-    return _product_with_sold(product, sold_counts)
+    return _product_without_sold(product)
 
 
 @router.get("/products/{product_id}", response_model=ProductResponse)
@@ -265,8 +272,7 @@ async def get_product(
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    sold_counts = await _build_sold_counts(db)
-    return _product_with_sold(product, sold_counts)
+    return _product_without_sold(product)
 
 
 @router.put("/products/{product_id}", response_model=ProductResponse)
@@ -288,8 +294,7 @@ async def update_product(
     product.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(product)
-    sold_counts = await _build_sold_counts(db)
-    return _product_with_sold(product, sold_counts)
+    return _product_without_sold(product)
 
 
 @router.delete("/products/{product_id}")
@@ -346,8 +351,7 @@ async def adjust_stock(
 
     await db.commit()
     await db.refresh(product)
-    sold_counts = await _build_sold_counts(db)
-    return _product_with_sold(product, sold_counts)
+    return _product_without_sold(product)
 
 
 @router.get("/products/{product_id}/movements", response_model=List[StockMovementResponse])
