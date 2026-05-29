@@ -1974,6 +1974,7 @@ export interface Product {
   edition_size?: number;
   image_url?: string;
   notes?: string;
+  total_sold?: number;
   created_at: string;
   updated_at: string;
 }

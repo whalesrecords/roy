@@ -540,32 +540,39 @@ export default function InventoryPage() {
 
                     {/* Stock with quick adjust */}
                     <td className="py-3 pr-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleQuickAdjust(product, -1)}
-                          className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                          title="Retirer 1"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                          </svg>
-                        </button>
-                        <span className={`font-bold min-w-[2rem] text-center ${isLowStock ? 'text-danger' : 'text-foreground'}`}>
-                          {product.stock_quantity}
-                        </span>
-                        <button
-                          onClick={() => handleQuickAdjust(product, 1)}
-                          className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                          title="Ajouter 1"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </button>
-                        {isLowStock && (
-                          <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleQuickAdjust(product, -1)}
+                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
+                            title="Retirer 1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          </button>
+                          <span className={`font-bold min-w-[2rem] text-center ${isLowStock ? 'text-danger' : 'text-foreground'}`}>
+                            {product.stock_quantity}
+                          </span>
+                          <button
+                            onClick={() => handleQuickAdjust(product, 1)}
+                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
+                            title="Ajouter 1"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                          {isLowStock && (
+                            <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                          )}
+                        </div>
+                        {(product.total_sold ?? 0) > 0 && (
+                          <span className="text-[11px] text-secondary-500">
+                            {product.total_sold} vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}
+                          </span>
                         )}
                       </div>
                     </td>

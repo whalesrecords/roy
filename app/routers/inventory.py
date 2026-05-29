@@ -82,6 +82,7 @@ class ProductResponse(BaseModel):
     edition_size: Optional[int]
     image_url: Optional[str]
     notes: Optional[str]
+    total_sold: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -113,6 +114,54 @@ class InventorySummary(BaseModel):
 
 # --- Endpoints ---
 
+
+async def _build_sold_counts(db: AsyncSession) -> dict[tuple[str, str, str], int]:
+    """Aggregate sold quantities from physical transactions, keyed by
+    (title_lower, artist_lower, variant_lower) to match product dedup keys
+    used by auto-discover.
+    """
+    item_title_col = func.coalesce(
+        TransactionNormalized.release_title,
+        TransactionNormalized.track_title,
+    ).label("item_title")
+    result = await db.execute(
+        select(
+            item_title_col,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.physical_format,
+            func.sum(TransactionNormalized.quantity).label("sold"),
+        )
+        .where(TransactionNormalized.sale_type == SaleType.PHYSICAL)
+        .group_by(
+            TransactionNormalized.release_title,
+            TransactionNormalized.track_title,
+            TransactionNormalized.artist_name,
+            TransactionNormalized.physical_format,
+        )
+    )
+    counts: dict[tuple[str, str, str], int] = {}
+    for row in result.all():
+        key = (
+            (row.item_title or "").lower(),
+            (row.artist_name or "").lower(),
+            (row.physical_format or "").lower(),
+        )
+        counts[key] = counts.get(key, 0) + int(row.sold or 0)
+    return counts
+
+
+def _product_with_sold(product: Product, sold_counts: dict[tuple[str, str, str], int]) -> dict:
+    """Serialize a product and attach total_sold matched by (title, artist, variant)."""
+    key = (
+        (product.title or "").lower(),
+        (product.artist_name or "").lower(),
+        (product.variant or "").lower(),
+    )
+    data = {c.name: getattr(product, c.name) for c in Product.__table__.columns}
+    data["total_sold"] = sold_counts.get(key, 0)
+    return data
+
+
 @router.get("/products", response_model=List[ProductResponse])
 async def list_products(
     _token: str = Depends(verify_admin_token),
@@ -139,7 +188,9 @@ async def list_products(
         )
 
     result = await db.execute(query)
-    return result.scalars().all()
+    products = result.scalars().all()
+    sold_counts = await _build_sold_counts(db)
+    return [_product_with_sold(p, sold_counts) for p in products]
 
 
 @router.get("/summary", response_model=InventorySummary)
@@ -199,7 +250,8 @@ async def create_product(
 
     await db.commit()
     await db.refresh(product)
-    return product
+    sold_counts = await _build_sold_counts(db)
+    return _product_with_sold(product, sold_counts)
 
 
 @router.get("/products/{product_id}", response_model=ProductResponse)
@@ -213,7 +265,8 @@ async def get_product(
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return product
+    sold_counts = await _build_sold_counts(db)
+    return _product_with_sold(product, sold_counts)
 
 
 @router.put("/products/{product_id}", response_model=ProductResponse)
@@ -235,7 +288,8 @@ async def update_product(
     product.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(product)
-    return product
+    sold_counts = await _build_sold_counts(db)
+    return _product_with_sold(product, sold_counts)
 
 
 @router.delete("/products/{product_id}")
@@ -292,7 +346,8 @@ async def adjust_stock(
 
     await db.commit()
     await db.refresh(product)
-    return product
+    sold_counts = await _build_sold_counts(db)
+    return _product_with_sold(product, sold_counts)
 
 
 @router.get("/products/{product_id}/movements", response_model=List[StockMovementResponse])
@@ -414,7 +469,8 @@ async def auto_discover_products(
         for p in created:
             await db.refresh(p)
 
-    return created
+    sold_counts = await _build_sold_counts(db)
+    return [_product_with_sold(p, sold_counts) for p in created]
 
 
 class ImportCSVResult(BaseModel):
