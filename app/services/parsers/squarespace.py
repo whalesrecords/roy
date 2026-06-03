@@ -332,13 +332,15 @@ class SquarespaceParser:
 
             # Re-use the orders-format artist/album parser — handles the same
             # "Artist - Album - Format" and "Album by Artist - Format" patterns.
-            artist, album, item_type = _parse_artist_and_album(current_title, sku or "")
+            # item_type is forced to "package" regardless of title keywords because
+            # _parse_products already filtered for PHYSICAL product type.
+            artist, album, _ = _parse_artist_and_album(current_title, sku or "")
 
             result.rows.append(SquarespaceProductRow(
                 row_number=row_number,
                 item_name=album,
                 artist=artist,
-                item_type=item_type,
+                item_type="package",
                 sku=sku,
                 variant=option1,
                 stock_quantity=stock,

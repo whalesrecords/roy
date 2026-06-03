@@ -217,7 +217,7 @@ async def analyze_import(
     # Check for duplicates (same source, filename, and period)
     # Use cast(source, String) to avoid asyncpg enum uppercase cast issues
     from sqlalchemy import String as SAString
-    from sqlalchemy import cast
+    from sqlalchemy import cast, func as sa_func
     duplicate = None
     period_duplicate = None  # Same period regardless of filename
     if period_start and period_end:
@@ -240,13 +240,14 @@ async def analyze_import(
 
         # Level 2: same period regardless of filename (catches renamed files)
         # DetailsDetails is per-artist so multiple files per period is legitimate
+        # Use func.lower() to handle mixed-case legacy status values (COMPLETED / completed)
         if not duplicate and import_source.value != "detailsdetails":
             existing_period = await db.execute(
                 select(Import)
                 .where(cast(Import.source, SAString) == import_source.value)
                 .where(Import.period_start == period_start)
                 .where(Import.period_end == period_end)
-                .where(cast(Import.status, SAString).in_(["completed", "partial"]))
+                .where(sa_func.lower(cast(Import.status, SAString)).in_(["completed", "partial"]))
             )
             period_dup_record = existing_period.scalars().first()
             if period_dup_record:
@@ -287,13 +288,14 @@ async def _process_import_background(
             # DetailsDetails which legitimately sends one file per artist.
             from sqlalchemy import String as SAString
             from sqlalchemy import cast as sa_cast
+            from sqlalchemy import func as sa_func2
             if import_source.value != "detailsdetails":
                 existing_check = await session.execute(
                     select(Import)
                     .where(sa_cast(Import.source, SAString) == import_source.value)
                     .where(Import.period_start == period_start)
                     .where(Import.period_end == period_end)
-                    .where(sa_cast(Import.status, SAString).in_(["completed", "partial"]))
+                    .where(sa_func2.lower(sa_cast(Import.status, SAString)).in_(["completed", "partial"]))
                     .where(Import.id != uuid_lib.UUID(import_id))
                 )
                 if existing_check.scalars().first():
