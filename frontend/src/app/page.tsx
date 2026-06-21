@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line, Area, AreaChart,
+  PieChart, Pie, Cell, ComposedChart, Area, Line,
 } from 'recharts';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -14,30 +13,26 @@ import {
   getSpotifySuggestions,
 } from '@/lib/api';
 import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { Card, Eyebrow, Kpi, Pill, Avatar, AccentButton } from '@/components/roy/ui';
+import { IconImport, IconRoyalty, IconTicket, IconChevronRight, IconSparkles, IconPlus } from '@/components/roy/icons';
 
-const COLORS = ['#6366f1', '#06b6d4', '#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#f97316', '#ec4899'];
+const COLORS = ['#15CE8E', '#4D8DFF', '#E3B341', '#FC3C44', '#8b5cf6', '#00C7F2', '#f97316', '#ec4899'];
 
 type DashboardView = 'overview' | 'revenue' | 'expenses' | 'artists';
-
 const VIEW_LABELS: Record<DashboardView, string> = {
-  overview: 'Vue d\'ensemble',
-  revenue: 'Revenus',
-  expenses: 'Dépenses',
-  artists: 'Artistes',
+  overview: "Vue d'ensemble", revenue: 'Revenus', expenses: 'Dépenses', artists: 'Artistes',
 };
-
 const DASHBOARD_VIEWS = Object.keys(VIEW_LABELS) as DashboardView[];
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [view, setView] = useState<DashboardView>('overview');
-  const [selectedYear, setSelectedYear] = useState(0); // 0 = not yet determined
+  const [selectedYear, setSelectedYear] = useState(0);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [loadingStep, setLoadingStep] = useState('');
   const progressRef = useRef(0);
 
-  // Data
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [artistsSummary, setArtistsSummary] = useState<ArtistSummary[]>([]);
   const [basicStats, setBasicStats] = useState({ artists: 0, imports: 0, pendingRuns: 0, openTickets: 0 });
@@ -45,63 +40,44 @@ export default function DashboardPage() {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
   const [pendingSpotify, setPendingSpotify] = useState(0);
 
-  // Weighted steps: must sum to 100
   const STEPS = [
-    { label: 'Artistes',  weight: 15 },
-    { label: 'Imports',   weight: 20 },
-    { label: 'Calculs',   weight: 15 },
-    { label: 'Tickets',   weight: 10 },
-    { label: 'Résumés',   weight: 15 },
-    { label: 'Analytics', weight: 25 },
+    { label: 'Artistes', weight: 15 }, { label: 'Imports', weight: 20 }, { label: 'Calculs', weight: 15 },
+    { label: 'Tickets', weight: 10 }, { label: 'Résumés', weight: 15 }, { label: 'Analytics', weight: 25 },
   ];
-
-  const tick = useCallback((stepIdx: number) => {
-    const added = STEPS[stepIdx].weight;
-    progressRef.current = Math.min(100, progressRef.current + added);
-    setProgress(progressRef.current);
-    setLoadingStep(STEPS[stepIdx].label);
+  const tick = useCallback((i: number) => {
+    progressRef.current = Math.min(100, progressRef.current + STEPS[i].weight);
+    setProgress(progressRef.current); setLoadingStep(STEPS[i].label);
   }, []);
 
   const loadAll = useCallback(async (yearOverride?: number) => {
-    setLoading(true);
-    progressRef.current = 0;
-    setProgress(0);
-    setLoadingStep('Démarrage…');
-
+    setLoading(true); progressRef.current = 0; setProgress(0); setLoadingStep('Démarrage…');
     try {
       const [artists, imports, runs, tickets, artSummary, spotifySuggestions] = await Promise.all([
-        getArtists()                       .then(r => { tick(0); return r; }),
-        getImports()                       .then(r => { tick(1); return r; }),
-        getRoyaltyRuns()                   .then(r => { tick(2); return r; }),
-        getTicketStats().catch(() => ({ open: 0 })).then(r => { tick(3); return r; }),
-        getArtistsSummary().catch(() => []).then(r => { tick(4); return r; }),
+        getArtists().then((r) => { tick(0); return r; }),
+        getImports().then((r) => { tick(1); return r; }),
+        getRoyaltyRuns().then((r) => { tick(2); return r; }),
+        getTicketStats().catch(() => ({ open: 0 })).then((r) => { tick(3); return r; }),
+        getArtistsSummary().catch(() => []).then((r) => { tick(4); return r; }),
         getSpotifySuggestions('pending').catch(() => []),
       ]);
       setPendingSpotify(spotifySuggestions.length);
-
       const yearSet = new Set<number>();
-      imports.forEach(imp => {
-        const startY = new Date(imp.period_start).getFullYear();
-        const endY   = new Date(imp.period_end || imp.period_start).getFullYear();
-        yearSet.add(startY);
-        if (endY !== startY) yearSet.add(endY);
+      imports.forEach((imp) => {
+        yearSet.add(new Date(imp.period_start).getFullYear());
+        const endY = new Date(imp.period_end || imp.period_start).getFullYear();
+        yearSet.add(endY);
       });
       const importYears = Array.from(yearSet).sort((a, b) => b - a);
       setAvailableYears(importYears);
-
       const effectiveYear = yearOverride ?? (selectedYear > 0 ? selectedYear : importYears[0] ?? 0);
       if (effectiveYear !== selectedYear) setSelectedYear(effectiveYear);
-
-      const summary = effectiveYear > 0
-        ? await getAnalyticsSummary(effectiveYear).catch(() => null)
-        : null;
+      const summary = effectiveYear > 0 ? await getAnalyticsSummary(effectiveYear).catch(() => null) : null;
       tick(5);
-
       setBasicStats({
-        artists:      artists.filter(a => a.category === 'signed').length,
-        imports:      imports.length,
-        pendingRuns:  runs.filter(r => r.status === 'draft' || r.status === 'completed').length,
-        openTickets:  (tickets as any).open || 0,
+        artists: artists.filter((a) => a.category === 'signed').length,
+        imports: imports.length,
+        pendingRuns: runs.filter((r) => r.status === 'draft' || r.status === 'completed').length,
+        openTickets: (tickets as { open?: number }).open || 0,
       });
       setRecentImports(imports.slice(0, 5));
       setAnalytics(summary);
@@ -110,18 +86,13 @@ export default function DashboardPage() {
       console.error('Dashboard load failed:', e);
     } finally {
       setProgress(100);
-      // short delay so the circle hits 100% visually before disappearing
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 300));
       setLoading(false);
     }
   }, [selectedYear]);
 
-  useEffect(() => {
-    if (!user) return;
-    loadAll();
-  }, [user]); // Only re-run on user change — year changes call loadAll(year) directly
+  useEffect(() => { if (user) loadAll(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Derived chart data
   const monthlyChartData = useMemo(() => {
     if (!analytics) return [];
     return analytics.monthly_revenue.map((rev, i) => ({
@@ -133,415 +104,294 @@ export default function DashboardPage() {
 
   const revenueBySource = useMemo(() => {
     if (!analytics) return [];
-    return analytics.revenue_by_source.map(s => ({
-      name: s.source_label,
-      value: parseFloat(s.gross),
-      count: s.transaction_count,
-    })).filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+    return analytics.revenue_by_source.map((s) => ({ name: s.source_label, value: parseFloat(s.gross), count: s.transaction_count }))
+      .filter((s) => s.value > 0).sort((a, b) => b.value - a.value);
   }, [analytics]);
 
   const expensesByCategory = useMemo(() => {
     if (!analytics) return [];
-    return analytics.expenses_by_category.map(c => ({
-      name: c.category_label,
-      value: parseFloat(c.amount),
-      count: c.count,
-    })).filter(c => c.value > 0).sort((a, b) => b.value - a.value);
+    return analytics.expenses_by_category.map((c) => ({ name: c.category_label, value: parseFloat(c.amount), count: c.count }))
+      .filter((c) => c.value > 0).sort((a, b) => b.value - a.value);
   }, [analytics]);
 
-  const topArtists = useMemo(() => {
-    return [...artistsSummary]
-      .sort((a, b) => parseFloat(String(b.total_gross)) - parseFloat(String(a.total_gross)))
-      .slice(0, 10);
-  }, [artistsSummary]);
+  const topArtists = useMemo(
+    () => [...artistsSummary].sort((a, b) => parseFloat(String(b.total_gross)) - parseFloat(String(a.total_gross))).slice(0, 10),
+    [artistsSummary],
+  );
+  const maxArtist = topArtists.length ? parseFloat(String(topArtists[0].total_gross)) : 0;
 
-  if (authLoading) {
-    return <LoadingCircle progress={0} step="Authentification…" />;
-  }
-  if (!user) {
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    return null;
-  }
+  if (authLoading) return <div className="flex items-center justify-center py-24"><LoadingCircle progress={0} step="Authentification…" /></div>;
+  if (!user) { if (typeof window !== 'undefined') window.location.href = '/login'; return null; }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Tableau de bord</h1>
-          <p className="text-sm text-default-500">Whales Records — {selectedYear}</p>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Tableau de bord</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Whales Records · vue label {selectedYear || ''}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedYear}
-            onChange={(e) => loadAll(parseInt(e.target.value))}
-            className="text-sm bg-background border border-divider rounded-lg px-3 py-1.5 text-foreground"
-          >
-            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+        <div className="flex items-center gap-2.5">
+          {availableYears.length > 0 && (
+            <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1">
+              {availableYears.slice(0, 3).map((y) => (
+                <button key={y} onClick={() => loadAll(y)}
+                  className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === selectedYear ? 'semibold' : 'medium'} ${y === selectedYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          )}
+          <Link href="/imports"><AccentButton><IconPlus size={14} /> Importer des revenus</AccentButton></Link>
         </div>
       </div>
 
-      {/* View Tabs */}
-      <div className="flex gap-1 bg-default-100 rounded-xl p-1">
-        {DASHBOARD_VIEWS.map(v => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={`flex-1 text-sm font-medium py-2 px-3 rounded-lg transition-all ${
-              view === v
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-default-500 hover:text-foreground'
-            }`}
-          >
-            {VIEW_LABELS[v]}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <LoadingCircle progress={progress} step={loadingStep} />
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {/* View tabs */}
+        <div className="flex gap-1 rounded-[11px] border border-line bg-surface p-1 w-fit">
+          {DASHBOARD_VIEWS.map((v) => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-lg text-[12.5px] font-${view === v ? 'semibold' : 'medium'} transition-colors ${view === v ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink'}`}>
+              {VIEW_LABELS[v]}
+            </button>
+          ))}
         </div>
-      ) : (
-        <>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-24"><LoadingCircle progress={progress} step={loadingStep} /></div>
+        ) : (<>
           {/* ===== OVERVIEW ===== */}
           {view === 'overview' && (
-            <div className="space-y-5">
-              {/* Spotify suggestions banner */}
+            <div className="space-y-4">
               {pendingSpotify > 0 && (
-                <Link
-                  href="/spotify-suggestions"
-                  className="flex items-center gap-3 bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-2xl px-4 py-3 hover:bg-[#1DB954]/15 transition-colors group"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                    </svg>
-                  </div>
+                <Link href="/spotify-suggestions" className="flex items-center gap-3 bg-accent-soft border border-accent/30 rounded-2xl px-4 py-3 hover:opacity-90 transition-opacity">
+                  <div className="w-8 h-8 rounded-full bg-accent text-accent-ink flex items-center justify-center shrink-0"><IconSparkles size={16} /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      {pendingSpotify} nouvelle{pendingSpotify > 1 ? 's' : ''} suggestion{pendingSpotify > 1 ? 's' : ''} Spotify
-                    </p>
-                    <p className="text-xs text-default-500">Nouvelles pistes de votre label trouvées — cliquez pour valider</p>
+                    <p className="text-[13px] font-semibold text-ink">{pendingSpotify} nouvelle{pendingSpotify > 1 ? 's' : ''} suggestion{pendingSpotify > 1 ? 's' : ''} Spotify</p>
+                    <p className="text-[11.5px] text-ink-faint">Nouvelles pistes trouvées — cliquez pour valider</p>
                   </div>
-                  <svg className="w-4 h-4 text-default-400 group-hover:text-foreground transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <IconChevronRight size={16} className="text-ink-faint" />
                 </Link>
               )}
-              {/* KPI Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard label="Revenus" value={analytics ? formatCurrency(analytics.total_revenue) : '—'} color="text-success" href="/analytics" />
-                <StatCard label="Dépenses" value={analytics ? formatCurrency(analytics.total_expenses) : '—'} color="text-danger" href="/finances" />
-                <StatCard label="Royalties dues" value={analytics ? formatCurrency(analytics.total_royalties_payable) : '—'} color="text-warning" href="/royalties" />
-                <StatCard label="Net" value={analytics ? formatCurrency(analytics.net) : '—'} color={analytics && parseFloat(analytics.net) >= 0 ? 'text-success' : 'text-danger'} />
+
+              {/* KPI */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <Kpi label="Revenus" value={analytics ? formatCurrency(analytics.total_revenue) : '—'} hint={analytics ? `+${''}${''}` : undefined} href="/analytics" />
+                <Kpi label="Dépenses" value={analytics ? formatCurrency(analytics.total_expenses) : '—'} hint={analytics && parseFloat(analytics.total_revenue) > 0 ? `${Math.round((parseFloat(analytics.total_expenses) / parseFloat(analytics.total_revenue)) * 100)} % des revenus` : undefined} href="/finances" />
+                <Kpi label="Royalties dues" value={analytics ? formatCurrency(analytics.total_royalties_payable) : '—'} hint={`${basicStats.artists} artistes`} href="/royalties" />
+                <Kpi label="Net label" value={analytics ? formatCurrency(analytics.net) : '—'} hero accentValue hint="après royalties" />
               </div>
 
-              {/* Revenue vs Expenses Chart */}
-              {monthlyChartData.length > 0 && (
-                <div className="bg-background rounded-2xl p-5 border border-divider">
-                  <h2 className="text-sm font-semibold text-foreground mb-4">Revenus vs Dépenses — {selectedYear}</h2>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={monthlyChartData}>
-                      <defs>
-                        <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="gradExpenses" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                      <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="url(#gradRevenue)" strokeWidth={2} name="Revenus" />
-                      <Area type="monotone" dataKey="expenses" stroke="#ef4444" fill="url(#gradExpenses)" strokeWidth={2} name="Dépenses" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
+              {/* Chart + Top artistes */}
+              <div className="grid lg:grid-cols-[1.6fr_1fr] gap-3.5">
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13.5px] font-semibold text-ink">Revenus vs Dépenses</span>
+                    <div className="flex gap-3">
+                      <span className="flex items-center gap-1.5 text-[11px] text-ink-muted"><span className="w-1.5 h-1.5 rounded-full bg-accent" />Revenus</span>
+                      <span className="flex items-center gap-1.5 text-[11px] text-ink-muted"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />Dépenses</span>
+                    </div>
+                  </div>
+                  {monthlyChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={230}>
+                      <ComposedChart data={monthlyChartData} margin={{ top: 12, right: 4, left: -8, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.22} />
+                            <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fill: 'var(--text-3)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: 'var(--text-3)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }} formatter={(value) => formatCurrency(value as number)} />
+                        <Area type="monotone" dataKey="revenue" stroke="var(--accent)" fill="url(#gRev)" strokeWidth={2} name="Revenus" dot={false} />
+                        <Line type="monotone" dataKey="expenses" stroke="var(--text-3)" strokeWidth={1.5} strokeDasharray="3 3" name="Dépenses" dot={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ) : <div className="py-16 text-center text-ink-faint text-sm">Aucune donnée pour {selectedYear}</div>}
+                </Card>
 
-              {/* Quick Stats Row */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard label="Artistes signés" value={basicStats.artists.toString()} href="/artists" />
-                <StatCard label="Imports" value={basicStats.imports.toString()} href="/imports" />
-                <StatCard label="Calculs en attente" value={basicStats.pendingRuns.toString()} color="text-warning" href="/royalties" />
-                <StatCard label="Tickets ouverts" value={basicStats.openTickets.toString()} href="/tickets" />
+                <Card>
+                  <span className="text-[13.5px] font-semibold text-ink">Top artistes</span>
+                  <div className="flex flex-col gap-3 mt-3.5">
+                    {topArtists.slice(0, 5).map((a, i) => (
+                      <Link key={a.id} href={`/artists/${a.id}`} className="flex items-center gap-2.5 group">
+                        <span className="font-mono text-[11px] text-ink-faint w-3">{i + 1}</span>
+                        <Avatar name={a.name} src={a.image_url} size={30} accent={i === 0} />
+                        <span className="flex-1 text-[13px] font-semibold text-ink truncate group-hover:text-accent transition-colors">{a.name}</span>
+                        <span className="roy-num text-[12.5px] font-bold text-ink">{formatCurrency(parseFloat(String(a.total_gross)))}</span>
+                      </Link>
+                    ))}
+                    {topArtists.length === 0 && <p className="text-ink-faint text-sm py-4">Aucun artiste</p>}
+                  </div>
+                </Card>
               </div>
 
-              {/* Quick Actions */}
-              <div className="bg-background rounded-2xl p-5 border border-divider">
-                <h2 className="text-sm font-semibold text-foreground mb-3">Actions rapides</h2>
-                <div className="flex flex-wrap gap-3">
-                  <ActionLink href="/imports" label="Importer des revenus" primary />
-                  <ActionLink href="/contracts" label="Nouveau contrat" />
-                  <ActionLink href="/royalties" label="Calculer royalties" />
-                </div>
+              {/* Imports + à traiter */}
+              <div className="grid lg:grid-cols-2 gap-3.5">
+                <Card>
+                  <span className="text-[13.5px] font-semibold text-ink">Imports récents</span>
+                  <div className="flex flex-col mt-2">
+                    {recentImports.length === 0 ? <p className="text-ink-faint text-sm py-3">Aucun import</p> :
+                      recentImports.map((imp, i) => (
+                        <div key={imp.id} className={`flex items-center justify-between py-2.5 ${i < recentImports.length - 1 ? 'border-b border-line' : ''}`}>
+                          <div>
+                            <div className="text-[13px] font-semibold text-ink capitalize">{imp.source} · {new Date(imp.period_start).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}</div>
+                            <div className="text-[11px] text-ink-faint mt-0.5">{formatNumber(imp.total_rows)} lignes</div>
+                          </div>
+                          <Pill tone="accent">Traité</Pill>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+                <Card>
+                  <span className="text-[13.5px] font-semibold text-ink">À traiter</span>
+                  <div className="flex flex-col gap-2.5 mt-3.5">
+                    <Link href="/royalties" className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 hover:bg-surface-2/70 transition-colors">
+                      <div className="w-[34px] h-[34px] rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0"><IconRoyalty size={16} /></div>
+                      <div className="flex-1"><div className="text-[13px] font-semibold text-ink">{basicStats.pendingRuns} calcul{basicStats.pendingRuns > 1 ? 's' : ''} de royalties</div><div className="text-[11px] text-ink-faint">en attente de validation</div></div>
+                      <IconChevronRight size={16} className="text-ink-faint" />
+                    </Link>
+                    <Link href="/tickets" className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 hover:bg-surface-2/70 transition-colors">
+                      <div className="w-[34px] h-[34px] rounded-[10px] bg-surface border border-line text-ink-muted flex items-center justify-center shrink-0"><IconTicket size={16} /></div>
+                      <div className="flex-1"><div className="text-[13px] font-semibold text-ink">{basicStats.openTickets} ticket{basicStats.openTickets > 1 ? 's' : ''} ouvert{basicStats.openTickets > 1 ? 's' : ''}</div><div className="text-[11px] text-ink-faint">demandes artistes</div></div>
+                      <IconChevronRight size={16} className="text-ink-faint" />
+                    </Link>
+                  </div>
+                </Card>
               </div>
             </div>
           )}
 
-          {/* ===== REVENUE VIEW ===== */}
+          {/* ===== REVENUE ===== */}
           {view === 'revenue' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <StatCard label="Revenus totaux" value={analytics ? formatCurrency(analytics.total_revenue) : '—'} color="text-success" />
-                <StatCard label="Sources" value={revenueBySource.length.toString()} />
-                <StatCard label="Transactions" value={analytics ? formatNumber(analytics.revenue_by_source.reduce((s, r) => s + r.transaction_count, 0)) : '—'} />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
+                <Kpi label="Revenus totaux" value={analytics ? formatCurrency(analytics.total_revenue) : '—'} accentValue />
+                <Kpi label="Sources" value={revenueBySource.length.toString()} />
+                <Kpi label="Transactions" value={analytics ? formatNumber(analytics.revenue_by_source.reduce((s, r) => s + r.transaction_count, 0)) : '—'} />
               </div>
-
-              {/* Monthly Revenue Bar Chart */}
               {monthlyChartData.length > 0 && (
-                <div className="bg-background rounded-2xl p-5 border border-divider">
-                  <h2 className="text-sm font-semibold text-foreground mb-4">Revenus mensuels</h2>
+                <Card>
+                  <span className="text-[13.5px] font-semibold text-ink">Revenus mensuels</span>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={monthlyChartData}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                      <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} name="Revenus" />
+                    <BarChart data={monthlyChartData} margin={{ top: 12, right: 4, left: -8, bottom: 0 }}>
+                      <CartesianGrid stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                      <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }} formatter={(value) => formatCurrency(value as number)} />
+                      <Bar dataKey="revenue" fill="var(--accent)" radius={[4, 4, 0, 0]} name="Revenus" />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </Card>
               )}
-
-              {/* Revenue by Source Pie + List */}
               {revenueBySource.length > 0 && (
-                <div className="grid md:grid-cols-2 gap-5">
-                  <div className="bg-background rounded-2xl p-5 border border-divider">
-                    <h2 className="text-sm font-semibold text-foreground mb-4">Par source</h2>
+                <div className="grid md:grid-cols-2 gap-3.5">
+                  <Card>
+                    <span className="text-[13.5px] font-semibold text-ink">Par source</span>
                     <ResponsiveContainer width="100%" height={250}>
                       <PieChart>
-                        <Pie data={revenueBySource} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 10 }}>
+                        <Pie data={revenueBySource} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 10 }}>
                           {revenueBySource.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                        <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }} formatter={(value) => formatCurrency(value as number)} />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
-                  <div className="bg-background rounded-2xl p-5 border border-divider">
-                    <h2 className="text-sm font-semibold text-foreground mb-4">Détail par source</h2>
-                    <div className="space-y-3">
+                  </Card>
+                  <Card>
+                    <span className="text-[13.5px] font-semibold text-ink">Détail par source</span>
+                    <div className="space-y-3 mt-3.5">
                       {revenueBySource.map((s, i) => (
                         <div key={s.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="text-sm text-foreground">{s.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-semibold text-foreground">{formatCurrency(s.value)}</span>
-                            <span className="text-xs text-default-400 ml-2">{formatNumber(s.count)} tx</span>
-                          </div>
+                          <span className="flex items-center gap-2 text-[13px] text-ink"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: COLORS[i % COLORS.length] }} />{s.name}</span>
+                          <span className="roy-num text-[13px] font-semibold text-ink">{formatCurrency(s.value)}</span>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </Card>
                 </div>
               )}
             </div>
           )}
 
-          {/* ===== EXPENSES VIEW ===== */}
+          {/* ===== EXPENSES ===== */}
           {view === 'expenses' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <StatCard label="Dépenses totales" value={analytics ? formatCurrency(analytics.total_expenses) : '—'} color="text-danger" />
-                <StatCard label="Royalties dues" value={analytics ? formatCurrency(analytics.total_royalties_payable) : '—'} color="text-warning" />
-                <StatCard label="Sortie totale" value={analytics ? formatCurrency(analytics.total_outflow) : '—'} color="text-danger" />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
+                <Kpi label="Dépenses totales" value={analytics ? formatCurrency(analytics.total_expenses) : '—'} />
+                <Kpi label="Royalties dues" value={analytics ? formatCurrency(analytics.total_royalties_payable) : '—'} />
+                <Kpi label="Sortie totale" value={analytics ? formatCurrency(analytics.total_outflow) : '—'} />
               </div>
-
-              {/* Monthly Expenses */}
-              {monthlyChartData.length > 0 && (
-                <div className="bg-background rounded-2xl p-5 border border-divider">
-                  <h2 className="text-sm font-semibold text-foreground mb-4">Dépenses mensuelles</h2>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={monthlyChartData}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                      <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} name="Dépenses" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Expenses by Category */}
               {expensesByCategory.length > 0 && (
-                <div className="grid md:grid-cols-2 gap-5">
-                  <div className="bg-background rounded-2xl p-5 border border-divider">
-                    <h2 className="text-sm font-semibold text-foreground mb-4">Par catégorie</h2>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie data={expensesByCategory} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} style={{ fontSize: 10 }}>
-                          {expensesByCategory.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="bg-background rounded-2xl p-5 border border-divider">
-                    <h2 className="text-sm font-semibold text-foreground mb-4">Détail par catégorie</h2>
-                    <div className="space-y-3">
-                      {expensesByCategory.map((c, i) => (
-                        <div key={c.name} className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="text-sm text-foreground">{c.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm font-semibold text-danger">{formatCurrency(c.value)}</span>
-                            <span className="text-xs text-default-400 ml-2">{c.count} ops</span>
-                          </div>
+                <Card>
+                  <span className="text-[13.5px] font-semibold text-ink">Dépenses par catégorie</span>
+                  <div className="flex flex-col gap-3 mt-4">
+                    {expensesByCategory.map((c) => {
+                      const max = expensesByCategory[0].value || 1;
+                      return (
+                        <div key={c.name}>
+                          <div className="flex justify-between mb-1.5"><span className="text-[12.5px] text-ink">{c.name}</span><span className="roy-num text-[12.5px] font-semibold text-ink">{formatCurrency(c.value)}</span></div>
+                          <div className="h-1.5 rounded-full bg-track overflow-hidden"><div className="h-full bg-accent" style={{ width: `${(c.value / max) * 100}%` }} /></div>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </Card>
               )}
             </div>
           )}
 
-          {/* ===== ARTISTS VIEW ===== */}
+          {/* ===== ARTISTS ===== */}
           {view === 'artists' && (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <StatCard label="Artistes signés" value={basicStats.artists.toString()} href="/artists" />
-                <StatCard label="Avec revenus" value={artistsSummary.filter(a => parseFloat(String(a.total_gross)) > 0).length.toString()} />
-                <StatCard label="Revenus artistes" value={formatCurrency(artistsSummary.reduce((s, a) => s + parseFloat(String(a.total_gross)), 0))} color="text-success" />
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
+                <Kpi label="Artistes signés" value={basicStats.artists.toString()} href="/artists" />
+                <Kpi label="Avec revenus" value={artistsSummary.filter((a) => parseFloat(String(a.total_gross)) > 0).length.toString()} />
+                <Kpi label="Revenus artistes" value={formatCurrency(artistsSummary.reduce((s, a) => s + parseFloat(String(a.total_gross)), 0))} accentValue />
               </div>
-
-              {/* Top 10 Artists Bar Chart */}
               {topArtists.length > 0 && (
-                <div className="bg-background rounded-2xl p-5 border border-divider">
-                  <h2 className="text-sm font-semibold text-foreground mb-4">Top 10 artistes — Revenus bruts</h2>
-                  <ResponsiveContainer width="100%" height={Math.max(300, topArtists.length * 40)}>
-                    <BarChart data={topArtists} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                      <Bar dataKey="total_gross" fill="#6366f1" radius={[0, 4, 4, 0]} name="Revenus bruts" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Artists Table */}
-              {topArtists.length > 0 && (
-                <div className="bg-background rounded-2xl p-5 border border-divider overflow-x-auto">
-                  <h2 className="text-sm font-semibold text-foreground mb-4">Classement artistes</h2>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-divider text-left">
-                        <th className="pb-2 text-default-500 font-medium">#</th>
-                        <th className="pb-2 text-default-500 font-medium">Artiste</th>
-                        <th className="pb-2 text-default-500 font-medium text-right">Revenus bruts</th>
-                        <th className="pb-2 text-default-500 font-medium text-right">Streams</th>
-                        <th className="pb-2 text-default-500 font-medium text-right">Transactions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topArtists.map((a, i) => (
-                        <tr key={a.id} className="border-b border-divider/50 last:border-0">
-                          <td className="py-2.5 text-default-400">{i + 1}</td>
-                          <td className="py-2.5">
-                            <Link href={`/artists/${a.id}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                              {a.image_url ? (
-                                <Image src={a.image_url} alt={a.name} width={28} height={28} className="rounded-full object-cover" />
-                              ) : (
-                                <div className="w-7 h-7 rounded-full bg-default-200 flex items-center justify-center text-xs font-bold text-default-500">
-                                  {a.name.charAt(0)}
-                                </div>
-                              )}
-                              <span className="font-medium text-foreground">{a.name}</span>
-                            </Link>
-                          </td>
-                          <td className="py-2.5 text-right font-semibold text-success">{formatCurrency(parseFloat(String(a.total_gross)))}</td>
-                          <td className="py-2.5 text-right text-default-500">{formatNumber(parseFloat(String(a.total_streams)))}</td>
-                          <td className="py-2.5 text-right text-default-500">{formatNumber(a.transaction_count)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Card padded={false} className="overflow-hidden">
+                  <div className="px-[22px] py-4 border-b border-line text-[13.5px] font-semibold text-ink">Classement artistes</div>
+                  <div className="grid grid-cols-[40px_2fr_1fr_1fr] px-[22px] py-3 border-b border-line roy-eyebrow text-[10px]">
+                    <span>#</span><span>Artiste</span><span className="text-right">Revenus</span><span className="text-right">Streams</span>
+                  </div>
+                  {topArtists.map((a, i) => (
+                    <Link key={a.id} href={`/artists/${a.id}`} className="grid grid-cols-[40px_2fr_1fr_1fr] items-center px-[22px] py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                      <span className="font-mono text-[11px] text-ink-faint">{i + 1}</span>
+                      <span className="flex items-center gap-2.5 min-w-0"><Avatar name={a.name} src={a.image_url} size={30} accent={i === 0} /><span className="text-[13px] font-semibold text-ink truncate">{a.name}</span></span>
+                      <span className="text-right roy-num text-[13px] font-bold text-ink">{formatCurrency(parseFloat(String(a.total_gross)))}</span>
+                      <span className="text-right roy-num text-[13px] text-ink-muted">{formatNumber(parseFloat(String(a.total_streams)))}</span>
+                    </Link>
+                  ))}
+                </Card>
               )}
             </div>
           )}
-        </>
-      )}
+        </>)}
+      </div>
     </div>
   );
 }
 
-// --- Helper Components ---
-
-const CIRCUMFERENCE = 2 * Math.PI * 44; // r=44
-
+const CIRCUMFERENCE = 2 * Math.PI * 44;
 function LoadingCircle({ progress, step }: { progress: number; step: string }) {
   const offset = CIRCUMFERENCE * (1 - progress / 100);
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative w-28 h-28">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-          {/* Track */}
-          <circle
-            cx="50" cy="50" r="44"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="5"
-            className="text-default-200"
-          />
-          {/* Progress arc */}
-          <circle
-            cx="50" cy="50" r="44"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={offset}
-            className="text-primary transition-all duration-500 ease-out"
-          />
+          <circle cx="50" cy="50" r="44" fill="none" stroke="var(--track)" strokeWidth="5" />
+          <circle cx="50" cy="50" r="44" fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset} className="transition-all duration-500 ease-out" />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-bold num-display text-foreground">{Math.round(progress)}<span className="text-sm font-medium text-default-400">%</span></span>
+          <span className="roy-num text-xl font-bold text-ink">{Math.round(progress)}<span className="text-sm font-medium text-ink-faint">%</span></span>
         </div>
       </div>
       <div className="text-center">
-        <p className="text-sm font-medium text-foreground">Chargement</p>
-        <p className="text-xs text-default-400 mt-0.5">{step}</p>
+        <p className="text-sm font-medium text-ink">Chargement</p>
+        <p className="text-xs text-ink-faint mt-0.5">{step}</p>
       </div>
     </div>
-  );
-}
-
-function StatCard({ label, value, color, href }: { label: string; value: string; color?: string; href?: string }) {
-  const content = (
-    <div className={`bg-background rounded-2xl p-4 border border-divider ${href ? 'hover:border-primary/30 transition-colors cursor-pointer' : ''}`}>
-      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-[0.12em]">{label}</p>
-      <p className={`text-xl font-bold mt-1 num-display ${color || 'text-foreground'}`}>{value}</p>
-    </div>
-  );
-  return href ? <Link href={href}>{content}</Link> : content;
-}
-
-function ActionLink({ href, label, primary }: { href: string; label: string; primary?: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-        primary
-          ? 'bg-primary text-white hover:bg-primary-600'
-          : 'bg-default-100 text-foreground hover:bg-default-200'
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

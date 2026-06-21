@@ -50,7 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     // h-screen + overflow-hidden bounds the layout so <main> becomes the real
     // scroll container. All page sticky headers can then use top-0.
-    <div className="h-screen overflow-hidden bg-content2 flex">
+    <div className="h-screen overflow-hidden bg-app flex">
       {/* Sidebar */}
       <Sidebar
         mobileOpen={mobileMenuOpen}
@@ -58,21 +58,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Main column */}
-      <div className="flex-1 flex flex-col min-w-0 lg:ml-56 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-[228px] overflow-hidden">
         {/* Mobile top bar — flex item, no sticky needed (bounded parent) */}
-        <header className="lg:hidden flex-shrink-0 flex items-center gap-3 h-14 px-4 bg-content1 border-b border-divider z-30">
+        <header className="lg:hidden flex-shrink-0 flex items-center gap-3 h-14 px-4 bg-surface border-b border-line z-30">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 -ml-1 rounded-xl text-default-500 hover:bg-default-100 transition-colors"
+            className="p-2 -ml-1 rounded-xl text-ink-muted hover:bg-surface-2 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xs">W</span>
-          </div>
-          <span className="font-semibold text-sm text-foreground">{pageTitle || 'Royalties'}</span>
+          <span className="w-[9px] h-[9px] rounded-[3px] bg-accent" />
+          <span className="font-semibold text-sm text-ink">{pageTitle || 'ROY'}</span>
         </header>
 
         {/* Scroll container — ALL page content scrolls here */}
