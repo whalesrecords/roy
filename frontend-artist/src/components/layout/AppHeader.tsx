@@ -65,7 +65,7 @@ export default function AppHeader() {
     : (labelSettings?.logo_base64 || labelSettings?.logo_url);
 
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-divider safe-top">
+    <header className="lg:hidden sticky top-0 z-50 bg-app/80 backdrop-blur-xl border-b border-line safe-top">
       <div className="px-4 py-3 flex items-center justify-between max-w-lg mx-auto">
         {isMainPage ? (
           /* ── Main page: branding left ── */
@@ -81,17 +81,17 @@ export default function AppHeader() {
               <img
                 src={artist.artwork_url}
                 alt={artist.name}
-                className="w-8 h-8 rounded-full object-cover border border-divider shrink-0"
+                className="w-8 h-8 rounded-full object-cover border border-line shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
-                <span className="text-primary text-xs font-bold">{artist.name.charAt(0)}</span>
+              <div className="w-8 h-8 bg-accent-soft rounded-full flex items-center justify-center shrink-0">
+                <span className="text-accent text-xs font-bold">{artist.name.charAt(0)}</span>
               </div>
             )}
             <div>
-              <p className="font-semibold text-foreground text-sm leading-tight">{artist.name}</p>
+              <p className="font-semibold text-ink text-sm leading-tight">{artist.name}</p>
               {labelSettings?.label_name && (
-                <p className="text-[10px] text-default-400 leading-tight">{labelSettings.label_name}</p>
+                <p className="text-[10px] text-ink-faint leading-tight">{labelSettings.label_name}</p>
               )}
             </div>
           </div>
@@ -100,22 +100,13 @@ export default function AppHeader() {
           <div className="flex items-center gap-2">
             <Link
               href={backHref}
-              className="p-2 -ml-2 rounded-xl hover:bg-content1 transition-colors"
+              className="flex items-center justify-center w-[34px] h-[34px] rounded-[11px] border border-line bg-surface text-ink hover:bg-surface-2 transition-colors"
             >
-              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg className="w-[17px] h-[17px]" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
               </svg>
             </Link>
-            <div className="flex items-center gap-2">
-              {artist.artwork_url && (
-                <img
-                  src={artist.artwork_url}
-                  alt={artist.name}
-                  className="w-7 h-7 rounded-full object-cover border border-divider shrink-0"
-                />
-              )}
-              <p className="font-semibold text-foreground text-sm">{pageTitle}</p>
-            </div>
+            <p className="font-bold text-ink text-[17px] tracking-[-0.02em]">{pageTitle}</p>
           </div>
         )}
 
@@ -124,17 +115,17 @@ export default function AppHeader() {
           <NotificationBell />
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl hover:bg-content1 transition-colors"
+            className="p-2 rounded-xl hover:bg-surface-2 transition-colors"
             aria-label="Changer de thème"
           >
             {theme === 'light'
-              ? <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-              : <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+              ? <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+              : <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
             }
           </button>
           {isMainPage && (
-            <Link href="/settings" className="p-2 rounded-xl hover:bg-content1 transition-colors">
-              <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link href="/settings" className="p-2 rounded-xl hover:bg-surface-2 transition-colors">
+              <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </Link>

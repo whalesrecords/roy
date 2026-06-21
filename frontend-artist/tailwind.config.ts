@@ -9,7 +9,45 @@ const config: Config = {
     './node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-sans)', 'Schibsted Grotesk', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'IBM Plex Mono', 'monospace'],
+      },
+      colors: {
+        // ── ROY redesign tokens (CSS-var backed → theme + accent aware) ──
+        app: 'var(--bg)',
+        surface: {
+          DEFAULT: 'var(--surface)',
+          2: 'var(--surface-2)',
+        },
+        hero: 'var(--hero)',
+        line: {
+          DEFAULT: 'var(--border)',
+          strong: 'var(--border-strong)',
+        },
+        ink: {
+          DEFAULT: 'var(--text)',
+          muted: 'var(--text-2)',
+          faint: 'var(--text-3)',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          soft: 'var(--accent-soft)',
+          ink: 'var(--accent-ink)',
+        },
+        neg: 'var(--neg)',
+        track: 'var(--track)',
+        chrome: 'var(--chrome)',
+      },
+      borderRadius: {
+        card: '20px',
+        hero: '24px',
+      },
+      boxShadow: {
+        roy: 'var(--shadow)',
+      },
+    },
   },
   darkMode: 'class',
   plugins: [
