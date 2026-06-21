@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Spinner } from '@heroui/react';
 import { Artist, ArtistCategory } from '@/lib/types';
 import { getArtists, getCatalogArtists, CatalogArtist, createArtist, getDuplicateArtists, mergeArtists, SimilarArtistGroup } from '@/lib/api';
+import { formatNumber } from '@/lib/formatters';
+import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconPlus, IconBox, IconCheck } from '@/components/roy/icons';
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -111,134 +113,103 @@ export default function ArtistsPage() {
     ca.artist_name.toLowerCase().includes(searchQuery.toLowerCase())
   ), [catalogArtists, artists, searchQuery]);
 
-  const ArtistAvatar = ({ artist, name }: { artist?: Artist; name: string }) => {
-    const imageUrl = artist?.image_url_small || artist?.image_url;
-    if (imageUrl) {
-      return (
-        <div className="w-12 h-12 rounded-xl overflow-hidden bg-default-100 flex-shrink-0 shadow-sm">
-          <Image src={imageUrl} alt={name} width={48} height={48} className="w-full h-full object-cover" />
-        </div>
-      );
-    }
-    return (
-      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-semibold flex-shrink-0">
-        {name.charAt(0).toUpperCase()}
-      </div>
-    );
-  };
+  const categoryLabel = (cat: ArtistCategory) => (cat === 'signed' ? 'Signé' : 'Collaborateur');
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-background border-b border-divider sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Artistes</h1>
-              <p className="text-secondary-500 text-sm mt-1">Gerez vos artistes et collaborateurs</p>
-            </div>
-            {!showCatalog && (
-              <button
-                onClick={loadCatalog}
-                disabled={loadingCatalog}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-200 text-sm font-medium"
-              >
-                {loadingCatalog ? (
-                  <Spinner size="sm" color="primary" />
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                )}
-                Voir le catalogue
-              </button>
-            )}
-          </div>
-
-          {/* Search */}
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Artistes</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">{artists.length} artiste{artists.length > 1 ? 's' : ''} · {signedCount} signé{signedCount > 1 ? 's' : ''} · {collaboratorCount} collab{collaboratorCount > 1 ? 's' : ''}</p>
+        </div>
+        <div className="flex items-center gap-2.5">
           <div className="relative">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
-              placeholder="Rechercher un artiste..."
+              placeholder="Rechercher un artiste…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-12 pl-12 pr-4 rounded-xl border-2 border-default-200 bg-content2 text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+              className="h-[38px] w-full sm:w-[240px] pl-9 pr-3 rounded-[10px] border border-line bg-surface text-[12.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors"
             />
           </div>
-
-          {/* Category Filter */}
-          <div className="flex gap-2 mt-4">
-            {[
-              { key: 'all', label: `Tous (${artists.length})` },
-              { key: 'signed', label: `Signes (${signedCount})` },
-              { key: 'collaborator', label: `Collabs (${collaboratorCount})` },
-            ].map((cat) => (
-              <button
-                key={cat.key}
-                onClick={() => setCategoryFilter(cat.key as ArtistCategory | 'all')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  categoryFilter === cat.key
-                    ? 'bg-primary text-white shadow-md shadow-primary/30'
-                    : 'bg-default-100 text-secondary-600 hover:bg-default-200'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          {!showCatalog && (
+            <OutlineButton onClick={loadCatalog}>
+              {loadingCatalog ? <Spinner size="sm" /> : <IconBox size={14} />}
+              Catalogue
+            </OutlineButton>
+          )}
+          <AccentButton onClick={loadCatalog} disabled={loadingCatalog}>
+            <IconPlus size={14} /> Nouvel artiste
+          </AccentButton>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
         {/* Error */}
         {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-xl p-4 flex items-center gap-3">
-            <svg className="w-5 h-5 text-danger flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-surface border border-line rounded-[16px] px-4 py-3 flex items-center gap-3">
+            <svg className="w-4 h-4 text-neg flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-danger text-sm">{error}</p>
+            <p className="text-neg text-[12.5px]">{error}</p>
           </div>
         )}
 
+        {/* Category filter tabs */}
+        <div className="flex gap-1 rounded-[11px] border border-line bg-surface p-1 w-fit">
+          {[
+            { key: 'all', label: `Tous (${artists.length})` },
+            { key: 'signed', label: `Signés (${signedCount})` },
+            { key: 'collaborator', label: `Collabs (${collaboratorCount})` },
+          ].map((cat) => (
+            <button
+              key={cat.key}
+              onClick={() => setCategoryFilter(cat.key as ArtistCategory | 'all')}
+              className={`px-4 py-1.5 rounded-lg text-[12.5px] transition-colors ${
+                categoryFilter === cat.key
+                  ? 'bg-accent-soft text-accent font-semibold'
+                  : 'text-ink-muted hover:text-ink font-medium'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
         {/* Duplicates Warning */}
         {duplicates.length > 0 && showDuplicates && (
-          <div className="bg-warning-50 border border-warning-200 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-warning-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-warning-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="font-semibold text-warning-800">Doublons detectes</h2>
-                  <p className="text-sm text-warning-600">{duplicates.length} groupe(s) a verifier</p>
-                </div>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-[22px] py-4 border-b border-line flex items-center justify-between">
+              <div>
+                <div className="text-[13.5px] font-semibold text-ink">Doublons détectés</div>
+                <div className="text-[11.5px] text-ink-faint mt-0.5">{duplicates.length} groupe(s) à vérifier</div>
               </div>
               <button
                 onClick={() => setShowDuplicates(false)}
-                className="text-warning-600 hover:text-warning-800 p-2"
+                className="text-ink-faint hover:text-ink p-1"
+                aria-label="Fermer"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="divide-y divide-warning-200">
+            <div>
               {duplicates.map((group, idx) => (
-                <div key={idx} className="p-5">
-                  <p className="text-sm text-warning-700 mb-3">Ces artistes ont des noms similaires :</p>
+                <div key={idx} className="px-[22px] py-4 border-b border-line last:border-0">
+                  <p className="text-[12px] text-ink-faint mb-3">Ces artistes ont des noms similaires :</p>
                   <div className="space-y-2">
                     {group.artists.map((artist) => (
-                      <div key={artist.id} className="flex items-center justify-between bg-background rounded-xl p-3">
-                        <div className="flex items-center gap-3">
-                          <ArtistAvatar artist={artist} name={artist.name} />
+                      <div key={artist.id} className="flex items-center justify-between rounded-[12px] bg-surface-2 px-3 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={artist.name} src={artist.image_url_small || artist.image_url} size={34} />
                           <div>
-                            <p className="font-medium text-foreground">{artist.name}</p>
-                            <p className="text-xs text-secondary-500">{artist.spotify_id ? 'Spotify lie' : 'Pas de Spotify'}</p>
+                            <p className="text-[13px] font-semibold text-ink">{artist.name}</p>
+                            <p className="text-[11px] text-ink-faint">{artist.spotify_id ? 'Spotify lié' : 'Pas de Spotify'}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -246,7 +217,7 @@ export default function ArtistsPage() {
                             <button
                               key={other.id}
                               onClick={() => setMergingPair({ source: other, target: artist })}
-                              className="px-3 py-1.5 rounded-lg bg-warning-100 text-warning-700 hover:bg-warning-200 text-xs font-medium transition-colors"
+                              className="rounded-[8px] bg-surface border border-line px-3 py-1.5 text-[11px] font-semibold text-ink hover:bg-surface-2 transition-colors"
                             >
                               Fusionner ici
                             </button>
@@ -258,157 +229,156 @@ export default function ArtistsPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Merge Confirmation */}
         {mergingPair && (
-          <div className="bg-primary-50 border border-primary-200 rounded-2xl p-5">
-            <h3 className="font-semibold text-primary-800 mb-3">Confirmer la fusion</h3>
-            <p className="text-sm text-primary-700 mb-4">
-              Fusionner <strong>&quot;{mergingPair.source.name}&quot;</strong> vers <strong>&quot;{mergingPair.target.name}&quot;</strong>
+          <Card>
+            <div className="text-[13.5px] font-semibold text-ink mb-2">Confirmer la fusion</div>
+            <p className="text-[12.5px] text-ink-muted mb-4">
+              Fusionner <strong className="text-ink">&quot;{mergingPair.source.name}&quot;</strong> vers <strong className="text-ink">&quot;{mergingPair.target.name}&quot;</strong>
             </p>
-            <div className="bg-background rounded-xl p-4 text-sm space-y-2 mb-4">
-              <p className="text-secondary-600">• Toutes les transactions seront transferees</p>
-              <p className="text-secondary-600">• Les avances et contrats seront fusionnes</p>
-              <p className="text-secondary-600">• L&apos;artiste source sera supprime</p>
+            <div className="rounded-[12px] bg-surface-2 px-4 py-3 text-[12px] space-y-1.5 mb-4 text-ink-muted">
+              <p>• Toutes les transactions seront transférées</p>
+              <p>• Les avances et contrats seront fusionnés</p>
+              <p>• L&apos;artiste source sera supprimé</p>
             </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setMergingPair(null)}
-                disabled={merging}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-secondary-600 hover:bg-default-100 transition-colors"
-              >
+            <div className="flex gap-2.5 justify-end">
+              <OutlineButton onClick={() => { if (!merging) setMergingPair(null); }}>
                 Annuler
-              </button>
-              <button
-                onClick={handleMerge}
-                disabled={merging}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-500 transition-colors flex items-center gap-2"
-              >
-                {merging && <Spinner size="sm" color="white" />}
+              </OutlineButton>
+              <AccentButton onClick={handleMerge} disabled={merging}>
+                {merging && <Spinner size="sm" />}
                 Confirmer
-              </button>
+              </AccentButton>
             </div>
-          </div>
+          </Card>
         )}
 
         {loading ? (
-          <div className="text-center py-16">
-            <Spinner size="lg" color="primary" />
-            <p className="text-secondary-500 mt-4">Chargement des artistes...</p>
-          </div>
+          <Card className="flex flex-col items-center justify-center py-16">
+            <Spinner size="lg" />
+            <p className="text-ink-faint text-[12.5px] mt-4">Chargement des artistes…</p>
+          </Card>
         ) : (
           <>
-            {/* Active Artists */}
-            <div className="bg-background rounded-2xl border border-divider shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-success"></div>
-                <h2 className="font-semibold text-foreground">Artistes actifs</h2>
-                <span className="text-sm text-secondary-500">({filteredArtists.length})</span>
-              </div>
+            {/* Active Artists table */}
+            <Card padded={false} className="overflow-hidden">
               {filteredArtists.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-default-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-secondary-500">{searchQuery ? 'Aucun artiste trouve' : 'Aucun artiste active'}</p>
+                <div className="px-[22px] py-16 text-center">
+                  <p className="text-ink-faint text-[13px]">{searchQuery ? 'Aucun artiste trouvé' : 'Aucun artiste activé'}</p>
                   {!showCatalog && !searchQuery && (
-                    <button
-                      onClick={loadCatalog}
-                      className="mt-4 px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all text-sm font-medium"
-                    >
-                      Activer depuis le catalogue
-                    </button>
+                    <div className="mt-4 flex justify-center">
+                      <OutlineButton onClick={loadCatalog}>
+                        <IconBox size={14} /> Activer depuis le catalogue
+                      </OutlineButton>
+                    </div>
                   )}
                 </div>
               ) : (
-                <div className="divide-y divide-divider">
-                  {filteredArtists.map((artist) => (
-                    <Link
-                      key={artist.id}
-                      href={`/artists/${artist.id}`}
-                      className="flex items-center justify-between p-4 hover:bg-content2 transition-colors group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <ArtistAvatar artist={artist} name={artist.name} />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-foreground group-hover:text-primary transition-colors">{artist.name}</p>
-                            {artist.category === 'collaborator' && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary-100 text-secondary-600">Collab</span>
-                            )}
-                          </div>
-                          <p className="text-sm text-secondary-500">{artist.spotify_id ? 'Spotify lie' : 'Configurer →'}</p>
-                        </div>
-                      </div>
-                      <svg className="w-5 h-5 text-secondary-400 group-hover:text-primary group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ))}
-                </div>
+                <>
+                  {/* Header row */}
+                  <div className="grid grid-cols-[2fr_1fr_1.1fr_1fr_0.9fr] px-[22px] py-3 border-b border-line">
+                    <Eyebrow className="text-[10px]">Artiste</Eyebrow>
+                    <Eyebrow className="text-[10px]">Catégorie</Eyebrow>
+                    <Eyebrow className="text-[10px] text-right">Revenus</Eyebrow>
+                    <Eyebrow className="text-[10px] text-right">Streams</Eyebrow>
+                    <Eyebrow className="text-[10px] text-center">Contrat</Eyebrow>
+                  </div>
+                  {filteredArtists.map((artist, i) => {
+                    const signed = artist.category === 'signed';
+                    return (
+                      <Link
+                        key={artist.id}
+                        href={`/artists/${artist.id}`}
+                        className="grid grid-cols-[2fr_1fr_1.1fr_1fr_0.9fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors"
+                      >
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <Avatar name={artist.name} src={artist.image_url_small || artist.image_url} size={34} accent={i === 0} />
+                          <span className="text-[13.5px] font-semibold text-ink truncate">{artist.name}</span>
+                        </span>
+                        <span className="text-[12.5px] text-ink-muted">{categoryLabel(artist.category)}</span>
+                        <span className="text-right roy-num text-[13px] font-bold text-ink-faint">—</span>
+                        <span className="text-right roy-num text-[13px] text-ink-muted">—</span>
+                        <span className="flex justify-center">
+                          <Pill tone={signed ? 'accent' : 'neutral'}>{signed ? 'Actif' : 'Collab'}</Pill>
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </>
               )}
-            </div>
+            </Card>
 
             {/* Catalog */}
             {showCatalog && (
-              <div className="bg-background rounded-2xl border border-divider shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-warning"></div>
-                    <h2 className="font-semibold text-foreground">A activer</h2>
-                    <span className="text-sm text-secondary-500">({inactiveCatalog.length})</span>
+              <Card padded={false} className="overflow-hidden">
+                <div className="px-[22px] py-4 border-b border-line flex items-center justify-between">
+                  <div>
+                    <div className="text-[13.5px] font-semibold text-ink">À activer</div>
+                    <div className="text-[11.5px] text-ink-faint mt-0.5">{inactiveCatalog.length} artiste(s) du catalogue</div>
                   </div>
                   <button
                     onClick={() => setShowCatalog(false)}
-                    className="text-secondary-500 hover:text-secondary-700 p-1"
+                    className="text-ink-faint hover:text-ink p-1"
+                    aria-label="Fermer"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
                 {loadingCatalog ? (
-                  <div className="p-12 text-center">
-                    <Spinner size="md" color="primary" />
-                    <p className="text-secondary-500 mt-3">Chargement du catalogue...</p>
+                  <div className="px-[22px] py-16 text-center">
+                    <Spinner size="md" />
+                    <p className="text-ink-faint text-[12.5px] mt-3">Chargement du catalogue…</p>
                   </div>
                 ) : inactiveCatalog.length === 0 ? (
-                  <div className="p-12 text-center">
-                    <p className="text-secondary-500">{searchQuery ? 'Aucun artiste trouve' : 'Tous les artistes sont actives'}</p>
+                  <div className="px-[22px] py-16 text-center">
+                    <p className="text-ink-faint text-[13px]">{searchQuery ? 'Aucun artiste trouvé' : 'Tous les artistes sont activés'}</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-divider max-h-96 overflow-y-auto">
-                    {inactiveCatalog.slice(0, 50).map((ca) => (
-                      <div key={ca.artist_name} className="flex items-center justify-between p-4 hover:bg-content2 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <ArtistAvatar name={ca.artist_name} />
-                          <div>
-                            <p className="font-medium text-foreground">{ca.artist_name}</p>
-                            <p className="text-sm text-secondary-500">{ca.release_count} releases · {formatCurrency(ca.total_gross, ca.currency)}</p>
-                          </div>
+                  <>
+                    {/* Header row */}
+                    <div className="grid grid-cols-[2fr_1fr_1.1fr_1fr_0.9fr] px-[22px] py-3 border-b border-line">
+                      <Eyebrow className="text-[10px]">Artiste</Eyebrow>
+                      <Eyebrow className="text-[10px]">Releases</Eyebrow>
+                      <Eyebrow className="text-[10px] text-right">Revenus</Eyebrow>
+                      <Eyebrow className="text-[10px] text-right">Streams</Eyebrow>
+                      <Eyebrow className="text-[10px] text-center">Action</Eyebrow>
+                    </div>
+                    <div className="max-h-[480px] overflow-y-auto">
+                      {inactiveCatalog.slice(0, 50).map((ca) => (
+                        <div key={ca.artist_name} className="grid grid-cols-[2fr_1fr_1.1fr_1fr_0.9fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <Avatar name={ca.artist_name} size={34} />
+                            <span className="text-[13.5px] font-semibold text-ink truncate">{ca.artist_name}</span>
+                          </span>
+                          <span className="text-[12.5px] text-ink-muted">{formatNumber(ca.release_count)}</span>
+                          <span className="text-right roy-num text-[13px] font-bold text-ink">{formatCurrency(ca.total_gross, ca.currency)}</span>
+                          <span className="text-right roy-num text-[13px] text-ink-muted">{formatNumber(ca.total_streams)}</span>
+                          <span className="flex justify-center">
+                            <button
+                              onClick={() => handleActivate(ca.artist_name)}
+                              disabled={!!activating}
+                              className="inline-flex items-center gap-1.5 rounded-[8px] bg-accent-soft px-3 py-1.5 text-[11px] font-semibold text-accent hover:opacity-90 disabled:opacity-50 transition-opacity"
+                            >
+                              {activating === ca.artist_name ? <Spinner size="sm" /> : <IconCheck size={12} />}
+                              Activer
+                            </button>
+                          </span>
                         </div>
-                        <button
-                          onClick={() => handleActivate(ca.artist_name)}
-                          disabled={!!activating}
-                          className="px-4 py-2 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all text-sm font-medium flex items-center gap-2"
-                        >
-                          {activating === ca.artist_name && <Spinner size="sm" color="primary" />}
-                          Activer
-                        </button>
-                      </div>
-                    ))}
-                    {inactiveCatalog.length > 50 && (
-                      <div className="p-4 text-center text-secondary-500 text-sm">
-                        +{inactiveCatalog.length - 50} autres artistes
-                      </div>
-                    )}
-                  </div>
+                      ))}
+                      {inactiveCatalog.length > 50 && (
+                        <div className="px-[22px] py-3 text-center text-ink-faint text-[12px]">
+                          +{inactiveCatalog.length - 50} autres artistes
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
-              </div>
+              </Card>
             )}
           </>
         )}
