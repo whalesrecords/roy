@@ -21,12 +21,29 @@ import {
   getArtistReleases,
   getArtistTracks,
 } from '@/lib/api';
+import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconPlus } from '@/components/roy/icons';
 
 interface ScopeInfo {
   name?: string;
   image_url?: string;
   image_url_small?: string;
   release_date?: string;
+}
+
+// Map contract scope onto a readable "deal type" label for the premium table.
+const SCOPE_TYPE_LABELS: Record<ContractData['scope'], string> = {
+  catalog: 'Licence excl.',
+  release: 'Distribution',
+  track: 'Single deal',
+};
+
+// Format an end date like "déc. 2027". Returns "—" when none.
+function formatEcheance(endDate?: string): string {
+  if (!endDate) return '—';
+  const d = new Date(endDate);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
 }
 
 export default function ContractsPage() {
@@ -513,7 +530,7 @@ export default function ContractsPage() {
         .join('\n');
 
       // Download file
-      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -730,157 +747,143 @@ export default function ContractsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <>
-      {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Contrats</h1>
-              <p className="text-secondary-500 text-sm mt-0.5">
-                {filteredContracts.length} contrat{filteredContracts.length > 1 ? 's' : ''}
-                {(artistFilter || noEndDateFilter) && ` (filtre actif)`}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Filter: no end date */}
-              {contractsWithoutEndDate > 0 && (
-                <button
-                  onClick={() => setNoEndDateFilter(!noEndDateFilter)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                    noEndDateFilter
-                      ? 'bg-warning-100 text-warning-700 border-2 border-warning-300'
-                      : 'bg-content2 text-secondary-600 border-2 border-default-200 hover:bg-content3'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Sans date fin ({contractsWithoutEndDate})
-                </button>
-              )}
-              {/* Artist filter */}
-              {contractArtists.length > 0 && (
-                <select
-                  value={artistFilter}
-                  onChange={(e) => setArtistFilter(e.target.value)}
-                  className="h-10 px-4 bg-background border-2 border-default-200 rounded-full text-sm text-foreground focus:outline-none focus:border-primary transition-colors min-w-[180px]"
-                >
-                  <option value="">Tous les artistes</option>
-                  {contractArtists.map((artist) => (
-                    <option key={artist.id} value={artist.id}>{artist.name}</option>
-                  ))}
-                </select>
-              )}
-              {/* Hidden file input for CSV import */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-                disabled={importing}
-              />
-              {/* Actions dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setActionsOpen(!actionsOpen)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full border-2 border-default-200 hover:bg-content3 transition-colors"
-                >
-                  {(refreshingMetadata || exporting || importing) && <Spinner size="sm" />}
-                  Actions
-                  <svg className={`w-4 h-4 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {actionsOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-56 bg-background border border-divider rounded-xl shadow-lg z-50 overflow-hidden">
-                      <button
-                        onClick={() => { refreshAllMetadata(); setActionsOpen(false); }}
-                        disabled={refreshingMetadata}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
-                      >
-                        <svg className="w-4 h-4 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Rafraîchir métadonnées
-                      </button>
-                      <button
-                        onClick={() => { syncStartDates(); setActionsOpen(false); }}
-                        disabled={refreshingMetadata}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
-                      >
-                        <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Synchro dates de fin
-                      </button>
-                      <div className="border-t border-divider" />
-                      <button
-                        onClick={() => { exportContracts(); setActionsOpen(false); }}
-                        disabled={exporting || filteredContracts.length === 0}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
-                      >
-                        <svg className="w-4 h-4 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Exporter CSV
-                      </button>
-                      <button
-                        onClick={() => { fileInputRef.current?.click(); setActionsOpen(false); }}
-                        disabled={importing}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-content2 transition-colors disabled:opacity-50"
-                      >
-                        <svg className="w-4 h-4 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        Importer CSV
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <button
-                onClick={() => handleOpenModal()}
-                className="px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all whitespace-nowrap"
-              >
-                Nouveau contrat
-              </button>
-            </div>
-          </div>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Contrats</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">
+            Accords et échéances ·{' '}
+            {filteredContracts.length} contrat{filteredContracts.length > 1 ? 's' : ''}
+            {(artistFilter || noEndDateFilter) && ' (filtre actif)'}
+          </p>
         </div>
-      </header>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Filter: no end date */}
+          {contractsWithoutEndDate > 0 && (
+            <button
+              onClick={() => setNoEndDateFilter(!noEndDateFilter)}
+              className={`inline-flex items-center gap-1.5 rounded-[10px] border px-3.5 py-2 text-[12px] font-semibold transition-colors ${
+                noEndDateFilter
+                  ? 'border-accent bg-accent-soft text-accent'
+                  : 'border-line-strong bg-surface text-ink hover:bg-surface-2'
+              }`}
+            >
+              Sans échéance ({contractsWithoutEndDate})
+            </button>
+          )}
+          {/* Artist filter */}
+          {contractArtists.length > 0 && (
+            <select
+              value={artistFilter}
+              onChange={(e) => setArtistFilter(e.target.value)}
+              className="h-[38px] px-3.5 rounded-[10px] border border-line-strong bg-surface text-[12px] font-semibold text-ink focus:outline-none focus:border-accent transition-colors min-w-[170px]"
+            >
+              <option value="">Tous les artistes</option>
+              {contractArtists.map((artist) => (
+                <option key={artist.id} value={artist.id}>{artist.name}</option>
+              ))}
+            </select>
+          )}
+          {/* Hidden file input for CSV import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleImportCSV}
+            className="hidden"
+            disabled={importing}
+          />
+          {/* Actions dropdown */}
+          <div className="relative">
+            <OutlineButton onClick={() => setActionsOpen(!actionsOpen)}>
+              {(refreshingMetadata || exporting || importing) && <Spinner size="sm" />}
+              Actions
+              <svg className={`w-3.5 h-3.5 transition-transform ${actionsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </OutlineButton>
+            {actionsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
+                <div className="absolute right-0 mt-2 w-56 bg-surface border border-line rounded-[12px] shadow-roy z-50 overflow-hidden">
+                  <button
+                    onClick={() => { refreshAllMetadata(); setActionsOpen(false); }}
+                    disabled={refreshingMetadata}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[12.5px] font-medium text-ink hover:bg-surface-2 transition-colors disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Rafraîchir métadonnées
+                  </button>
+                  <button
+                    onClick={() => { syncStartDates(); setActionsOpen(false); }}
+                    disabled={refreshingMetadata}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[12.5px] font-medium text-ink hover:bg-surface-2 transition-colors disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Synchro dates de fin
+                  </button>
+                  <div className="border-t border-line" />
+                  <button
+                    onClick={() => { exportContracts(); setActionsOpen(false); }}
+                    disabled={exporting || filteredContracts.length === 0}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[12.5px] font-medium text-ink hover:bg-surface-2 transition-colors disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Exporter CSV
+                  </button>
+                  <button
+                    onClick={() => { fileInputRef.current?.click(); setActionsOpen(false); }}
+                    disabled={importing}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[12.5px] font-medium text-ink hover:bg-surface-2 transition-colors disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Importer CSV
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <AccentButton onClick={() => handleOpenModal()}>
+            <IconPlus size={14} /> Nouveau contrat
+          </AccentButton>
+        </div>
+      </div>
 
-      {/* Load error */}
-      {loadError && (
-        <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className="p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm flex items-center justify-between">
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {/* Load error */}
+        {loadError && (
+          <div className="p-4 rounded-[12px] bg-neg/10 border border-neg/30 text-neg text-[13px] flex items-center justify-between">
             <span>{loadError}</span>
             <button onClick={() => setLoadError(null)} className="ml-4 underline shrink-0">Fermer</button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Import result notification */}
-      {importResult && (
-        <div className="max-w-4xl mx-auto px-6 pt-4">
-          <div className={`p-4 rounded-xl ${importResult.errors.length > 0 ? 'bg-warning-50 border border-warning-200' : 'bg-success-50 border border-success-200'}`}>
+        {/* Import result notification */}
+        {importResult && (
+          <div className={`p-4 rounded-[12px] border ${importResult.errors.length > 0 ? 'bg-surface-2 border-line-strong' : 'bg-accent-soft border-accent/30'}`}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className={`font-medium ${importResult.errors.length > 0 ? 'text-warning-700' : 'text-success-700'}`}>
+                <p className={`text-[13px] font-semibold ${importResult.errors.length > 0 ? 'text-ink' : 'text-accent'}`}>
                   {importResult.updated} contrat{importResult.updated > 1 ? 's' : ''} mis a jour
                 </p>
                 {importResult.errors.length > 0 && (
-                  <div className="mt-2 text-sm text-warning-600">
+                  <div className="mt-2 text-[12.5px] text-ink-muted">
                     <p className="font-medium mb-1">{importResult.errors.length} erreur{importResult.errors.length > 1 ? 's' : ''} :</p>
                     <ul className="list-disc list-inside space-y-0.5">
                       {importResult.errors.slice(0, 5).map((err, i) => (
@@ -895,7 +898,7 @@ export default function ContractsPage() {
               </div>
               <button
                 onClick={() => setImportResult(null)}
-                className="p-1 text-secondary-400 hover:text-secondary-600"
+                className="p-1 text-ink-faint hover:text-ink"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -903,183 +906,143 @@ export default function ContractsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
         {contracts.length === 0 ? (
-          <div className="bg-background border border-divider rounded-2xl p-12 text-center shadow-sm">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-content2 flex items-center justify-center">
-              <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <Card className="py-12 text-center">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-[14px] bg-surface-2 flex items-center justify-center">
+              <svg className="w-7 h-7 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-1">Aucun contrat</h3>
-            <p className="text-secondary-500 text-sm mb-6">Commencez par creer un contrat pour definir les parts artiste/label</p>
-            <button
-              onClick={() => handleOpenModal()}
-              className="px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-all"
-            >
-              Creer un contrat
-            </button>
-          </div>
+            <h3 className="text-[15px] font-semibold text-ink mb-1">Aucun contrat</h3>
+            <p className="text-ink-faint text-[13px] mb-6">Commencez par creer un contrat pour definir les parts artiste/label</p>
+            <div className="flex justify-center">
+              <AccentButton onClick={() => handleOpenModal()}>
+                <IconPlus size={14} /> Creer un contrat
+              </AccentButton>
+            </div>
+          </Card>
         ) : filteredContracts.length === 0 ? (
-          <div className="bg-background border border-divider rounded-2xl p-12 text-center shadow-sm">
-            <p className="text-secondary-500">Aucun contrat pour cet artiste</p>
-            <button
-              onClick={() => setArtistFilter('')}
-              className="mt-4 px-4 py-2 text-sm text-primary hover:bg-primary/10 rounded-full transition-colors"
-            >
-              Effacer le filtre
-            </button>
-          </div>
+          <Card className="py-12 text-center">
+            <p className="text-ink-muted text-[13px]">Aucun contrat pour ce filtre</p>
+            <div className="flex justify-center mt-4">
+              <OutlineButton onClick={() => { setArtistFilter(''); setNoEndDateFilter(false); }}>
+                Effacer le filtre
+              </OutlineButton>
+            </div>
+          </Card>
         ) : (
-          <div className="space-y-4">
+          <Card padded={false} className="overflow-hidden">
+            {/* Header row */}
+            <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.2fr_0.9fr] px-[22px] py-3 border-b border-line">
+              <Eyebrow className="text-[10px]">Artiste</Eyebrow>
+              <Eyebrow className="text-[10px]">Type</Eyebrow>
+              <Eyebrow className="text-[10px] text-right">Taux</Eyebrow>
+              <Eyebrow className="text-[10px] text-right">Échéance</Eyebrow>
+              <Eyebrow className="text-[10px] text-center">Statut</Eyebrow>
+            </div>
+
+            {/* Rows */}
             {filteredContracts.map((contract) => {
               const artist = artists.find(a => a.id === contract.artist_id);
-              const artistParties = contract.parties.filter(p => p.party_type === 'artist');
-              const labelParties = contract.parties.filter(p => p.party_type === 'label');
-
-              let scopeLabel = '';
               const currentScopeInfo = contract.scope_id ? scopeInfo[contract.scope_id] : null;
 
-              if (contract.scope === 'catalog') {
-                scopeLabel = 'Tout le catalogue';
-              } else if (contract.scope === 'release' && contract.scope_id) {
-                scopeLabel = currentScopeInfo?.name
-                  ? `Album : ${currentScopeInfo.name}`
-                  : `Release (${contract.scope_id})`;
-              } else if (contract.scope === 'track' && contract.scope_id) {
-                scopeLabel = currentScopeInfo?.name
-                  ? `Track : ${currentScopeInfo.name}`
-                  : `Track (${contract.scope_id})`;
-              }
+              // Artist name: prefer the linked artist, then the scope title (album/track), then artist party label.
+              const artistParty = contract.parties.find(p => p.party_type === 'artist' && p.artist_id);
+              const partyArtistName = artistParty
+                ? artists.find(a => a.id === artistParty.artist_id)?.name
+                : undefined;
+              const artistName =
+                artist?.name ||
+                currentScopeInfo?.name ||
+                partyArtistName ||
+                'Artiste inconnu';
 
-              // Get artwork - for catalog scope, use artist image; otherwise use release/track artwork
-              const artworkUrl = contract.scope === 'catalog'
+              // Avatar art: artist image for catalog scope, otherwise release/track artwork.
+              const avatarSrc = contract.scope === 'catalog'
                 ? artist?.image_url_small || artist?.image_url
                 : currentScopeInfo?.image_url_small || currentScopeInfo?.image_url;
 
+              // Active/signed = no end date OR an end date still in the future.
+              const isActive = !contract.end_date || new Date(contract.end_date).getTime() >= Date.now();
+
+              // Taux = total of artist parties' shares (artist royalty rate).
+              const artistShareTotal = contract.parties
+                .filter(p => p.party_type === 'artist')
+                .reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
+              const tauxLabel = artistShareTotal > 0
+                ? `${(artistShareTotal * 100).toFixed(artistShareTotal * 100 % 1 === 0 ? 0 : 1)} %`
+                : '—';
+
+              const typeLabel = SCOPE_TYPE_LABELS[contract.scope] ?? 'Contrat';
+
               return (
-                <div key={contract.id} className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-                  <div className="px-5 py-4 border-b border-divider">
-                    <div className="flex items-start gap-4">
-                      {/* Artwork */}
-                      <div className="flex-shrink-0">
-                        {artworkUrl ? (
-                          <img
-                            src={artworkUrl}
-                            alt={artist?.name || 'Artwork'}
-                            className="w-16 h-16 rounded-xl object-cover shadow-sm"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-xl bg-content2 flex items-center justify-center">
-                            <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
+                <div
+                  key={contract.id}
+                  onClick={() => handleOpenModal(contract)}
+                  className="group grid grid-cols-[1.8fr_1.1fr_0.8fr_1.2fr_0.9fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors cursor-pointer"
+                >
+                  {/* Artiste */}
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <Avatar name={artistName} src={avatarSrc} size={30} accent={isActive} />
+                    <span className="text-[13.5px] font-semibold text-ink truncate">{artistName}</span>
+                  </span>
 
-                      {/* Contract info */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="text-lg font-semibold text-foreground truncate">{artist?.name || 'Artiste inconnu'}</h3>
-                          <span className="px-3 py-1 text-xs rounded-full bg-primary/10 text-primary font-medium shrink-0">
-                            {scopeLabel}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-secondary-500">
-                          <span>Du {new Date(contract.start_date).toLocaleDateString('fr-FR')}</span>
-                          {contract.end_date ? (
-                            <>
-                              <span>•</span>
-                              <span>au {new Date(contract.end_date).toLocaleDateString('fr-FR')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>•</span>
-                              <span className="text-success font-medium">Illimite</span>
-                            </>
-                          )}
-                        </div>
-                        {contract.description && (
-                          <p className="mt-2 text-sm text-secondary-600 italic">{contract.description}</p>
-                        )}
-                      </div>
+                  {/* Type */}
+                  <span className="text-[12.5px] text-ink-muted truncate">{typeLabel}</span>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleOpenModal(contract)}
-                          className="p-2 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded-xl transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(contract.id!)}
-                          className="p-2 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded-xl transition-colors"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Taux */}
+                  <span className="text-right roy-num text-[13px] text-ink-muted">{tauxLabel}</span>
 
-                  <div className="grid md:grid-cols-2 gap-4 p-5">
-                    <div>
-                      <p className="text-sm font-medium text-secondary-500 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-success"></span>
-                        Artistes
-                      </p>
-                      <div className="space-y-2">
-                        {artistParties.map((party, i) => {
-                          const partyArtist = artists.find(a => a.id === party.artist_id);
-                          return (
-                            <div key={i} className="flex justify-between items-center py-2.5 px-3 rounded-xl bg-content2">
-                              <span className="text-sm font-medium text-foreground">{partyArtist?.name || 'Inconnu'}</span>
-                              <span className="text-sm font-bold text-success">{(parseFloat(party.share_percentage) * 100).toFixed(1)}%</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-secondary-500 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-primary"></span>
-                        Labels
-                      </p>
-                      <div className="space-y-2">
-                        {labelParties.map((party, i) => (
-                          <div key={i} className="flex justify-between items-center py-2.5 px-3 rounded-xl bg-content2">
-                            <span className="text-sm font-medium text-foreground">{party.label_name}</span>
-                            <span className="text-sm font-bold text-primary">{(parseFloat(party.share_percentage) * 100).toFixed(1)}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  {/* Échéance */}
+                  <span className="text-right roy-num text-[13px] text-ink-muted">{formatEcheance(contract.end_date)}</span>
+
+                  {/* Statut + actions */}
+                  <span className="flex items-center justify-center gap-2">
+                    {isActive ? (
+                      <Pill tone="accent">Signé</Pill>
+                    ) : (
+                      <Pill tone="neutral">Renouv.</Pill>
+                    )}
+                    <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenModal(contract); }}
+                        title="Modifier"
+                        className="p-1.5 text-ink-faint hover:text-ink hover:bg-surface rounded-[8px] transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(contract.id!); }}
+                        title="Supprimer"
+                        className="p-1.5 text-ink-faint hover:text-neg hover:bg-surface rounded-[8px] transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </span>
+                  </span>
                 </div>
               );
             })}
-          </div>
+          </Card>
         )}
       </div>
 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider shrink-0">
+          <div className="bg-surface w-full sm:max-w-2xl sm:rounded-[16px] rounded-t-[16px] max-h-[90vh] overflow-hidden flex flex-col border border-line shadow-roy">
+            <div className="px-4 py-4 sm:px-6 border-b border-line shrink-0">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">
+                <h2 className="text-[16px] font-semibold text-ink">
                   {editingContract ? 'Modifier le contrat' : 'Nouveau contrat'}
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-secondary-500 hover:text-secondary-700">
+                <button onClick={() => setIsModalOpen(false)} className="p-2 -mr-2 text-ink-faint hover:text-ink">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -1090,13 +1053,13 @@ export default function ContractsPage() {
             <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5">
               {/* Artist selection */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Artiste principal <span className="text-danger">*</span>
+                <label className="block text-[12.5px] font-medium text-ink mb-2">
+                  Artiste principal <span className="text-neg">*</span>
                 </label>
                 <select
                   value={artistId}
                   onChange={(e) => setArtistId(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink focus:outline-none focus:border-accent transition-colors"
                 >
                   <option value="">Selectionner un artiste</option>
                   {artists.map((artist) => (
@@ -1107,13 +1070,13 @@ export default function ContractsPage() {
 
               {/* Scope */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Portee du contrat <span className="text-danger">*</span>
+                <label className="block text-[12.5px] font-medium text-ink mb-2">
+                  Portee du contrat <span className="text-neg">*</span>
                 </label>
                 <select
                   value={scope}
                   onChange={(e) => handleScopeChange(e.target.value as any)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink focus:outline-none focus:border-accent transition-colors"
                 >
                   <option value="catalog">Tout le catalogue</option>
                   <option value="release">Release specifique (UPC)</option>
@@ -1124,16 +1087,16 @@ export default function ContractsPage() {
               {/* Scope ID — catalog picker or manual */}
               {scope !== 'catalog' && (
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    {scope === 'track' ? 'Piste' : 'Release'} <span className="text-danger">*</span>
+                  <label className="block text-[12.5px] font-medium text-ink mb-2">
+                    {scope === 'track' ? 'Piste' : 'Release'} <span className="text-neg">*</span>
                   </label>
 
                   {/* Mode toggle */}
-                  <div className="flex gap-1 p-1 bg-content2 rounded-xl mb-3">
+                  <div className="flex gap-1 p-1 bg-surface-2 rounded-[12px] mb-3">
                     <button
                       type="button"
                       onClick={() => setScopeInputMode('catalog')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${scopeInputMode === 'catalog' ? 'bg-background text-foreground shadow-sm' : 'text-default-500 hover:text-foreground'}`}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium rounded-[8px] transition-all ${scopeInputMode === 'catalog' ? 'bg-surface text-ink shadow-roy' : 'text-ink-faint hover:text-ink'}`}
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -1143,7 +1106,7 @@ export default function ContractsPage() {
                     <button
                       type="button"
                       onClick={() => setScopeInputMode('manual')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium rounded-lg transition-all ${scopeInputMode === 'manual' ? 'bg-background text-foreground shadow-sm' : 'text-default-500 hover:text-foreground'}`}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium rounded-[8px] transition-all ${scopeInputMode === 'manual' ? 'bg-surface text-ink shadow-roy' : 'text-ink-faint hover:text-ink'}`}
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1156,7 +1119,7 @@ export default function ContractsPage() {
                     <div>
                       {/* Search box */}
                       <div className="relative mb-2">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input
@@ -1164,20 +1127,20 @@ export default function ContractsPage() {
                           placeholder={scope === 'release' ? 'Rechercher un album...' : 'Rechercher une piste...'}
                           value={catalogSearch}
                           onChange={(e) => setCatalogSearch(e.target.value)}
-                          className="w-full h-10 pl-9 pr-4 bg-background border-2 border-default-200 rounded-xl text-sm text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors"
+                          className="w-full h-10 pl-9 pr-4 bg-surface border border-line-strong rounded-[12px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                         />
                       </div>
 
                       {/* Catalog list */}
-                      <div className="border-2 border-default-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
+                      <div className="border border-line-strong rounded-[12px] overflow-hidden max-h-52 overflow-y-auto">
                         {loadingCatalog ? (
-                          <div className="flex items-center justify-center py-6 gap-2 text-sm text-default-400">
+                          <div className="flex items-center justify-center py-6 gap-2 text-[13px] text-ink-faint">
                             <Spinner size="sm" /> Chargement...
                           </div>
                         ) : !artistId ? (
-                          <p className="text-center py-6 text-sm text-default-400">Selectionnez d'abord un artiste</p>
+                          <p className="text-center py-6 text-[13px] text-ink-faint">Selectionnez d'abord un artiste</p>
                         ) : filteredCatalogItems.length === 0 ? (
-                          <p className="text-center py-6 text-sm text-default-400">
+                          <p className="text-center py-6 text-[13px] text-ink-faint">
                             {catalogSearch ? 'Aucun résultat' : 'Aucune entrée dans le catalogue'}
                           </p>
                         ) : (
@@ -1191,14 +1154,14 @@ export default function ContractsPage() {
                                 key={i}
                                 type="button"
                                 onClick={() => { setScopeId(id); setCatalogSearch(''); }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-content2 transition-colors border-b border-divider last:border-0 ${isSelected ? 'bg-primary/5' : ''}`}
+                                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-2 transition-colors border-b border-line last:border-0 ${isSelected ? 'bg-accent-soft' : ''}`}
                               >
-                                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-primary bg-primary' : 'border-default-300'}`}>
-                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isSelected ? 'border-accent bg-accent' : 'border-line-strong'}`}>
+                                  {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-accent-ink" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">{title}</p>
-                                  <p className="text-xs text-default-400 truncate">{subtitle}</p>
+                                  <p className="text-[13px] font-medium text-ink truncate">{title}</p>
+                                  <p className="text-[11px] text-ink-faint truncate">{subtitle}</p>
                                 </div>
                               </button>
                             );
@@ -1212,30 +1175,30 @@ export default function ContractsPage() {
                       placeholder={scope === 'track' ? 'Ex: USRC17607839' : 'Ex: 0123456789012'}
                       value={scopeId}
                       onChange={(e) => setScopeId(e.target.value)}
-                      className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                      className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                     />
                   )}
 
                   {/* Album/Track preview (shown in both modes) */}
                   {loadingFormScope && (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-secondary-500">
+                    <div className="mt-2 flex items-center gap-2 text-[13px] text-ink-muted">
                       <Spinner size="sm" />
                       Recherche...
                     </div>
                   )}
                   {formScopeInfo && !loadingFormScope && (
-                    <div className="mt-3 p-3 bg-content2 rounded-xl flex items-center gap-3">
+                    <div className="mt-3 p-3 bg-surface-2 rounded-[12px] flex items-center gap-3">
                       {formScopeInfo.image_url && (
                         <img
                           src={formScopeInfo.image_url}
                           alt={formScopeInfo.name}
-                          className="w-12 h-12 rounded-lg object-cover"
+                          className="w-12 h-12 rounded-[10px] object-cover"
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">{formScopeInfo.name}</p>
+                        <p className="text-[13px] font-medium text-ink truncate">{formScopeInfo.name}</p>
                         {formScopeInfo.release_date && (
-                          <p className="text-sm text-secondary-500">
+                          <p className="text-[12.5px] text-ink-muted">
                             Sortie : {formScopeInfo.release_date}
                           </p>
                         )}
@@ -1244,7 +1207,7 @@ export default function ContractsPage() {
                         <button
                           type="button"
                           onClick={() => setStartDate(formScopeInfo.release_date!)}
-                          className="px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 rounded-full hover:bg-primary/20 transition-colors whitespace-nowrap"
+                          className="px-3 py-1.5 text-[11px] font-semibold text-accent bg-accent-soft rounded-full hover:opacity-90 transition-opacity whitespace-nowrap"
                         >
                           Utiliser cette date
                         </button>
@@ -1257,18 +1220,18 @@ export default function ContractsPage() {
               {/* Dates */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Date de debut <span className="text-danger">*</span>
+                  <label className="block text-[12.5px] font-medium text-ink mb-2">
+                    Date de debut <span className="text-neg">*</span>
                   </label>
                   <input
                     type="date"
                     value={startDate}
                     onChange={(e) => handleStartDateChange(e.target.value)}
-                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                    className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-[12.5px] font-medium text-ink mb-2">
                     Duree (annees)
                   </label>
                   <input
@@ -1278,25 +1241,25 @@ export default function ContractsPage() {
                     placeholder="Ex: 3"
                     value={duration}
                     onChange={(e) => handleDurationChange(e.target.value)}
-                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                    className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
+                  <label className="block text-[12.5px] font-medium text-ink mb-2">
                     Date de fin
                   </label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => handleEndDateChange(e.target.value)}
-                    className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                    className="w-full h-12 px-4 bg-surface border border-line-strong rounded-[12px] text-ink focus:outline-none focus:border-accent transition-colors"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-[12.5px] font-medium text-ink mb-2">
                   Description
                 </label>
                 <textarea
@@ -1304,32 +1267,32 @@ export default function ContractsPage() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors resize-none"
+                  className="w-full px-4 py-3 bg-surface border border-line-strong rounded-[12px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors resize-none"
                 />
               </div>
 
               {/* Parties */}
-              <div className="border-t border-divider pt-5">
+              <div className="border-t border-line pt-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-foreground">
+                  <h3 className="text-[13.5px] font-semibold text-ink">
                     Repartition des parts
-                    <span className={`ml-2 text-sm font-bold ${Math.abs(totalShare - 1) < 0.0001 ? 'text-success' : 'text-danger'}`}>
+                    <span className={`ml-2 text-[12.5px] font-bold ${Math.abs(totalShare - 1) < 0.0001 ? 'text-accent' : 'text-neg'}`}>
                       ({(totalShare * 100).toFixed(1)}%)
                     </span>
                   </h3>
                   <div className="flex gap-1.5 flex-wrap">
                     {[
-                      { type: 'artist', label: 'Artiste', color: 'text-success bg-success/10 hover:bg-success/20' },
-                      { type: 'label', label: 'Label', color: 'text-primary bg-primary/10 hover:bg-primary/20' },
-                      { type: 'manager', label: 'Manager', color: 'text-warning bg-warning/10 hover:bg-warning/20' },
-                      { type: 'booker', label: 'Booker', color: 'text-secondary bg-secondary/10 hover:bg-secondary/20' },
-                      { type: 'agent', label: 'Agent', color: 'text-danger bg-danger/10 hover:bg-danger/20' },
-                      { type: 'publisher', label: 'Editeur', color: 'text-cyan-500 bg-cyan-500/10 hover:bg-cyan-500/20' },
-                    ].map(({ type, label, color }) => (
+                      { type: 'artist', label: 'Artiste' },
+                      { type: 'label', label: 'Label' },
+                      { type: 'manager', label: 'Manager' },
+                      { type: 'booker', label: 'Booker' },
+                      { type: 'agent', label: 'Agent' },
+                      { type: 'publisher', label: 'Editeur' },
+                    ].map(({ type, label }) => (
                       <button
                         key={type}
                         onClick={() => handleAddParty(type)}
-                        className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-colors ${color}`}
+                        className="px-2.5 py-1 text-[10px] font-semibold rounded-full bg-surface-2 text-ink-muted hover:bg-accent-soft hover:text-accent transition-colors"
                       >
                         + {label}
                       </button>
@@ -1339,15 +1302,15 @@ export default function ContractsPage() {
 
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {parties.map((party, index) => (
-                    <div key={index} className="flex gap-3 items-start p-4 rounded-xl border-2 border-divider bg-content2">
+                    <div key={index} className="flex gap-3 items-start p-4 rounded-[12px] border border-line bg-surface-2">
                       <div className="flex-1 space-y-2">
                         {party.party_type === 'artist' ? (
                           <div>
-                            <label className="block text-xs font-medium text-secondary-500 mb-1.5">Artiste</label>
+                            <label className="block text-[11px] font-medium text-ink-muted mb-1.5">Artiste</label>
                             <select
                               value={party.artist_id || ''}
                               onChange={(e) => handlePartyChange(index, 'artist_id', e.target.value)}
-                              className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-lg text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                              className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-accent transition-colors"
                             >
                               <option value="">Selectionner</option>
                               {artists.map((artist) => (
@@ -1357,7 +1320,7 @@ export default function ContractsPage() {
                           </div>
                         ) : (
                           <div>
-                            <label className="block text-xs font-medium text-secondary-500 mb-1.5">
+                            <label className="block text-[11px] font-medium text-ink-muted mb-1.5">
                               {party.party_type === 'label' ? 'Nom du label' :
                                party.party_type === 'manager' ? 'Nom du manager' :
                                party.party_type === 'booker' ? 'Nom du booker' :
@@ -1369,7 +1332,7 @@ export default function ContractsPage() {
                               placeholder="Nom ou societe"
                               value={party.label_name || ''}
                               onChange={(e) => handlePartyChange(index, 'label_name', e.target.value)}
-                              className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-lg text-sm text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                              className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                             />
                             {/* Contact fields for intermediaries */}
                             {party.party_type !== 'label' && (
@@ -1379,14 +1342,14 @@ export default function ContractsPage() {
                                   placeholder="Email"
                                   value={party.contact_email || ''}
                                   onChange={(e) => handlePartyChange(index, 'contact_email', e.target.value)}
-                                  className="flex-1 h-8 px-2 bg-background border border-default-200 rounded-lg text-xs text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                                  className="flex-1 h-8 px-2 bg-surface border border-line rounded-[10px] text-[11px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                                 />
                                 <input
                                   type="tel"
                                   placeholder="Tel"
                                   value={party.contact_phone || ''}
                                   onChange={(e) => handlePartyChange(index, 'contact_phone', e.target.value)}
-                                  className="w-32 h-8 px-2 bg-background border border-default-200 rounded-lg text-xs text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                                  className="w-32 h-8 px-2 bg-surface border border-line rounded-[10px] text-[11px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                                 />
                               </div>
                             )}
@@ -1394,7 +1357,7 @@ export default function ContractsPage() {
                         )}
                       </div>
                       <div className="w-24">
-                        <label className="block text-xs font-medium text-secondary-500 mb-1.5">Part (%)</label>
+                        <label className="block text-[11px] font-medium text-ink-muted mb-1.5">Part (%)</label>
                         <input
                           type="number"
                           placeholder="0-100"
@@ -1403,13 +1366,13 @@ export default function ContractsPage() {
                           step="any"
                           value={String(parseFloat(party.share_percentage || '0') * 100)}
                           onChange={(e) => handlePartyChange(index, 'share_percentage', String(parseFloat(e.target.value) / 100))}
-                          className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-lg text-sm text-foreground text-center focus:outline-none focus:border-primary transition-colors"
+                          className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink text-center focus:outline-none focus:border-accent transition-colors"
                         />
                       </div>
                       <div className="pt-6">
                         <button
                           onClick={() => handleRemoveParty(index)}
-                          className="p-2 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded-lg transition-colors"
+                          className="p-2 text-ink-faint hover:text-neg hover:bg-surface rounded-[10px] transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1419,7 +1382,7 @@ export default function ContractsPage() {
                     </div>
                   ))}
                   {parties.length === 0 && (
-                    <p className="text-center text-secondary-400 py-8 text-sm">
+                    <p className="text-center text-ink-faint py-8 text-[13px]">
                       Aucune partie ajoutee. Cliquez sur "+ Artiste" ou "+ Label" pour commencer.
                     </p>
                   )}
@@ -1427,25 +1390,18 @@ export default function ContractsPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3 shrink-0">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 transition-colors border-2 border-default-200"
-              >
+            <div className="p-4 sm:p-6 border-t border-line flex gap-3 shrink-0">
+              <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
                 Annuler
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 disabled:opacity-50 transition-all"
-              >
+              </OutlineButton>
+              <AccentButton onClick={handleSubmit} disabled={saving} className="flex-1">
                 {saving && <Spinner size="sm" color="white" />}
                 {editingContract ? 'Enregistrer' : 'Creer'}
-              </button>
+              </AccentButton>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
