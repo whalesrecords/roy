@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Artist } from '@/lib/types';
+import { Card, Eyebrow, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconCheck } from '@/components/roy/icons';
 import {
   generateAccessCode,
   createArtistAuth,
@@ -52,89 +53,86 @@ export default function AccessTab({ artist, artistId, onArtistUpdated }: AccessT
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {error && (
-        <div className="bg-danger-50 text-danger px-4 py-3 rounded-xl text-sm">
+        <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
           {error}
           <button onClick={() => setError(null)} className="ml-2 underline">Fermer</button>
         </div>
       )}
 
       {/* Access Code */}
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider">
-          <h2 className="font-medium text-foreground">Code d&apos;accès</h2>
-          <p className="text-sm text-secondary-500">Code unique pour l&apos;espace artiste</p>
+      <Card padded={false} className="overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line">
+          <h2 className="text-[13.5px] font-semibold text-ink">Code d&apos;accès</h2>
+          <p className="text-[11.5px] text-ink-faint mt-0.5">Code unique pour l&apos;espace artiste</p>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-[22px] space-y-4">
           {artist.access_code ? (
-            <div className="bg-content2 rounded-xl p-4">
-              <p className="text-sm text-secondary-500 mb-1">Code actuel</p>
-              <p className="text-2xl font-mono font-bold text-foreground tracking-wider">{artist.access_code}</p>
+            <div className="rounded-[12px] bg-surface-2 p-4">
+              <Eyebrow>Code actuel</Eyebrow>
+              <p className="roy-num text-[26px] font-bold text-ink tracking-wider mt-1.5">{artist.access_code}</p>
             </div>
           ) : (
-            <p className="text-sm text-secondary-500">Aucun code d&apos;accès généré</p>
+            <p className="text-[13px] text-ink-faint">Aucun code d&apos;accès généré</p>
           )}
-          <Button
-            size="sm"
-            onClick={handleGenerateAccessCode}
-            loading={generatingCode}
-          >
+          <AccentButton onClick={handleGenerateAccessCode} disabled={generatingCode}>
+            {generatingCode && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}
             {artist.access_code ? 'Regénérer le code' : 'Générer un code'}
-          </Button>
+          </AccentButton>
         </div>
-      </div>
+      </Card>
 
       {/* Auth Account */}
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider">
-          <h2 className="font-medium text-foreground">Compte Supabase Auth</h2>
-          <p className="text-sm text-secondary-500">Accès avec email/mot de passe</p>
+      <Card padded={false} className="overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line">
+          <h2 className="text-[13.5px] font-semibold text-ink">Compte Supabase Auth</h2>
+          <p className="text-[11.5px] text-ink-faint mt-0.5">Accès avec email / mot de passe</p>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-[22px] space-y-4">
           {artist.auth_user_id ? (
-            <div className="space-y-3">
-              <div className="bg-success/10 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <p className="font-medium text-success-700">Compte actif</p>
-                </div>
-                {artist.email && (
-                  <p className="text-sm text-success-600">Email: {artist.email}</p>
-                )}
-                <p className="text-xs text-secondary-400 font-mono mt-1">
-                  Auth ID: {artist.auth_user_id}
-                </p>
+            <div className="rounded-[12px] bg-accent-soft p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-6 h-6 rounded-full bg-accent text-accent-ink flex items-center justify-center shrink-0">
+                  <IconCheck size={13} />
+                </span>
+                <p className="text-[13px] font-semibold text-accent">Compte actif</p>
               </div>
+              {artist.email && (
+                <p className="text-[12.5px] text-ink-muted">Email : {artist.email}</p>
+              )}
+              <p className="text-[11px] text-ink-faint font-mono mt-1">
+                Auth ID : {artist.auth_user_id}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm text-secondary-500">Aucun compte créé</p>
-              <Button size="sm" onClick={() => setShowCreateAuthModal(true)}>
+              <p className="text-[13px] text-ink-faint">Aucun compte créé</p>
+              <AccentButton onClick={() => setShowCreateAuthModal(true)}>
                 Créer un compte
-              </Button>
+              </AccentButton>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Create Auth Modal */}
       {showCreateAuthModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">Créer un compte</h2>
-                <button onClick={() => { setShowCreateAuthModal(false); setAuthEmail(''); setAuthPassword(''); }} className="p-2 -mr-2 text-secondary-500">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
+            onClick={() => { setShowCreateAuthModal(false); setAuthEmail(''); setAuthPassword(''); }}
+          />
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-md w-full overflow-hidden">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-ink">Créer un compte</h2>
+              <button onClick={() => { setShowCreateAuthModal(false); setAuthEmail(''); setAuthPassword(''); }} className="p-2 text-ink-faint hover:text-ink transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
+            <div className="px-6 py-5 space-y-4">
               <Input
                 label="Email"
                 type="email"
@@ -150,18 +148,14 @@ export default function AccessTab({ artist, artistId, onArtistUpdated }: AccessT
                 placeholder="Mot de passe"
               />
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
-              <Button variant="secondary" onClick={() => { setShowCreateAuthModal(false); setAuthEmail(''); setAuthPassword(''); }} className="flex-1">
+            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2">
+              <OutlineButton onClick={() => { setShowCreateAuthModal(false); setAuthEmail(''); setAuthPassword(''); }} className="flex-1 justify-center">
                 Annuler
-              </Button>
-              <Button
-                onClick={handleCreateAuth}
-                loading={creatingAuth}
-                disabled={!authEmail || !authPassword}
-                className="flex-1"
-              >
+              </OutlineButton>
+              <AccentButton onClick={handleCreateAuth} disabled={creatingAuth || !authEmail || !authPassword} className="flex-1">
+                {creatingAuth && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}
                 Créer
-              </Button>
+              </AccentButton>
             </div>
           </div>
         </div>

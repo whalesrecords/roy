@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Artist, AdvanceEntry, EXPENSE_CATEGORIES, ExpenseCategory } from '@/lib/types';
 import { WHALES_LOGO_BASE64 } from '@/lib/whales-logo';
 import { formatCurrency } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconDownload, IconCheck, IconPlus } from '@/components/roy/icons';
 import {
   getAdvances,
   createAdvance,
@@ -345,69 +346,69 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {error && (<div className="bg-danger-50 text-danger px-4 py-3 rounded-xl text-sm">{error}<button onClick={() => setError(null)} className="ml-2 underline">Fermer</button></div>)}
+    <div className="space-y-4">
+      {error && (<div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">{error}<button onClick={() => setError(null)} className="ml-2 underline">Fermer</button></div>)}
 
       {/* Calcul Royalties */}
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider"><h2 className="font-semibold text-foreground">Calcul des royalties</h2></div>
-        <div className="p-5">
+      <Card padded={false} className="overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line"><h2 className="text-[13.5px] font-semibold text-ink">Calcul des royalties</h2></div>
+        <div className="p-[22px]">
           <div className="flex items-center gap-3 mb-4">
-            <select value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} className="flex-1 h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors">
+            <select value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)} className="flex-1 h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors">
               {PERIODS.map((period) => (<option key={period.value} value={period.value}>{period.label}</option>))}
             </select>
-            <button onClick={handleCalculateRoyalties} disabled={calculatingRoyalties} className="px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl disabled:opacity-50 transition-all">{calculatingRoyalties ? 'Calcul...' : 'Calculer'}</button>
+            <AccentButton onClick={handleCalculateRoyalties} disabled={calculatingRoyalties}>{calculatingRoyalties ? 'Calcul…' : 'Calculer'}</AccentButton>
           </div>
-          {royaltyError && (<div className="bg-danger-50 text-danger px-4 py-3 rounded-xl text-sm mb-4">{royaltyError}</div>)}
+          {royaltyError && (<div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg mb-4">{royaltyError}</div>)}
           {royaltyResult && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-content2 rounded-xl p-3"><p className="text-xs text-secondary-500">Brut total</p><p className="text-lg font-semibold text-foreground">{formatCurrency(royaltyResult.total_gross, royaltyResult.currency)}</p></div>
-                <div className="bg-content2 rounded-xl p-3"><p className="text-xs text-secondary-500">Royalties artiste</p><p className="text-lg font-semibold text-foreground">{formatCurrency(royaltyResult.total_artist_royalties, royaltyResult.currency)}</p></div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <Kpi label="Brut total" value={formatCurrency(royaltyResult.total_gross, royaltyResult.currency)} />
+                <Kpi label="Royalties artiste" value={formatCurrency(royaltyResult.total_artist_royalties, royaltyResult.currency)} />
               </div>
               {parseFloat(royaltyResult.total_advances || '0') > 0 && (
-                <div className="bg-warning-50 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-medium text-warning-800">Détail des avances</p>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between"><span className="text-warning-700">Avances totales</span><span className="font-medium text-warning-900">{formatCurrency(royaltyResult.total_advances, royaltyResult.currency)}</span></div>
-                    {parseFloat(royaltyResult.total_recouped_before || '0') > 0 && (<div className="flex justify-between"><span className="text-warning-700">Déjà recoupé</span><span className="font-medium text-success-700">-{formatCurrency(royaltyResult.total_recouped_before, royaltyResult.currency)}</span></div>)}
-                    {parseFloat(royaltyResult.recoupable || '0') > 0 && (<div className="flex justify-between"><span className="text-warning-700">Recoupé cette période</span><span className="font-medium text-success-700">-{formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}</span></div>)}
-                    <div className="flex justify-between border-t border-warning-200 pt-1 mt-1"><span className="font-medium text-warning-800">Reste à recouper</span><span className="font-bold text-warning-900">{formatCurrency(royaltyResult.remaining_advance, royaltyResult.currency)}</span></div>
+                <div className="rounded-[12px] bg-surface-2 p-3 space-y-2">
+                  <p className="roy-eyebrow text-[9.5px]">Détail des avances</p>
+                  <div className="space-y-1.5 text-[13px]">
+                    <div className="flex justify-between"><span className="text-ink-muted">Avances totales</span><span className="font-semibold text-ink roy-num">{formatCurrency(royaltyResult.total_advances, royaltyResult.currency)}</span></div>
+                    {parseFloat(royaltyResult.total_recouped_before || '0') > 0 && (<div className="flex justify-between"><span className="text-ink-muted">Déjà recoupé</span><span className="font-semibold text-accent roy-num">−{formatCurrency(royaltyResult.total_recouped_before, royaltyResult.currency)}</span></div>)}
+                    {parseFloat(royaltyResult.recoupable || '0') > 0 && (<div className="flex justify-between"><span className="text-ink-muted">Recoupé cette période</span><span className="font-semibold text-accent roy-num">−{formatCurrency(royaltyResult.recoupable, royaltyResult.currency)}</span></div>)}
+                    <div className="flex justify-between border-t border-line pt-1.5 mt-1"><span className="font-semibold text-ink">Reste à recouper</span><span className="font-bold text-ink roy-num">{formatCurrency(royaltyResult.remaining_advance, royaltyResult.currency)}</span></div>
                   </div>
                 </div>
               )}
-              <div className={`rounded-xl p-4 ${parseFloat(royaltyResult.net_payable) > 0 ? 'bg-success-50' : 'bg-content2'}`}>
-                <p className="text-xs text-secondary-500 mb-1">Net payable à l&apos;artiste</p>
-                <p className={`text-2xl font-bold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-success-700' : 'text-foreground'}`}>{formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}</p>
+              <div className="rounded-[12px] bg-hero border border-line p-4">
+                <p className="roy-eyebrow text-[9.5px] mb-1.5">Net payable à l&apos;artiste</p>
+                <p className={`roy-num text-[26px] font-bold ${parseFloat(royaltyResult.net_payable) > 0 ? 'text-accent' : 'text-ink'}`}>{formatCurrency(royaltyResult.net_payable, royaltyResult.currency)}</p>
               </div>
               {paidQuarters.length > 0 && (
-                <div className="bg-warning-50 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-medium text-warning-700">Trimestres deja payes cette annee</p>
-                  {paidQuarters.map((pq, idx) => (<div key={idx} className="flex justify-between text-sm"><span className="text-warning-800">{pq.quarter} (paye le {new Date(pq.date).toLocaleDateString('fr-FR')})</span><span className="font-medium text-warning-900">-{formatCurrency(pq.amount.toString(), royaltyResult.currency)}</span></div>))}
-                  <div className="border-t border-warning-200 pt-2 flex justify-between"><span className="text-sm font-medium text-warning-800">Reste a payer</span><span className="text-lg font-bold text-success-700">{formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString(), royaltyResult.currency)}</span></div>
+                <div className="rounded-[12px] bg-surface-2 p-3 space-y-2">
+                  <p className="roy-eyebrow text-[9.5px]">Trimestres déjà payés cette année</p>
+                  {paidQuarters.map((pq, idx) => (<div key={idx} className="flex justify-between text-[13px]"><span className="text-ink-muted">{pq.quarter} (payé le {new Date(pq.date).toLocaleDateString('fr-FR')})</span><span className="font-semibold text-ink-muted roy-num">−{formatCurrency(pq.amount.toString(), royaltyResult.currency)}</span></div>))}
+                  <div className="border-t border-line pt-2 flex justify-between"><span className="text-[13px] font-semibold text-ink">Reste à payer</span><span className="text-[15px] font-bold text-accent roy-num">{formatCurrency((parseFloat(royaltyResult.net_payable) - paidQuarters.reduce((sum, pq) => sum + pq.amount, 0)).toString(), royaltyResult.currency)}</span></div>
                 </div>
               )}
-              <p className="text-xs text-secondary-500 text-center">Période: {new Date(royaltyResult.period_start).toLocaleDateString('fr-FR')} - {new Date(royaltyResult.period_end).toLocaleDateString('fr-FR')}</p>
+              <p className="text-[11px] text-ink-faint text-center">Période : {new Date(royaltyResult.period_start).toLocaleDateString('fr-FR')} - {new Date(royaltyResult.period_end).toLocaleDateString('fr-FR')}</p>
               {royaltyResult.sources && royaltyResult.sources.length > 0 && (
-                <div className="border-t border-divider pt-4">
-                  <h3 className="text-sm font-medium text-secondary-700 mb-3">Détail par source</h3>
-                  <div className="space-y-2">
+                <div className="border-t border-line pt-4">
+                  <h3 className="text-[13px] font-semibold text-ink mb-3">Détail par source</h3>
+                  <div className="space-y-1">
                     {royaltyResult.sources.map((source, idx) => (
-                      <div key={`${source.source}-${idx}`} className="flex items-center justify-between gap-3 py-2 border-b border-default-50 last:border-0">
+                      <div key={`${source.source}-${idx}`} className="flex items-center justify-between gap-3 py-2 border-b border-line last:border-0">
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${source.source === 'tunecore' ? 'bg-primary/10 text-primary-700' : source.source === 'bandcamp' ? 'bg-success/10 text-success-700' : 'bg-content2 text-secondary-600'}`}>{source.source_label}</span>
-                          <span className="text-xs text-secondary-500">{formatNumber(source.transaction_count)} transactions · {formatNumber(source.streams)} streams</span>
+                          <Pill tone={source.source === 'tunecore' || source.source === 'bandcamp' ? 'accent' : 'neutral'}>{source.source_label}</Pill>
+                          <span className="text-[11px] text-ink-faint">{formatNumber(source.transaction_count)} transactions · {formatNumber(source.streams)} streams</span>
                         </div>
-                        <div className="text-right"><p className="text-sm font-medium text-foreground">{formatCurrency(source.artist_royalties, royaltyResult.currency)}</p><p className="text-xs text-secondary-500">sur {formatCurrency(source.gross, royaltyResult.currency)}</p></div>
+                        <div className="text-right"><p className="text-[13px] font-semibold text-ink roy-num">{formatCurrency(source.artist_royalties, royaltyResult.currency)}</p><p className="text-[11px] text-ink-faint roy-num">sur {formatCurrency(source.gross, royaltyResult.currency)}</p></div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
               {royaltyResult.albums.length > 0 && (
-                <div className="border-t border-divider pt-4">
-                  <h3 className="text-sm font-medium text-secondary-700 mb-3">Détail par album</h3>
-                  <div className="space-y-2">
+                <div className="border-t border-line pt-4">
+                  <h3 className="text-[13px] font-semibold text-ink mb-3">Détail par album</h3>
+                  <div className="space-y-1">
                     {royaltyResult.albums.map((album, idx) => {
                       const hasAdvance = parseFloat(album.advance_balance || '0') > 0;
                       const advanceBalance = parseFloat(album.advance_balance || '0');
@@ -416,25 +417,25 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
                       const isIncludedInAlbum = !!album.included_in_upc;
                       const parentAlbum = isIncludedInAlbum ? royaltyResult.albums.find(a => a.upc === album.included_in_upc) : null;
                       return (
-                        <div key={`${album.upc}-${idx}`} className={`flex items-start justify-between gap-3 py-2 border-b border-default-50 last:border-0 ${isIncludedInAlbum ? 'bg-warning-50 rounded-xl px-2' : ''}`}>
+                        <div key={`${album.upc}-${idx}`} className={`flex items-start justify-between gap-3 py-2 border-b border-line last:border-0 ${isIncludedInAlbum ? 'bg-surface-2 rounded-[10px] px-2' : ''}`}>
                           <div className="min-w-0 flex-1">
-                            <p className={`font-medium text-sm truncate ${isIncludedInAlbum ? 'text-warning-700' : 'text-foreground'}`}>{album.release_title}</p>
-                            <p className="text-xs text-secondary-400 font-mono">UPC: {album.upc}</p>
-                            <p className="text-xs text-secondary-500">{album.track_count} track{album.track_count > 1 ? 's' : ''}{album.streams > 0 && ` · ${formatNumber(album.streams)} streams`}</p>
+                            <p className={`text-[13px] font-semibold truncate ${isIncludedInAlbum ? 'text-ink-muted' : 'text-ink'}`}>{album.release_title}</p>
+                            <p className="text-[10.5px] text-ink-faint font-mono">UPC {album.upc}</p>
+                            <p className="text-[11px] text-ink-faint">{album.track_count} track{album.track_count > 1 ? 's' : ''}{album.streams > 0 && ` · ${formatNumber(album.streams)} streams`}</p>
                             {album.sources && album.sources.length > 1 && (
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 {album.sources.map((src: { sale_type: string; source_label: string; gross: string; quantity: number }, si: number) => {
                                   const saleLabel = src.sale_type === 'stream' ? 'Streams' : src.sale_type === 'cd' ? 'CD' : src.sale_type === 'vinyl' ? 'Vinyl' : src.sale_type === 'k7' ? 'K7' : src.sale_type === 'digital' ? 'Digital' : src.sale_type;
-                                  return (<span key={si} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${src.sale_type === 'stream' ? 'bg-primary/10 text-primary-700' : 'bg-warning/10 text-warning-700'}`}>{src.source_label} ({saleLabel}): {formatCurrency(src.gross, royaltyResult.currency)}{src.sale_type === 'stream' ? ` · ${formatNumber(src.quantity)} streams` : src.quantity > 0 ? ` · ${src.quantity} ventes` : ''}</span>);
+                                  return (<span key={si} className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-surface-2 text-ink-muted roy-num">{src.source_label} ({saleLabel}): {formatCurrency(src.gross, royaltyResult.currency)}{src.sale_type === 'stream' ? ` · ${formatNumber(src.quantity)} streams` : src.quantity > 0 ? ` · ${src.quantity} ventes` : ''}</span>);
                                 })}
                               </div>
                             )}
-                            {isIncludedInAlbum && parentAlbum && (<p className="text-xs text-warning-700 mt-1 font-medium">Inclus dans &quot;{parentAlbum.release_title}&quot;</p>)}
-                            {hasAdvance && !isIncludedInAlbum && (<p className="text-xs text-warning-600 mt-1">Avance: {formatCurrency(advanceBalance, royaltyResult.currency)} → Déduit: {formatCurrency(recoupable, royaltyResult.currency)}</p>)}
+                            {isIncludedInAlbum && parentAlbum && (<p className="text-[11px] text-ink-muted mt-1 font-semibold">Inclus dans &quot;{parentAlbum.release_title}&quot;</p>)}
+                            {hasAdvance && !isIncludedInAlbum && (<p className="text-[11px] text-ink-faint mt-1 roy-num">Avance : {formatCurrency(advanceBalance, royaltyResult.currency)} → Déduit : {formatCurrency(recoupable, royaltyResult.currency)}</p>)}
                           </div>
                           <div className="text-right flex-shrink-0">
-                            {isIncludedInAlbum ? (<><p className="text-sm font-medium text-secondary-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p><p className="text-xs text-warning-700">Inclus dans album</p></>) : hasAdvance ? (<><p className="text-sm font-medium text-foreground">{formatCurrency(netPayable, royaltyResult.currency)}</p><p className="text-xs text-secondary-400 line-through">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p></>) : (<p className="text-sm font-medium text-foreground">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>)}
-                            {!isIncludedInAlbum && (<p className="text-xs text-secondary-500">{formatPercent(parseFloat(album.artist_share || '0'))}% de {formatCurrency(album.gross, royaltyResult.currency)}</p>)}
+                            {isIncludedInAlbum ? (<><p className="text-[13px] font-semibold text-ink-faint line-through roy-num">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p><p className="text-[10.5px] text-ink-muted">Inclus dans album</p></>) : hasAdvance ? (<><p className="text-[13px] font-semibold text-ink roy-num">{formatCurrency(netPayable, royaltyResult.currency)}</p><p className="text-[10.5px] text-ink-faint line-through roy-num">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p></>) : (<p className="text-[13px] font-semibold text-ink roy-num">{formatCurrency(album.artist_royalties, royaltyResult.currency)}</p>)}
+                            {!isIncludedInAlbum && (<p className="text-[10.5px] text-ink-faint roy-num">{formatPercent(parseFloat(album.artist_share || '0'))}% de {formatCurrency(album.gross, royaltyResult.currency)}</p>)}
                           </div>
                         </div>
                       );
@@ -442,52 +443,55 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
                   </div>
                 </div>
               )}
-              {royaltyResult.albums.length === 0 && (<p className="text-center text-sm text-secondary-500 py-4">Aucune donnée pour cette période</p>)}
+              {royaltyResult.albums.length === 0 && (<p className="text-center text-[13px] text-ink-faint py-4">Aucune donnée pour cette période</p>)}
               {royaltyResult.albums.length > 0 && (
-                <div className="pt-4 border-t border-divider space-y-2">
+                <div className="pt-4 border-t border-line space-y-2">
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={handleExportCSV} className="flex-1"><svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>CSV</Button>
-                    <Button size="sm" variant="secondary" onClick={handlePrintPDF} className="flex-1"><svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>Revenus</Button>
-                    <Button size="sm" variant="secondary" onClick={handlePrintExpensesPDF} className="flex-1"><svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>Depenses</Button>
+                    <OutlineButton onClick={handleExportCSV} className="flex-1 justify-center"><IconDownload size={14} />CSV</OutlineButton>
+                    <OutlineButton onClick={handlePrintPDF} className="flex-1 justify-center"><IconDownload size={14} />Revenus</OutlineButton>
+                    <OutlineButton onClick={handlePrintExpensesPDF} className="flex-1 justify-center"><IconDownload size={14} />Dépenses</OutlineButton>
                   </div>
-                  <Button size="sm" variant="secondary" onClick={handlePrintArtistPDF} className="w-full"><svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" /></svg>PDF Artiste (avec lien paiement)</Button>
+                  <OutlineButton onClick={handlePrintArtistPDF} className="w-full justify-center"><IconDownload size={14} />PDF Artiste (avec lien paiement)</OutlineButton>
                 </div>
               )}
-              <div className="pt-4 border-t border-divider">
-                <Button size="sm" variant="primary" onClick={handlePublishStatement} loading={publishingStatement} className="w-full bg-primary hover:bg-primary-600"><svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>Publier sur l&apos;Espace Artiste</Button>
-                <p className="text-xs text-secondary-500 text-center mt-2">Envoie le relevé sur l&apos;espace artiste</p>
+              <div className="pt-4 border-t border-line">
+                <AccentButton onClick={handlePublishStatement} disabled={publishingStatement} className="w-full">
+                  {publishingStatement ? <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" /> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>}
+                  Publier sur l&apos;Espace Artiste
+                </AccentButton>
+                <p className="text-[11px] text-ink-faint text-center mt-2">Envoie le relevé sur l&apos;espace artiste</p>
               </div>
-              {(() => { const paidTotal = paidQuarters.reduce((sum, pq) => sum + pq.amount, 0); const remaining = parseFloat(royaltyResult.net_payable) - paidTotal; if (royaltyResult.albums.length > 0 && remaining > 0) { return (<div className="pt-4 border-t border-divider"><Button onClick={handleMarkAsPaid} loading={markingAsPaid} className="w-full bg-success hover:bg-success-600 text-white"><svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>Marquer comme paye ({formatCurrency(remaining.toString(), royaltyResult.currency)})</Button><p className="text-xs text-secondary-500 text-center mt-2">Cree un versement et enregistre le paiement</p></div>); } return null; })()}
+              {(() => { const paidTotal = paidQuarters.reduce((sum, pq) => sum + pq.amount, 0); const remaining = parseFloat(royaltyResult.net_payable) - paidTotal; if (royaltyResult.albums.length > 0 && remaining > 0) { return (<div className="pt-4 border-t border-line"><AccentButton onClick={handleMarkAsPaid} disabled={markingAsPaid} className="w-full">{markingAsPaid ? <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" /> : <IconCheck size={14} />}Marquer comme payé ({formatCurrency(remaining.toString(), royaltyResult.currency)})</AccentButton><p className="text-[11px] text-ink-faint text-center mt-2">Crée un versement et enregistre le paiement</p></div>); } return null; })()}
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Advances */}
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider flex items-center justify-between"><div><h2 className="font-medium text-foreground">Avances</h2><p className="text-sm text-secondary-500">Par catalogue, album ou track</p></div><Button size="sm" onClick={() => setShowAdvanceForm(true)}>Ajouter</Button></div>
-        {advances.length === 0 ? (<p className="px-4 py-6 text-center text-secondary-500">Aucune avance</p>) : (
-          <div className="divide-y divide-divider">
+      <Card padded={false} className="overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line flex items-center justify-between"><div><h2 className="text-[13.5px] font-semibold text-ink">Avances</h2><p className="text-[11.5px] text-ink-faint mt-0.5">Par catalogue, album ou track</p></div><AccentButton onClick={() => setShowAdvanceForm(true)}><IconPlus size={14} />Ajouter</AccentButton></div>
+        {advances.length === 0 ? (<p className="px-4 py-8 text-center text-ink-faint text-[13px]">Aucune avance</p>) : (
+          <div className="divide-y divide-line">
             {advances.map((entry) => {
               const isAdvance = entry.entry_type === 'advance';
               const isDeleting = deletingAdvanceId === entry.id;
               return (
-                <div key={entry.id} className="px-4 py-3">
+                <div key={entry.id} className="px-[22px] py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{isAdvance ? 'Avance' : 'Recoupement'}</p>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${entry.scope === 'catalog' ? 'bg-content2 text-secondary-600' : entry.scope === 'release' ? 'bg-success/10 text-success-700' : 'bg-primary/10 text-primary-700'}`}>{entry.scope === 'catalog' ? 'Catalogue' : entry.scope === 'release' ? 'Album' : 'Track'}</span>
-                        {entry.category && (<span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary-700">{EXPENSE_CATEGORIES.find(c => c.value === entry.category)?.label || entry.category}</span>)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[13px] font-semibold text-ink">{isAdvance ? 'Avance' : 'Recoupement'}</p>
+                        <Pill tone={entry.scope === 'catalog' ? 'neutral' : 'accent'}>{entry.scope === 'catalog' ? 'Catalogue' : entry.scope === 'release' ? 'Album' : 'Track'}</Pill>
+                        {entry.category && (<Pill tone="neutral">{EXPENSE_CATEGORIES.find(c => c.value === entry.category)?.label || entry.category}</Pill>)}
                       </div>
-                      {entry.scope !== 'catalog' && entry.scope_id && (<p className="text-sm text-secondary-600">{entry.scope === 'release' ? (releases.find(r => r.upc === entry.scope_id)?.release_title || entry.scope_id) : (tracks.find(t => t.isrc === entry.scope_id)?.track_title || entry.scope_id)}<span className="text-xs text-secondary-400 font-mono ml-2">({entry.scope_id})</span></p>)}
-                      {entry.description && (<p className="text-sm text-secondary-500">{entry.description}</p>)}
-                      <p className="text-xs text-secondary-400 mt-1">{new Date(entry.effective_date).toLocaleDateString('fr-FR')}</p>
+                      {entry.scope !== 'catalog' && entry.scope_id && (<p className="text-[12.5px] text-ink-muted mt-1">{entry.scope === 'release' ? (releases.find(r => r.upc === entry.scope_id)?.release_title || entry.scope_id) : (tracks.find(t => t.isrc === entry.scope_id)?.track_title || entry.scope_id)}<span className="text-[10.5px] text-ink-faint font-mono ml-2">({entry.scope_id})</span></p>)}
+                      {entry.description && (<p className="text-[12.5px] text-ink-faint">{entry.description}</p>)}
+                      <p className="text-[11px] text-ink-faint mt-1">{new Date(entry.effective_date).toLocaleDateString('fr-FR')}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <p className={`font-medium ${isAdvance ? 'text-danger' : 'text-success'}`}>{isAdvance ? '-' : '+'}{formatCurrency(entry.amount, entry.currency)}</p>
-                      <button onClick={() => handleEditAdvance(entry)} className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded transition-colors" title="Modifier"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                      <button onClick={() => handleDeleteAdvance(entry.id)} disabled={isDeleting} className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors" title="Supprimer">{isDeleting ? (<div className="w-4 h-4 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />) : (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>)}</button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className={`text-[13px] font-bold roy-num ${isAdvance ? 'text-ink-muted' : 'text-accent'}`}>{isAdvance ? '−' : '+'}{formatCurrency(entry.amount, entry.currency)}</p>
+                      <button onClick={() => handleEditAdvance(entry)} className="p-1.5 text-ink-faint hover:text-ink hover:bg-surface-2 rounded-[8px] transition-colors" title="Modifier"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                      <button onClick={() => handleDeleteAdvance(entry.id)} disabled={isDeleting} className="p-1.5 text-ink-faint hover:text-neg hover:bg-surface-2 rounded-[8px] transition-colors" title="Supprimer">{isDeleting ? (<div className="w-4 h-4 border-2 border-ink-faint border-t-transparent rounded-full animate-spin" />) : (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>)}</button>
                     </div>
                   </div>
                 </div>
@@ -495,23 +499,23 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
             })}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Payments */}
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider flex items-center justify-between"><div><h2 className="font-medium text-foreground">Versements</h2><p className="text-sm text-secondary-500">Royalties payées à l&apos;artiste</p></div><Button size="sm" onClick={() => setShowPaymentForm(true)}>Ajouter</Button></div>
-        {payments.length === 0 ? (<p className="px-4 py-6 text-center text-secondary-500">Aucun versement</p>) : (
-          <div className="divide-y divide-divider">
+      <Card padded={false} className="overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line flex items-center justify-between"><div><h2 className="text-[13.5px] font-semibold text-ink">Versements</h2><p className="text-[11.5px] text-ink-faint mt-0.5">Royalties payées à l&apos;artiste</p></div><AccentButton onClick={() => setShowPaymentForm(true)}><IconPlus size={14} />Ajouter</AccentButton></div>
+        {payments.length === 0 ? (<p className="px-4 py-8 text-center text-ink-faint text-[13px]">Aucun versement</p>) : (
+          <div className="divide-y divide-line">
             {payments.map((payment) => {
               const isDeleting = deletingPaymentId === payment.id;
               return (
-                <div key={payment.id} className="px-4 py-3">
+                <div key={payment.id} className="px-[22px] py-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0"><p className="font-medium text-foreground">Versement</p>{payment.description && (<p className="text-sm text-secondary-500">{payment.description}</p>)}<p className="text-xs text-secondary-400 mt-1">{new Date(payment.effective_date).toLocaleDateString('fr-FR')}</p></div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-success">{formatCurrency(payment.amount, payment.currency)}</p>
-                      <button onClick={() => handleEditPayment(payment)} className="p-1.5 text-secondary-400 hover:text-primary hover:bg-primary/10 rounded transition-colors" title="Modifier"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                      <button onClick={() => handleDeletePayment(payment.id)} disabled={isDeleting} className="p-1.5 text-secondary-400 hover:text-danger hover:bg-danger-50 rounded transition-colors" title="Supprimer">{isDeleting ? (<div className="w-4 h-4 border-2 border-danger-400 border-t-transparent rounded-full animate-spin" />) : (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>)}</button>
+                    <div className="flex-1 min-w-0"><p className="text-[13px] font-semibold text-ink">Versement</p>{payment.description && (<p className="text-[12.5px] text-ink-faint">{payment.description}</p>)}<p className="text-[11px] text-ink-faint mt-1">{new Date(payment.effective_date).toLocaleDateString('fr-FR')}</p></div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className="text-[13px] font-bold text-accent roy-num">+{formatCurrency(payment.amount, payment.currency)}</p>
+                      <button onClick={() => handleEditPayment(payment)} className="p-1.5 text-ink-faint hover:text-ink hover:bg-surface-2 rounded-[8px] transition-colors" title="Modifier"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                      <button onClick={() => handleDeletePayment(payment.id)} disabled={isDeleting} className="p-1.5 text-ink-faint hover:text-neg hover:bg-surface-2 rounded-[8px] transition-colors" title="Supprimer">{isDeleting ? (<div className="w-4 h-4 border-2 border-ink-faint border-t-transparent rounded-full animate-spin" />) : (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>)}</button>
                     </div>
                   </div>
                 </div>
@@ -519,18 +523,22 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
             })}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Edit Payment Modal */}
       {editingPayment && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Modifier le versement</h2><button onClick={() => setEditingPayment(null)} className="p-2 -mr-2 text-secondary-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>
-            <div className="p-4 sm:p-6 space-y-4">
-              <div><label className="block text-sm font-medium text-foreground mb-2">Montant (EUR)</label><Input type="number" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} placeholder="1000.00" /></div>
-              <div><label className="block text-sm font-medium text-foreground mb-2">Description</label><Input value={editPaymentDescription} onChange={(e) => setEditPaymentDescription(e.target.value)} placeholder="Versement Q3 2024" /></div>
-              <div><label className="block text-sm font-medium text-foreground mb-2">Date</label><Input type="date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} /></div>
-              <Button onClick={handleUpdatePayment} loading={savingPayment} disabled={!editPaymentAmount} className="w-full">Enregistrer</Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={() => setEditingPayment(null)} />
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between"><h2 className="text-[16px] font-bold text-ink">Modifier le versement</h2><button onClick={() => setEditingPayment(null)} className="p-2 text-ink-faint hover:text-ink transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+            <div className="px-6 py-5 space-y-4">
+              <Input type="number" label="Montant (EUR)" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} placeholder="1000.00" />
+              <Input label="Description" value={editPaymentDescription} onChange={(e) => setEditPaymentDescription(e.target.value)} placeholder="Versement Q3 2024" />
+              <Input type="date" label="Date" value={editPaymentDate} onChange={(e) => setEditPaymentDate(e.target.value)} />
+              <AccentButton onClick={handleUpdatePayment} disabled={savingPayment || !editPaymentAmount} className="w-full">
+                {savingPayment && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}
+                Enregistrer
+              </AccentButton>
             </div>
           </div>
         </div>
@@ -538,53 +546,56 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
 
       {/* Advance Form Modal */}
       {showAdvanceForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Nouvelle avance</h2><button onClick={() => { setShowAdvanceForm(false); setAdvanceScope('catalog'); setAdvanceScopeId(''); }} className="p-2 -mr-2 text-secondary-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>
-            <div className="p-4 sm:p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={() => { setShowAdvanceForm(false); setAdvanceScope('catalog'); setAdvanceScopeId(''); }} />
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between"><h2 className="text-[16px] font-bold text-ink">Nouvelle avance</h2><button onClick={() => { setShowAdvanceForm(false); setAdvanceScope('catalog'); setAdvanceScopeId(''); }} className="p-2 text-ink-faint hover:text-ink transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+            <div className="px-6 py-5 space-y-4">
               <Input type="number" label="Montant (EUR)" value={advanceAmount} onChange={(e) => setAdvanceAmount(e.target.value)} placeholder="5000" />
-              <div><label className="block text-sm font-medium text-secondary-700 mb-2">Appliquer à</label><div className="flex gap-2"><button type="button" onClick={() => { setAdvanceScope('catalog'); setAdvanceScopeId(''); }} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${advanceScope === 'catalog' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Catalogue</button><button type="button" onClick={() => setAdvanceScope('release')} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${advanceScope === 'release' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Album</button><button type="button" onClick={() => setAdvanceScope('track')} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${advanceScope === 'track' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Track</button></div></div>
-              {advanceScope === 'release' && (<div><label className="block text-sm font-medium text-secondary-700 mb-2">Sélectionner un album</label><select value={advanceScopeId} onChange={(e) => setAdvanceScopeId(e.target.value)} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary"><option value="">-- Choisir un album --</option>{releases.map((r) => (<option key={r.upc} value={r.upc}>{r.release_title} ({r.upc})</option>))}</select></div>)}
-              {advanceScope === 'track' && (<div><label className="block text-sm font-medium text-secondary-700 mb-2">Sélectionner un track</label><select value={advanceScopeId} onChange={(e) => setAdvanceScopeId(e.target.value)} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary"><option value="">-- Choisir un track --</option>{tracks.map((t) => (<option key={t.isrc} value={t.isrc}>{t.track_title} ({t.isrc})</option>))}</select></div>)}
-              <div><label className="block text-sm font-medium text-secondary-700 mb-2">Catégorie</label><select value={advanceCategory} onChange={(e) => setAdvanceCategory(e.target.value as ExpenseCategory | '')} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-background"><option value="">-- Choisir une catégorie --</option>{EXPENSE_CATEGORIES.map((cat) => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}</select></div>
+              <div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Appliquer à</label><div className="flex gap-2"><button type="button" onClick={() => { setAdvanceScope('catalog'); setAdvanceScopeId(''); }} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${advanceScope === 'catalog' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Catalogue</button><button type="button" onClick={() => setAdvanceScope('release')} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${advanceScope === 'release' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Album</button><button type="button" onClick={() => setAdvanceScope('track')} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${advanceScope === 'track' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Track</button></div></div>
+              {advanceScope === 'release' && (<div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Sélectionner un album</label><select value={advanceScopeId} onChange={(e) => setAdvanceScopeId(e.target.value)} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir un album --</option>{releases.map((r) => (<option key={r.upc} value={r.upc}>{r.release_title} ({r.upc})</option>))}</select></div>)}
+              {advanceScope === 'track' && (<div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Sélectionner un track</label><select value={advanceScopeId} onChange={(e) => setAdvanceScopeId(e.target.value)} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir un track --</option>{tracks.map((t) => (<option key={t.isrc} value={t.isrc}>{t.track_title} ({t.isrc})</option>))}</select></div>)}
+              <div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Catégorie</label><select value={advanceCategory} onChange={(e) => setAdvanceCategory(e.target.value as ExpenseCategory | '')} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir une catégorie --</option>{EXPENSE_CATEGORIES.map((cat) => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}</select></div>
               <Input type="date" label="Date" value={advanceDate} onChange={(e) => setAdvanceDate(e.target.value)} />
               <Input label="Description (optionnel)" value={advanceDescription} onChange={(e) => setAdvanceDescription(e.target.value)} placeholder="Avance album 2025" />
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3"><Button variant="secondary" onClick={() => { setShowAdvanceForm(false); setAdvanceScope('catalog'); setAdvanceScopeId(''); setAdvanceCategory(''); setAdvanceDate(''); }} className="flex-1">Annuler</Button><Button onClick={handleCreateAdvance} loading={creatingAdvance} disabled={!advanceAmount || (advanceScope !== 'catalog' && !advanceScopeId)} className="flex-1">Créer</Button></div>
+            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2"><OutlineButton onClick={() => { setShowAdvanceForm(false); setAdvanceScope('catalog'); setAdvanceScopeId(''); setAdvanceCategory(''); setAdvanceDate(''); }} className="flex-1 justify-center">Annuler</OutlineButton><AccentButton onClick={handleCreateAdvance} disabled={creatingAdvance || !advanceAmount || (advanceScope !== 'catalog' && !advanceScopeId)} className="flex-1">{creatingAdvance && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}Créer</AccentButton></div>
           </div>
         </div>
       )}
 
       {/* Edit Advance Modal */}
       {editingAdvance && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Modifier l&apos;avance</h2><button onClick={() => setEditingAdvance(null)} className="p-2 -mr-2 text-secondary-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>
-            <div className="p-4 sm:p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={() => setEditingAdvance(null)} />
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between"><h2 className="text-[16px] font-bold text-ink">Modifier l&apos;avance</h2><button onClick={() => setEditingAdvance(null)} className="p-2 text-ink-faint hover:text-ink transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+            <div className="px-6 py-5 space-y-4">
               <Input type="number" label="Montant (EUR)" value={editAdvanceAmount} onChange={(e) => setEditAdvanceAmount(e.target.value)} placeholder="5000" />
-              <div><label className="block text-sm font-medium text-secondary-700 mb-2">Appliquer à</label><div className="flex gap-2"><button type="button" onClick={() => { setEditAdvanceScope('catalog'); setEditAdvanceScopeId(''); }} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${editAdvanceScope === 'catalog' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Catalogue</button><button type="button" onClick={() => setEditAdvanceScope('release')} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${editAdvanceScope === 'release' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Album</button><button type="button" onClick={() => setEditAdvanceScope('track')} className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${editAdvanceScope === 'track' ? 'bg-foreground text-background' : 'bg-content2 text-secondary-600 hover:bg-content3'}`}>Track</button></div></div>
-              {editAdvanceScope === 'release' && (<div><label className="block text-sm font-medium text-secondary-700 mb-2">Sélectionner un album</label><select value={editAdvanceScopeId} onChange={(e) => setEditAdvanceScopeId(e.target.value)} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary"><option value="">-- Choisir un album --</option>{releases.map((r) => (<option key={r.upc} value={r.upc}>{r.release_title} ({r.upc})</option>))}</select></div>)}
-              {editAdvanceScope === 'track' && (<div><label className="block text-sm font-medium text-secondary-700 mb-2">Sélectionner un track</label><select value={editAdvanceScopeId} onChange={(e) => setEditAdvanceScopeId(e.target.value)} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary"><option value="">-- Choisir un track --</option>{tracks.map((t) => (<option key={t.isrc} value={t.isrc}>{t.track_title} ({t.isrc})</option>))}</select></div>)}
-              <div><label className="block text-sm font-medium text-secondary-700 mb-2">Catégorie</label><select value={editAdvanceCategory} onChange={(e) => setEditAdvanceCategory(e.target.value as ExpenseCategory | '')} className="w-full px-3 py-2 border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary bg-background"><option value="">-- Choisir une catégorie --</option>{EXPENSE_CATEGORIES.map((cat) => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}</select></div>
+              <div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Appliquer à</label><div className="flex gap-2"><button type="button" onClick={() => { setEditAdvanceScope('catalog'); setEditAdvanceScopeId(''); }} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${editAdvanceScope === 'catalog' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Catalogue</button><button type="button" onClick={() => setEditAdvanceScope('release')} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${editAdvanceScope === 'release' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Album</button><button type="button" onClick={() => setEditAdvanceScope('track')} className={`flex-1 py-2 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors ${editAdvanceScope === 'track' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'}`}>Track</button></div></div>
+              {editAdvanceScope === 'release' && (<div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Sélectionner un album</label><select value={editAdvanceScopeId} onChange={(e) => setEditAdvanceScopeId(e.target.value)} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir un album --</option>{releases.map((r) => (<option key={r.upc} value={r.upc}>{r.release_title} ({r.upc})</option>))}</select></div>)}
+              {editAdvanceScope === 'track' && (<div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Sélectionner un track</label><select value={editAdvanceScopeId} onChange={(e) => setEditAdvanceScopeId(e.target.value)} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir un track --</option>{tracks.map((t) => (<option key={t.isrc} value={t.isrc}>{t.track_title} ({t.isrc})</option>))}</select></div>)}
+              <div><label className="roy-eyebrow text-[9.5px] mb-1.5 block">Catégorie</label><select value={editAdvanceCategory} onChange={(e) => setEditAdvanceCategory(e.target.value as ExpenseCategory | '')} className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"><option value="">-- Choisir une catégorie --</option>{EXPENSE_CATEGORIES.map((cat) => (<option key={cat.value} value={cat.value}>{cat.label}</option>))}</select></div>
               <Input type="date" label="Date" value={editAdvanceDate} onChange={(e) => setEditAdvanceDate(e.target.value)} />
               <Input label="Description (optionnel)" value={editAdvanceDescription} onChange={(e) => setEditAdvanceDescription(e.target.value)} placeholder="Avance album 2025" />
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3"><Button variant="secondary" onClick={() => setEditingAdvance(null)} className="flex-1">Annuler</Button><Button onClick={handleUpdateAdvance} loading={savingAdvance} disabled={!editAdvanceAmount || (editAdvanceScope !== 'catalog' && !editAdvanceScopeId)} className="flex-1">Enregistrer</Button></div>
+            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2"><OutlineButton onClick={() => setEditingAdvance(null)} className="flex-1 justify-center">Annuler</OutlineButton><AccentButton onClick={handleUpdateAdvance} disabled={savingAdvance || !editAdvanceAmount || (editAdvanceScope !== 'catalog' && !editAdvanceScopeId)} className="flex-1">{savingAdvance && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}Enregistrer</AccentButton></div>
           </div>
         </div>
       )}
 
       {/* Payment Form Modal */}
       {showPaymentForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider"><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-foreground">Nouveau versement</h2><button onClick={() => setShowPaymentForm(false)} className="p-2 -mr-2 text-secondary-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div></div>
-            <div className="p-4 sm:p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={() => setShowPaymentForm(false)} />
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between"><h2 className="text-[16px] font-bold text-ink">Nouveau versement</h2><button onClick={() => setShowPaymentForm(false)} className="p-2 text-ink-faint hover:text-ink transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+            <div className="px-6 py-5 space-y-4">
               <Input type="number" label="Montant (EUR)" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="1000" />
               <Input type="date" label="Date du versement" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} />
               <Input label="Description (optionnel)" value={paymentDescription} onChange={(e) => setPaymentDescription(e.target.value)} placeholder="Versement Q3 2024" />
             </div>
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3"><Button variant="secondary" onClick={() => setShowPaymentForm(false)} className="flex-1">Annuler</Button><Button onClick={handleCreatePayment} loading={creatingPayment} disabled={!paymentAmount} className="flex-1">Créer</Button></div>
+            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2"><OutlineButton onClick={() => setShowPaymentForm(false)} className="flex-1 justify-center">Annuler</OutlineButton><AccentButton onClick={handleCreatePayment} disabled={creatingPayment || !paymentAmount} className="flex-1">{creatingPayment && <div className="w-3.5 h-3.5 border-2 border-accent-ink border-t-transparent rounded-full animate-spin" />}Créer</AccentButton></div>
           </div>
         </div>
       )}

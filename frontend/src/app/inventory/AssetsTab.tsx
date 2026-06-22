@@ -12,6 +12,8 @@ import {
   importReverbAssets,
   updateAsset,
 } from '@/lib/api';
+import { Card, Eyebrow, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconPlus, IconImport, IconChart } from '@/components/roy/icons';
 
 const CATEGORY_LABELS: Record<string, string> = {
   construction: 'Construction',
@@ -60,6 +62,10 @@ const emptyAsset: Partial<FixedAsset> = {
 
 const fmtEUR = (n: number) =>
   (n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+const inputClass =
+  'w-full h-11 px-3.5 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
 
 export default function AssetsTab() {
   const [assets, setAssets] = useState<FixedAsset[]>([]);
@@ -194,103 +200,85 @@ export default function AssetsTab() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
+      <Card className="flex items-center justify-center py-16">
         <Spinner size="lg" />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          onClick={() => { setShowImport(true); setImportFile(null); }}
-          className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
-        >
-          Import Reverb CSV
-        </button>
-        <button
-          onClick={() => { setFormData(emptyAsset); setShowCreate(true); }}
-          className="px-4 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm"
-        >
-          + Nouvelle immobilisation
-        </button>
+    <div className="space-y-4">
+      {/* Header actions */}
+      <div className="flex flex-wrap items-center justify-end gap-2.5">
+        <OutlineButton onClick={() => { setShowImport(true); setImportFile(null); }}>
+          <IconImport size={14} /> Import Reverb CSV
+        </OutlineButton>
+        <AccentButton onClick={() => { setFormData(emptyAsset); setShowCreate(true); }}>
+          <IconPlus size={14} /> Nouvelle immobilisation
+        </AccentButton>
       </div>
 
       {error && (
-        <div className="bg-danger/10 border border-danger/30 text-danger rounded-xl p-4 text-sm flex items-center justify-between">
+        <div className="bg-surface border border-line rounded-[16px] px-4 py-3 text-[12.5px] text-neg flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-4 underline shrink-0">Fermer</button>
+          <button onClick={() => setError(null)} className="ml-4 underline shrink-0 text-ink-muted hover:text-ink">Fermer</button>
         </div>
       )}
       {successMsg && (
-        <div className="bg-success/10 border border-success/30 text-success rounded-xl p-4 text-sm flex items-center justify-between">
+        <div className="bg-surface border border-line rounded-[16px] px-4 py-3 text-[12.5px] text-accent flex items-center justify-between">
           <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="ml-4 underline shrink-0">Fermer</button>
+          <button onClick={() => setSuccessMsg(null)} className="ml-4 underline shrink-0 text-ink-muted hover:text-ink">Fermer</button>
         </div>
       )}
 
-      {/* Summary cards */}
+      {/* Summary KPIs */}
       {summary && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-              <p className="text-xs text-secondary-500 uppercase tracking-wide">Immobilisations</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{summary.total_count}</p>
-            </div>
-            <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-              <p className="text-xs text-secondary-500 uppercase tracking-wide">Valeur brute</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{fmtEUR(summary.total_gross_value)}</p>
-            </div>
-            <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-              <p className="text-xs text-secondary-500 uppercase tracking-wide">VNC actuelle</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{fmtEUR(summary.total_net_book_value)}</p>
-            </div>
-            <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-              <p className="text-xs text-secondary-500 uppercase tracking-wide">Dotation {new Date().getFullYear()}</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{fmtEUR(summary.current_year_charge)}</p>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+            <Kpi label="Immobilisations" value={String(summary.total_count)} />
+            <Kpi label="Valeur brute" value={fmtEUR(summary.total_gross_value)} />
+            <Kpi label="VNC actuelle" value={fmtEUR(summary.total_net_book_value)} hero accentValue />
+            <Kpi label={`Dotation ${new Date().getFullYear()}`} value={fmtEUR(summary.current_year_charge)} />
           </div>
 
           {Object.keys(summary.by_pcg_account).length > 0 && (
-            <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-              <p className="text-xs text-secondary-500 uppercase tracking-wide mb-3">Répartition par compte PCG</p>
-              <div className="flex flex-wrap gap-2">
+            <Card>
+              <Eyebrow>Répartition par compte PCG</Eyebrow>
+              <div className="flex flex-wrap gap-2 mt-3">
                 {Object.entries(summary.by_pcg_account)
                   .sort(([, a], [, b]) => b - a)
                   .map(([acc, gross]) => (
                     <span
                       key={acc}
-                      className="px-3 py-1.5 rounded-xl text-sm font-medium bg-default-100 text-foreground border border-divider"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-[5px] text-[11px] font-semibold text-ink-muted"
                     >
-                      {PCG_LABELS[acc] || acc} · {fmtEUR(gross)}
+                      {PCG_LABELS[acc] || acc} · <span className="roy-num text-ink">{fmtEUR(gross)}</span>
                     </span>
                   ))}
               </div>
-            </div>
+            </Card>
           )}
         </>
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative flex-1 min-w-[220px]">
           {fetching && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-secondary-400">…</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint">…</span>
           )}
           <input
             type="text"
-            placeholder="Rechercher une immobilisation..."
+            placeholder="Rechercher une immobilisation…"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            className="w-full px-4 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="h-11 w-full px-3.5 rounded-[10px] bg-surface border border-line text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors"
           />
         </div>
         <select
           value={categoryFilter}
           onChange={e => setCategoryFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+          className="h-11 px-3.5 rounded-[10px] bg-surface border border-line text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
         >
           <option value="">Toutes catégories</option>
           {Object.entries(CATEGORY_LABELS).map(([v, l]) => (
@@ -300,7 +288,7 @@ export default function AssetsTab() {
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+          className="h-11 px-3.5 rounded-[10px] bg-surface border border-line text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
         >
           <option value="">Tous statuts</option>
           {Object.entries(STATUS_LABELS).map(([v, l]) => (
@@ -311,129 +299,124 @@ export default function AssetsTab() {
 
       {/* Table */}
       {assets.length === 0 ? (
-        <div className="text-center py-16 bg-default-50 rounded-2xl border border-divider">
-          <p className="text-secondary-500">Aucune immobilisation</p>
-          <button
-            onClick={() => { setFormData(emptyAsset); setShowCreate(true); }}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            Ajouter une immobilisation
-          </button>
-        </div>
+        <Card className="text-center py-16">
+          <p className="text-ink-faint text-[13px]">Aucune immobilisation</p>
+          <div className="mt-4 flex justify-center">
+            <AccentButton onClick={() => { setFormData(emptyAsset); setShowCreate(true); }}>
+              <IconPlus size={14} /> Ajouter une immobilisation
+            </AccentButton>
+          </div>
+        </Card>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-divider text-left">
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Désignation</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Compte</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Acquis le</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide text-right">Valeur HT</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Durée</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide text-right">VNC</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide text-right">Dotation {new Date().getFullYear()}</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Card padded={false} className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="min-w-[860px]">
+              {/* Header row */}
+              <div className="grid grid-cols-[2.2fr_1fr_1fr_1fr_1.2fr_1fr_1.1fr_0.9fr] px-[22px] py-3 border-b border-line">
+                <Eyebrow className="text-[10px]">Désignation</Eyebrow>
+                <Eyebrow className="text-[10px]">Compte</Eyebrow>
+                <Eyebrow className="text-[10px]">Acquis le</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">Valeur HT</Eyebrow>
+                <Eyebrow className="text-[10px]">Durée</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">VNC</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">Dotation {new Date().getFullYear()}</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">Actions</Eyebrow>
+              </div>
               {assets.map(a => (
-                <tr key={a.id} className="border-b border-divider/50 hover:bg-default-50 transition-colors">
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-3">
-                      {a.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={a.image_url} alt={a.name} className="w-10 h-10 rounded-lg object-cover" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-default-100" />
-                      )}
-                      <div>
-                        <p className="font-medium text-foreground">{a.name}</p>
-                        <p className="text-xs text-secondary-500">
-                          {CATEGORY_LABELS[a.category] || a.category}
-                          {a.supplier ? ` · ${a.supplier}` : ''}
-                        </p>
-                      </div>
+                <div
+                  key={a.id}
+                  className="grid grid-cols-[2.2fr_1fr_1fr_1fr_1.2fr_1fr_1.1fr_0.9fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-3">
+                    {a.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.image_url} alt={a.name} className="w-10 h-10 rounded-[10px] object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-[10px] bg-surface-2 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold text-ink truncate">{a.name}</p>
+                      <p className="text-[11px] text-ink-faint truncate">
+                        {CATEGORY_LABELS[a.category] || a.category}
+                        {a.supplier ? ` · ${a.supplier}` : ''}
+                      </p>
                     </div>
-                  </td>
-                  <td className="py-3 pr-4 text-xs text-secondary-600">{a.pcg_account}</td>
-                  <td className="py-3 pr-4 text-foreground">{a.purchase_date}</td>
-                  <td className="py-3 pr-4 text-right text-foreground">{fmtEUR(Number(a.purchase_amount_ht))}</td>
-                  <td className="py-3 pr-4 text-xs text-secondary-600">
-                    {a.useful_life_months} mois · {METHOD_LABELS[a.depreciation_method] || a.depreciation_method}
-                  </td>
-                  <td className="py-3 pr-4 text-right text-foreground font-medium">{fmtEUR(a.net_book_value)}</td>
-                  <td className="py-3 pr-4 text-right text-secondary-600">{fmtEUR(a.annual_charge_current_year)}</td>
-                  <td className="py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setScheduleAsset(a)}
-                        className="p-1.5 rounded-lg hover:bg-default-100 text-secondary-500 hover:text-foreground transition-colors"
-                        title="Voir le plan d'amortissement"
-                      >
-                        📊
-                      </button>
-                      <button
-                        onClick={() => openEdit(a)}
-                        className="p-1.5 rounded-lg hover:bg-default-100 text-secondary-500 hover:text-foreground transition-colors"
-                        title="Modifier"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDelete(a.id)}
-                        disabled={deleting === a.id}
-                        className="p-1.5 rounded-lg hover:bg-danger/10 text-secondary-500 hover:text-danger transition-colors disabled:opacity-50"
-                        title="Supprimer"
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  </div>
+                  <div className="text-[11.5px] text-ink-muted font-mono">{a.pcg_account}</div>
+                  <div className="text-[12.5px] text-ink">{a.purchase_date}</div>
+                  <div className="text-right roy-num text-[13px] text-ink">{fmtEUR(Number(a.purchase_amount_ht))}</div>
+                  <div className="text-[11.5px] text-ink-muted">
+                    <span className="roy-num">{a.useful_life_months}</span> mois · {METHOD_LABELS[a.depreciation_method] || a.depreciation_method}
+                  </div>
+                  <div className="text-right roy-num text-[13px] font-bold text-ink">{fmtEUR(a.net_book_value)}</div>
+                  <div className="text-right roy-num text-[13px] text-ink-muted">{fmtEUR(a.annual_charge_current_year)}</div>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => setScheduleAsset(a)}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-accent transition-colors"
+                      title="Voir le plan d'amortissement"
+                    >
+                      <IconChart size={16} />
+                    </button>
+                    <button
+                      onClick={() => openEdit(a)}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors"
+                      title="Modifier"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(a.id)}
+                      disabled={deleting === a.id}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-neg transition-colors disabled:opacity-50"
+                      title="Supprimer"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Schedule modal */}
       {scheduleAsset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setScheduleAsset(null)}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">{scheduleAsset.name}</h2>
-              <p className="text-sm text-secondary-500 mt-1">
-                Plan d'amortissement {METHOD_LABELS[scheduleAsset.depreciation_method] || scheduleAsset.depreciation_method.toLowerCase()} sur {scheduleAsset.useful_life_months} mois
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setScheduleAsset(null)}>
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-2xl max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-line">
+              <h2 className="text-[16px] font-bold text-ink">{scheduleAsset.name}</h2>
+              <p className="text-[12.5px] text-ink-faint mt-0.5">
+                Plan d&apos;amortissement {METHOD_LABELS[scheduleAsset.depreciation_method] || scheduleAsset.depreciation_method.toLowerCase()} sur {scheduleAsset.useful_life_months} mois
               </p>
             </div>
-            <div className="p-6">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-divider text-left">
-                    <th className="pb-2 font-semibold text-secondary-500 text-xs uppercase">Année</th>
-                    <th className="pb-2 font-semibold text-secondary-500 text-xs uppercase text-right">VNC ouverture</th>
-                    <th className="pb-2 font-semibold text-secondary-500 text-xs uppercase text-right">Dotation</th>
-                    <th className="pb-2 font-semibold text-secondary-500 text-xs uppercase text-right">Cumul</th>
-                    <th className="pb-2 font-semibold text-secondary-500 text-xs uppercase text-right">VNC clôture</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {scheduleAsset.schedule.map(row => (
-                    <tr key={row.year} className="border-b border-divider/30">
-                      <td className="py-2 font-medium">{row.year}</td>
-                      <td className="py-2 text-right">{fmtEUR(row.opening_value)}</td>
-                      <td className="py-2 text-right text-foreground font-medium">{fmtEUR(row.annual_charge)}</td>
-                      <td className="py-2 text-right text-secondary-600">{fmtEUR(row.accumulated)}</td>
-                      <td className="py-2 text-right">{fmtEUR(row.closing_value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="px-6 py-5 overflow-y-auto max-h-[64vh]">
+              <div className="grid grid-cols-[0.8fr_1.2fr_1fr_1fr_1.2fr] px-1 py-2 border-b border-line">
+                <Eyebrow className="text-[10px]">Année</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">VNC ouverture</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">Dotation</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">Cumul</Eyebrow>
+                <Eyebrow className="text-[10px] text-right">VNC clôture</Eyebrow>
+              </div>
+              {scheduleAsset.schedule.map(row => (
+                <div key={row.year} className="grid grid-cols-[0.8fr_1.2fr_1fr_1fr_1.2fr] px-1 py-2.5 border-b border-line last:border-0">
+                  <div className="roy-num text-[12.5px] font-semibold text-ink">{row.year}</div>
+                  <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtEUR(row.opening_value)}</div>
+                  <div className="text-right roy-num text-[12.5px] font-semibold text-ink">{fmtEUR(row.annual_charge)}</div>
+                  <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtEUR(row.accumulated)}</div>
+                  <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtEUR(row.closing_value)}</div>
+                </div>
+              ))}
             </div>
-            <div className="p-6 border-t border-divider flex justify-end">
-              <button onClick={() => setScheduleAsset(null)} className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors text-sm">
+            <div className="px-6 py-4 border-t border-line flex justify-end bg-surface-2">
+              <OutlineButton onClick={() => setScheduleAsset(null)}>
                 Fermer
-              </button>
+              </OutlineButton>
             </div>
           </div>
         </div>
@@ -441,31 +424,31 @@ export default function AssetsTab() {
 
       {/* Create / Edit modal */}
       {isModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowCreate(false); setEditing(null); }}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => { setShowCreate(false); setEditing(null); }}>
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-lg max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-line">
+              <h2 className="text-[16px] font-bold text-ink">
                 {isEdit ? 'Modifier l\'immobilisation' : 'Nouvelle immobilisation'}
               </h2>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="px-6 py-5 overflow-y-auto max-h-[64vh] space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Désignation *</label>
+                <label className={labelClass}>Désignation *</label>
                 <input
                   type="text"
                   value={formData.name || ''}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                  className={inputClass}
                   placeholder="Ex : Moog Sub 37"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Catégorie</label>
+                  <label className={labelClass}>Catégorie</label>
                   <select
                     value={formData.category || 'studio_gear'}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   >
                     {Object.entries(CATEGORY_LABELS).map(([v, l]) => (
                       <option key={v} value={v}>{l}</option>
@@ -473,11 +456,11 @@ export default function AssetsTab() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Compte PCG</label>
+                  <label className={labelClass}>Compte PCG</label>
                   <select
                     value={formData.pcg_account || '215400'}
                     onChange={e => setFormData({ ...formData, pcg_account: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   >
                     {Object.entries(PCG_LABELS).map(([v, l]) => (
                       <option key={v} value={v}>{l}</option>
@@ -487,51 +470,51 @@ export default function AssetsTab() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Date d'acquisition *</label>
+                  <label className={labelClass}>Date d&apos;acquisition *</label>
                   <input
                     type="date"
                     value={formData.purchase_date || ''}
                     onChange={e => setFormData({ ...formData, purchase_date: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Valeur HT (€) *</label>
+                  <label className={labelClass}>Valeur HT (€) *</label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.purchase_amount_ht ?? 0}
                     onChange={e => setFormData({ ...formData, purchase_amount_ht: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">TVA (%)</label>
+                  <label className={labelClass}>TVA (%)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={formData.vat_rate ?? 20}
                     onChange={e => setFormData({ ...formData, vat_rate: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Durée (mois)</label>
+                  <label className={labelClass}>Durée (mois)</label>
                   <input
                     type="number"
                     value={formData.useful_life_months ?? 96}
                     onChange={e => setFormData({ ...formData, useful_life_months: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Mode</label>
+                  <label className={labelClass}>Mode</label>
                   <select
                     value={formData.depreciation_method || 'linear'}
                     onChange={e => setFormData({ ...formData, depreciation_method: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   >
                     <option value="linear">Linéaire</option>
                     <option value="degressive">Dégressif</option>
@@ -540,78 +523,75 @@ export default function AssetsTab() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">N° interne</label>
+                  <label className={labelClass}>N° interne</label>
                   <input
                     type="text"
                     value={formData.internal_ref || ''}
                     onChange={e => setFormData({ ...formData, internal_ref: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">N° série</label>
+                  <label className={labelClass}>N° série</label>
                   <input
                     type="text"
                     value={formData.serial_number || ''}
                     onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Fournisseur</label>
+                  <label className={labelClass}>Fournisseur</label>
                   <input
                     type="text"
                     value={formData.supplier || ''}
                     onChange={e => setFormData({ ...formData, supplier: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Référence facture</label>
+                  <label className={labelClass}>Référence facture</label>
                   <input
                     type="text"
                     value={formData.invoice_reference || ''}
                     onChange={e => setFormData({ ...formData, invoice_reference: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                    className={inputClass}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Localisation</label>
+                <label className={labelClass}>Localisation</label>
                 <input
                   type="text"
                   value={formData.location || ''}
                   onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                  className={inputClass}
                   placeholder="Ex : Studio principal — Rack A"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Notes</label>
+                <label className={labelClass}>Notes</label>
                 <textarea
                   value={formData.notes || ''}
                   onChange={e => setFormData({ ...formData, notes: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                  className="w-full px-3.5 py-2.5 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors resize-none"
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-divider flex justify-end gap-2">
-              <button
-                onClick={() => { setShowCreate(false); setEditing(null); }}
-                className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors text-sm"
-              >
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+              <OutlineButton onClick={() => { setShowCreate(false); setEditing(null); }}>
                 Annuler
-              </button>
-              <button
+              </OutlineButton>
+              <AccentButton
                 onClick={isEdit ? handleUpdate : handleCreate}
                 disabled={saving || !formData.name || !formData.purchase_date}
-                className="px-4 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors text-sm disabled:opacity-50"
               >
+                {saving && <Spinner size="sm" color="white" />}
                 {saving ? 'Enregistrement...' : (isEdit ? 'Enregistrer' : 'Créer')}
-              </button>
+              </AccentButton>
             </div>
           </div>
         </div>
@@ -619,48 +599,45 @@ export default function AssetsTab() {
 
       {/* Import modal */}
       {showImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowImport(false)}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">Importer une gear collection Reverb</h2>
-              <p className="text-sm text-secondary-500 mt-1">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowImport(false)}>
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-line">
+              <h2 className="text-[16px] font-bold text-ink">Importer une gear collection Reverb</h2>
+              <p className="text-[12.5px] text-ink-faint mt-0.5">
                 Reverb → Settings → Gear Collection → Export CSV.
-                Le champ <code>owner_cost</code> est utilisé comme valeur HT.
+                Le champ <code className="font-mono text-ink-muted">owner_cost</code> est utilisé comme valeur HT.
               </p>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Fichier CSV</label>
+                <label className={labelClass}>Fichier CSV</label>
                 <input
                   type="file"
                   accept=".csv,text/csv"
                   onChange={e => setImportFile(e.target.files?.[0] || null)}
-                  className="w-full text-sm text-foreground"
+                  className="w-full text-[13px] text-ink-muted file:mr-3 file:rounded-[8px] file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-[12px] file:font-semibold file:text-ink hover:file:bg-track"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">
-                  Date d'acquisition par défaut (si l'année n'est pas reconnue)
+                <label className={labelClass}>
+                  Date d&apos;acquisition par défaut (si l&apos;année n&apos;est pas reconnue)
                 </label>
                 <input
                   type="date"
                   value={importDate}
                   onChange={e => setImportDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                  className={inputClass}
                 />
               </div>
             </div>
-            <div className="p-6 border-t border-divider flex justify-end gap-2">
-              <button onClick={() => setShowImport(false)} className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors text-sm">
+            <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+              <OutlineButton onClick={() => setShowImport(false)}>
                 Annuler
-              </button>
-              <button
-                onClick={handleImport}
-                disabled={importing || !importFile}
-                className="px-4 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors text-sm disabled:opacity-50"
-              >
+              </OutlineButton>
+              <AccentButton onClick={handleImport} disabled={importing || !importFile}>
+                {importing && <Spinner size="sm" color="white" />}
                 {importing ? 'Import...' : 'Importer'}
-              </button>
+              </AccentButton>
             </div>
           </div>
         </div>
