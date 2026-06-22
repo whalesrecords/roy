@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Card, CardBody, CardHeader, Spinner, Divider } from '@heroui/react';
-import Button from '@/components/ui/Button';
-import { RoyaltyRun, ROYALTY_STATUS_LABELS, Artist, ImportRecord } from '@/lib/types';
+import { Spinner } from '@heroui/react';
+import { RoyaltyRun, ROYALTY_STATUS_LABELS, Artist, ImportRecord, ArtistRoyaltyResult } from '@/lib/types';
 import { getRoyaltyRuns, createRoyaltyRun, lockRoyaltyRun, deleteRoyaltyRun, payAllRoyaltyRun, getArtists, getImports, getExportCsvUrl, getExportPdfUrl, downloadExport } from '@/lib/api';
+import { formatCurrency, formatNumber } from '@/lib/formatters';
+import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconRoyalty, IconCheck, IconPlus, IconChevronRight, IconDownload } from '@/components/roy/icons';
 
 export default function RoyaltiesPage() {
   const [runs, setRuns] = useState<RoyaltyRun[]>([]);
@@ -163,10 +165,6 @@ export default function RoyaltiesPage() {
     }
   };
 
-  const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
-  };
-
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
   };
@@ -195,291 +193,322 @@ export default function RoyaltiesPage() {
 
   const years = Object.keys(runsByYear).map(Number).sort((a, b) => b - a);
 
+  // Year filter (presentation only — defaults to the most recent year)
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const activeYear = selectedYear ?? years[0] ?? null;
+  const visibleYears = activeYear != null ? [activeYear] : years;
+
   // Calculate totals
   const totalNetPayable = runs.reduce((acc, r) => acc + parseFloat(r.total_net_payable), 0);
-  const totalGross = runs.reduce((acc, r) => acc + parseFloat(r.total_gross), 0);
   const lockedRuns = runs.filter(r => r.is_locked).length;
 
+  // Featured run for the banner: selected run, else most-recent unlocked (draft/completed) run, else most-recent run.
+  const featuredRun =
+    selectedRun ??
+    runs.find(r => !r.is_locked) ??
+    runs[0] ??
+    null;
+
+  // Per-artist lines for the featured run.
+  const featuredLines: ArtistRoyaltyResult[] = featuredRun?.artists ?? [];
+
+  // Effective royalty rate for a line (artist_royalties / gross) — there is no explicit rate field.
+  const lineRate = (line: ArtistRoyaltyResult): string => {
+    const gross = parseFloat(line.gross);
+    if (!gross) return '—';
+    return `${((parseFloat(line.artist_royalties) / gross) * 100).toFixed(1)} %`;
+  };
+
+  // Whether a line is "ready" to pay/validate.
+  const lineReady = (run: RoyaltyRun, line: ArtistRoyaltyResult): boolean =>
+    line.statement_status === 'paid' ||
+    line.statement_status === 'finalized' ||
+    run.is_locked ||
+    run.status === 'completed';
+
   return (
-    <>
-      <header className="bg-background border-b border-divider sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">Royalties</h1>
-            <p className="text-sm text-secondary-500 mt-0.5">Calculs et paiements</p>
-          </div>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Royalties</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Calculs et paiements · {lockedRuns} verrouillé{lockedRuns > 1 ? 's' : ''} · {formatCurrency(totalNetPayable)} dus</p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          {years.length > 0 && (
+            <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1">
+              {years.slice(0, 3).map((y) => (
+                <button key={y} onClick={() => setSelectedYear(y)}
+                  className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === activeYear ? 'semibold' : 'medium'} ${y === activeYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          )}
           {canCalculate && (
-            <Button onClick={() => setShowCreate(true)}>
-              + Nouveau calcul
-            </Button>
+            <AccentButton onClick={() => setShowCreate(true)}><IconPlus size={14} /> Nouveau calcul</AccentButton>
           )}
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
         {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-xl p-4">
-            <p className="text-danger-700 text-sm">{error}</p>
-            <button onClick={() => setError(null)} className="text-xs text-danger-500 mt-1 hover:underline">
-              Fermer
-            </button>
-          </div>
+          <Card className="border-neg/40">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] text-neg">{error}</p>
+              <button onClick={() => setError(null)} className="text-[11px] text-ink-faint hover:text-ink">
+                Fermer
+              </button>
+            </div>
+          </Card>
         )}
 
         {/* Prerequisites check */}
         {!loading && (!hasImports || artists.length === 0) && (
-          <Card className="bg-warning-50 border border-warning-200">
-            <CardBody className="p-4">
-              <p className="font-medium text-warning-800 mb-3">Avant de calculer les royalties :</p>
-              <div className="space-y-2">
-                {!hasImports && (
-                  <Link href="/imports" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-warning-200 flex items-center justify-center">
-                        <span className="text-warning-700 font-bold">1</span>
-                      </div>
-                      <span className="text-sm text-warning-700">Importer des donnees de ventes</span>
-                    </div>
-                    <svg className="w-4 h-4 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                )}
-                {artists.length === 0 && (
-                  <Link href="/artists" className="flex items-center justify-between p-3 bg-white/50 rounded-lg hover:bg-white/80 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-warning-200 flex items-center justify-center">
-                        <span className="text-warning-700 font-bold">2</span>
-                      </div>
-                      <span className="text-sm text-warning-700">Activer des artistes avec contrats</span>
-                    </div>
-                    <svg className="w-4 h-4 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-        )}
-
-        {/* Summary stats */}
-        {!loading && runs.length > 0 && (
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-success-100">
-              <CardBody className="p-4">
-                <p className="text-xs text-success font-medium mb-1">Total net a payer</p>
-                <p className="text-2xl font-bold text-success-700">{formatCurrency(totalNetPayable.toString())}</p>
-                <p className="text-xs text-success-500 mt-1">{lockedRuns} calcul{lockedRuns > 1 ? 's' : ''} verrouille{lockedRuns > 1 ? 's' : ''}</p>
-              </CardBody>
-            </Card>
-            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-primary-100">
-              <CardBody className="p-4">
-                <p className="text-xs text-primary font-medium mb-1">Revenus bruts</p>
-                <p className="text-2xl font-bold text-primary-700">{formatCurrency(totalGross.toString())}</p>
-                <p className="text-xs text-primary-500 mt-1">{runs.length} calcul{runs.length > 1 ? 's' : ''} total</p>
-              </CardBody>
-            </Card>
-          </div>
-        )}
-
-        {/* Export section */}
-        {!loading && canCalculate && (
           <Card>
-            <CardBody className="p-4 space-y-3">
-              <h3 className="font-medium text-foreground">Exporter un rapport</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-secondary-500 mb-1">Debut</label>
-                  <input
-                    type="date"
-                    value={periodStart}
-                    onChange={(e) => setPeriodStart(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-secondary-500 mb-1">Fin</label>
-                  <input
-                    type="date"
-                    value={periodEnd}
-                    onChange={(e) => setPeriodEnd(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-              {/* Quick period buttons from imports */}
-              {imports.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {imports
-                    .filter((imp, idx, arr) =>
-                      arr.findIndex(i =>
-                        i.period_start === imp.period_start && i.period_end === imp.period_end
-                      ) === idx
-                    )
-                    .slice(0, 6)
-                    .map((imp) => (
-                      <button
-                        key={`exp-${imp.id}`}
-                        onClick={() => {
-                          if (imp.period_start) setPeriodStart(imp.period_start);
-                          if (imp.period_end) setPeriodEnd(imp.period_end);
-                        }}
-                        className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
-                          periodStart === imp.period_start && periodEnd === imp.period_end
-                            ? 'bg-primary text-white'
-                            : 'bg-content2 text-secondary-600 hover:bg-content3'
-                        }`}
-                      >
-                        {formatDate(imp.period_start)}
-                      </button>
-                    ))}
-                </div>
+            <Eyebrow>Avant de calculer les royalties</Eyebrow>
+            <div className="space-y-2 mt-3">
+              {!hasImports && (
+                <Link href="/imports" className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 hover:bg-surface-2/70 transition-colors">
+                  <div className="w-[34px] h-[34px] rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0 font-bold text-[13px]">1</div>
+                  <span className="flex-1 text-[13px] font-semibold text-ink">Importer des données de ventes</span>
+                  <IconChevronRight size={16} className="text-ink-faint" />
+                </Link>
               )}
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={handleExportCsv}
-                  disabled={!periodStart || !periodEnd || exportingCsv}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-content2 hover:bg-content3 disabled:opacity-40 rounded-xl text-sm font-medium text-foreground transition-colors"
-                >
-                  {exportingCsv ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  )}
-                  CSV
-                </button>
-                <button
-                  onClick={handleExportPdf}
-                  disabled={!periodStart || !periodEnd || exportingPdf}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-content2 hover:bg-content3 disabled:opacity-40 rounded-xl text-sm font-medium text-foreground transition-colors"
-                >
-                  {exportingPdf ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  )}
-                  PDF
-                </button>
-              </div>
-            </CardBody>
+              {artists.length === 0 && (
+                <Link href="/artists" className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 hover:bg-surface-2/70 transition-colors">
+                  <div className="w-[34px] h-[34px] rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0 font-bold text-[13px]">2</div>
+                  <span className="flex-1 text-[13px] font-semibold text-ink">Activer des artistes avec contrats</span>
+                  <IconChevronRight size={16} className="text-ink-faint" />
+                </Link>
+              )}
+            </div>
           </Card>
         )}
 
-        {/* Runs list grouped by year */}
         {loading ? (
-          <div className="text-center py-12">
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Spinner size="lg" />
-            <p className="text-secondary-500 mt-3">Chargement...</p>
+            <p className="text-[13px] text-ink-faint">Chargement...</p>
           </div>
         ) : runs.length === 0 ? (
-          <Card>
-            <CardBody className="py-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-content2 flex items-center justify-center">
-                <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
+          <Card className="text-center py-16">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-[12px] bg-accent-soft text-accent flex items-center justify-center">
+              <IconRoyalty size={22} />
+            </div>
+            <h3 className="text-[15px] font-bold text-ink mb-1">Aucun calcul</h3>
+            <p className="text-[12.5px] text-ink-faint mb-4">
+              {canCalculate ? 'Lancez votre premier calcul de royalties' : 'Complétez les prérequis ci-dessus'}
+            </p>
+            {canCalculate && (
+              <div className="flex justify-center">
+                <AccentButton onClick={() => setShowCreate(true)}><IconPlus size={14} /> Premier calcul</AccentButton>
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">Aucun calcul</h3>
-              <p className="text-sm text-secondary-500 mb-4">
-                {canCalculate ? 'Lancez votre premier calcul de royalties' : 'Completez les prerequis ci-dessus'}
-              </p>
-              {canCalculate && (
-                <Button onClick={() => setShowCreate(true)}>
-                  Premier calcul
-                </Button>
-              )}
-            </CardBody>
+            )}
           </Card>
         ) : (
-          <div className="space-y-6">
-            {years.map((year) => (
-              <div key={year}>
-                <div className="flex items-center gap-3 mb-3">
-                  <h2 className="text-lg font-semibold text-foreground">{year}</h2>
-                  <div className="flex-1 h-px bg-divider"></div>
-                  <span className="text-sm text-secondary-500">
-                    {formatCurrency(runsByYear[year].reduce((acc, r) => acc + parseFloat(r.total_net_payable), 0).toString())}
-                  </span>
+          <>
+            {/* ===== Featured "calcul en cours" banner ===== */}
+            {featuredRun && (
+              <Card hero className="flex flex-col sm:flex-row sm:items-center gap-3.5">
+                <div className="flex-1 min-w-0">
+                  <Eyebrow>Calcul en cours · {formatPeriod(featuredRun.period_start, featuredRun.period_end)}</Eyebrow>
+                  <div className="roy-num text-[28px] font-bold text-ink mt-2">
+                    {formatCurrency(featuredRun.total_net_payable, featuredRun.base_currency)}
+                  </div>
+                  <div className="text-[12px] text-ink-muted mt-1">
+                    royalties dues · {featuredLines.length} artiste{featuredLines.length > 1 ? 's' : ''} · base {formatCurrency(featuredRun.total_gross, featuredRun.base_currency)}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {runsByYear[year].map((run) => (
-                    <Card
-                      key={run.run_id}
-                      isPressable
-                      onClick={() => setSelectedRun(run)}
-                      className="border border-divider hover:border-default-400 transition-colors"
-                    >
-                      <CardBody className="p-4">
-                        <div className="flex items-center gap-4">
-                          {/* Period indicator */}
-                          <div className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
-                            run.is_locked ? 'bg-content2' : 'bg-primary-50'
-                          }`}>
-                            {run.is_locked ? (
-                              <svg className="w-6 h-6 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                              </svg>
-                            ) : (
-                              <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                              </svg>
-                            )}
-                          </div>
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <Pill tone="neutral">{ROYALTY_STATUS_LABELS[featuredRun.status]}</Pill>
+                  {featuredRun.status === 'completed' && !featuredRun.is_locked ? (
+                    <AccentButton onClick={() => handleLock(featuredRun.run_id)} disabled={locking}>
+                      {locking ? <Spinner size="sm" /> : <IconCheck size={14} />} Valider le calcul
+                    </AccentButton>
+                  ) : (
+                    <OutlineButton onClick={() => setSelectedRun(featuredRun)}>
+                      Détail <IconChevronRight size={14} />
+                    </OutlineButton>
+                  )}
+                </div>
+              </Card>
+            )}
 
-                          {/* Info */}
+            {/* ===== Per-artist table for the featured run ===== */}
+            <Card padded={false} className="overflow-hidden">
+              {/* Header */}
+              <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] px-[22px] py-3 border-b border-line roy-eyebrow text-[10px]">
+                <span>Artiste</span>
+                <span className="text-right">Base</span>
+                <span className="text-right">Taux</span>
+                <span className="text-right">Dû</span>
+                <span className="text-center">Statut</span>
+              </div>
+
+              {featuredLines.length === 0 ? (
+                <div className="px-[22px] py-10 text-center text-[13px] text-ink-faint">
+                  Aucun artiste pour ce calcul
+                </div>
+              ) : (
+                <>
+                  {featuredLines.map((line, i) => {
+                    const ready = lineReady(featuredRun!, line);
+                    return (
+                      <div
+                        key={line.artist_id}
+                        className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] items-center px-[22px] py-3.5 border-b border-line hover:bg-surface-2 transition-colors"
+                      >
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          <Avatar name={line.artist_name || '?'} size={30} accent={i === 0} />
+                          <span className="text-[13.5px] font-semibold text-ink truncate">{line.artist_name || 'Inconnu'}</span>
+                        </span>
+                        <span className="text-right roy-num text-[13px] text-ink-muted">{formatCurrency(line.gross, featuredRun!.base_currency)}</span>
+                        <span className="text-right roy-num text-[13px] text-ink-muted">{lineRate(line)}</span>
+                        <span className="text-right roy-num text-[13px] font-bold text-ink">{formatCurrency(line.net_payable, featuredRun!.base_currency)}</span>
+                        <span className="flex justify-center">
+                          <Pill tone={ready ? 'accent' : 'neutral'}>{ready ? 'Prêt' : 'À revoir'}</Pill>
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {/* Total row */}
+                  <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] items-center px-[22px] py-3.5 bg-surface-2">
+                    <span className="text-[13px] font-bold text-ink">Total · {featuredLines.length} artiste{featuredLines.length > 1 ? 's' : ''}</span>
+                    <span className="text-right roy-num text-[13px] text-ink-muted">{formatCurrency(featuredRun!.total_gross, featuredRun!.base_currency)}</span>
+                    <span />
+                    <span className="text-right roy-num text-[13px] font-bold text-accent">{formatCurrency(featuredRun!.total_net_payable, featuredRun!.base_currency)}</span>
+                    <span />
+                  </div>
+                </>
+              )}
+            </Card>
+
+            {/* ===== Export report ===== */}
+            {canCalculate && (
+              <Card>
+                <div className="flex items-center justify-between">
+                  <span className="text-[13.5px] font-semibold text-ink">Exporter un rapport</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3.5">
+                  <div>
+                    <label className="block roy-eyebrow text-[10px] mb-1.5">Début</label>
+                    <input
+                      type="date"
+                      value={periodStart}
+                      onChange={(e) => setPeriodStart(e.target.value)}
+                      className="w-full px-3 py-2 rounded-[10px] border border-line bg-surface text-[13px] text-ink focus:outline-none focus:border-line-strong"
+                    />
+                  </div>
+                  <div>
+                    <label className="block roy-eyebrow text-[10px] mb-1.5">Fin</label>
+                    <input
+                      type="date"
+                      value={periodEnd}
+                      onChange={(e) => setPeriodEnd(e.target.value)}
+                      className="w-full px-3 py-2 rounded-[10px] border border-line bg-surface text-[13px] text-ink focus:outline-none focus:border-line-strong"
+                    />
+                  </div>
+                </div>
+                {/* Quick period buttons from imports */}
+                {imports.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {imports
+                      .filter((imp, idx, arr) =>
+                        arr.findIndex(i =>
+                          i.period_start === imp.period_start && i.period_end === imp.period_end
+                        ) === idx
+                      )
+                      .slice(0, 6)
+                      .map((imp) => {
+                        const active = periodStart === imp.period_start && periodEnd === imp.period_end;
+                        return (
+                          <button
+                            key={`exp-${imp.id}`}
+                            onClick={() => {
+                              if (imp.period_start) setPeriodStart(imp.period_start);
+                              if (imp.period_end) setPeriodEnd(imp.period_end);
+                            }}
+                            className={`px-2.5 py-1 rounded-[8px] text-[11.5px] font-medium transition-colors ${
+                              active ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'
+                            }`}
+                          >
+                            {formatDate(imp.period_start)}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+                <div className="flex gap-2 mt-4">
+                  <OutlineButton onClick={handleExportCsv} className="flex-1 justify-center">
+                    {exportingCsv ? <Spinner size="sm" /> : <IconDownload size={14} />} CSV
+                  </OutlineButton>
+                  <OutlineButton onClick={handleExportPdf} className="flex-1 justify-center">
+                    {exportingPdf ? <Spinner size="sm" /> : <IconDownload size={14} />} PDF
+                  </OutlineButton>
+                </div>
+              </Card>
+            )}
+
+            {/* ===== Runs list grouped by year ===== */}
+            <div className="space-y-4">
+              {visibleYears.map((year) => (
+                <div key={year}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Eyebrow>{year}</Eyebrow>
+                    <div className="flex-1 h-px bg-line" />
+                    <span className="roy-num text-[12px] font-semibold text-ink-muted">
+                      {formatCurrency(runsByYear[year].reduce((acc, r) => acc + parseFloat(r.total_net_payable), 0))}
+                    </span>
+                  </div>
+                  <Card padded={false} className="overflow-hidden">
+                    {runsByYear[year].map((run, i) => {
+                      const allPaid = run.is_locked && run.artists?.length > 0 && run.artists.every(a => a.statement_status === 'paid' || parseFloat(a.net_payable) === 0);
+                      return (
+                        <button
+                          key={run.run_id}
+                          onClick={() => setSelectedRun(run)}
+                          className={`w-full flex items-center gap-3.5 text-left px-[22px] py-3.5 hover:bg-surface-2 transition-colors ${i < runsByYear[year].length - 1 ? 'border-b border-line' : ''}`}
+                        >
+                          <div className="w-[34px] h-[34px] rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                            <IconRoyalty size={16} />
+                          </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground">
-                              {formatPeriod(run.period_start, run.period_end)}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-secondary-500">
-                                {run.artists?.length || 0} artiste{(run.artists?.length || 0) > 1 ? 's' : ''}
-                              </span>
-                              <span className="text-default-300">·</span>
-                              <span className="text-xs text-secondary-500">
-                                {run.total_transactions.toLocaleString('fr-FR')} transactions
-                              </span>
+                            <div className="text-[13.5px] font-semibold text-ink">{formatPeriod(run.period_start, run.period_end)}</div>
+                            <div className="text-[11.5px] text-ink-faint mt-0.5">
+                              {run.artists?.length || 0} artiste{(run.artists?.length || 0) > 1 ? 's' : ''} · {formatNumber(run.total_transactions)} transactions
                             </div>
                           </div>
-
-                          {/* Amount */}
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-success">
-                              {formatCurrency(run.total_net_payable, run.base_currency)}
-                            </p>
-                            <p className="text-xs text-secondary-400">
-                              sur {formatCurrency(run.total_gross, run.base_currency)} brut
-                            </p>
-                            {run.is_locked && run.artists?.length > 0 && run.artists.every(a => a.statement_status === 'paid' || parseFloat(a.net_payable) === 0) && (
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700 mt-1">
-                                ✓ Payé
-                              </span>
-                            )}
+                          <div className="text-right shrink-0">
+                            <div className="roy-num text-[14px] font-bold text-ink">{formatCurrency(run.total_net_payable, run.base_currency)}</div>
+                            <div className="text-[11px] text-ink-faint mt-0.5">sur {formatCurrency(run.total_gross, run.base_currency)} brut</div>
                           </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
+                          <div className="shrink-0">
+                            {allPaid
+                              ? <Pill tone="accent"><IconCheck size={11} /> Payé</Pill>
+                              : <Pill tone="neutral">{ROYALTY_STATUS_LABELS[run.status]}</Pill>}
+                          </div>
+                          <IconChevronRight size={16} className="text-ink-faint shrink-0" />
+                        </button>
+                      );
+                    })}
+                  </Card>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+          <div className="bg-surface w-full sm:max-w-md sm:rounded-[16px] rounded-t-[16px] max-h-[90vh] overflow-y-auto shadow-roy">
+            <div className="px-5 py-4 border-b border-line">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">Nouveau calcul</h2>
-                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-secondary-500 hover:text-secondary-700">
+                <h2 className="text-[16px] font-bold text-ink">Nouveau calcul</h2>
+                <button onClick={() => setShowCreate(false)} className="p-2 -mr-2 text-ink-faint hover:text-ink">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -487,13 +516,11 @@ export default function RoyaltiesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4">
+            <div className="p-5 space-y-4">
               {/* Quick period selection */}
               {imports.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2">
-                    Periodes disponibles
-                  </label>
+                  <label className="block roy-eyebrow text-[10px] mb-2">Périodes disponibles</label>
                   <div className="flex flex-wrap gap-2">
                     {imports
                       .filter((imp, idx, arr) =>
@@ -502,22 +529,23 @@ export default function RoyaltiesPage() {
                         ) === idx
                       )
                       .slice(0, 6)
-                      .map((imp) => (
-                        <button
-                          key={imp.id}
-                          onClick={() => {
-                            if (imp.period_start) setPeriodStart(imp.period_start);
-                            if (imp.period_end) setPeriodEnd(imp.period_end);
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                            periodStart === imp.period_start && periodEnd === imp.period_end
-                              ? 'bg-primary text-white'
-                              : 'bg-content2 text-secondary-600 hover:bg-content3'
-                          }`}
-                        >
-                          {formatDate(imp.period_start)}
-                        </button>
-                      ))}
+                      .map((imp) => {
+                        const active = periodStart === imp.period_start && periodEnd === imp.period_end;
+                        return (
+                          <button
+                            key={imp.id}
+                            onClick={() => {
+                              if (imp.period_start) setPeriodStart(imp.period_start);
+                              if (imp.period_end) setPeriodEnd(imp.period_end);
+                            }}
+                            className={`px-3 py-1.5 rounded-[8px] text-[12.5px] font-medium transition-colors ${
+                              active ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted hover:text-ink'
+                            }`}
+                          >
+                            {formatDate(imp.period_start)}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -525,21 +553,21 @@ export default function RoyaltiesPage() {
               {/* Date inputs */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-1">Debut</label>
+                  <label className="block roy-eyebrow text-[10px] mb-1.5">Début</label>
                   <input
                     type="date"
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-[10px] border border-line bg-surface text-[13px] text-ink focus:outline-none focus:border-line-strong"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-1">Fin</label>
+                  <label className="block roy-eyebrow text-[10px] mb-1.5">Fin</label>
                   <input
                     type="date"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
-                    className="w-full px-3 py-2 border border-divider rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 rounded-[10px] border border-line bg-surface text-[13px] text-ink focus:outline-none focus:border-line-strong"
                   />
                 </div>
               </div>
@@ -547,36 +575,36 @@ export default function RoyaltiesPage() {
               {/* Artist selection */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-secondary-700">Artistes</label>
+                  <label className="roy-eyebrow text-[10px]">Artistes</label>
                   <button
                     onClick={() => {
                       setSelectAllArtists(!selectAllArtists);
                       if (!selectAllArtists) setSelectedArtistIds([]);
                     }}
-                    className="text-sm text-primary hover:underline"
+                    className="text-[12.5px] font-semibold text-accent hover:opacity-80"
                   >
                     {selectAllArtists ? 'Choisir' : 'Tous'}
                   </button>
                 </div>
 
                 {selectAllArtists ? (
-                  <div className="bg-primary-50 rounded-lg p-3">
-                    <p className="text-sm text-primary-700">
+                  <div className="bg-accent-soft rounded-[10px] p-3">
+                    <p className="text-[13px] text-accent font-semibold">
                       Tous les {artists.length} artiste{artists.length > 1 ? 's' : ''} seront inclus
                     </p>
                   </div>
                 ) : (
-                  <div className="border border-divider rounded-lg max-h-48 overflow-y-auto">
+                  <div className="border border-line rounded-[10px] max-h-48 overflow-y-auto">
                     {artists.map((artist) => (
                       <label
                         key={artist.id}
-                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-content2 cursor-pointer border-b border-divider last:border-0"
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-2 cursor-pointer border-b border-line last:border-0"
                       >
                         <input
                           type="checkbox"
                           checked={selectedArtistIds.includes(artist.id)}
                           onChange={() => toggleArtistSelection(artist.id)}
-                          className="w-4 h-4 rounded border-default-300 text-primary focus:ring-primary"
+                          className="w-4 h-4 rounded accent-[var(--accent)]"
                         />
                         {artist.image_url_small ? (
                           <Image
@@ -587,11 +615,9 @@ export default function RoyaltiesPage() {
                             className="rounded-full"
                           />
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-content3 flex items-center justify-center text-xs font-medium text-secondary-600">
-                            {artist.name.charAt(0).toUpperCase()}
-                          </div>
+                          <Avatar name={artist.name} size={28} />
                         )}
-                        <span className="text-sm text-foreground">{artist.name}</span>
+                        <span className="text-[13px] text-ink">{artist.name}</span>
                       </label>
                     ))}
                   </div>
@@ -599,18 +625,17 @@ export default function RoyaltiesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-divider flex gap-3">
-              <Button variant="secondary" onClick={() => setShowCreate(false)} className="flex-1">
+            <div className="p-5 border-t border-line flex gap-3">
+              <OutlineButton onClick={() => setShowCreate(false)} className="flex-1 justify-center">
                 Annuler
-              </Button>
-              <Button
+              </OutlineButton>
+              <AccentButton
                 onClick={handleCreate}
-                loading={creating}
-                disabled={!periodStart || !periodEnd || (!selectAllArtists && selectedArtistIds.length === 0)}
+                disabled={creating || !periodStart || !periodEnd || (!selectAllArtists && selectedArtistIds.length === 0)}
                 className="flex-1"
               >
-                Calculer
-              </Button>
+                {creating ? <Spinner size="sm" /> : null} Calculer
+              </AccentButton>
             </div>
           </div>
         </div>
@@ -619,30 +644,20 @@ export default function RoyaltiesPage() {
       {/* Detail Modal */}
       {selectedRun && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-4 py-4 sm:px-6 border-b border-divider">
+          <div className="bg-surface w-full sm:max-w-lg sm:rounded-[16px] rounded-t-[16px] max-h-[90vh] overflow-y-auto shadow-roy">
+            <div className="px-5 py-4 border-b border-line">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">
+                  <h2 className="text-[16px] font-bold text-ink">
                     {formatPeriod(selectedRun.period_start, selectedRun.period_end)}
                   </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    {selectedRun.is_locked && (
-                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-content2 text-secondary-600">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Verrouille
-                      </span>
-                    )}
-                    {!selectedRun.is_locked && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning-100 text-warning-700">
-                        Non verrouille
-                      </span>
-                    )}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {selectedRun.is_locked
+                      ? <Pill tone="neutral">Verrouillé</Pill>
+                      : <Pill tone="neutral">{ROYALTY_STATUS_LABELS[selectedRun.status]}</Pill>}
                   </div>
                 </div>
-                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-secondary-500 hover:text-secondary-700">
+                <button onClick={() => setSelectedRun(null)} className="p-2 -mr-2 text-ink-faint hover:text-ink">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -650,80 +665,70 @@ export default function RoyaltiesPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4">
+            <div className="p-5 space-y-4">
               {/* Summary */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-content2 rounded-xl p-4">
-                  <p className="text-xs text-secondary-500 mb-1">Revenus bruts</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
+                <div className="bg-surface-2 rounded-[12px] p-4">
+                  <Eyebrow>Revenus bruts</Eyebrow>
+                  <p className="roy-num text-[20px] font-bold text-ink mt-1.5">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</p>
                 </div>
-                <div className="bg-success-50 rounded-xl p-4">
-                  <p className="text-xs text-success mb-1">Net a payer</p>
-                  <p className="text-xl font-bold text-success-700">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
+                <div className="bg-accent-soft rounded-[12px] p-4">
+                  <Eyebrow>Net à payer</Eyebrow>
+                  <p className="roy-num text-[20px] font-bold text-accent mt-1.5">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-content2 rounded-lg p-3 text-center">
-                  <p className="text-lg font-semibold text-foreground">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-secondary-500">Part artistes</p>
+                <div className="bg-surface-2 rounded-[10px] p-3 text-center">
+                  <p className="roy-num text-[15px] font-bold text-ink">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</p>
+                  <p className="text-[11px] text-ink-faint mt-0.5">Part artistes</p>
                 </div>
-                <div className="bg-content2 rounded-lg p-3 text-center">
-                  <p className="text-lg font-semibold text-foreground">{formatCurrency(selectedRun.total_label_royalties, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-secondary-500">Part label</p>
+                <div className="bg-surface-2 rounded-[10px] p-3 text-center">
+                  <p className="roy-num text-[15px] font-bold text-ink">{formatCurrency(selectedRun.total_label_royalties, selectedRun.base_currency)}</p>
+                  <p className="text-[11px] text-ink-faint mt-0.5">Part label</p>
                 </div>
-                <div className="bg-warning-50 rounded-lg p-3 text-center">
-                  <p className="text-lg font-semibold text-warning-700">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
-                  <p className="text-xs text-warning-600">Recoupe</p>
+                <div className="bg-surface-2 rounded-[10px] p-3 text-center">
+                  <p className="roy-num text-[15px] font-bold text-ink">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
+                  <p className="text-[11px] text-ink-faint mt-0.5">Recoupé</p>
                 </div>
               </div>
 
-              <div className="bg-content2 rounded-xl p-4 text-center">
-                <p className="text-3xl font-bold text-foreground">{selectedRun.total_transactions.toLocaleString('fr-FR')}</p>
-                <p className="text-sm text-secondary-500">transactions traitees</p>
+              <div className="bg-surface-2 rounded-[12px] p-4 text-center">
+                <p className="roy-num text-[26px] font-bold text-ink">{formatNumber(selectedRun.total_transactions)}</p>
+                <p className="text-[12px] text-ink-faint">transactions traitées</p>
               </div>
 
               {/* Artists breakdown */}
               {selectedRun.artists && selectedRun.artists.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-foreground mb-3">Detail par artiste</h3>
-                  <div className="space-y-2">
+                  <span className="text-[13.5px] font-semibold text-ink">Détail par artiste</span>
+                  <div className="space-y-2 mt-3">
                     {selectedRun.artists.map((artist) => {
                       const isPaid = artist.statement_status === 'paid';
                       return (
-                        <div key={artist.artist_id} className={`rounded-xl p-4 ${isPaid ? 'bg-success-50 border border-success-100' : 'bg-content2'}`}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${isPaid ? 'bg-success-100 text-success-700' : 'bg-content3 text-secondary-600'}`}>
-                                {isPaid ? (
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                ) : (
-                                  (artist.artist_name || '?').charAt(0).toUpperCase()
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-medium text-foreground">{artist.artist_name || 'Inconnu'}</p>
-                                <p className="text-xs text-secondary-500">
-                                  {artist.transaction_count.toLocaleString('fr-FR')} transactions
+                        <div key={artist.artist_id} className="rounded-[12px] p-4 bg-surface-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Avatar name={artist.artist_name || '?'} size={34} accent={isPaid} />
+                              <div className="min-w-0">
+                                <p className="text-[13.5px] font-semibold text-ink truncate">{artist.artist_name || 'Inconnu'}</p>
+                                <p className="text-[11.5px] text-ink-faint">
+                                  {formatNumber(artist.transaction_count)} transactions
                                   {isPaid && artist.paid_at && (
-                                    <> · <span className="text-success-600">Payé le {new Date(artist.paid_at).toLocaleDateString('fr-FR')}</span></>
+                                    <> · Payé le {new Date(artist.paid_at).toLocaleDateString('fr-FR')}</>
                                   )}
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className={`font-bold ${isPaid ? 'text-success-600' : 'text-success'}`}>
+                            <div className="text-right shrink-0">
+                              <p className="roy-num text-[14px] font-bold text-ink">
                                 {formatCurrency(artist.net_payable, selectedRun.base_currency)}
                               </p>
                               {parseFloat(artist.recouped) > 0 && (
-                                <p className="text-xs text-warning-600">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupe</p>
+                                <p className="text-[11px] text-ink-faint">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupé</p>
                               )}
                               {isPaid && (
-                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success-100 text-success-700 mt-1">
-                                  Payé ✓
-                                </span>
+                                <span className="inline-flex mt-1"><Pill tone="accent"><IconCheck size={11} /> Payé</Pill></span>
                               )}
                             </div>
                           </div>
@@ -735,54 +740,45 @@ export default function RoyaltiesPage() {
               )}
 
               {selectedRun.artists && selectedRun.artists.length === 0 && (
-                <div className="bg-warning-50 rounded-xl p-4 text-center">
-                  <p className="text-sm text-warning-700">Aucun artiste pour cette periode</p>
+                <div className="bg-surface-2 rounded-[12px] p-4 text-center">
+                  <p className="text-[13px] text-ink-faint">Aucun artiste pour cette période</p>
                 </div>
               )}
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-divider space-y-3">
+            <div className="p-5 border-t border-line space-y-3">
               {/* Actions */}
               <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => setSelectedRun(null)} className="flex-1">
+                <OutlineButton onClick={() => setSelectedRun(null)} className="flex-1 justify-center">
                   Fermer
-                </Button>
+                </OutlineButton>
                 {selectedRun.status === 'completed' && !selectedRun.is_locked && (
-                  <Button
+                  <AccentButton
                     onClick={() => handleLock(selectedRun.run_id)}
-                    loading={locking}
+                    disabled={locking}
                     className="flex-1"
                   >
-                    Verrouiller
-                  </Button>
+                    {locking ? <Spinner size="sm" /> : <IconCheck size={14} />} Verrouiller
+                  </AccentButton>
                 )}
               </div>
 
               {/* Pay all button — only visible on locked runs with unpaid artists */}
               {selectedRun.is_locked && selectedRun.artists?.some(a => a.statement_status !== 'paid' && parseFloat(a.net_payable) > 0) && (
-                <button
+                <AccentButton
                   onClick={() => handlePayAll(selectedRun.run_id)}
                   disabled={payingAll}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-success text-white rounded-xl font-medium text-sm hover:bg-success-600 disabled:opacity-50 transition-colors"
+                  className="w-full"
                 >
-                  {payingAll ? (
-                    <Spinner size="sm" color="white" />
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  Marquer tout comme payé
-                </button>
+                  {payingAll ? <Spinner size="sm" /> : <IconCheck size={14} />} Marquer tout comme payé
+                </AccentButton>
               )}
 
               {/* All paid confirmation */}
               {selectedRun.is_locked && selectedRun.artists?.length > 0 && selectedRun.artists.every(a => a.statement_status === 'paid' || parseFloat(a.net_payable) === 0) && (
-                <div className="flex items-center justify-center gap-2 py-3 bg-success-50 rounded-xl border border-success-100">
-                  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm font-medium text-success-700">Tous les artistes ont été payés</span>
+                <div className="flex items-center justify-center gap-2 py-3 bg-accent-soft rounded-[12px]">
+                  <IconCheck size={16} className="text-accent" />
+                  <span className="text-[13px] font-semibold text-accent">Tous les artistes ont été payés</span>
                 </div>
               )}
 
@@ -790,18 +786,14 @@ export default function RoyaltiesPage() {
               <button
                 onClick={() => handleDelete(selectedRun.run_id, selectedRun.is_locked)}
                 disabled={deleting}
-                className={`w-full py-2.5 text-sm rounded-lg transition-colors ${
-                  selectedRun.is_locked
-                    ? 'text-danger bg-danger-50 hover:bg-danger-100'
-                    : 'text-danger hover:text-danger-700 hover:bg-danger-50'
-                }`}
+                className="w-full py-2.5 text-[12.5px] font-semibold rounded-[10px] text-neg hover:bg-surface-2 transition-colors disabled:opacity-50"
               >
-                {deleting ? 'Suppression...' : selectedRun.is_locked ? 'Supprimer (verrouille)' : 'Supprimer ce calcul'}
+                {deleting ? 'Suppression...' : selectedRun.is_locked ? 'Supprimer (verrouillé)' : 'Supprimer ce calcul'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

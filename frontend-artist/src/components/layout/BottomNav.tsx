@@ -42,7 +42,7 @@ export default function BottomNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-divider safe-bottom z-50">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-xl border-t border-line safe-bottom z-50">
       <div className="flex items-center justify-around py-2 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
@@ -55,7 +55,7 @@ export default function BottomNav() {
             >
               <div className="relative">
                 <svg
-                  className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-default-400'}`}
+                  className={`w-5 h-5 transition-colors ${isActive ? 'text-accent' : 'text-ink-faint'}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -63,18 +63,14 @@ export default function BottomNav() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2 : 1.5} d={NAV_ICONS[item.iconKey]} />
                 </svg>
                 {showBadge && (
-                  <span className="absolute -top-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-danger text-white text-[8px] font-bold">
+                  <span className="absolute -top-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-neg text-white text-[8px] font-bold">
                     {unreadTickets > 9 ? '9+' : unreadTickets}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-primary' : 'text-default-400'}`}>
+              <span className={`text-[9.5px] font-${isActive ? 'semibold' : 'medium'} transition-colors ${isActive ? 'text-accent' : 'text-ink-faint'}`}>
                 {t(item.labelKey)}
               </span>
-              {/* Indicateur actif — point sous le label */}
-              {isActive && (
-                <div className="absolute bottom-0 w-1 h-1 rounded-full bg-primary" />
-              )}
             </Link>
           );
         })}

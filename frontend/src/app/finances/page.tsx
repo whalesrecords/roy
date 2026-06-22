@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Spinner } from '@heroui/react';
 import {
   getExpenses,
@@ -11,6 +11,7 @@ import {
   deleteExpenseDocument,
   getRoyaltyPayments,
   getFinancesSummary,
+  getAnalyticsSummary,
   getArtists,
   getArtistReleases,
   getArtistTracks,
@@ -22,10 +23,16 @@ import {
   ExpenseEntry,
   RoyaltyPayment,
   FinancesSummary,
+  AnalyticsSummary,
   Artist,
   CatalogRelease,
   CatalogTrack,
 } from '@/lib/api';
+import { formatCurrency } from '@/lib/formatters';
+import { Card, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import {
+  IconPlus, IconImport, IconDownload, IconRoyalty, IconChart, IconBox,
+} from '@/components/roy/icons';
 import InvoiceImportModal from '@/components/InvoiceImportModal';
 
 const EXPENSE_CATEGORIES = [
@@ -57,6 +64,7 @@ export default function FinancesPage() {
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [royaltyPayments, setRoyaltyPayments] = useState<RoyaltyPayment[]>([]);
   const [summary, setSummary] = useState<FinancesSummary | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
   const [activeTab, setActiveTab] = useState<string>('expenses');
@@ -163,24 +171,21 @@ export default function FinancesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [expensesData, paymentsData, summaryData] = await Promise.all([
+      const [expensesData, paymentsData, summaryData, analyticsData] = await Promise.all([
         getExpenses({ year: parseInt(selectedYear) }),
         getRoyaltyPayments(parseInt(selectedYear)),
         getFinancesSummary(parseInt(selectedYear)),
+        getAnalyticsSummary(parseInt(selectedYear)).catch(() => null),
       ]);
       setExpenses(expensesData);
       setRoyaltyPayments(paymentsData);
       setSummary(summaryData);
+      setAnalytics(analyticsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement');
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (value: number | string) => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
   };
 
   const formatDate = (dateStr: string) => {
@@ -297,6 +302,54 @@ export default function FinancesPage() {
 
   const totalExpenses = summary ? parseFloat(summary.total_expenses) : 0;
   const totalRoyalties = summary ? parseFloat(summary.total_royalties_payable) : 0;
+
+  // ── Derived presentation data (from analytics) ──
+  const totalRevenue = analytics ? parseFloat(analytics.total_revenue) : 0;
+  const netMargin = analytics ? parseFloat(analytics.net) : 0;
+  const marginDisplay = analytics
+    ? totalRevenue > 0
+      ? `${((netMargin / totalRevenue) * 100).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+      : formatCurrency(netMargin)
+    : '—';
+
+  // Expenses by category bars (sorted desc)
+  const expensesByCategory = useMemo(() => {
+    if (!analytics) return [] as { name: string; value: number }[];
+    return analytics.expenses_by_category
+      .map((c) => ({ name: c.category_label, value: parseFloat(c.amount) }))
+      .filter((c) => c.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [analytics]);
+  const maxCategoryValue = expensesByCategory.length ? expensesByCategory[0].value : 1;
+
+  // Latest operations: revenues (monthly) + expenses, merged & sorted by date desc
+  const recentOperations = useMemo(() => {
+    const ops: { key: string; label: string; date: string; amount: number }[] = [];
+    if (analytics) {
+      analytics.monthly_revenue.forEach((m) => {
+        const value = parseFloat(m.gross);
+        if (value > 0) {
+          ops.push({
+            key: `rev-${m.year}-${m.month}`,
+            label: `Revenus · ${m.month_label}`,
+            date: `${m.year}-${String(m.month).padStart(2, '0')}-01`,
+            amount: value,
+          });
+        }
+      });
+    }
+    expenses.forEach((e) => {
+      ops.push({
+        key: `exp-${e.id}`,
+        label: e.description || e.category_label || e.scope_title || 'Dépense',
+        date: e.effective_date,
+        amount: -parseFloat(e.amount),
+      });
+    });
+    return ops
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 8);
+  }, [analytics, expenses]);
 
   // Collect unique scope titles for the filter dropdown
   const scopeTitles = Array.from(
@@ -417,165 +470,142 @@ export default function FinancesPage() {
     }
   };
 
+  const TABS: { value: string; label: string }[] = [
+    { value: 'expenses', label: `Avances / Frais (${expenses.length})` },
+    { value: 'royalties', label: `Royalties (${royaltyPayments.length})` },
+    { value: 'exports', label: 'Exports CSV' },
+  ];
+
+  const inputClass =
+    'w-full h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+  const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <>
-      {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Finances</h1>
-              <p className="text-secondary-500 text-sm mt-0.5">Gestion des depenses et royalties</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setIsInvoiceImportOpen(true)}
-                className="px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 transition-colors"
-              >
-                Importer Factures
-              </button>
-              <button
-                onClick={openCreateModal}
-                className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Ajouter
-              </button>
-            </div>
-          </div>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Finances</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Whales Records · dépenses et royalties {selectedYear}</p>
         </div>
-      </header>
+        <div className="flex items-center gap-2.5">
+          <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1">
+            {years.slice(0, 4).map((y) => (
+              <button key={y} onClick={() => setSelectedYear(y)}
+                className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === selectedYear ? 'semibold' : 'medium'} ${y === selectedYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
+                {y}
+              </button>
+            ))}
+          </div>
+          <OutlineButton onClick={() => setIsInvoiceImportOpen(true)}>
+            <IconImport size={14} /> Importer factures
+          </OutlineButton>
+          <AccentButton onClick={openCreateModal}>
+            <IconPlus size={14} /> Nouvelle dépense
+          </AccentButton>
+        </div>
+      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
         {error && (
-          <div className="bg-danger-50 border border-danger-200 rounded-2xl p-4">
-            <p className="text-danger">{error}</p>
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            {error}
           </div>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+        {/* KPI cards */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
+          <Kpi label="Revenus" value={analytics ? formatCurrency(totalRevenue) : '—'} />
+          <Kpi label="Dépenses" value={formatCurrency(totalExpenses)} hint={`${summary?.expenses_count || 0} entrées`} />
+          <Kpi
+            label="Marge nette"
+            value={marginDisplay}
+            hero
+            accentValue
+            hint={analytics ? `${formatCurrency(netMargin)} · après royalties` : undefined}
+            hintTone="accent"
+          />
+        </div>
+
+        {/* Two-column row: categories + operations */}
+        <div className="grid md:grid-cols-2 gap-3.5">
+          {/* Dépenses par catégorie */}
+          <Card>
+            <span className="text-[13.5px] font-semibold text-ink">Dépenses par catégorie</span>
+            {expensesByCategory.length > 0 ? (
+              <div className="flex flex-col gap-3 mt-4">
+                {expensesByCategory.map((c) => (
+                  <div key={c.name}>
+                    <div className="flex justify-between mb-1.5">
+                      <span className="text-[12.5px] text-ink">{c.name}</span>
+                      <span className="roy-num text-[12.5px] font-semibold text-ink">{formatCurrency(c.value)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-track overflow-hidden">
+                      <div className="h-full bg-accent" style={{ width: `${(c.value / maxCategoryValue) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-sm text-secondary-500">Avances / Frais</p>
-            </div>
-            <p className="text-2xl font-bold text-warning">{formatCurrency(totalExpenses)}</p>
-            <p className="text-xs text-secondary-400 mt-1">{summary?.expenses_count || 0} entrees</p>
-          </div>
-          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            ) : (
+              <p className="text-ink-faint text-[13px] py-6 text-center">Aucune dépense pour {selectedYear}</p>
+            )}
+          </Card>
+
+          {/* Dernières opérations */}
+          <Card>
+            <span className="text-[13.5px] font-semibold text-ink">Dernières opérations</span>
+            {recentOperations.length > 0 ? (
+              <div className="flex flex-col mt-2">
+                {recentOperations.map((op, i) => (
+                  <div
+                    key={op.key}
+                    className={`flex items-center justify-between py-2.5 ${i < recentOperations.length - 1 ? 'border-b border-line' : ''}`}
+                  >
+                    <div className="min-w-0 pr-3">
+                      <div className="text-[13px] font-semibold text-ink truncate">{op.label}</div>
+                      <div className="text-[11px] text-ink-faint mt-0.5">{formatDate(op.date)}</div>
+                    </div>
+                    <span className={`roy-num text-[13px] font-bold shrink-0 ${op.amount >= 0 ? 'text-accent' : 'text-ink-muted'}`}>
+                      {op.amount >= 0 ? '+' : '−'}{formatCurrency(Math.abs(op.amount))}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <p className="text-sm text-secondary-500">Royalties dues</p>
-            </div>
-            <p className="text-2xl font-bold text-secondary">{formatCurrency(totalRoyalties)}</p>
-            <p className="text-xs text-secondary-400 mt-1">{summary?.royalty_runs_count || 0} periodes</p>
-          </div>
-          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
-              </div>
-              <p className="text-sm text-secondary-500">Total Sorties</p>
-            </div>
-            <p className="text-2xl font-bold text-danger">{formatCurrency(totalExpenses + totalRoyalties)}</p>
-          </div>
-          <div className="bg-background border border-divider rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <p className="text-sm text-secondary-500">Derniere maj</p>
-            </div>
-            <p className="text-lg font-bold text-foreground">{new Date().toLocaleDateString('fr-FR')}</p>
-          </div>
+            ) : (
+              <p className="text-ink-faint text-[13px] py-6 text-center">Aucune opération</p>
+            )}
+          </Card>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('expenses')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
-              activeTab === 'expenses'
-                ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                : 'bg-content2 text-secondary-600 hover:bg-content3'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Avances / Frais ({expenses.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('royalties')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
-              activeTab === 'royalties'
-                ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                : 'bg-content2 text-secondary-600 hover:bg-content3'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Royalties ({royaltyPayments.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('exports')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
-              activeTab === 'exports'
-                ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                : 'bg-content2 text-secondary-600 hover:bg-content3'
-            }`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Exports CSV
-          </button>
+        <div className="flex gap-1 rounded-[11px] border border-line bg-surface p-1 w-fit">
+          {TABS.map((t) => (
+            <button key={t.value} onClick={() => setActiveTab(t.value)}
+              className={`px-4 py-1.5 rounded-lg text-[12.5px] font-${activeTab === t.value ? 'semibold' : 'medium'} transition-colors ${activeTab === t.value ? 'bg-accent-soft text-accent' : 'text-ink-muted hover:text-ink'}`}>
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {/* Expenses List */}
         {activeTab === 'expenses' && (
           <>
             {/* Filters */}
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-3 flex-wrap">
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Artiste</label>
+                <label className={labelClass}>Artiste</label>
                 <select
                   value={selectedArtistFilter}
                   onChange={(e) => setSelectedArtistFilter(e.target.value)}
-                  className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                  className={`${inputClass} min-w-[200px]`}
                 >
                   <option value="all">Tous les artistes</option>
                   {artists.map((a) => (
@@ -585,11 +615,11 @@ export default function FinancesPage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Categorie</label>
+                <label className={labelClass}>Catégorie</label>
                 <select
                   value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                  className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                  className={`${inputClass} min-w-[200px]`}
                 >
                   <option value="all">Toutes les categories</option>
                   {EXPENSE_CATEGORIES.map((c) => (
@@ -599,11 +629,11 @@ export default function FinancesPage() {
               </div>
               {scopeTitles.length > 0 && (
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Album / Track</label>
+                  <label className={labelClass}>Album / Track</label>
                   <select
                     value={selectedScopeFilter}
                     onChange={(e) => setSelectedScopeFilter(e.target.value)}
-                    className="h-10 px-4 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors min-w-[200px]"
+                    className={`${inputClass} min-w-[200px]`}
                   >
                     <option value="">Tous</option>
                     {scopeTitles.map((title) => (
@@ -614,70 +644,66 @@ export default function FinancesPage() {
               )}
             </div>
 
-            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
-                <h2 className="font-semibold text-foreground">Avances et Frais</h2>
-                <p className="text-sm text-secondary-500">
-                  {filteredExpenses.length} depense{filteredExpenses.length > 1 ? 's' : ''}
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[22px] py-4 border-b border-line flex items-center justify-between">
+                <span className="text-[13.5px] font-semibold text-ink">Avances et frais</span>
+                <span className="text-[12px] text-ink-faint">
+                  {filteredExpenses.length} dépense{filteredExpenses.length > 1 ? 's' : ''}
                   {' · '}
-                  {formatCurrency(filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0))}
-                </p>
+                  <span className="roy-num">{formatCurrency(filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0))}</span>
+                </span>
               </div>
               {filteredExpenses.length === 0 ? (
-                <div className="p-12 text-center text-secondary-500">
-                  Aucune depense trouvee
+                <div className="p-12 text-center text-ink-faint text-[13px]">
+                  Aucune dépense trouvée
                 </div>
               ) : (
-                <div className="divide-y divide-divider">
+                <div>
                   {Object.entries(expensesByArtist).map(([artistId, group]) => (
-                    <div key={artistId} className="p-5">
+                    <div key={artistId} className="px-[22px] py-5 border-b border-line last:border-0">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-foreground">{group.artist_name}</h3>
-                        <p className="font-bold text-warning">{formatCurrency(group.total)}</p>
+                        <h3 className="text-[13.5px] font-semibold text-ink">{group.artist_name}</h3>
+                        <p className="roy-num font-bold text-ink">{formatCurrency(group.total)}</p>
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         {group.expenses.map((expense) => (
-                          <div key={expense.id} className="p-4 bg-content2 rounded-xl hover:shadow-md transition-all">
+                          <div key={expense.id} className="p-4 bg-surface-2 rounded-[12px]">
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-bold text-foreground text-lg">
+                                  <p className="roy-num font-bold text-ink text-[17px]">
                                     {formatCurrency(expense.amount)}
                                   </p>
                                   {expense.category_label && (
-                                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                                      {expense.category_label}
-                                    </span>
+                                    <Pill tone="accent">{expense.category_label}</Pill>
                                   )}
                                   {expense.document_url && (
                                     <button
                                       onClick={() => openDocument(expense.document_url!)}
-                                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/20 hover:bg-success/20 transition-colors"
+                                      className="inline-flex items-center rounded-full bg-surface px-2.5 py-[3px] text-[10.5px] font-semibold text-ink-muted border border-line hover:border-line-strong transition-colors"
                                     >
                                       PDF
                                     </button>
                                   )}
                                 </div>
                                 {(expense.scope && expense.scope !== 'catalog') && (
-                                  <p className="text-sm text-secondary-600 mt-2">
+                                  <p className="text-[12.5px] text-ink-muted mt-2">
                                     {expense.scope === 'track' ? 'Track' : 'Album'} : {' '}
-                                    <span className="font-medium">
+                                    <span className="font-medium text-ink">
                                       {expense.scope_title || (expense.scope_id ? expense.scope_id : 'Non specifie')}
                                     </span>
                                   </p>
                                 )}
                                 {expense.scope === 'catalog' && (
-                                  <p className="text-sm text-secondary-500 mt-2">Catalogue general</p>
+                                  <p className="text-[12.5px] text-ink-faint mt-2">Catalogue général</p>
                                 )}
                                 {expense.description && (
-                                  <p className="text-sm text-secondary-500 mt-1 truncate">
+                                  <p className="text-[12.5px] text-ink-faint mt-1 truncate">
                                     {expense.description}
                                   </p>
                                 )}
-                                <p className="text-xs text-secondary-400 mt-2">
-                                  <span className="font-medium text-secondary-500">
-                                    {expense.entry_type === 'advance' ? '⏱ Récup. à partir du ' : ''}
-                                  </span>
+                                <p className="text-[11px] text-ink-faint mt-2">
+                                  {expense.entry_type === 'advance' ? 'Récup. à partir du ' : ''}
                                   {formatDate(expense.effective_date)}
                                   {expense.reference && ` · Ref: ${expense.reference}`}
                                 </p>
@@ -703,21 +729,21 @@ export default function FinancesPage() {
                                       fileInputRef.current?.click();
                                     }}
                                     disabled={uploadingId === expense.id}
-                                    className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 disabled:opacity-50 transition-colors"
+                                    className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-50 transition-colors"
                                   >
                                     {uploadingId === expense.id ? <Spinner size="sm" /> : '+ PDF'}
                                   </button>
                                 ) : (
                                   <button
                                     onClick={() => handleDeleteDocument(expense.id)}
-                                    className="px-3 py-1.5 bg-danger/10 text-danger text-xs font-medium rounded-full hover:bg-danger/20 transition-colors"
+                                    className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-neg hover:border-line-strong transition-colors"
                                   >
                                     Suppr PDF
                                   </button>
                                 )}
                                 <button
                                   onClick={() => openEditModal(expense)}
-                                  className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 transition-colors"
+                                  className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-ink-muted hover:text-ink hover:border-line-strong transition-colors"
                                 >
                                   Modifier
                                 </button>
@@ -725,13 +751,13 @@ export default function FinancesPage() {
                                   <div className="flex gap-1">
                                     <button
                                       onClick={() => handleDelete(expense.id)}
-                                      className="px-3 py-1.5 bg-danger text-white text-xs font-medium rounded-full hover:bg-danger-600 transition-colors"
+                                      className="inline-flex items-center rounded-[8px] bg-accent px-3 py-1.5 text-[11px] font-bold text-accent-ink hover:opacity-90 transition-opacity"
                                     >
                                       Confirmer
                                     </button>
                                     <button
                                       onClick={() => setDeleteConfirmId(null)}
-                                      className="px-3 py-1.5 bg-content3 text-secondary-600 text-xs font-medium rounded-full hover:bg-default-200 transition-colors"
+                                      className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-ink-muted hover:text-ink hover:border-line-strong transition-colors"
                                     >
                                       Annuler
                                     </button>
@@ -739,7 +765,7 @@ export default function FinancesPage() {
                                 ) : (
                                   <button
                                     onClick={() => setDeleteConfirmId(expense.id)}
-                                    className="px-3 py-1.5 bg-danger/10 text-danger text-xs font-medium rounded-full hover:bg-danger/20 transition-colors"
+                                    className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-neg hover:border-line-strong transition-colors"
                                   >
                                     Supprimer
                                   </button>
@@ -753,81 +779,73 @@ export default function FinancesPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           </>
         )}
 
         {/* Royalty Payments List */}
         {activeTab === 'royalties' && (
-          <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Royalties (periodes verrouillees)</h2>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-[22px] py-4 border-b border-line">
+              <span className="text-[13.5px] font-semibold text-ink">Royalties (périodes verrouillées)</span>
             </div>
             {royaltyPayments.length === 0 ? (
-              <div className="p-12 text-center text-secondary-500">
-                Aucune royalty verrouillee pour {selectedYear}
+              <div className="p-12 text-center text-ink-faint text-[13px]">
+                Aucune royalty verrouillée pour {selectedYear}
               </div>
             ) : (
-              <div className="divide-y divide-divider">
+              <div>
                 {royaltyPayments.map((payment) => (
-                  <div key={payment.run_id} className="p-5 hover:bg-content2 transition-colors">
+                  <div key={payment.run_id} className="px-[22px] py-5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-foreground">
+                        <p className="text-[13.5px] font-semibold text-ink">
                           {formatDate(payment.period_start)} - {formatDate(payment.period_end)}
                         </p>
-                        <p className="text-sm text-secondary-500 mt-1">
-                          Royalties artistes: {formatCurrency(payment.total_artist_royalties)}
+                        <p className="text-[12.5px] text-ink-muted mt-1">
+                          Royalties artistes: <span className="roy-num">{formatCurrency(payment.total_artist_royalties)}</span>
                           {' | '}
-                          Recoup: {formatCurrency(payment.total_recouped)}
+                          Recoup: <span className="roy-num">{formatCurrency(payment.total_recouped)}</span>
                         </p>
                         {payment.locked_at && (
-                          <p className="text-xs text-secondary-400 mt-1">
-                            Verrouille le {formatDate(payment.locked_at)}
+                          <p className="text-[11px] text-ink-faint mt-1">
+                            Verrouillé le {formatDate(payment.locked_at)}
                           </p>
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-secondary">
+                        <p className="roy-num text-[22px] font-bold text-ink">
                           {formatCurrency(payment.total_net_payable)}
                         </p>
-                        <span className="inline-block mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-success/10 text-success border border-success/20">
-                          {payment.status}
-                        </span>
+                        <span className="inline-block mt-2"><Pill tone="accent">{payment.status}</Pill></span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Exports CSV */}
         {activeTab === 'exports' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Transactions export */}
-            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[22px] py-4 border-b border-line flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                  <IconChart size={18} />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-foreground">Ventes / Transactions</h2>
-                  <p className="text-xs text-secondary-500 mt-0.5">Toutes les transactions normalisees de toutes les sources</p>
+                  <h2 className="text-[13.5px] font-semibold text-ink">Ventes / Transactions</h2>
+                  <p className="text-[11.5px] text-ink-faint mt-0.5">Toutes les transactions normalisées de toutes les sources</p>
                 </div>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-[22px] space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Artiste</label>
-                    <select
-                      value={exportTxArtist}
-                      onChange={(e) => setExportTxArtist(e.target.value)}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Artiste</label>
+                    <select value={exportTxArtist} onChange={(e) => setExportTxArtist(e.target.value)} className={inputClass}>
                       <option value="">Tous les artistes</option>
                       {artists.map((a) => (
                         <option key={a.id} value={a.id}>{a.name}</option>
@@ -835,12 +853,8 @@ export default function FinancesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Source</label>
-                    <select
-                      value={exportTxSource}
-                      onChange={(e) => setExportTxSource(e.target.value)}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Source</label>
+                    <select value={exportTxSource} onChange={(e) => setExportTxSource(e.target.value)} className={inputClass}>
                       <option value="">Toutes les sources</option>
                       {TX_SOURCES.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
@@ -848,12 +862,8 @@ export default function FinancesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee</label>
-                    <select
-                      value={exportTxYear}
-                      onChange={(e) => { setExportTxYear(e.target.value); setExportTxQuarter(''); }}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Année</label>
+                    <select value={exportTxYear} onChange={(e) => { setExportTxYear(e.target.value); setExportTxQuarter(''); }} className={inputClass}>
                       <option value="">Toutes les annees</option>
                       {years.map((y) => (
                         <option key={y} value={y}>{y}</option>
@@ -862,12 +872,8 @@ export default function FinancesPage() {
                   </div>
                   {exportTxYear && (
                     <div>
-                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
-                      <select
-                        value={exportTxQuarter}
-                        onChange={(e) => setExportTxQuarter(e.target.value)}
-                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                      >
+                      <label className={labelClass}>Trimestre</label>
+                      <select value={exportTxQuarter} onChange={(e) => setExportTxQuarter(e.target.value)} className={inputClass}>
                         <option value="">Toute l'annee</option>
                         <option value="1">T1 (Jan–Mar)</option>
                         <option value="2">T2 (Avr–Jun)</option>
@@ -877,56 +883,35 @@ export default function FinancesPage() {
                     </div>
                   )}
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">UPC (optionnel)</label>
-                    <input
-                      value={exportTxUpc}
-                      onChange={(e) => setExportTxUpc(e.target.value)}
-                      placeholder="ex: 859735289811"
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
-                    />
+                    <label className={labelClass}>UPC (optionnel)</label>
+                    <input value={exportTxUpc} onChange={(e) => setExportTxUpc(e.target.value)} placeholder="ex: 859735289811" className={inputClass} />
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <button
-                    onClick={handleExportTransactions}
-                    disabled={exportingTx}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-medium text-sm rounded-full shadow-lg shadow-primary/30 hover:shadow-xl disabled:opacity-50 transition-all"
-                  >
-                    {exportingTx ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    )}
-                    Telecharger CSV
-                  </button>
+                  <AccentButton onClick={handleExportTransactions} disabled={exportingTx}>
+                    {exportingTx ? <Spinner size="sm" color="white" /> : <IconDownload size={14} />}
+                    Télécharger CSV
+                  </AccentButton>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Expenses export */}
-            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[22px] py-4 border-b border-line flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                  <IconBox size={18} />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-foreground">Avances &amp; Depenses</h2>
-                  <p className="text-xs text-secondary-500 mt-0.5">Toutes les avances et frais enregistres</p>
+                  <h2 className="text-[13.5px] font-semibold text-ink">Avances &amp; Dépenses</h2>
+                  <p className="text-[11.5px] text-ink-faint mt-0.5">Toutes les avances et frais enregistrés</p>
                 </div>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-[22px] space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Artiste</label>
-                    <select
-                      value={exportExpArtist}
-                      onChange={(e) => setExportExpArtist(e.target.value)}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Artiste</label>
+                    <select value={exportExpArtist} onChange={(e) => setExportExpArtist(e.target.value)} className={inputClass}>
                       <option value="">Tous les artistes</option>
                       {artists.map((a) => (
                         <option key={a.id} value={a.id}>{a.name}</option>
@@ -934,12 +919,8 @@ export default function FinancesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Categorie</label>
-                    <select
-                      value={exportExpCategory}
-                      onChange={(e) => setExportExpCategory(e.target.value)}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Catégorie</label>
+                    <select value={exportExpCategory} onChange={(e) => setExportExpCategory(e.target.value)} className={inputClass}>
                       <option value="">Toutes les categories</option>
                       {EXPENSE_CATEGORIES.map((c) => (
                         <option key={c.value} value={c.value}>{c.label}</option>
@@ -947,12 +928,8 @@ export default function FinancesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee</label>
-                    <select
-                      value={exportExpYear}
-                      onChange={(e) => { setExportExpYear(e.target.value); setExportExpQuarter(''); }}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Année</label>
+                    <select value={exportExpYear} onChange={(e) => { setExportExpYear(e.target.value); setExportExpQuarter(''); }} className={inputClass}>
                       <option value="">Toutes les annees</option>
                       {years.map((y) => (
                         <option key={y} value={y}>{y}</option>
@@ -961,12 +938,8 @@ export default function FinancesPage() {
                   </div>
                   {exportExpYear && (
                     <div>
-                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
-                      <select
-                        value={exportExpQuarter}
-                        onChange={(e) => setExportExpQuarter(e.target.value)}
-                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                      >
+                      <label className={labelClass}>Trimestre</label>
+                      <select value={exportExpQuarter} onChange={(e) => setExportExpQuarter(e.target.value)} className={inputClass}>
                         <option value="">Toute l'annee</option>
                         <option value="1">T1 (Jan–Mar)</option>
                         <option value="2">T2 (Avr–Jun)</option>
@@ -977,60 +950,34 @@ export default function FinancesPage() {
                   )}
                 </div>
                 <div className="flex justify-end gap-3">
-                  <button
-                    onClick={handleExportExpensesPdf}
-                    disabled={exportingExpPdf}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-background border-2 border-warning text-warning font-medium text-sm rounded-full hover:bg-warning/5 disabled:opacity-50 transition-all"
-                  >
-                    {exportingExpPdf ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                    )}
-                    Telecharger PDF
-                  </button>
-                  <button
-                    onClick={handleExportExpenses}
-                    disabled={exportingExp}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-warning text-white font-medium text-sm rounded-full shadow-lg shadow-warning/30 hover:shadow-xl disabled:opacity-50 transition-all"
-                  >
-                    {exportingExp ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    )}
-                    Telecharger CSV
-                  </button>
+                  <OutlineButton onClick={handleExportExpensesPdf}>
+                    {exportingExpPdf ? <Spinner size="sm" /> : <IconDownload size={14} />}
+                    Télécharger PDF
+                  </OutlineButton>
+                  <AccentButton onClick={handleExportExpenses} disabled={exportingExp}>
+                    {exportingExp ? <Spinner size="sm" color="white" /> : <IconDownload size={14} />}
+                    Télécharger CSV
+                  </AccentButton>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Royalties export */}
-            <div className="bg-background border border-divider rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-divider flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[22px] py-4 border-b border-line flex items-center gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                  <IconRoyalty size={18} />
                 </div>
                 <div>
-                  <h2 className="font-semibold text-foreground">Rapport de Royalties</h2>
-                  <p className="text-xs text-secondary-500 mt-0.5">Calcul des royalties par artiste et par release</p>
+                  <h2 className="text-[13.5px] font-semibold text-ink">Rapport de Royalties</h2>
+                  <p className="text-[11.5px] text-ink-faint mt-0.5">Calcul des royalties par artiste et par release</p>
                 </div>
               </div>
-              <div className="p-5 space-y-4">
+              <div className="p-[22px] space-y-4">
                 <div className="grid grid-cols-2 gap-3 max-w-xs">
                   <div>
-                    <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Annee *</label>
-                    <select
-                      value={exportRoyYear}
-                      onChange={(e) => { setExportRoyYear(e.target.value); setExportRoyQuarter(''); }}
-                      className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                    >
+                    <label className={labelClass}>Année *</label>
+                    <select value={exportRoyYear} onChange={(e) => { setExportRoyYear(e.target.value); setExportRoyQuarter(''); }} className={inputClass}>
                       <option value="">-- Choisir --</option>
                       {years.map((y) => (
                         <option key={y} value={y}>{y}</option>
@@ -1039,12 +986,8 @@ export default function FinancesPage() {
                   </div>
                   {exportRoyYear && (
                     <div>
-                      <label className="text-xs font-medium text-secondary-500 mb-1.5 block">Trimestre</label>
-                      <select
-                        value={exportRoyQuarter}
-                        onChange={(e) => setExportRoyQuarter(e.target.value)}
-                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-                      >
+                      <label className={labelClass}>Trimestre</label>
+                      <select value={exportRoyQuarter} onChange={(e) => setExportRoyQuarter(e.target.value)} className={inputClass}>
                         <option value="">Toute l'annee</option>
                         <option value="1">T1 (Jan–Mar)</option>
                         <option value="2">T2 (Avr–Jun)</option>
@@ -1055,23 +998,13 @@ export default function FinancesPage() {
                   )}
                 </div>
                 <div className="flex justify-end">
-                  <button
-                    onClick={handleExportRoyalties}
-                    disabled={exportingRoy || !exportRoyYear}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-secondary text-white font-medium text-sm rounded-full shadow-lg shadow-secondary/30 hover:shadow-xl disabled:opacity-50 transition-all"
-                  >
-                    {exportingRoy ? (
-                      <Spinner size="sm" color="white" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    )}
-                    Telecharger CSV
-                  </button>
+                  <AccentButton onClick={handleExportRoyalties} disabled={exportingRoy || !exportRoyYear}>
+                    {exportingRoy ? <Spinner size="sm" color="white" /> : <IconDownload size={14} />}
+                    Télécharger CSV
+                  </AccentButton>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </div>
@@ -1080,15 +1013,15 @@ export default function FinancesPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+            className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
             onClick={() => setIsModalOpen(false)}
           />
-          <div className="relative bg-background rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden">
-            <div className="px-6 py-5 border-b border-divider flex items-center justify-between">
-              <h2 className="text-xl font-bold text-foreground">
-                {editingExpense ? 'Modifier la depense' : 'Nouvelle depense'}
+          <div className="relative bg-surface border border-line rounded-[16px] shadow-roy max-w-lg w-full max-h-[90vh] overflow-hidden">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between">
+              <h2 className="text-[16px] font-bold text-ink">
+                {editingExpense ? 'Modifier la dépense' : 'Nouvelle dépense'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 text-secondary-400 hover:text-foreground transition-colors">
+              <button onClick={() => setIsModalOpen(false)} className="p-2 text-ink-faint hover:text-ink transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1096,22 +1029,22 @@ export default function FinancesPage() {
             </div>
             <div className="px-6 py-5 overflow-y-auto max-h-[60vh] space-y-4">
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Montant (EUR) *</label>
+                <label className={labelClass}>Montant (EUR) *</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                   required
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Categorie</label>
+                <label className={labelClass}>Catégorie</label>
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                 >
                   <option value="">-- Choisir --</option>
                   {EXPENSE_CATEGORIES.map((cat) => (
@@ -1120,11 +1053,11 @@ export default function FinancesPage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Artiste (optionnel)</label>
+                <label className={labelClass}>Artiste (optionnel)</label>
                 <select
                   value={formArtistId}
                   onChange={(e) => setFormArtistId(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                 >
                   <option value="">-- Frais generaux --</option>
                   {artists.map((artist) => (
@@ -1133,11 +1066,11 @@ export default function FinancesPage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Perimetre</label>
+                <label className={labelClass}>Périmètre</label>
                 <select
                   value={formScope}
                   onChange={(e) => setFormScope(e.target.value as 'catalog' | 'track' | 'release')}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                 >
                   <option value="catalog">Catalogue general</option>
                   <option value="track">Track</option>
@@ -1146,12 +1079,12 @@ export default function FinancesPage() {
               </div>
               {formScope !== 'catalog' && (
                 <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">
+                  <label className={`${labelClass} flex items-center`}>
                     {formScope === 'track' ? 'Track' : 'Album'}
                     {formArtistId && (loadingScope ? (
-                      <span className="ml-2 text-xs text-secondary-400">Chargement…</span>
+                      <span className="ml-2 normal-case tracking-normal text-[10px] text-ink-faint font-normal">Chargement…</span>
                     ) : (
-                      <span className="ml-2 text-xs text-secondary-400">
+                      <span className="ml-2 normal-case tracking-normal text-[10px] text-ink-faint font-normal">
                         {formScope === 'track' ? `${catalogTracks.length} track(s)` : `${catalogReleases.length} album(s)`}
                       </span>
                     ))}
@@ -1164,19 +1097,19 @@ export default function FinancesPage() {
                         value={scopeSearch}
                         onChange={(e) => setScopeSearch(e.target.value)}
                         placeholder={`Rechercher un ${formScope === 'track' ? 'titre' : 'album'}…`}
-                        className="w-full h-10 px-3 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors text-sm"
+                        className={inputClass}
                       />
                       {/* Selected item badge */}
                       {formScopeId && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-xl">
-                          <span className="text-primary text-sm flex-1 truncate">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-accent-soft border border-accent/30 rounded-[10px]">
+                          <span className="text-accent text-[13px] flex-1 truncate">
                             {formScope === 'track'
                               ? (catalogTracks.find(t => t.isrc === formScopeId)?.track_title || formScopeId)
                               : (catalogReleases.find(r => r.upc === formScopeId)?.release_title || formScopeId)}
                           </span>
-                          <span className="text-xs text-secondary-400 font-mono shrink-0">{formScopeId}</span>
+                          <span className="text-[11px] text-ink-faint font-mono shrink-0">{formScopeId}</span>
                           <button type="button" onClick={() => { setFormScopeId(''); setScopeSearch(''); }}
-                            className="text-secondary-400 hover:text-danger transition-colors shrink-0">
+                            className="text-ink-faint hover:text-neg transition-colors shrink-0">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -1185,7 +1118,7 @@ export default function FinancesPage() {
                       )}
                       {/* Scrollable list */}
                       {!formScopeId && (
-                        <div className="max-h-44 overflow-y-auto border-2 border-default-200 rounded-xl bg-background divide-y divide-default-100">
+                        <div className="max-h-44 overflow-y-auto border border-line rounded-[10px] bg-surface divide-y divide-line">
                           {(formScope === 'track'
                             ? catalogTracks.filter(t => !scopeSearch || t.track_title.toLowerCase().includes(scopeSearch.toLowerCase()))
                             : catalogReleases.filter(r => !scopeSearch || r.release_title.toLowerCase().includes(scopeSearch.toLowerCase()))
@@ -1198,10 +1131,10 @@ export default function FinancesPage() {
                                 key={id}
                                 type="button"
                                 onClick={() => { setFormScopeId(id!); setScopeSearch(''); }}
-                                className="w-full text-left px-3 py-2.5 hover:bg-content1 transition-colors"
+                                className="w-full text-left px-3 py-2.5 hover:bg-surface-2 transition-colors"
                               >
-                                <p className="text-sm text-foreground font-medium truncate">{label}</p>
-                                <p className="text-xs text-secondary-400 font-mono">{id}{sub ? ` · ${sub}` : ''}</p>
+                                <p className="text-[13px] text-ink font-medium truncate">{label}</p>
+                                <p className="text-[11px] text-ink-faint font-mono">{id}{sub ? ` · ${sub}` : ''}</p>
                               </button>
                             );
                           })}
@@ -1209,7 +1142,7 @@ export default function FinancesPage() {
                             ? catalogTracks.filter(t => !scopeSearch || t.track_title.toLowerCase().includes(scopeSearch.toLowerCase())).length === 0
                             : catalogReleases.filter(r => !scopeSearch || r.release_title.toLowerCase().includes(scopeSearch.toLowerCase())).length === 0
                           ) && (
-                            <p className="text-sm text-secondary-400 px-3 py-3 text-center">Aucun résultat</p>
+                            <p className="text-[13px] text-ink-faint px-3 py-3 text-center">Aucun résultat</p>
                           )}
                         </div>
                       )}
@@ -1220,54 +1153,47 @@ export default function FinancesPage() {
                       value={formScopeId}
                       onChange={(e) => setFormScopeId(e.target.value)}
                       placeholder={formScope === 'track' ? 'Code ISRC du track' : "Code UPC de l'album"}
-                      className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                      className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors"
                     />
                   )}
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
+                <label className={labelClass}>Description</label>
                 <input
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Reference</label>
+                <label className={labelClass}>Référence</label>
                 <input
                   value={formReference}
                   onChange={(e) => setFormReference(e.target.value)}
                   placeholder="N facture, etc."
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-1 block">Date effective</label>
-                <p className="text-xs text-secondary-400 mb-2">Seules les royautés <strong>après cette date</strong> seront imputées sur cette avance.</p>
+                <label className={labelClass}>Date effective</label>
+                <p className="text-[11px] text-ink-faint mb-2">Seules les royautés <strong className="text-ink-muted">après cette date</strong> seront imputées sur cette avance.</p>
                 <input
                   type="date"
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-divider flex gap-3 bg-content2/50">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 px-5 py-2.5 border-2 border-default-300 text-foreground font-medium rounded-full hover:bg-default-100 transition-colors"
-              >
+            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2">
+              <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
                 Annuler
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formAmount}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-white font-medium rounded-full disabled:opacity-50 shadow-lg shadow-primary/30 transition-all"
-              >
+              </OutlineButton>
+              <AccentButton onClick={handleSave} disabled={saving || !formAmount} className="flex-1">
                 {saving && <Spinner size="sm" color="white" />}
-                {editingExpense ? 'Enregistrer' : 'Creer'}
-              </button>
+                {editingExpense ? 'Enregistrer' : 'Créer'}
+              </AccentButton>
             </div>
           </div>
         </div>
@@ -1280,6 +1206,6 @@ export default function FinancesPage() {
         artists={artists}
         onSuccess={loadData}
       />
-    </>
+    </div>
   );
 }

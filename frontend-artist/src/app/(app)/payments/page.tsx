@@ -1,181 +1,173 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import Link from 'next/link';
-import { getArtistPayments, ArtistPayment } from '@/lib/api';
-import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  getArtistPayments, getStatements, getProfile, requestPayment,
+  ArtistPayment, Statement, ArtistProfile,
+} from '@/lib/api';
+import { Card, Eyebrow, Pill, AccentButton, fmtMoney } from '@/components/roy/ui';
+import { IconArrowDown, IconCard, IconCheck } from '@/components/roy/icons';
+
+function maskIban(iban?: string) {
+  if (!iban) return null;
+  const clean = iban.replace(/\s+/g, '');
+  if (clean.length < 8) return clean;
+  return `${clean.slice(0, 4)} •••• ${clean.slice(-4)}`;
+}
 
 export default function PaymentsPage() {
   const { artist, loading: authLoading } = useAuth();
-  const { t } = useLanguage();
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
+  const [statements, setStatements] = useState<Statement[]>([]);
+  const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requesting, setRequesting] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if (artist) {
-      loadPayments();
-    }
+    if (!artist) return;
+    Promise.all([getArtistPayments(), getStatements()])
+      .then(([p, s]) => { setPayments(p); setStatements(s); })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erreur de chargement'))
+      .finally(() => setLoading(false));
+    getProfile().then(setProfile).catch(() => {});
   }, [artist]);
 
-  const loadPayments = async () => {
+  const currency = payments[0]?.currency || statements[0]?.currency || 'EUR';
+  const thisYear = new Date().getFullYear();
+  const totalPaid = payments
+    .filter((p) => new Date(p.date).getFullYear() === thisYear)
+    .reduce((s, p) => s + parseFloat(p.amount), 0) || payments.reduce((s, p) => s + parseFloat(p.amount), 0);
+  const unpaid = statements.filter((s) => s.status !== 'paid');
+  const available = unpaid.reduce((s, x) => s + parseFloat(x.net_payable), 0);
+
+  const sorted = [...payments].sort((a, b) => b.date.localeCompare(a.date));
+  const iban = maskIban(profile?.iban);
+
+  const handleRequest = async () => {
+    if (!unpaid.length) return;
+    setRequesting(true);
     try {
-      const data = await getArtistPayments();
-      setPayments(data);
+      await requestPayment(unpaid[0].id);
+      setSuccess('Demande de versement envoyée !');
+      setTimeout(() => setSuccess(null), 4000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Loading error');
+      setError(err instanceof Error ? err.message : 'Erreur');
     } finally {
-      setLoading(false);
+      setRequesting(false);
     }
   };
 
-  const formatCurrency = (value: string | number, currency: string = 'EUR') => {
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    return num.toLocaleString('en-US', { style: 'currency', currency });
+  const reference = (p: ArtistPayment) => {
+    const d = new Date(p.date);
+    return `PAY-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
   };
+  const dateLong = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateShort = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
-  // Summary
-  const totalReceived = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-  const currency = payments[0]?.currency || 'EUR';
-  const lastPaymentDate = payments.length > 0
-    ? payments.reduce((latest, p) => (p.date > latest ? p.date : latest), payments[0].date)
-    : null;
-
-  // Group by year, most recent first
-  const groupedByYear = useMemo(() => {
-    const sorted = [...payments].sort((a, b) => b.date.localeCompare(a.date));
-    const groups: Record<string, ArtistPayment[]> = {};
-    for (const p of sorted) {
-      const year = new Date(p.date).getFullYear().toString();
-      if (!groups[year]) groups[year] = [];
-      groups[year].push(p);
-    }
-    return Object.entries(groups).sort(([a], [b]) => parseInt(b) - parseInt(a));
-  }, [payments]);
+  const sepaCard = (
+    <div className="flex items-center gap-3.5">
+      <div className="w-11 h-11 rounded-xl bg-surface-2 text-ink-muted flex items-center justify-center shrink-0"><IconCard size={20} /></div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13.5px] font-semibold text-ink">Compte SEPA</div>
+        <div className="font-mono text-[12px] text-ink-faint mt-0.5">{iban || 'Non renseigné'}</div>
+      </div>
+      <Link href="/settings" className="text-[12px] font-semibold text-accent">Modifier</Link>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
-      <main className="px-4 py-4 pb-24 space-y-5">
-        {(authLoading || loading) && (
-          <div className="flex items-center justify-center py-20">
-            <Spinner size="lg" color="primary" />
-          </div>
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Paiements</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">Versements et coordonnées bancaires</div>
+        </div>
+        {available > 0 && (
+          <AccentButton onClick={handleRequest} disabled={requesting}>
+            <IconArrowDown size={15} /> Demander un versement
+          </AccentButton>
         )}
-        {!authLoading && !loading && error && (
-          <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
-        )}
+      </div>
 
-        {!authLoading && !loading && (
-        <>{/* Summary Card */}
-        <div className="bg-gradient-to-br from-success to-success/80 rounded-2xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-3">
-            <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            <span className="text-white/70 text-sm font-medium">{t('payments.totalReceived')}</span>
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
+        {(authLoading || loading) ? (
+          <div className="flex items-center justify-center py-20"><Spinner size="lg" color="primary" /></div>
+        ) : (<>
+          {error && <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm">{error}</div>}
+          {success && <div className="p-3 rounded-2xl bg-accent-soft border border-accent/20 text-accent text-sm">{success}</div>}
+
+          {/* Mobile total */}
+          <div className="lg:hidden">
+            <Eyebrow>Total versé · {thisYear}</Eyebrow>
+            <div className="roy-num text-[48px] font-bold text-ink leading-none mt-1.5">{fmtMoney(totalPaid, currency)}</div>
           </div>
-          <p className="text-3xl font-bold mb-4">{formatCurrency(totalReceived, currency)}</p>
-          <div className="flex justify-between text-sm">
-            <div>
-              <p className="text-white/60 text-xs">{t('payments.title')}</p>
-              <p className="font-semibold">{payments.length}</p>
+
+          {/* Mobile available + CTA */}
+          <Card hero className="lg:hidden p-[18px] rounded-[20px]">
+            <div className="flex items-center justify-between">
+              <span className="text-[12.5px] text-ink-muted">Disponible maintenant</span>
+              <span className="roy-num text-[18px] font-bold text-ink">{fmtMoney(available, currency)}</span>
             </div>
-            {lastPaymentDate && (
-              <div className="text-right">
-                <p className="text-white/60 text-xs">{t('payments.lastPayment')}</p>
-                <p className="font-semibold">{formatDate(lastPaymentDate)}</p>
+            <AccentButton onClick={handleRequest} disabled={requesting || available === 0} className="w-full mt-3.5">
+              {requesting ? <Spinner size="sm" /> : <><IconArrowDown size={15} /> Demander un versement</>}
+            </AccentButton>
+          </Card>
+
+          {/* Mobile SEPA */}
+          <Card className="lg:hidden rounded-[16px]">{sepaCard}</Card>
+
+          {/* Desktop 3 cards */}
+          <div className="hidden lg:grid grid-cols-[1fr_1fr_1.2fr] gap-4">
+            <Card hero><Eyebrow className="text-[9.5px]">Disponible maintenant</Eyebrow><div className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">{fmtMoney(available, currency)}</div></Card>
+            <Card><Eyebrow className="text-[9.5px]">Total versé {thisYear}</Eyebrow><div className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">{fmtMoney(totalPaid, currency)}</div></Card>
+            <Card>{sepaCard}</Card>
+          </div>
+
+          {/* Mobile history */}
+          <div className="lg:hidden">
+            <div className="text-[13px] font-semibold text-ink mt-3 mb-1">Historique</div>
+            {sorted.length === 0 ? (
+              <div className="text-center py-10 text-ink-faint text-sm">Aucun versement</div>
+            ) : (
+              <div className="flex flex-col">
+                {sorted.map((p, i) => (
+                  <div key={p.id} className={`flex items-center gap-3.5 py-3.5 ${i < sorted.length - 1 ? 'border-b border-line' : ''}`}>
+                    <div className="w-9 h-9 rounded-[11px] bg-accent-soft text-accent flex items-center justify-center shrink-0"><IconCheck size={16} /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13.5px] font-semibold text-ink">{p.description || 'Versement SEPA'}</div>
+                      <div className="text-[11px] text-ink-faint mt-0.5">{dateShort(p.date)} · Reçu</div>
+                    </div>
+                    <span className="roy-num text-[14px] font-bold text-ink">{fmtMoney(p.amount, p.currency)}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
 
-        {/* Link to statements */}
-        <Link
-          href="/payments"
-          className="flex items-center justify-between px-4 py-3 bg-content1 rounded-xl border border-divider hover:border-primary/50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="text-sm font-medium text-foreground">{t('payments.viewStatements')}</span>
-          </div>
-          <svg className="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
-
-        {/* Empty state */}
-        {payments.length === 0 && !error && (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+          {/* Desktop history table */}
+          <Card padded={false} className="hidden lg:block overflow-hidden">
+            <div className="px-6 py-4 border-b border-line text-[14px] font-semibold text-ink">Historique des versements</div>
+            <div className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
+              <span>Date</span><span>Référence</span><span className="text-center">Statut</span><span className="text-right">Montant</span>
             </div>
-            <p className="text-foreground font-medium mb-1">{t('payments.noPayments')}</p>
-            <p className="text-xs text-secondary-400">{t('payments.statementsGeneratedByLabel')}</p>
-          </div>
-        )}
-
-        {/* Timeline grouped by year */}
-        {groupedByYear.map(([year, yearPayments]) => (
-          <div key={year}>
-            {/* Year label */}
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-semibold text-secondary-500 uppercase tracking-wider">{year}</span>
-              <div className="flex-1 border-t border-divider" />
-            </div>
-
-            {/* Payments in this year */}
-            <div className="space-y-0">
-              {yearPayments.map((payment, index) => (
-                <div key={payment.id}>
-                  <div className="flex items-center gap-3 py-3">
-                    {/* Green checkmark */}
-                    <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-
-                    {/* Description + date */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {payment.description || 'Payment'}
-                      </p>
-                      <p className="text-xs text-secondary-400">{formatDate(payment.date)}</p>
-                    </div>
-
-                    {/* Amount */}
-                    <p className="text-lg font-bold text-success flex-shrink-0">
-                      +{formatCurrency(payment.amount, payment.currency)}
-                    </p>
-                  </div>
-
-                  {/* Separator */}
-                  {index < yearPayments.length - 1 && (
-                    <div className="border-b border-divider ml-13" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-        </>
-        )}
+            {sorted.length === 0 ? (
+              <div className="px-6 py-10 text-center text-ink-faint text-sm">Aucun versement</div>
+            ) : sorted.map((p) => (
+              <div key={p.id} className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] items-center px-6 py-4 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                <span className="text-[13.5px] font-semibold text-ink">{dateLong(p.date)}</span>
+                <span className="font-mono text-[12px] text-ink-faint">{reference(p)}</span>
+                <span className="flex justify-center"><Pill tone="accent">Reçu</Pill></span>
+                <span className="text-right roy-num text-[13.5px] font-bold text-ink">{fmtMoney(p.amount, p.currency)}</span>
+              </div>
+            ))}
+          </Card>
+        </>)}
       </main>
     </div>
   );

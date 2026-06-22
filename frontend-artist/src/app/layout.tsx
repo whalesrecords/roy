@@ -1,9 +1,21 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Schibsted_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
-const inter = Inter({ subsets: ['latin'] });
+const sans = Schibsted_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Whales Records - Espace Artiste',
@@ -50,8 +62,18 @@ export default function RootLayout({
         <link rel="icon" href="/api/icon" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{
+              var t=localStorage.getItem('artist-theme');
+              if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}
+              var a=localStorage.getItem('artist-accent')||'mint';
+              document.documentElement.setAttribute('data-accent',a);
+            }catch(e){document.documentElement.setAttribute('data-accent','mint');}})();`,
+          }}
+        />
       </head>
-      <body className={`${inter.className} bg-background text-foreground min-h-screen antialiased`}>
+      <body className={`${sans.variable} ${mono.variable} font-sans bg-app text-ink min-h-screen antialiased`}>
         <Providers>
           {children}
         </Providers>

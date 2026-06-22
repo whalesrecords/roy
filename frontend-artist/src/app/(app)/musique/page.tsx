@@ -4,301 +4,169 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import {
-  getArtistReleases,
-  getArtistTracks,
-  getPlatformStats,
-  getQuarterlyRevenue,
-  getAvailableYears,
-  ArtistRelease,
-  ArtistTrack,
-  PlatformStats,
-  QuarterlyRevenue,
+  getArtistReleases, getArtistTracks, getArtistDashboard,
+  ArtistRelease, ArtistTrack, ArtistDashboard,
 } from '@/lib/api';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, Eyebrow, Segmented, fmtMoney, fmtNum } from '@/components/roy/ui';
+import { IconSearch, IconMusic } from '@/components/roy/icons';
 
-type Tab = 'sorties' | 'titres' | 'stats';
-
-const PLATFORM_COLORS: Record<string, string> = {
-  spotify: '#1DB954',
-  apple_music: '#FC3C44',
-  deezer: '#A238FF',
-  tiktok: '#00F2EA',
-  amazon: '#FF9900',
-  amazon_music: '#FF9900',
-  youtube: '#FF0000',
-  youtube_music: '#FF0000',
-  bandcamp: '#1DA0C3',
-  soundcloud: '#FF5500',
-  tidal: '#000000',
-  other: '#6366f1',
-};
+const COVER = { background: 'var(--cover)' } as const;
 
 export default function MusiquePage() {
   const { artist, loading: authLoading } = useAuth();
-  const { t } = useLanguage();
-  const [tab, setTab] = useState<Tab>('sorties');
-
-  // Data per tab (loaded lazily)
   const [releases, setReleases] = useState<ArtistRelease[]>([]);
   const [tracks, setTracks] = useState<ArtistTrack[]>([]);
-  const [platforms, setPlatforms] = useState<PlatformStats[]>([]);
-  const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
-
-  const [loadedTabs, setLoadedTabs] = useState<Set<Tab>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [dashboard, setDashboard] = useState<ArtistDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [tab, setTab] = useState<'titres' | 'sorties'>('titres');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    if (!artist || loadedTabs.has(tab)) return;
-    setLoading(true);
-    setError(null);
-    (async () => {
-      try {
-        if (tab === 'sorties') {
-          setReleases(await getArtistReleases());
-        } else if (tab === 'titres') {
-          setTracks(await getArtistTracks());
-        } else {
-          const [platformData, yearsData] = await Promise.all([
-            getPlatformStats(),
-            getAvailableYears(),
-          ]);
-          setPlatforms(platformData);
-          const year = yearsData.default_year;
-          if (year) {
-            const q = await getQuarterlyRevenue(year);
-            setQuarterly(q.filter(x => parseFloat(x.gross) > 0));
-          }
-        }
-        setLoadedTabs(prev => new Set([...Array.from(prev), tab]));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur de chargement');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [tab, artist]);
+    if (!artist) return;
+    Promise.all([getArtistReleases(), getArtistTracks(), getArtistDashboard()])
+      .then(([r, t, d]) => { setReleases(r); setTracks(t); setDashboard(d); })
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erreur de chargement'))
+      .finally(() => setLoading(false));
+  }, [artist]);
 
-  const fmt = (v: string | number, currency = 'EUR') =>
-    (typeof v === 'string' ? parseFloat(v) : v)
-      .toLocaleString('fr-FR', { style: 'currency', currency });
+  const currency = dashboard?.currency || tracks[0]?.currency || 'EUR';
+  const trackCount = dashboard?.track_count ?? tracks.length;
+  const totalStreams = dashboard?.total_streams ?? tracks.reduce((s, t) => s + t.streams, 0);
 
-  const fmtN = (v: number) =>
-    v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M`
-    : v >= 1_000 ? `${(v / 1_000).toFixed(1)}K`
-    : v.toLocaleString('fr-FR');
-
-  // Filtered releases
-  const filteredReleases = useMemo(() => {
-    const q = search.toLowerCase();
-    return [...releases]
-      .filter(r => !q || r.title.toLowerCase().includes(q) || r.upc.includes(q))
-      .sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross));
-  }, [releases, search]);
-
-  // Filtered tracks
-  const filteredTracks = useMemo(() => {
-    const q = search.toLowerCase();
-    return [...tracks]
-      .filter(t => !q || t.title.toLowerCase().includes(q) || (t.isrc || '').toLowerCase().includes(q))
-      .sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross));
-  }, [tracks, search]);
-
-  const sortedPlatforms = useMemo(
-    () => [...platforms].sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross)),
-    [platforms]
+  const q = search.toLowerCase();
+  const filteredReleases = useMemo(
+    () => [...releases].filter((r) => !q || r.title.toLowerCase().includes(q)).sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross)),
+    [releases, q],
+  );
+  const filteredTracks = useMemo(
+    () => [...tracks].filter((t) => !q || t.title.toLowerCase().includes(q)).sort((a, b) => b.streams - a.streams),
+    [tracks, q],
   );
 
-  const maxRev = sortedPlatforms.length > 0 ? parseFloat(sortedPlatforms[0].gross) : 0;
+  const releaseMeta = (r: ArtistRelease) => `${r.track_count} titre${r.track_count > 1 ? 's' : ''} · ${fmtNum(r.streams)}`;
 
-  const chartData = quarterly.map(q => ({
-    name: `${q.quarter} ${q.year}`,
-    brut: parseFloat(q.gross),
-    streams: q.streams,
-  }));
-
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'sorties', label: t('dashboard.releases') },
-    { id: 'titres', label: t('dashboard.tracks') },
-    { id: 'stats', label: t('stats.title') },
-  ];
+  const searchBox = (full = false) => (
+    <div className={`flex items-center gap-2.5 rounded-[14px] bg-surface border border-line px-3.5 py-2.5 ${full ? '' : 'w-[260px]'}`}>
+      <IconSearch size={16} className="text-ink-faint" />
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Rechercher un titre…"
+        className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-faint focus:outline-none"
+      />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background safe-top">
-      {/* Tabs */}
-      <div className="sticky top-14 z-40 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 pt-2 pb-0 max-w-lg mx-auto">
-          <div className="flex gap-1">
-            {tabs.map(tabItem => (
-              <button
-                key={tabItem.id}
-                onClick={() => { setTab(tabItem.id); setSearch(''); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-t-xl transition-colors border-b-2 ${
-                  tab === tabItem.id
-                    ? 'text-primary border-primary'
-                    : 'text-default-400 border-transparent hover:text-foreground'
-                }`}
-              >
-                {tabItem.label}
-              </button>
-            ))}
-          </div>
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Musique</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">{trackCount} titres · {fmtNum(totalStreams)} streams cumulés</div>
         </div>
+        {searchBox()}
       </div>
 
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-3">
-        {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
-        )}
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto">
+        {error && <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm mb-3">{error}</div>}
 
-        {/* Search bar (Sorties + Titres) */}
-        {!authLoading && tab !== 'stats' && (
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={tab === 'sorties' ? t('releases.search') : t('releases.search')}
-              className="w-full pl-9 pr-4 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary/50"
-            />
-          </div>
-        )}
+        {(authLoading || loading) ? (
+          <div className="flex items-center justify-center py-20"><Spinner size="lg" color="primary" /></div>
+        ) : (<>
+          {/* Mobile header */}
+          <div className="lg:hidden">
+            <Eyebrow>Catalogue</Eyebrow>
+            <div className="flex items-baseline gap-2.5 mt-1.5">
+              <div className="roy-num text-[44px] font-bold text-ink leading-none">{trackCount}</div>
+              <div className="text-[14px] text-ink-muted">titres · {fmtNum(totalStreams)} streams</div>
+            </div>
+            <div className="mt-5">{searchBox(true)}</div>
+            <div className="mt-3.5">
+              <Segmented
+                options={[{ value: 'titres', label: 'Titres' }, { value: 'sorties', label: 'Sorties' }]}
+                value={tab}
+                onChange={setTab}
+              />
+            </div>
 
-        {(authLoading || loading) && (
-          <div className="flex items-center justify-center py-20">
-            <Spinner size="lg" color="primary" />
-          </div>
-        )}
-
-        {/* ── TAB: SORTIES ── */}
-        {!authLoading && !loading && tab === 'sorties' && (
-          <div className="space-y-2">
-            {filteredReleases.length === 0 && (
-              <p className="text-default-500 text-sm text-center py-10">{t('releases.noReleases')}</p>
-            )}
-            {filteredReleases.map(release => (
-              <div key={release.upc} className="bg-content1 border border-divider rounded-2xl flex items-center gap-3 px-4 py-3">
-                <div className="w-12 h-12 rounded-xl overflow-hidden bg-content2 flex-shrink-0">
-                  {release.artwork_url ? (
-                    <img src={release.artwork_url} alt={release.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-default-500/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-                      </svg>
+            {/* Mobile list */}
+            <div className="mt-4 flex flex-col">
+              {tab === 'titres' ? (
+                filteredTracks.length === 0 ? <p className="text-center py-10 text-ink-faint text-sm">Aucun titre</p> :
+                filteredTracks.map((t, i) => (
+                  <div key={t.isrc || t.title} className={`flex items-center gap-3.5 py-2.5 ${i < filteredTracks.length - 1 ? 'border-b border-line' : ''}`}>
+                    <div className="w-[46px] h-[46px] rounded-[10px] shrink-0" style={COVER} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold text-ink truncate">{t.title}</div>
+                      <div className="text-[11px] text-ink-faint mt-0.5 truncate">{(t.release_title || 'Single')} · {fmtNum(t.streams)}</div>
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-foreground text-sm truncate">{release.title}</p>
-                  <p className="text-xs text-default-500 mt-0.5">{release.track_count} titre{release.track_count !== 1 ? 's' : ''} · {fmtN(release.streams)} streams</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-emerald-400 font-bold text-sm">{fmt(release.gross, release.currency)}</p>
-                </div>
-              </div>
-            ))}
+                    <span className="roy-num text-[13px] font-bold text-ink">{fmtMoney(t.gross, t.currency)}</span>
+                  </div>
+                ))
+              ) : (
+                filteredReleases.length === 0 ? <p className="text-center py-10 text-ink-faint text-sm">Aucune sortie</p> :
+                filteredReleases.map((r, i) => (
+                  <div key={r.upc} className={`flex items-center gap-3.5 py-2.5 ${i < filteredReleases.length - 1 ? 'border-b border-line' : ''}`}>
+                    <div className="w-[46px] h-[46px] rounded-[10px] overflow-hidden shrink-0" style={COVER}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {r.artwork_url && <img src={r.artwork_url} alt={r.title} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold text-ink truncate">{r.title}</div>
+                      <div className="text-[11px] text-ink-faint mt-0.5">{releaseMeta(r)}</div>
+                    </div>
+                    <span className="roy-num text-[13px] font-bold text-ink">{fmtMoney(r.gross, r.currency)}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        )}
 
-        {/* ── TAB: TITRES ── */}
-        {!authLoading && !loading && tab === 'titres' && (
-          <div className="space-y-2">
-            {filteredTracks.length === 0 && (
-              <p className="text-default-500 text-sm text-center py-10">{t('tracks.noTracks')}</p>
-            )}
-            {filteredTracks.map((track, i) => (
-              <div key={track.isrc || track.title} className="bg-content1 border border-divider rounded-2xl flex items-center gap-3 px-4 py-3">
-                <span className="text-xs font-bold text-default-400 w-5 text-center flex-shrink-0">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{track.title}</p>
-                  {track.isrc && <p className="text-[10px] text-default-500">{track.isrc}</p>}
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-emerald-400 font-bold text-sm">{fmt(track.gross)}</p>
-                  <p className="text-[10px] text-default-500">{fmtN(track.streams)} streams</p>
-                </div>
+          {/* Desktop sections */}
+          <div className="hidden lg:block">
+            {/* Sorties grid */}
+            <div className="text-[14px] font-semibold text-ink mb-3.5">Sorties</div>
+            {filteredReleases.length === 0 ? (
+              <p className="text-ink-faint text-sm">Aucune sortie</p>
+            ) : (
+              <div className="grid grid-cols-4 gap-4">
+                {filteredReleases.slice(0, 8).map((r) => (
+                  <div key={r.upc}>
+                    <div className="aspect-square rounded-[14px] overflow-hidden" style={COVER}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {r.artwork_url && <img src={r.artwork_url} alt={r.title} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="text-[13.5px] font-semibold text-ink mt-2.5 truncate">{r.title}</div>
+                    <div className="text-[11.5px] text-ink-faint mt-0.5 truncate">{releaseMeta(r)}</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Titres table */}
+            <div className="text-[14px] font-semibold text-ink mt-7 mb-3">Titres</div>
+            <Card padded={false} className="overflow-hidden rounded-[18px]">
+              <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
+                <span>Titre</span><span>Sortie</span><span className="text-right">Streams</span><span className="text-right">Revenus</span>
+              </div>
+              {filteredTracks.length === 0 ? (
+                <div className="px-6 py-10 text-center text-ink-faint text-sm">Aucun titre</div>
+              ) : filteredTracks.map((t) => (
+                <div key={t.isrc || t.title} className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center px-6 py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                  <span className="flex items-center gap-3.5 min-w-0">
+                    <span className="w-[38px] h-[38px] rounded-[9px] shrink-0" style={COVER} />
+                    <span className="text-[13.5px] font-semibold text-ink truncate">{t.title}</span>
+                  </span>
+                  <span className="text-[12.5px] text-ink-muted truncate">{t.release_title || 'Single'}</span>
+                  <span className="text-right roy-num text-[13px] text-ink-muted">{fmtNum(t.streams)}</span>
+                  <span className="text-right roy-num text-[13px] font-bold text-ink">{fmtMoney(t.gross, t.currency)}</span>
+                </div>
+              ))}
+            </Card>
           </div>
-        )}
-
-        {/* ── TAB: STATS ── */}
-        {!authLoading && !loading && tab === 'stats' && (
-          <div className="space-y-4">
-            {/* Quarterly chart */}
-            {chartData.length > 0 && (
-              <div className="bg-content1 border border-divider rounded-2xl p-5">
-                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">{t('dashboard.quarterly')}</h3>
-                <div className="h-44">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--divider,#27272a)" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false}
-                        tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: 'var(--content1,#18181b)', border: '1px solid var(--divider,#27272a)', borderRadius: 12, fontSize: 12 }}
-                        formatter={(v: number) => [fmt(v), t('statements.gross')]}
-                      />
-                      <Bar dataKey="brut" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
-
-            {/* Platforms */}
-            {sortedPlatforms.length > 0 && (
-              <div className="bg-content1 border border-divider rounded-2xl p-5">
-                <h3 className="text-xs font-semibold text-default-400 uppercase tracking-wider mb-4">{t('dashboard.topPlatforms')}</h3>
-                <div className="space-y-3">
-                  {sortedPlatforms.map(p => {
-                    const rev = parseFloat(p.gross);
-                    const pct = maxRev > 0 ? (rev / maxRev) * 100 : 0;
-                    const color = PLATFORM_COLORS[p.platform] || PLATFORM_COLORS.other;
-                    return (
-                      <div key={p.platform}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                            <span className="text-sm text-foreground">{p.platform_label}</span>
-                            <span className="text-xs text-default-500">{p.percentage.toFixed(0)}%</span>
-                          </div>
-                          <span className="text-sm text-emerald-400 font-semibold tabular-nums">{fmt(p.gross)}</span>
-                        </div>
-                        <div className="h-1 bg-content2 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {sortedPlatforms.length === 0 && chartData.length === 0 && (
-              <p className="text-default-500 text-sm text-center py-10">Pas encore de données</p>
-            )}
-          </div>
-        )}
+        </>)}
       </main>
     </div>
   );

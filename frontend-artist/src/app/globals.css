@@ -41,3 +41,68 @@ html { overscroll-behavior-y: contain; }
   letter-spacing: -0.03em;
   font-feature-settings: "tnum" 1, "kern" 1;
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   ROY redesign — « banque premium » design tokens
+   Light = :root (default) · Dark = .dark · Accent = [data-accent]
+   ════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #F4F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #F8F9FA;
+  --hero: #FFFFFF;
+  --border: rgba(15, 18, 24, 0.08);
+  --border-strong: rgba(15, 18, 24, 0.14);
+  --text: #14171C;
+  --text-2: #5B626C;
+  --text-3: #8A919B;
+  --neg: #DC4C57;
+  --track: rgba(15, 18, 24, 0.07);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px rgba(16, 24, 40, 0.06);
+  --chrome: #ECEEF1;
+  --cover: linear-gradient(135deg, #E9ECF0, #DCE0E6);
+  /* accent — default mint, overridden by [data-accent] */
+  --accent: #15CE8E;
+  --accent-soft: rgba(21, 206, 142, 0.13);
+  --accent-ink: #06231A;
+}
+
+.dark {
+  --bg: #0A0B0D;
+  --surface: #131519;
+  --surface-2: #1A1D22;
+  --hero: #16191E;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --text: #F3F4F6;
+  --text-2: #969CA5;
+  --text-3: #636973;
+  --neg: #F4707A;
+  --track: rgba(255, 255, 255, 0.07);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --chrome: #0E1014;
+  --cover: linear-gradient(135deg, #23262C, #15171B);
+}
+
+[data-accent="mint"] { --accent: #15CE8E; --accent-soft: rgba(21, 206, 142, 0.13); --accent-ink: #06231A; }
+[data-accent="blue"] { --accent: #4D8DFF; --accent-soft: rgba(77, 141, 255, 0.13); --accent-ink: #06231A; }
+[data-accent="gold"] { --accent: #E3B341; --accent-soft: rgba(227, 179, 65, 0.15); --accent-ink: #06231A; }
+[data-accent="mono"] { --accent: #9AA0A8; --accent-soft: rgba(154, 160, 168, 0.16); --accent-ink: #06231A; }
+
+/* ── App background follows the token ── */
+body { background: var(--bg); color: var(--text); }
+
+/* ── Eyebrow / mono labels (« REVENUS BRUTS · 2025 ») ── */
+.roy-eyebrow {
+  font-family: var(--font-mono), 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* ── Big hero / KPI numbers ── */
+.roy-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
