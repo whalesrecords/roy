@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-app flex items-center justify-center">
         <Spinner size="lg" color="primary" />
       </div>
     );
