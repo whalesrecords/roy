@@ -24,21 +24,36 @@ const VIEW_LABELS: Record<DashboardView, string> = {
 };
 const DASHBOARD_VIEWS = Object.keys(VIEW_LABELS) as DashboardView[];
 
+interface BasicStats { artists: number; imports: number; pendingRuns: number; openTickets: number }
+interface RecentImport { id: string; source: string; period_start: string; period_end: string; total_rows: number }
+interface DashSnapshot {
+  year: number;
+  analytics: AnalyticsSummary | null;
+  artistsSummary: ArtistSummary[];
+  basicStats: BasicStats;
+  recentImports: RecentImport[];
+  availableYears: number[];
+  pendingSpotify: number;
+}
+// Module-level snapshot — survives route navigation so returning to the
+// dashboard paints instantly (then revalidates in the background).
+let dashSnapshot: DashSnapshot | null = null;
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [view, setView] = useState<DashboardView>('overview');
-  const [selectedYear, setSelectedYear] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState(dashSnapshot?.year ?? 0);
+  const [loading, setLoading] = useState(!dashSnapshot);
   const [progress, setProgress] = useState(0);
   const [loadingStep, setLoadingStep] = useState('');
   const progressRef = useRef(0);
 
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [artistsSummary, setArtistsSummary] = useState<ArtistSummary[]>([]);
-  const [basicStats, setBasicStats] = useState({ artists: 0, imports: 0, pendingRuns: 0, openTickets: 0 });
-  const [recentImports, setRecentImports] = useState<{ id: string; source: string; period_start: string; period_end: string; total_rows: number }[]>([]);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [pendingSpotify, setPendingSpotify] = useState(0);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(dashSnapshot?.analytics ?? null);
+  const [artistsSummary, setArtistsSummary] = useState<ArtistSummary[]>(dashSnapshot?.artistsSummary ?? []);
+  const [basicStats, setBasicStats] = useState<BasicStats>(dashSnapshot?.basicStats ?? { artists: 0, imports: 0, pendingRuns: 0, openTickets: 0 });
+  const [recentImports, setRecentImports] = useState<RecentImport[]>(dashSnapshot?.recentImports ?? []);
+  const [availableYears, setAvailableYears] = useState<number[]>(dashSnapshot?.availableYears ?? []);
+  const [pendingSpotify, setPendingSpotify] = useState(dashSnapshot?.pendingSpotify ?? 0);
 
   const STEPS = [
     { label: 'Artistes', weight: 15 }, { label: 'Imports', weight: 20 }, { label: 'Calculs', weight: 15 },
@@ -49,8 +64,8 @@ export default function DashboardPage() {
     setProgress(progressRef.current); setLoadingStep(STEPS[i].label);
   }, []);
 
-  const loadAll = useCallback(async (yearOverride?: number) => {
-    setLoading(true); progressRef.current = 0; setProgress(0); setLoadingStep('Démarrage…');
+  const loadAll = useCallback(async (yearOverride?: number, silent = false) => {
+    if (!silent) { setLoading(true); progressRef.current = 0; setProgress(0); setLoadingStep('Démarrage…'); }
     try {
       const [artists, imports, runs, tickets, artSummary, spotifySuggestions] = await Promise.all([
         getArtists().then((r) => { tick(0); return r; }),
@@ -73,25 +88,37 @@ export default function DashboardPage() {
       if (effectiveYear !== selectedYear) setSelectedYear(effectiveYear);
       const summary = effectiveYear > 0 ? await getAnalyticsSummary(effectiveYear).catch(() => null) : null;
       tick(5);
-      setBasicStats({
+      const stats: BasicStats = {
         artists: artists.filter((a) => a.category === 'signed').length,
         imports: imports.length,
         pendingRuns: runs.filter((r) => r.status === 'draft' || r.status === 'completed').length,
         openTickets: (tickets as { open?: number }).open || 0,
-      });
-      setRecentImports(imports.slice(0, 5));
+      };
+      const recent = imports.slice(0, 5);
+      setBasicStats(stats);
+      setRecentImports(recent);
       setAnalytics(summary);
       setArtistsSummary(artSummary);
+      // Persist a snapshot so returning to the dashboard paints instantly.
+      dashSnapshot = {
+        year: effectiveYear, analytics: summary, artistsSummary: artSummary,
+        basicStats: stats, recentImports: recent, availableYears: importYears,
+        pendingSpotify: spotifySuggestions.length,
+      };
     } catch (e) {
       console.error('Dashboard load failed:', e);
     } finally {
-      setProgress(100);
-      await new Promise((r) => setTimeout(r, 300));
-      setLoading(false);
+      if (!silent) {
+        setProgress(100);
+        await new Promise((r) => setTimeout(r, 300));
+        setLoading(false);
+      }
     }
   }, [selectedYear]);
 
-  useEffect(() => { if (user) loadAll(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  // On mount: if we have a snapshot, revalidate silently (no full-screen
+  // loader); otherwise do the first load with the progress circle.
+  useEffect(() => { if (user) loadAll(undefined, !!dashSnapshot); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const monthlyChartData = useMemo(() => {
     if (!analytics) return [];

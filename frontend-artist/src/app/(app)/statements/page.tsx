@@ -99,14 +99,36 @@ export default function StatementsPage() {
 
   const yearOpts = years.map((y) => ({ value: y, label: String(y) }));
 
-  const Detail = ({ id }: { id: string }) => {
-    const d = details[id];
-    if (detailLoading === id) return <div className="flex justify-center py-4"><Spinner size="sm" color="primary" /></div>;
-    if (!d) return null;
-    const canRequest = d.status === 'published' && parseFloat(d.net_payable) > 0;
+  const Detail = ({ s }: { s: Statement }) => {
+    const d = details[s.id];
+    const cur = s.currency;
+    const canRequest = s.status === 'published' && parseFloat(s.net_payable) > 0;
+    const rows: [string, string][] = [
+      ['Brut', s.gross_revenue],
+      ['Royalties artiste', s.artist_royalties],
+      ['Recoupé', s.recouped],
+    ];
     return (
       <div className="space-y-4">
-        {d.releases.length > 0 && (
+        {/* Décompte — toujours disponible depuis le relevé */}
+        <div className="space-y-1.5">
+          {rows.map(([label, val]) => (
+            <div key={label} className="flex items-center justify-between text-[13px]">
+              <span className="text-ink-muted">{label}</span>
+              <span className="roy-num text-ink">{fmtMoney(val, cur)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between text-[13px] pt-1.5 border-t border-line">
+            <span className="text-ink-muted">Net à payer</span>
+            <span className="roy-num font-bold text-accent">{fmtMoney(s.net_payable, cur)}</span>
+          </div>
+        </div>
+
+        {detailLoading === s.id && (
+          <div className="flex items-center gap-2 text-[12px] text-ink-faint"><Spinner size="sm" color="primary" /> Chargement du détail…</div>
+        )}
+
+        {d && d.releases.length > 0 && (
           <div>
             <Eyebrow className="text-[9.5px]">Par sortie</Eyebrow>
             <div className="mt-2 space-y-1.5">
@@ -119,7 +141,7 @@ export default function StatementsPage() {
             </div>
           </div>
         )}
-        {d.sources.length > 0 && (
+        {d && d.sources.length > 0 && (
           <div>
             <Eyebrow className="text-[9.5px]">Par plateforme</Eyebrow>
             <div className="mt-2 space-y-1.5">
@@ -132,9 +154,13 @@ export default function StatementsPage() {
             </div>
           </div>
         )}
+        {d && d.releases.length === 0 && d.sources.length === 0 && (
+          <div className="text-[12px] text-ink-faint">Pas de détail par sortie ou plateforme pour cette période.</div>
+        )}
+
         {canRequest && (
-          <AccentButton onClick={() => handleRequest(id)} disabled={paymentLoading === id || paymentSuccess === id}>
-            {paymentLoading === id ? <Spinner size="sm" /> : paymentSuccess === id ? 'Demande envoyée ✓' : 'Demander un versement'}
+          <AccentButton onClick={() => handleRequest(s.id)} disabled={paymentLoading === s.id || paymentSuccess === s.id}>
+            {paymentLoading === s.id ? <Spinner size="sm" /> : paymentSuccess === s.id ? 'Demande envoyée ✓' : 'Demander un versement'}
           </AccentButton>
         )}
       </div>
@@ -197,7 +223,7 @@ export default function StatementsPage() {
                   </div>
                   <IconChevronRight size={17} className={`text-ink-faint transition-transform ${expandedId === s.id ? 'rotate-90' : ''}`} />
                 </button>
-                {expandedId === s.id && <div className="border-t border-line bg-surface-2/40 p-4"><Detail id={s.id} /></div>}
+                {expandedId === s.id && <div className="border-t border-line bg-surface-2/40 p-4"><Detail s={s} /></div>}
               </div>
             ))}
           </div>
@@ -221,7 +247,7 @@ export default function StatementsPage() {
                       </button>
                     </span>
                   </div>
-                  {expandedId === s.id && <div className="px-6 py-5 bg-surface-2/40 border-t border-line"><Detail id={s.id} /></div>}
+                  {expandedId === s.id && <div className="px-6 py-5 bg-surface-2/40 border-t border-line"><Detail s={s} /></div>}
                 </div>
               ))}
             </Card>

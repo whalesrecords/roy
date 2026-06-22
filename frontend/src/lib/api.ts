@@ -21,7 +21,7 @@ const PROXY_BASE = '/api/proxy';
 // ---------------------------------------------------------------------------
 interface CacheEntry { data: unknown; ts: number }
 const _cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30_000;
+const CACHE_TTL = 300_000;
 
 function cacheGet<T>(key: string): T | null {
   const entry = _cache.get(key);

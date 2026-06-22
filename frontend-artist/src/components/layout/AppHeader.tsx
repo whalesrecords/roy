@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getLabelSettings, LabelSettings } from '@/lib/api';
 import NotificationBell from './NotificationBell';
 
@@ -24,23 +25,24 @@ const BACK_MAP: Record<string, string> = {
   '/notifications': '/',
 };
 
-// Page titles for sub-pages
-const TITLE_MAP: Record<string, string> = {
-  '/expenses': 'Dépenses',
-  '/contracts': 'Contrats',
-  '/payments': 'Paiements',
-  '/settings': 'Profil',
-  '/releases': 'Sorties',
-  '/tracks': 'Titres',
-  '/stats': 'Statistiques',
-  '/media': 'Médias',
-  '/notifications': 'Notifications',
+// Page titles for sub-pages — i18n keys (empty = use literal fallback)
+const TITLE_KEY: Record<string, string> = {
+  '/expenses': 'expenses.title',
+  '/contracts': 'contracts.title',
+  '/payments': 'payments.title',
+  '/settings': 'settings.title',
+  '/releases': 'releases.title',
+  '/tracks': 'tracks.title',
+  '/stats': 'stats.title',
+  '/media': 'media.title',
+  '/notifications': '',
 };
 
 export default function AppHeader() {
   const pathname = usePathname();
   const { artist } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function AppHeader() {
   // For sub-pages: resolve back href and title from the static maps
   const subPageRoot = Object.keys(BACK_MAP).find(prefix => pathname.startsWith(prefix));
   const backHref = subPageRoot ? BACK_MAP[subPageRoot] : '/';
-  const pageTitle = subPageRoot ? TITLE_MAP[subPageRoot] : '';
+  const pageTitle = subPageRoot ? (TITLE_KEY[subPageRoot] ? t(TITLE_KEY[subPageRoot]) : 'Notifications') : '';
 
   // Logo: prefer dark variant when in dark mode
   const logoSrc = theme === 'dark' && labelSettings?.logo_dark_base64
