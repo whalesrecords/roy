@@ -513,3 +513,43 @@ export async function markAllNotificationsAsRead(): Promise<{ message: string }>
   });
 }
 
+
+// ============ Spotify Ad Campaigns (transparency: spend + results) ============
+
+export interface ArtistAdCampaign {
+  id: string;
+  campaign_name: string;
+  release_name?: string | null;
+  track_isrc?: string | null;
+  release_upc?: string | null;
+  ad_format?: string | null;
+  release_type?: string | null;
+  country?: string | null;
+  currency: string;
+  budget?: string | null;
+  spend?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  reach?: number | null;
+  clicks?: number | null;
+  new_active_listeners?: number | null;
+  converted_listeners?: number | null;
+  conversion_rate?: string | null;
+  active_streams_per_listener?: string | null;
+  intent_rate?: string | null;
+  playlist_adds?: number | null;
+  playlist_add_rate?: string | null;
+  saves?: number | null;
+  save_rate?: string | null;
+}
+
+export interface ArtistAdCampaignsResponse {
+  campaigns: ArtistAdCampaign[];
+  count: number;
+  total_spend: string;
+  currency: string;
+}
+
+export async function getArtistAdCampaigns(): Promise<ArtistAdCampaignsResponse> {
+  return fetchApi<ArtistAdCampaignsResponse>('/artist-portal/promo/ad-campaigns');
+}

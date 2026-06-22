@@ -3,19 +3,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
-import { Card, Eyebrow, Pill, Segmented } from '@/components/roy/ui';
+import { getArtistPromoSubmissions, getArtistAdCampaigns, PromoSubmission, ArtistAdCampaign } from '@/lib/api';
+import { Card, Eyebrow, Pill, Segmented, fmtMoney, fmtNum } from '@/components/roy/ui';
 import { IconMegaphone, IconChevronRight, IconUser } from '@/components/roy/icons';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ViewTab = 'articles' | 'playlists' | 'positifs' | 'negatifs';
+type ViewTab = 'playlists' | 'articles' | 'positifs';
 
 const TAB_CONFIG: Array<{ key: ViewTab; label: string; emptyLabel: string }> = [
-  { key: 'articles',  label: 'Articles',          emptyLabel: 'Aucun article / blog' },
   { key: 'playlists', label: 'Playlists',          emptyLabel: 'Aucune playlist' },
-  { key: 'positifs',  label: 'Retours Positifs',   emptyLabel: 'Aucun retour positif' },
-  { key: 'negatifs',  label: 'Retours Négatifs',   emptyLabel: 'Aucun retour négatif' },
+  { key: 'articles',  label: 'Articles & médias',  emptyLabel: 'Aucun article / blog' },
+  { key: 'positifs',  label: 'Retours positifs',   emptyLabel: 'Aucun retour positif' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -58,18 +57,11 @@ function isPositive(sub: PromoSubmission): boolean {
   return POSITIVE_WORDS.some(w => t.includes(w));
 }
 
-function isNegative(sub: PromoSubmission): boolean {
-  const t = decisionText(sub);
-  if (!t) return false;
-  return NEGATIVE_WORDS.some(w => t.includes(w));
-}
-
 function filterByTab(subs: PromoSubmission[], tab: ViewTab): PromoSubmission[] {
   switch (tab) {
     case 'articles':  return subs.filter(isArticle);
     case 'playlists': return subs.filter(isPlaylistSub);
     case 'positifs':  return subs.filter(isPositive);
-    case 'negatifs':  return subs.filter(isNegative);
   }
 }
 
@@ -168,7 +160,6 @@ function PlaylistTrackGroup({ track, subs, onFilterTrack }: {
   onFilterTrack: (t: string) => void;
 }) {
   const positive = subs.filter(isPositive).length;
-  const negative = subs.filter(isNegative).length;
   return (
     <div className="bg-surface border border-line rounded-[18px] shadow-roy overflow-hidden">
       <button
@@ -186,9 +177,6 @@ function PlaylistTrackGroup({ track, subs, onFilterTrack }: {
             <div className="flex items-center gap-2 mt-0.5">
               {positive > 0 && (
                 <span className="text-[10px] text-accent font-semibold">{positive} ✓</span>
-              )}
-              {negative > 0 && (
-                <span className="text-[10px] text-neg font-semibold">{negative} ✗</span>
               )}
               <span className="text-[10px] text-ink-faint">{subs.length} envoi{subs.length > 1 ? 's' : ''}</span>
             </div>
@@ -223,6 +211,9 @@ function PlaylistTrackGroup({ track, subs, onFilterTrack }: {
 export default function PromoPage() {
   const { artist, loading: authLoading } = useAuth();
   const [submissions, setSubmissions] = useState<PromoSubmission[]>([]);
+  const [adCampaigns, setAdCampaigns] = useState<ArtistAdCampaign[]>([]);
+  const [adSpend, setAdSpend] = useState<string>('0');
+  const [adCurrency, setAdCurrency] = useState<string>('EUR');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<ViewTab>('playlists');
@@ -244,6 +235,13 @@ export default function PromoPage() {
     } finally {
       setLoading(false);
     }
+    // Spotify ad campaigns — non-blocking
+    try {
+      const ads = await getArtistAdCampaigns();
+      setAdCampaigns(ads.campaigns);
+      setAdSpend(ads.total_spend);
+      setAdCurrency(ads.currency || 'EUR');
+    } catch { /* ignore */ }
   };
 
   // Count per tab
@@ -251,7 +249,6 @@ export default function PromoPage() {
     articles:  filterByTab(submissions, 'articles').length,
     playlists: filterByTab(submissions, 'playlists').length,
     positifs:  filterByTab(submissions, 'positifs').length,
-    negatifs:  filterByTab(submissions, 'negatifs').length,
   }), [submissions]);
 
   // Tab-filtered submissions
@@ -339,6 +336,62 @@ export default function PromoPage() {
                 <div className="roy-num text-[24px] lg:text-[30px] font-bold text-ink leading-none mt-2">{totalPlaylists}</div>
               </Card>
             </div>
+
+            {/* ── Publicités Spotify (transparence dépense + résultats) ── */}
+            {adCampaigns.length > 0 && (
+              <Card padded={false} className="overflow-hidden">
+                <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-line">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-[9px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.586 14.424a.622.622 0 01-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.622.622 0 11-.277-1.215c3.809-.87 7.077-.496 9.712 1.115a.623.623 0 01.207.857zm1.223-2.722a.78.78 0 01-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 11-.452-1.493c3.632-1.102 8.147-.568 11.234 1.33a.78.78 0 01.255 1.072zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.935.935 0 11-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.936.936 0 01-.958 1.607z"/></svg>
+                    </span>
+                    <span className="text-[14px] font-semibold text-ink">Publicités Spotify</span>
+                  </div>
+                  <div className="text-right">
+                    <Eyebrow className="text-[9px]">Total dépensé</Eyebrow>
+                    <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(adSpend, adCurrency)}</div>
+                  </div>
+                </div>
+                <div className="divide-y divide-line">
+                  {adCampaigns.map((c) => {
+                    const metrics: { label: string; value: string }[] = [
+                      { label: 'Portée', value: c.reach != null ? fmtNum(c.reach) : '—' },
+                      { label: 'Clics', value: c.clicks != null ? fmtNum(c.clicks) : '—' },
+                      { label: 'Nouveaux auditeurs', value: c.new_active_listeners != null ? fmtNum(c.new_active_listeners) : '—' },
+                      { label: 'Conversions', value: c.converted_listeners != null ? fmtNum(c.converted_listeners) : '—' },
+                      { label: 'Saves', value: c.saves != null ? fmtNum(c.saves) : '—' },
+                      { label: 'Ajouts playlist', value: c.playlist_adds != null ? fmtNum(c.playlist_adds) : '—' },
+                    ];
+                    const period = [c.start_date, c.end_date]
+                      .filter(Boolean)
+                      .map((d) => new Date(d as string).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))
+                      .join(' → ');
+                    return (
+                      <div key={c.id} className="px-[18px] py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-[13.5px] font-semibold text-ink truncate">{c.release_name || c.campaign_name}</div>
+                            <div className="text-[11.5px] text-ink-faint mt-0.5">{period}{c.conversion_rate ? ` · conv. ${c.conversion_rate}%` : ''}</div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(c.spend ?? 0, c.currency)}</div>
+                            <div className="text-[10px] text-ink-faint">dépensé</div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          {metrics.map((m) => (
+                            <div key={m.label} className="rounded-[10px] bg-surface-2 px-2.5 py-2">
+                              <div className="roy-num text-[13px] font-bold text-ink">{m.value}</div>
+                              <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5">{m.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
 
             {/* ── Tab bar ── */}
             <div className="overflow-x-auto no-scrollbar">

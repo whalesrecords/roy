@@ -26,6 +26,7 @@ from app.models.contract import Contract
 from app.models.label_settings import LabelSettings
 from app.models.notification import Notification, NotificationType
 from app.models.promo_submission import PromoSource, PromoSubmission
+from app.models.spotify_ad_campaign import SpotifyAdCampaign
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.statement import Statement
 from app.models.ticket import Ticket, TicketPriority, TicketStatus
@@ -2446,6 +2447,61 @@ async def get_artist_promo_submissions(
         )
         for sub in submissions
     ]
+
+
+@router.get("/promo/ad-campaigns")
+async def get_artist_ad_campaigns(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Spotify ad campaigns for the current artist — full transparency on spend & results."""
+    from decimal import Decimal as _D
+
+    result = await db.execute(
+        select(SpotifyAdCampaign)
+        .where(SpotifyAdCampaign.artist_id == artist.id)
+        .order_by(SpotifyAdCampaign.start_date.desc().nullslast())
+    )
+    campaigns = result.scalars().all()
+
+    def dec(v):
+        return str(v) if v is not None else None
+
+    total = sum((c.spend for c in campaigns if c.spend is not None), _D(0))
+    return {
+        "campaigns": [
+            {
+                "id": str(c.id),
+                "campaign_name": c.campaign_name,
+                "release_name": c.release_name,
+                "track_isrc": c.track_isrc,
+                "release_upc": c.release_upc,
+                "ad_format": c.ad_format,
+                "release_type": c.release_type,
+                "country": c.country,
+                "currency": c.currency or "EUR",
+                "budget": dec(c.budget),
+                "spend": dec(c.spend),
+                "start_date": c.start_date.isoformat() if c.start_date else None,
+                "end_date": c.end_date.isoformat() if c.end_date else None,
+                "reach": c.reach,
+                "clicks": c.clicks,
+                "new_active_listeners": c.new_active_listeners,
+                "converted_listeners": c.converted_listeners,
+                "conversion_rate": dec(c.conversion_rate),
+                "active_streams_per_listener": dec(c.active_streams_per_listener),
+                "intent_rate": dec(c.intent_rate),
+                "playlist_adds": c.playlist_adds,
+                "playlist_add_rate": dec(c.playlist_add_rate),
+                "saves": c.saves,
+                "save_rate": dec(c.save_rate),
+            }
+            for c in campaigns
+        ],
+        "count": len(campaigns),
+        "total_spend": str(total),
+        "currency": campaigns[0].currency if campaigns else "EUR",
+    }
 
 
 @router.post("/promo/manual")

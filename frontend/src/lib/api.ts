@@ -2245,3 +2245,67 @@ export async function importReverbAssets(file: File, defaultPurchaseDate?: strin
   invalidateCache('/assets');
   return result;
 }
+
+// ============ Spotify Ad Campaigns ============
+
+export interface SpotifyAdCampaign {
+  id: string;
+  artist_id: string;
+  artist_name?: string | null;
+  campaign_name: string;
+  release_name?: string | null;
+  release_upc?: string | null;
+  track_isrc?: string | null;
+  ad_format?: string | null;
+  release_type?: string | null;
+  country?: string | null;
+  currency: string;
+  budget?: string | null;
+  spend?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  reach?: number | null;
+  clicks?: number | null;
+  new_active_listeners?: number | null;
+  converted_listeners?: number | null;
+  conversion_rate?: string | null;
+  active_streams_per_listener?: string | null;
+  intent_rate?: string | null;
+  playlist_adds?: number | null;
+  playlist_add_rate?: string | null;
+  saves?: number | null;
+  save_rate?: string | null;
+}
+
+export interface SpotifyAdCampaignsList {
+  campaigns: SpotifyAdCampaign[];
+  count: number;
+  total_spend: string;
+  currency: string;
+}
+
+export interface ImportSpotifyAdsResult {
+  created_count: number;
+  skipped_duplicates: number;
+  total_spend: string;
+  matched_campaigns: number;
+  artists_not_found: string[];
+  errors: string[];
+}
+
+export async function importSpotifyAdsCSV(file: File, artistId?: string): Promise<ImportSpotifyAdsResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (artistId) formData.append('artist_id', artistId);
+  const res = await fetchApi<ImportSpotifyAdsResult>('/promo/import/spotify-ads', {
+    method: 'POST',
+    body: formData,
+  });
+  invalidateCache('/promo/ad-campaigns');
+  return res;
+}
+
+export async function getSpotifyAdCampaigns(artistId?: string): Promise<SpotifyAdCampaignsList> {
+  const query = artistId ? `?artist_id=${artistId}` : '';
+  return fetchApi<SpotifyAdCampaignsList>(`/promo/ad-campaigns${query}`);
+}
