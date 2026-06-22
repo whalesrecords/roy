@@ -23,6 +23,7 @@ from app.models.artist_notification import ArtistNotification
 from app.models.artist_profile import ArtistProfile
 from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.contract import Contract
+from app.models.contract_party import ContractParty
 from app.models.label_settings import LabelSettings
 from app.models.notification import Notification, NotificationType
 from app.models.promo_submission import PromoSource, PromoSubmission
@@ -586,6 +587,73 @@ async def get_dashboard(
         "currency": "EUR",
         "release_count": release_count,
         "track_count": track_count,
+    }
+
+
+@router.get("/members-breakdown")
+async def get_members_breakdown(
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    For a group artist, split the group's royalties across its members based on
+    the contract parties' share percentages.
+
+    Returns net cumulé (all statements) and disponible (unpaid statements),
+    plus a per-member breakdown. is_group is True when >= 2 artist members.
+    """
+    # Net cumulé (all statements) and disponible (unpaid)
+    net_total = float((await db.execute(
+        select(func.coalesce(func.sum(Statement.net_payable), 0)).where(Statement.artist_id == artist.id)
+    )).scalar() or 0)
+    available = float((await db.execute(
+        select(func.coalesce(func.sum(Statement.net_payable), 0)).where(
+            and_(Statement.artist_id == artist.id, Statement.status != "paid")
+        )
+    )).scalar() or 0)
+
+    # Load the group's contracts + their artist parties (with member names)
+    contracts = (await db.execute(
+        select(Contract)
+        .where(Contract.artist_id == artist.id)
+        .options(selectinload(Contract.parties).selectinload(ContractParty.artist))
+        .order_by(Contract.start_date.desc())
+    )).scalars().all()
+
+    def artist_parties(c: Contract):
+        return [p for p in c.parties if str(p.party_type) == "artist" or getattr(p.party_type, "value", None) == "artist"]
+
+    # Prefer a catalog-scope contract with members; else the contract with the most members
+    catalog = [c for c in contracts if (c.scope or "catalog") == "catalog" and artist_parties(c)]
+    chosen = catalog[0] if catalog else (
+        max(contracts, key=lambda c: len(artist_parties(c)), default=None)
+    )
+    parties = artist_parties(chosen) if chosen else []
+
+    shares = [float(p.share_percentage or 0) for p in parties]
+    total_share = sum(shares) or 1.0
+
+    members = []
+    for p, s in zip(parties, shares):
+        frac = (s / total_share) if total_share else 0.0
+        name = (p.artist.name if p.artist else None) or p.label_name or "Membre"
+        members.append({
+            "artist_id": str(p.artist_id) if p.artist_id else None,
+            "name": name,
+            "share_pct": round(frac * 100, 1),
+            "net": f"{net_total * frac:.2f}",
+            "available": f"{available * frac:.2f}",
+        })
+
+    # Largest share first
+    members.sort(key=lambda m: m["share_pct"], reverse=True)
+
+    return {
+        "is_group": len(members) >= 2,
+        "currency": "EUR",
+        "total_net": f"{net_total:.2f}",
+        "available": f"{available:.2f}",
+        "members": members,
     }
 
 

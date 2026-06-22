@@ -553,3 +553,25 @@ export interface ArtistAdCampaignsResponse {
 export async function getArtistAdCampaigns(): Promise<ArtistAdCampaignsResponse> {
   return fetchApi<ArtistAdCampaignsResponse>('/artist-portal/promo/ad-campaigns');
 }
+
+// ============ Group member royalty breakdown ============
+
+export interface MemberShare {
+  artist_id: string | null;
+  name: string;
+  share_pct: number;
+  net: string;
+  available: string;
+}
+
+export interface MembersBreakdown {
+  is_group: boolean;
+  currency: string;
+  total_net: string;
+  available: string;
+  members: MemberShare[];
+}
+
+export async function getMembersBreakdown(): Promise<MembersBreakdown> {
+  return fetchApi<MembersBreakdown>('/artist-portal/members-breakdown');
+}
