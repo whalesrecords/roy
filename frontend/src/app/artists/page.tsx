@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Spinner } from '@heroui/react';
 import { Artist, ArtistCategory } from '@/lib/types';
-import { getArtists, getCatalogArtists, CatalogArtist, createArtist, getDuplicateArtists, mergeArtists, SimilarArtistGroup } from '@/lib/api';
+import { getArtists, getArtistsSummary, ArtistSummary, getCatalogArtists, CatalogArtist, createArtist, getDuplicateArtists, mergeArtists, SimilarArtistGroup } from '@/lib/api';
 import { formatNumber } from '@/lib/formatters';
 import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconPlus, IconBox, IconCheck } from '@/components/roy/icons';
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [summaries, setSummaries] = useState<ArtistSummary[]>([]);
   const [catalogArtists, setCatalogArtists] = useState<CatalogArtist[]>([]);
   const [duplicates, setDuplicates] = useState<SimilarArtistGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,11 +31,13 @@ export default function ArtistsPage() {
 
   const loadArtists = async () => {
     try {
-      const [artistsData, duplicatesData] = await Promise.all([
+      const [artistsData, duplicatesData, summaryData] = await Promise.all([
         getArtists(),
-        getDuplicateArtists()
+        getDuplicateArtists(),
+        getArtistsSummary().catch(() => [] as ArtistSummary[]),
       ]);
       setArtists(artistsData);
+      setSummaries(summaryData);
       setDuplicates(duplicatesData);
       if (duplicatesData.length > 0) {
         setShowDuplicates(true);
@@ -98,11 +101,21 @@ export default function ArtistsPage() {
     return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency });
   };
 
+  const summaryById = useMemo(() => {
+    const m = new Map<string, ArtistSummary>();
+    summaries.forEach((s) => m.set(s.id, s));
+    return m;
+  }, [summaries]);
+
   const filteredArtists = useMemo(() => artists.filter(a => {
     const matchesSearch = a.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || a.category === categoryFilter;
     return matchesSearch && matchesCategory;
-  }), [artists, searchQuery, categoryFilter]);
+  }).sort((a, b) => {
+    const ga = parseFloat(summaryById.get(a.id)?.total_gross || '0');
+    const gb = parseFloat(summaryById.get(b.id)?.total_gross || '0');
+    return gb - ga;
+  }), [artists, searchQuery, categoryFilter, summaryById]);
 
   const signedCount = useMemo(() => artists.filter(a => a.category === 'signed').length, [artists]);
   const collaboratorCount = useMemo(() => artists.filter(a => a.category === 'collaborator').length, [artists]);
@@ -288,6 +301,7 @@ export default function ArtistsPage() {
                   </div>
                   {filteredArtists.map((artist, i) => {
                     const signed = artist.category === 'signed';
+                    const summary = summaryById.get(artist.id);
                     return (
                       <Link
                         key={artist.id}
@@ -299,8 +313,8 @@ export default function ArtistsPage() {
                           <span className="text-[13.5px] font-semibold text-ink truncate">{artist.name}</span>
                         </span>
                         <span className="text-[12.5px] text-ink-muted">{categoryLabel(artist.category)}</span>
-                        <span className="text-right roy-num text-[13px] font-bold text-ink-faint">—</span>
-                        <span className="text-right roy-num text-[13px] text-ink-muted">—</span>
+                        <span className="text-right roy-num text-[13px] font-bold text-ink">{summary ? formatCurrency(summary.total_gross) : '—'}</span>
+                        <span className="text-right roy-num text-[13px] text-ink-muted">{summary ? formatNumber(summary.total_streams) : '—'}</span>
                         <span className="flex justify-center">
                           <Pill tone={signed ? 'accent' : 'neutral'}>{signed ? 'Actif' : 'Collab'}</Pill>
                         </span>
