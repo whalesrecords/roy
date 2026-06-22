@@ -184,7 +184,10 @@ export default function TracksPage() {
                   key={`${track.isrc}-${index}`}
                   className={`flex items-center gap-3.5 py-2.5 ${index < filtered.length - 1 ? 'border-b border-line' : ''}`}
                 >
-                  <div className="w-[46px] h-[46px] rounded-[10px] shrink-0" style={COVER} />
+                  <div className="w-[46px] h-[46px] rounded-[10px] overflow-hidden shrink-0" style={COVER}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {track.artwork_url && <img src={track.artwork_url} alt={track.title} className="w-full h-full object-cover" />}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-semibold text-ink truncate">{track.title}</div>
                     <div className="text-[11px] text-ink-faint mt-0.5 truncate">
@@ -207,7 +210,10 @@ export default function TracksPage() {
               {filtered.map((track, index) => (
                 <div key={`${track.isrc}-${index}`} className="grid grid-cols-[2fr_1.4fr_1fr_1fr] items-center px-6 py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
                   <span className="flex items-center gap-3.5 min-w-0">
-                    <span className="w-[38px] h-[38px] rounded-[9px] shrink-0" style={COVER} />
+                    <span className="w-[38px] h-[38px] rounded-[9px] overflow-hidden shrink-0 block" style={COVER}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {track.artwork_url && <img src={track.artwork_url} alt={track.title} className="w-full h-full object-cover" />}
+                    </span>
                     <span className="min-w-0">
                       <span className="block text-[13.5px] font-semibold text-ink truncate">{track.title}</span>
                       <span className="block font-mono text-[10px] text-ink-faint truncate">{track.isrc}</span>

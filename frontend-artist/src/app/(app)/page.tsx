@@ -295,8 +295,11 @@ export default function DashboardPage() {
                     {topTracks.map((t, i) => (
                       <div key={t.isrc} className="flex items-center gap-3">
                         <span className="font-mono text-[12px] text-ink-faint w-3">{i + 1}</span>
-                        <div className="w-9 h-9 rounded-[9px] bg-surface-2 flex items-center justify-center text-ink-faint shrink-0">
-                          <IconMusic size={15} />
+                        <div className="w-9 h-9 rounded-[9px] bg-surface-2 overflow-hidden flex items-center justify-center text-ink-faint shrink-0">
+                          {t.artwork_url
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={t.artwork_url} alt={t.title} className="w-full h-full object-cover" />
+                            : <IconMusic size={15} />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-semibold text-ink truncate">{t.title}</div>

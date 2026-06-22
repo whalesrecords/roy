@@ -768,6 +768,99 @@ async def _resolve_release_artwork(db: AsyncSession, upcs: List[str]) -> dict:
     return out
 
 
+async def _resolve_track_artwork(db: AsyncSession, pairs: List[tuple]) -> dict:
+    """Return {isrc: image_url} for the given tracks.
+
+    `pairs` is a list of (isrc, upc). Resolution order per ISRC:
+      1. TrackArtwork exact match
+      2. On-demand Spotify lookup by ISRC (bounded, concurrent), cached into TrackArtwork
+      3. Fallback to the release cover (ReleaseArtwork via the track's UPC)
+    """
+    isrcs = list({i for i, _ in pairs if i})
+    if not isrcs:
+        return {}
+
+    # 1. TrackArtwork by ISRC
+    ta_rows = (await db.execute(
+        select(TrackArtwork).where(TrackArtwork.isrc.in_(isrcs))
+    )).scalars().all()
+    out = {a.isrc: a.image_url for a in ta_rows if a.image_url}
+    missing = [i for i in isrcs if i not in out]
+
+    # 2. Spotify backfill by ISRC (bounded, concurrent, best-effort) — caches for everyone
+    if missing and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET:
+        import asyncio
+        from app.services.spotify import spotify_service
+
+        to_fetch = missing[:24]
+
+        async def _lookup(i: str):
+            try:
+                return i, await spotify_service.search_track_by_isrc(i)
+            except Exception:
+                return i, None
+
+        results = await asyncio.gather(*[_lookup(i) for i in to_fetch])
+        existing = {
+            r.isrc: r for r in (await db.execute(
+                select(TrackArtwork).where(TrackArtwork.isrc.in_([i for i, _ in results]))
+            )).scalars().all()
+        }
+        touched = False
+        for i, data in results:
+            if not data or not data.get("image_url"):
+                continue
+            out[i] = data["image_url"]
+            row = existing.get(i)
+            if row:
+                if not row.image_url:
+                    row.image_url = data.get("image_url")
+                    row.image_url_small = data.get("image_url_small")
+                    row.spotify_id = row.spotify_id or data.get("spotify_id")
+                    row.name = row.name or data.get("name")
+                    row.album_name = row.album_name or data.get("album_name")
+                    touched = True
+            else:
+                db.add(TrackArtwork(
+                    isrc=i,
+                    spotify_id=data.get("spotify_id"),
+                    name=data.get("name"),
+                    album_name=data.get("album_name"),
+                    image_url=data.get("image_url"),
+                    image_url_small=data.get("image_url_small"),
+                ))
+                touched = True
+        if touched:
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
+        missing = [i for i in isrcs if i not in out]
+
+    # 3. Fallback to the release cover (reuse the album artwork)
+    if missing:
+        upc_by_isrc = {}
+        for i, u in pairs:
+            if i in missing and u and i not in upc_by_isrc:
+                upc_by_isrc[i] = u
+        rel_keys = list(
+            {u.strip() for u in upc_by_isrc.values() if u}
+            | {k for k in (_norm_upc(u) for u in upc_by_isrc.values()) if k}
+        )
+        if rel_keys:
+            rel_rows = (await db.execute(
+                select(ReleaseArtwork).where(ReleaseArtwork.upc.in_(rel_keys))
+            )).scalars().all()
+            rel_by_norm = {_norm_upc(r.upc): r.image_url for r in rel_rows if r.image_url}
+            for i in missing:
+                u = upc_by_isrc.get(i)
+                img = rel_by_norm.get(_norm_upc(u)) if u else None
+                if img:
+                    out[i] = img
+
+    return out
+
+
 @router.get("/releases", response_model=List[ReleaseResponse])
 async def get_releases(
     artist: Artist = Depends(get_current_artist),
@@ -871,12 +964,8 @@ async def get_tracks(
 
     rows = result.all()
 
-    # Get artwork for all ISRCs
-    isrcs = [row.isrc for row in rows if row.isrc]
-    artwork_result = await db.execute(
-        select(TrackArtwork).where(TrackArtwork.isrc.in_(isrcs))
-    )
-    artworks = {a.isrc: a.image_url for a in artwork_result.scalars().all()}
+    # Resolve track artwork (TrackArtwork by ISRC + Spotify backfill + release-cover fallback)
+    artworks = await _resolve_track_artwork(db, [(row.isrc, row.upc) for row in rows if row.isrc])
 
     # Get all contracts for this artist
     contracts_result = await db.execute(
