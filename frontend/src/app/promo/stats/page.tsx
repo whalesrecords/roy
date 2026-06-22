@@ -47,7 +47,7 @@ export default function PromoStatsPage() {
   };
 
   const fmtEUR = (v: number) =>
-    v.toLocaleString('fr-FR', { style: 'currency', currency: adCurrency, maximumFractionDigits: 0 });
+    v.toLocaleString('fr-FR', { style: 'currency', currency: adCurrency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // ── Spotify Ads aggregates (paid promo) ──
   const ads = useMemo(() => {
