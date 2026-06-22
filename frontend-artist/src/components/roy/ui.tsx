@@ -8,7 +8,7 @@ import { ReactNode } from 'react';
 export function fmtMoney(v: string | number, currency = 'EUR', opts?: Intl.NumberFormatOptions) {
   const n = typeof v === 'string' ? parseFloat(v) : v;
   if (Number.isNaN(n)) return '—';
-  return n.toLocaleString('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0, ...opts });
+  return n.toLocaleString('fr-FR', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2, ...opts });
 }
 
 export function fmtNum(v: number) {
