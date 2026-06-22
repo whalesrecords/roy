@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Button from '@/components/ui/Button';
+import { Spinner } from '@heroui/react';
+import { AccentButton, OutlineButton, Pill } from '@/components/roy/ui';
+import { IconDownload, IconCheck, IconChevronRight } from '@/components/roy/icons';
 import {
   getArtistReleases,
   getArtistTracks,
@@ -838,104 +840,90 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
 
   if (loading) {
     return (
-      <div className="bg-background rounded-2xl border border-divider shadow-sm">
-        <div className="px-5 py-4 border-b border-divider">
-          <h2 className="font-semibold text-foreground">Catalogue</h2>
+      <div className="bg-surface border border-line rounded-[16px] shadow-roy overflow-hidden">
+        <div className="px-[22px] py-4 border-b border-line">
+          <h2 className="text-[13.5px] font-semibold text-ink">Catalogue</h2>
         </div>
-        <div className="px-4 py-8 text-center">
-          <div className="animate-spin w-6 h-6 border-2 border-default-900 border-t-transparent rounded-full mx-auto" />
-          <p className="text-sm text-secondary-500 mt-2">Chargement du catalogue...</p>
+        <div className="px-4 py-10 text-center">
+          <Spinner size="md" />
+          <p className="text-[12.5px] text-ink-faint mt-3">Chargement du catalogue…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-background rounded-2xl border border-divider shadow-sm">
-      <div className="px-5 py-4 border-b border-divider flex items-center justify-between flex-wrap gap-3">
+    <div className="bg-surface border border-line rounded-[16px] shadow-roy overflow-hidden">
+      <div className="px-[22px] py-4 border-b border-line flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="font-semibold text-foreground">Catalogue</h2>
-          <p className="text-sm text-secondary-500">
+          <h2 className="text-[13.5px] font-semibold text-ink">Catalogue</h2>
+          <p className="text-[11.5px] text-ink-faint mt-0.5">
             {releases.length} sortie{releases.length > 1 ? 's' : ''}
             {spotifyOnlyCount > 0 && (
-              <span className="text-warning-600 ml-1">
-                (dont {spotifyOnlyCount} non signee{spotifyOnlyCount > 1 ? 's' : ''})
+              <span className="text-ink-muted ml-1">
+                (dont {spotifyOnlyCount} non signée{spotifyOnlyCount > 1 ? 's' : ''})
               </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Refresh All from Spotify */}
-          <button
+          <OutlineButton
             onClick={refreshAllReleases}
-            disabled={refreshingAll || releases.length === 0}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-secondary-600 bg-content2 hover:bg-content3 rounded-lg transition-colors disabled:opacity-50"
-            title="Rafraichir toutes les metadonnees depuis Spotify"
+            className={refreshingAll || releases.length === 0 ? 'opacity-50 pointer-events-none' : ''}
           >
             {refreshingAll ? (
-              <div className="w-4 h-4 border-2 border-secondary-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-3.5 h-3.5 border-2 border-ink-muted border-t-transparent rounded-full animate-spin" />
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             )}
             Actualiser Spotify
-          </button>
+          </OutlineButton>
 
           {hasPotentialDuplicates && (
             <button
               onClick={detectDuplicates}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-warning-700 bg-warning-100 hover:bg-warning-200 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-[10px] bg-accent-soft px-3.5 py-2 text-[12px] font-semibold text-accent hover:opacity-90 transition-opacity"
               title="Fusionner les tracks en double"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
               Fusionner doublons
             </button>
           )}
-          <Button
+          <AccentButton
             onClick={exportLabelCopy}
             disabled={exporting || releases.length === 0}
-            className="flex items-center gap-2"
           >
-            {exporting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Export...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Export Label Copy
-              </>
-            )}
-          </Button>
+            {exporting ? <Spinner size="sm" color="white" /> : <IconDownload size={14} />}
+            {exporting ? 'Export…' : 'Export Label Copy'}
+          </AccentButton>
         </div>
       </div>
 
       {error && (
-        <div className="px-4 py-3 bg-danger-50 text-danger text-sm">
+        <div className="px-[22px] py-3 border-b border-line text-neg text-[12.5px]">
           {error}
         </div>
       )}
 
       {loadingSpotify && (
-        <div className="px-4 py-2 bg-primary-50 text-primary-700 text-sm flex items-center gap-2">
-          <div className="w-3 h-3 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
-          Chargement des sorties Spotify...
+        <div className="px-[22px] py-2.5 border-b border-line bg-accent-soft text-accent text-[12.5px] flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          Chargement des sorties Spotify…
         </div>
       )}
 
       {releases.length === 0 ? (
-        <p className="px-4 py-6 text-center text-secondary-500">
-          Aucune sortie trouvee
-          {artistSpotifyId && !loadingSpotify && ' (verifiez le Spotify ID)'}
+        <p className="px-4 py-8 text-center text-ink-faint text-[13px]">
+          Aucune sortie trouvée
+          {artistSpotifyId && !loadingSpotify && ' (vérifiez le Spotify ID)'}
         </p>
       ) : (
-        <div className="divide-y divide-divider">
+        <div className="divide-y divide-line">
           {sortedReleases.map((release) => {
             const key = release.upc || release.spotify_id || release.release_title;
             const isExpanded = expandedReleases.has(key);
@@ -945,7 +933,7 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
             return (
               <div key={key}>
                 <div
-                  className={`px-4 py-3 cursor-pointer hover:bg-content2 transition-colors ${isSpotifyOnly ? 'bg-warning-50' : ''}`}
+                  className={`px-[22px] py-3 cursor-pointer hover:bg-surface-2 transition-colors ${isSpotifyOnly ? 'bg-surface-2/60' : ''}`}
                   onClick={() => toggleRelease(release)}
                 >
                   <div className="flex items-center gap-3">
@@ -955,33 +943,27 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                         <img
                           src={release.image_url_small}
                           alt={release.release_title}
-                          className="w-12 h-12 rounded object-cover"
+                          className="w-12 h-12 rounded-[12px] object-cover"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded bg-content2 flex items-center justify-center">
-                          <svg className="w-6 h-6 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                          </svg>
-                        </div>
+                        <div className="w-12 h-12 rounded-[12px]" style={{ background: 'var(--cover)' }} />
                       )}
                     </div>
 
                     {/* Release info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground truncate">{release.release_title}</p>
+                        <p className="text-[13.5px] font-semibold text-ink truncate">{release.release_title}</p>
                         {isSpotifyOnly && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-800">
-                            Non signee
-                          </span>
+                          <Pill tone="neutral">Non signée</Pill>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-secondary-500 flex-wrap">
+                      <div className="flex items-center gap-2 text-ink-faint flex-wrap mt-0.5">
                         {release.release_date && (
-                          <span className="text-xs">{release.release_date}</span>
+                          <span className="text-[11px]">{release.release_date}</span>
                         )}
                         {release.upc ? (
-                          <span className="font-mono text-xs">UPC: {release.upc}</span>
+                          <span className="font-mono text-[10.5px]">UPC {release.upc}</span>
                         ) : (
                           <button
                             onClick={(e) => {
@@ -998,20 +980,20 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                                   .catch((err) => alert(`Erreur: ${err.message}`));
                               }
                             }}
-                            className="font-mono text-xs text-warning-600 bg-warning-100 px-2 py-0.5 rounded hover:bg-warning-200 transition-colors"
+                            className="font-mono text-[10.5px] font-semibold text-accent bg-accent-soft px-2 py-0.5 rounded-full hover:opacity-90 transition-opacity"
                           >
                             + Lier UPC
                           </button>
                         )}
-                        <span>{release.track_count} track{release.track_count > 1 ? 's' : ''}</span>
+                        <span className="text-[11px]">{release.track_count} track{release.track_count > 1 ? 's' : ''}</span>
                         {release.label && (
-                          <span className="text-xs bg-content2 px-2 py-0.5 rounded">{release.label}</span>
+                          <span className="text-[10.5px] text-ink-muted bg-surface-2 px-2 py-0.5 rounded-md">{release.label}</span>
                         )}
                       </div>
                       {release.genres && release.genres.length > 0 && (
-                        <div className="flex gap-1 mt-1">
+                        <div className="flex gap-1 mt-1.5">
                           {release.genres.slice(0, 3).map(g => (
-                            <span key={g} className="text-xs bg-primary/10 text-primary-700 px-2 py-0.5 rounded">
+                            <span key={g} className="text-[10.5px] font-semibold bg-accent-soft text-accent px-2 py-0.5 rounded-full">
                               {g}
                             </span>
                           ))}
@@ -1022,11 +1004,11 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                     {/* Stats */}
                     {release.isFromImports && (
                       <div className="text-right">
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="roy-num text-[13px] font-bold text-ink">
                           {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: release.currency }).format(parseFloat(release.total_gross))}
                         </p>
                         {release.total_streams > 0 && (
-                          <p className="text-xs text-secondary-500">
+                          <p className="roy-num text-[11px] text-ink-faint">
                             {new Intl.NumberFormat('fr-FR').format(release.total_streams)} streams
                           </p>
                         )}
@@ -1041,11 +1023,11 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                           refreshRelease(release);
                         }}
                         disabled={refreshingReleases.has(release.upc)}
-                        className="p-2 text-secondary-400 hover:text-secondary-600 hover:bg-content2 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-2 text-ink-faint hover:text-ink hover:bg-surface-2 rounded-[8px] transition-colors disabled:opacity-50"
                         title="Actualiser depuis Spotify"
                       >
                         {refreshingReleases.has(release.upc) ? (
-                          <div className="w-4 h-4 border-2 border-secondary-400 border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-ink-faint border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1056,41 +1038,37 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
 
                     {/* Expand icon */}
                     {isLoadingTracks ? (
-                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <svg
-                        className={`w-5 h-5 text-secondary-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <IconChevronRight
+                        size={18}
+                        className={`text-ink-faint transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      />
                     )}
                   </div>
                 </div>
 
                 {/* Expanded tracks */}
                 {isExpanded && (
-                  <div className="bg-content2 px-4 py-2 border-t border-divider">
+                  <div className="bg-surface-2 px-[22px] py-2 border-t border-line">
                     {release.tracks.length === 0 ? (
-                      <p className="text-sm text-secondary-500 py-2">
-                        {isLoadingTracks ? 'Chargement des tracks...' : 'Aucune track trouvee'}
+                      <p className="text-[12.5px] text-ink-faint py-2">
+                        {isLoadingTracks ? 'Chargement des tracks…' : 'Aucune track trouvée'}
                       </p>
                     ) : (
-                      <div className="divide-y divide-divider">
+                      <div className="divide-y divide-line">
                         {release.tracks.map((track, trackIdx) => (
-                          <div key={track.isrc || `track-${trackIdx}`} className="py-2 flex items-center gap-3">
-                            <span className="text-xs text-secondary-400 w-6 text-right">
+                          <div key={track.isrc || `track-${trackIdx}`} className="py-2.5 flex items-center gap-3">
+                            <span className="text-[11px] text-ink-faint w-6 text-right roy-num shrink-0">
                               {track.track_number || trackIdx + 1}.
                             </span>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium text-foreground truncate">{track.track_title}</p>
+                                <p className="text-[13px] font-medium text-ink truncate">{track.track_title}</p>
                                 {track.merged_from && track.merged_from.length > 1 && (
                                   <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded bg-success/20 text-success-700 cursor-help shrink-0"
-                                    title={`Fusionne depuis: ${track.merged_from.join(', ')}`}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10.5px] font-semibold rounded-full bg-accent-soft text-accent cursor-help shrink-0"
+                                    title={`Fusionné depuis: ${track.merged_from.join(', ')}`}
                                   >
                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -1099,21 +1077,21 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-xs text-secondary-400">
+                              <div className="flex items-center gap-2 text-[10.5px] text-ink-faint mt-0.5">
                                 {track.isrc && (
-                                  <span className="font-mono">ISRC: {track.isrc}</span>
+                                  <span className="font-mono">ISRC {track.isrc}</span>
                                 )}
                                 {track.artists && track.artists.length > 0 && (
                                   <span>{track.artists.join(', ')}</span>
                                 )}
                               </div>
                             </div>
-                            <div className="text-right text-xs text-secondary-500 flex items-center gap-3">
+                            <div className="text-right text-[11px] text-ink-faint flex items-center gap-3 roy-num">
                               {track.duration_ms && (
                                 <span className="font-mono">{formatDuration(track.duration_ms)}</span>
                               )}
                               {track.total_gross && parseFloat(track.total_gross) > 0 && (
-                                <span>
+                                <span className="text-ink font-semibold">
                                   {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: track.currency || 'EUR' }).format(parseFloat(track.total_gross))}
                                 </span>
                               )}
@@ -1132,18 +1110,18 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
 
       {/* Merge Modal */}
       {showMergeModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-divider flex items-center justify-between">
+        <div className="fixed inset-0 bg-ink/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-surface border border-line rounded-[16px] shadow-roy max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-5 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-foreground">Fusionner les tracks en double</h3>
-                <p className="text-sm text-secondary-500">
-                  {duplicateGroups.length} groupe{duplicateGroups.length > 1 ? 's' : ''} de doublons detecte{duplicateGroups.length > 1 ? 's' : ''}
+                <h3 className="text-[16px] font-bold text-ink">Fusionner les tracks en double</h3>
+                <p className="text-[12px] text-ink-faint mt-0.5">
+                  {duplicateGroups.length} groupe{duplicateGroups.length > 1 ? 's' : ''} de doublons détecté{duplicateGroups.length > 1 ? 's' : ''}
                 </p>
               </div>
               <button
                 onClick={() => setShowMergeModal(false)}
-                className="p-2 text-secondary-400 hover:text-secondary-600 rounded-lg transition-colors"
+                className="p-2 -mr-2 text-ink-faint hover:text-ink transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1153,15 +1131,15 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {duplicateGroups.length === 0 ? (
-                <p className="text-center text-secondary-500 py-8">Aucun doublon detecte</p>
+                <p className="text-center text-ink-faint text-[13px] py-8">Aucun doublon détecté</p>
               ) : (
                 duplicateGroups.map(group => {
                   const isSelected = selectedMerges.has(group.normalizedName);
                   return (
                     <div
                       key={group.normalizedName}
-                      className={`p-4 rounded-xl border-2 transition-colors cursor-pointer ${
-                        isSelected ? 'border-primary bg-primary/5' : 'border-divider hover:border-default-300'
+                      className={`p-4 rounded-[12px] border transition-colors cursor-pointer ${
+                        isSelected ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'
                       }`}
                       onClick={() => {
                         setSelectedMerges(prev => {
@@ -1176,37 +1154,33 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 mt-0.5 ${
-                          isSelected ? 'border-primary bg-primary' : 'border-default-300'
+                        <div className={`w-5 h-5 rounded-[6px] border flex items-center justify-center shrink-0 mt-0.5 ${
+                          isSelected ? 'border-accent bg-accent text-accent-ink' : 'border-line-strong'
                         }`}>
-                          {isSelected && (
-                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
+                          {isSelected && <IconCheck size={12} />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-foreground mb-2">
+                          <p className="text-[13px] font-semibold text-ink mb-2">
                             Tracks similaires ({group.tracks.length})
                           </p>
                           <div className="space-y-1">
                             {group.tracks.map((t, idx) => (
-                              <div key={idx} className="flex items-center gap-2 text-sm">
+                              <div key={idx} className="flex items-center gap-2 text-[13px]">
                                 {idx === 0 && (
-                                  <span className="px-1.5 py-0.5 text-xs rounded bg-success/20 text-success-700">Principal</span>
+                                  <span className="px-1.5 py-0.5 text-[10.5px] font-semibold rounded-full bg-accent-soft text-accent">Principal</span>
                                 )}
-                                <span className={idx === 0 ? 'font-medium text-foreground' : 'text-secondary-500 line-through'}>
+                                <span className={idx === 0 ? 'font-medium text-ink' : 'text-ink-faint line-through'}>
                                   {t.track.track_title}
                                 </span>
                                 {t.track.isrc && (
-                                  <span className="text-xs font-mono text-secondary-400">({t.track.isrc})</span>
+                                  <span className="text-[10.5px] font-mono text-ink-faint">({t.track.isrc})</span>
                                 )}
                               </div>
                             ))}
                           </div>
                           {group.tracks.some(t => t.track.total_streams) && (
-                            <p className="text-xs text-secondary-500 mt-2">
-                              Total streams apres fusion: {new Intl.NumberFormat('fr-FR').format(
+                            <p className="text-[11px] text-ink-faint mt-2 roy-num">
+                              Total streams après fusion: {new Intl.NumberFormat('fr-FR').format(
                                 group.tracks.reduce((sum, t) => sum + (t.track.total_streams || 0), 0)
                               )}
                             </p>
@@ -1219,27 +1193,21 @@ export default function CatalogSection({ artistName, artistSpotifyId }: CatalogS
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-divider flex items-center justify-between gap-3">
-              <p className="text-sm text-secondary-500">
-                {selectedMerges.size} fusion{selectedMerges.size > 1 ? 's' : ''} selectionnee{selectedMerges.size > 1 ? 's' : ''}
+            <div className="px-6 py-4 border-t border-line flex items-center justify-between gap-3 bg-surface-2">
+              <p className="text-[12px] text-ink-faint">
+                {selectedMerges.size} fusion{selectedMerges.size > 1 ? 's' : ''} sélectionnée{selectedMerges.size > 1 ? 's' : ''}
               </p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setShowMergeModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-secondary-600 hover:bg-content2 rounded-lg transition-colors"
-                >
+                <OutlineButton onClick={() => setShowMergeModal(false)}>
                   Annuler
-                </button>
-                <Button
+                </OutlineButton>
+                <AccentButton
                   onClick={executeMerge}
                   disabled={selectedMerges.size === 0}
-                  className="flex items-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+                  <IconCheck size={14} />
                   Fusionner
-                </Button>
+                </AccentButton>
               </div>
             </div>
           </div>

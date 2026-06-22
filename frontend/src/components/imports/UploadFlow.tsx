@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import Button from '@/components/ui/Button';
-import Select from '@/components/ui/Select';
+import { AccentButton, OutlineButton } from '@/components/roy/ui';
 import MappingStep from './MappingStep';
 import { SOURCES, ImportSource } from '@/lib/types';
 import { createImport, getImportStatus, analyzeImport, ImportAnalysis } from '@/lib/api';
@@ -240,43 +239,43 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
   if (step === 'done') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-        <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-surface border border-line w-full sm:max-w-lg sm:rounded-[16px] rounded-t-[16px] shadow-roy max-h-[90vh] overflow-y-auto">
           <div className="p-6 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success-100 flex items-center justify-center">
-              <svg className="w-8 h-8 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent-soft text-accent flex items-center justify-center">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-lg font-semibold text-foreground mb-2">Import terminé</h2>
-            <p className="text-default-500 mb-6">
+            <h2 className="text-[16px] font-bold text-ink mb-2">Import terminé</h2>
+            <p className="text-[13px] text-ink-faint mb-6">
               {successfulImports.length} fichier{successfulImports.length > 1 ? 's' : ''} importé{successfulImports.length > 1 ? 's' : ''} avec succès
             </p>
 
-            <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
+            <div className="space-y-2 mb-6 max-h-48 overflow-y-auto text-left">
               {files.map((entry, index) => (
                 <div
                   key={index}
-                  className={`flex items-center justify-between p-3 rounded-xl text-sm ${
+                  className={`flex items-center justify-between p-3 rounded-[12px] text-[13px] border ${
                     entry.imported
-                      ? 'bg-success-50 text-success-700'
+                      ? 'bg-accent-soft text-accent border-transparent'
                       : entry.error
-                        ? 'bg-danger-50 text-danger-700'
+                        ? 'bg-surface-2 text-neg border-line'
                         : entry.skipped
-                          ? 'bg-default-100 text-default-500'
-                          : 'bg-default-50 text-default-700'
+                          ? 'bg-surface-2 text-ink-faint border-line'
+                          : 'bg-surface-2 text-ink-muted border-line'
                   }`}
                 >
-                  <span className="truncate">{entry.file.name}</span>
-                  <span className="flex-shrink-0 ml-2">
+                  <span className="truncate font-medium">{entry.file.name}</span>
+                  <span className="flex-shrink-0 ml-2 font-semibold">
                     {entry.imported ? 'OK' : entry.skipped ? 'Ignoré' : entry.error || 'Erreur'}
                   </span>
                 </div>
               ))}
             </div>
 
-            <Button onClick={onComplete} className="w-full">
+            <AccentButton onClick={onComplete} className="w-full">
               Fermer
-            </Button>
+            </AccentButton>
           </div>
         </div>
       </div>
@@ -286,17 +285,17 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
   if (step === 'importing') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-        <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl">
+        <div className="bg-surface border border-line w-full sm:max-w-lg sm:rounded-[16px] rounded-t-[16px] shadow-roy">
           <div className="p-6 text-center">
-            <div className="animate-spin w-10 h-10 border-3 border-foreground border-t-transparent rounded-full mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-foreground mb-2">Import en cours</h2>
-            <p className="text-default-500">
+            <div className="animate-spin w-10 h-10 border-[3px] border-accent border-t-transparent rounded-full mx-auto mb-4" />
+            <h2 className="text-[16px] font-bold text-ink mb-2">Import en cours</h2>
+            <p className="text-[13px] text-ink-muted">
               {currentImportIndex + 1} / {files.length} fichier{files.length > 1 ? 's' : ''}
             </p>
-            <p className="text-sm text-default-400 mt-1 truncate">
+            <p className="text-[12.5px] text-ink-faint mt-1 truncate">
               {files[currentImportIndex]?.file.name}
             </p>
-            <p className="text-xs text-default-400 mt-2">
+            <p className="text-[11px] text-ink-faint mt-2">
               Traitement en cours, veuillez patienter...
             </p>
           </div>
@@ -308,15 +307,15 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
   if (step === 'artists') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-        <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-background border-b border-divider px-4 py-4 sm:px-6">
+        <div className="bg-surface border border-line w-full sm:max-w-lg sm:rounded-[16px] rounded-t-[16px] shadow-roy max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-surface border-b border-line px-4 py-4 sm:px-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-[16px] font-bold text-ink">
                 Artistes à clarifier
               </h2>
               <button
                 onClick={onClose}
-                className="p-2 -mr-2 text-default-500 hover:text-default-700 transition-colors"
+                className="p-2 -mr-2 text-ink-faint hover:text-ink transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -326,33 +325,33 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
           </div>
 
           <div className="p-4 sm:p-6 space-y-4">
-            <div className="bg-primary-50 rounded-xl p-3">
-              <p className="text-sm text-primary-700">
+            <div className="bg-accent-soft rounded-[12px] p-3">
+              <p className="text-[13px] text-accent">
                 Certains artistes contiennent "&" ou "feat". S'agit-il d'un seul artiste ou de plusieurs ?
               </p>
             </div>
 
             <div className="space-y-3">
               {artistDecisions.map((decision, index) => (
-                <div key={decision.name} className="bg-default-50 rounded-xl p-4">
-                  <p className="font-medium text-foreground mb-3">{decision.name}</p>
+                <div key={decision.name} className="bg-surface-2 border border-line rounded-[12px] p-4">
+                  <p className="text-[13.5px] font-semibold text-ink mb-3">{decision.name}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleArtistDecision(index, true)}
-                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      className={`flex-1 px-3 py-2 rounded-[10px] text-[12.5px] font-semibold transition-colors ${
                         decision.isSingleArtist === true
-                          ? 'bg-foreground text-background'
-                          : 'bg-background border border-default-200 text-default-700 hover:bg-default-50'
+                          ? 'bg-accent text-accent-ink'
+                          : 'bg-surface border border-line text-ink-muted hover:bg-surface-2 hover:text-ink'
                       }`}
                     >
                       1 artiste unique
                     </button>
                     <button
                       onClick={() => handleArtistDecision(index, false)}
-                      className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                      className={`flex-1 px-3 py-2 rounded-[10px] text-[12.5px] font-semibold transition-colors ${
                         decision.isSingleArtist === false
-                          ? 'bg-foreground text-background'
-                          : 'bg-background border border-default-200 text-default-700 hover:bg-default-50'
+                          ? 'bg-accent text-accent-ink'
+                          : 'bg-surface border border-line text-ink-muted hover:bg-surface-2 hover:text-ink'
                       }`}
                     >
                       Plusieurs artistes
@@ -363,18 +362,17 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-background border-t border-divider p-4 sm:p-6 flex gap-3">
-            <Button variant="secondary" onClick={() => setStep('upload')} className="flex-1">
+          <div className="sticky bottom-0 bg-surface border-t border-line p-4 sm:p-6 flex gap-3">
+            <OutlineButton onClick={() => setStep('upload')} className="flex-1 justify-center">
               Retour
-            </Button>
-            <Button
+            </OutlineButton>
+            <AccentButton
               onClick={handleArtistsComplete}
-              loading={loading}
-              disabled={!allArtistsDecided}
+              disabled={loading || !allArtistsDecided}
               className="flex-1"
             >
               Importer {validFiles.length} fichier{validFiles.length > 1 ? 's' : ''}
-            </Button>
+            </AccentButton>
           </div>
         </div>
       </div>
@@ -383,15 +381,15 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-      <div className="bg-background w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-background border-b border-divider px-4 py-4 sm:px-6">
+      <div className="bg-surface border border-line w-full sm:max-w-lg sm:rounded-[16px] rounded-t-[16px] shadow-roy max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-surface border-b border-line px-4 py-4 sm:px-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">
+            <h2 className="text-[16px] font-bold text-ink">
               Nouvel import
             </h2>
             <button
               onClick={onClose}
-              className="p-2 -mr-2 text-default-500 hover:text-default-700 transition-colors"
+              className="p-2 -mr-2 text-ink-faint hover:text-ink transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -406,12 +404,12 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+            className={`relative border-2 border-dashed rounded-[12px] p-6 text-center transition-colors ${
               isDragging
-                ? 'border-foreground bg-default-50'
+                ? 'border-accent bg-accent-soft'
                 : files.length > 0
-                  ? 'border-success-300 bg-success-50'
-                  : 'border-default-300 hover:border-default-400'
+                  ? 'border-accent bg-accent-soft'
+                  : 'border-line-strong hover:border-accent'
             }`}
           >
             <input
@@ -421,64 +419,67 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             />
-            <svg className="w-8 h-8 mx-auto text-default-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 mx-auto text-ink-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p className="font-medium text-default-700">
+            <p className="text-[13.5px] font-semibold text-ink">
               Glissez vos fichiers ici
             </p>
-            <p className="text-sm text-default-500 mt-1">
+            <p className="text-[12.5px] text-ink-faint mt-1">
               ou cliquez pour sélectionner (plusieurs fichiers possibles)
             </p>
           </div>
 
-          <Select
-            label="Source"
-            value={source}
-            onChange={(e) => setSource(e.target.value as ImportSource)}
-          >
-            {SOURCES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </Select>
+          <div>
+            <label className="roy-eyebrow text-[9.5px] mb-1.5 block">Source</label>
+            <select
+              value={source}
+              onChange={(e) => setSource(e.target.value as ImportSource)}
+              className="w-full h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
+            >
+              {SOURCES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* File list */}
           {files.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-default-700">
+              <p className="text-[13px] font-semibold text-ink">
                 {files.length} fichier{files.length > 1 ? 's' : ''} sélectionné{files.length > 1 ? 's' : ''}
               </p>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {files.map((entry, index) => (
                   <div
                     key={index}
-                    className={`rounded-xl p-3 ${
+                    className={`rounded-[12px] p-3 border ${
                       entry.error
-                        ? 'bg-danger-50 border border-danger-200'
+                        ? 'bg-surface-2 border-line'
                         : entry.analysis?.duplicate && !entry.skipped
-                          ? 'bg-warning-50 border border-warning-200'
+                          ? 'bg-surface-2 border-line-strong'
                           : entry.skipped
-                            ? 'bg-default-100 border border-default-200'
-                            : 'bg-default-50 border border-default-200'
+                            ? 'bg-surface-2 border-line'
+                            : 'bg-surface-2 border-line'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className={`font-medium text-sm truncate ${entry.skipped ? 'text-default-400' : 'text-foreground'}`}>
+                        <p className={`text-[13px] font-semibold truncate ${entry.skipped ? 'text-ink-faint' : 'text-ink'}`}>
                           {entry.file.name}
                         </p>
                         {entry.analyzing ? (
-                          <p className="text-xs text-default-500 flex items-center gap-1 mt-1">
-                            <span className="animate-spin w-3 h-3 border border-default-400 border-t-transparent rounded-full inline-block" />
+                          <p className="text-[11px] text-ink-faint flex items-center gap-1 mt-1">
+                            <span className="animate-spin w-3 h-3 border border-ink-faint border-t-transparent rounded-full inline-block" />
                             Analyse...
                           </p>
                         ) : entry.error ? (
-                          <p className="text-xs text-danger mt-1">{entry.error}</p>
+                          <p className="text-[11px] text-neg mt-1">{entry.error}</p>
                         ) : entry.analysis ? (
                           <div className="mt-1">
-                            <p className="text-xs text-default-500">
+                            <p className="text-[11px] text-ink-faint">
                               {entry.analysis.period_start && entry.analysis.period_end
                                 ? `${new Date(entry.analysis.period_start).toLocaleDateString('fr-FR')} - ${new Date(entry.analysis.period_end).toLocaleDateString('fr-FR')}`
                                 : 'Période non détectée'
@@ -486,7 +487,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
                               {entry.analysis.total_artists > 0 && ` · ${entry.analysis.total_artists} artiste${entry.analysis.total_artists > 1 ? 's' : ''}`}
                             </p>
                             {entry.analysis.duplicate && !entry.skipped && (
-                              <p className="text-xs text-warning-700 mt-1">
+                              <p className="text-[11px] text-ink-muted mt-1">
                                 Doublon détecté - {entry.analysis.duplicate.rows_inserted} lignes déjà importées
                               </p>
                             )}
@@ -497,10 +498,10 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
                         {entry.analysis?.duplicate && (
                           <button
                             onClick={() => toggleSkipDuplicate(index)}
-                            className={`text-xs px-2 py-1 rounded-lg transition-colors ${
+                            className={`text-[11px] font-semibold px-2 py-1 rounded-[8px] transition-colors ${
                               entry.skipped
-                                ? 'bg-default-200 text-default-600'
-                                : 'bg-warning-100 text-warning-700'
+                                ? 'bg-surface border border-line text-ink-muted'
+                                : 'bg-accent-soft text-accent'
                             }`}
                           >
                             {entry.skipped ? 'Réactiver' : 'Ignorer'}
@@ -508,7 +509,7 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
                         )}
                         <button
                           onClick={() => removeFile(index)}
-                          className="p-1 text-default-400 hover:text-default-600 transition-colors"
+                          className="p-1 text-ink-faint hover:text-ink transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -524,35 +525,34 @@ export default function UploadFlow({ onClose, onComplete }: UploadFlowProps) {
 
           {/* Artists with & info */}
           {artistDecisions.length > 0 && (
-            <div className="bg-primary-50 rounded-xl p-3">
-              <p className="text-sm text-primary-700">
+            <div className="bg-accent-soft rounded-[12px] p-3">
+              <p className="text-[13px] text-accent">
                 {artistDecisions.length} artiste{artistDecisions.length > 1 ? 's' : ''} avec "&" ou "feat" détecté{artistDecisions.length > 1 ? 's' : ''}
               </p>
             </div>
           )}
 
           {error && (
-            <p className="text-sm text-danger bg-danger-50 rounded-xl px-3 py-2">
+            <p className="text-[13px] text-neg bg-surface-2 border border-line rounded-[12px] px-3 py-2">
               {error}
             </p>
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-background border-t border-divider p-4 sm:p-6 flex gap-3">
-          <Button variant="secondary" onClick={onClose} className="flex-1">
+        <div className="sticky bottom-0 bg-surface border-t border-line p-4 sm:p-6 flex gap-3">
+          <OutlineButton onClick={onClose} className="flex-1 justify-center">
             Annuler
-          </Button>
-          <Button
+          </OutlineButton>
+          <AccentButton
             onClick={handleNext}
-            loading={loading}
-            disabled={files.length === 0 || isAnalyzing || validFiles.length === 0}
+            disabled={loading || files.length === 0 || isAnalyzing || validFiles.length === 0}
             className="flex-1"
           >
             {isAnalyzing
               ? 'Analyse...'
               : `Importer ${validFiles.length} fichier${validFiles.length > 1 ? 's' : ''}`
             }
-          </Button>
+          </AccentButton>
         </div>
       </div>
     </div>

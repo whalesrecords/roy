@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { AccentButton, OutlineButton } from '@/components/roy/ui';
 import { Artist, EXPENSE_CATEGORIES, ExtractedInvoice, CreateAdvanceFromInvoice } from '@/lib/types';
 import { extractInvoiceData, createAdvanceFromInvoice, getArtistReleases, getArtistTracks, CatalogRelease, CatalogTrack } from '@/lib/api';
 
@@ -56,19 +56,19 @@ function DocPreview({
   if (isExtracting && src) {
     // Show local preview while waiting for API
     return (
-      <div className="relative w-full h-full flex items-center justify-center bg-default-50">
+      <div className="relative w-full h-full flex items-center justify-center bg-surface-2">
         {isImageDataUri('data:image/') || /\.(png|jpe?g)$/i.test(filename) ? (
           <img src={src} alt={filename} className="max-h-full max-w-full object-contain opacity-60" />
         ) : (
-          <div className="text-default-400 text-xs text-center p-4">
+          <div className="text-ink-faint text-[11px] text-center p-4">
             <svg className="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             {filename}
           </div>
         )}
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40 rounded">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center bg-surface/40 rounded">
+          <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     );
@@ -76,8 +76,8 @@ function DocPreview({
 
   if (!src) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-default-50">
-        <svg className="w-10 h-10 text-default-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="w-full h-full flex items-center justify-center bg-surface-2">
+        <svg className="w-10 h-10 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       </div>
@@ -322,16 +322,16 @@ export default function InvoiceImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
+      <div className="bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-divider flex items-center justify-between shrink-0">
-          <h2 className="text-lg font-semibold text-foreground">
+        <div className="px-6 py-4 border-b border-line flex items-center justify-between shrink-0">
+          <h2 className="text-[16px] font-bold text-ink">
             {step === 'upload' && 'Importer des factures'}
             {step === 'preview' && `${extractedInvoices.length} facture(s)`}
             {step === 'done' && 'Import terminé'}
           </h2>
-          <button onClick={handleClose} className="text-default-400 hover:text-default-600 p-1">
+          <button onClick={handleClose} className="text-ink-faint hover:text-ink p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -345,22 +345,22 @@ export default function InvoiceImportModal({
           {step === 'upload' && (
             <div className="p-6">
               <div
-                className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-[12px] p-12 text-center transition-colors ${
                   isDragging
-                    ? 'border-primary bg-primary/5'
-                    : 'border-default-200 hover:border-default-300'
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-line-strong hover:border-accent'
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <div className="w-16 h-16 mx-auto mb-4 text-default-300">
+                <div className="w-16 h-16 mx-auto mb-4 text-ink-faint">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <p className="text-lg font-medium text-foreground mb-2">Glissez vos factures ici</p>
-                <p className="text-sm text-default-500 mb-4">
+                <p className="text-[16px] font-semibold text-ink mb-2">Glissez vos factures ici</p>
+                <p className="text-[13px] text-ink-faint mb-4">
                   PDF ou images (PNG, JPG) — Format suggéré : YYYYMMDD_Catégorie_Artiste.pdf
                 </p>
                 <input
@@ -371,39 +371,41 @@ export default function InvoiceImportModal({
                   className="hidden"
                   onChange={(e) => e.target.files && handleFiles(e.target.files)}
                 />
-                <Button onClick={() => fileInputRef.current?.click()}>
-                  Parcourir les fichiers
-                </Button>
+                <div className="flex justify-center">
+                  <AccentButton onClick={() => fileInputRef.current?.click()}>
+                    Parcourir les fichiers
+                  </AccentButton>
+                </div>
               </div>
               {error && (
-                <div className="mt-4 p-3 bg-red-50 rounded-lg text-sm text-red-700">{error}</div>
+                <div className="mt-4 p-3 bg-surface-2 border border-line rounded-[10px] text-[13px] text-neg">{error}</div>
               )}
             </div>
           )}
 
           {/* ── Preview step ── */}
           {step === 'preview' && (
-            <div className="divide-y divide-divider">
+            <div className="divide-y divide-line">
               {extractedInvoices.map((invoice, index) => {
                 const previewSrc = invoice.document_base64 || invoice.localPreviewUrl;
                 const stillExtracting = !invoice.success && !invoice.error && isExtracting;
                 const confidenceColor =
-                  invoice.confidence_score > 0.7 ? 'text-green-600' :
-                  invoice.confidence_score > 0.4 ? 'text-yellow-600' : 'text-red-500';
+                  invoice.confidence_score > 0.7 ? 'text-accent' :
+                  invoice.confidence_score > 0.4 ? 'text-ink-muted' : 'text-neg';
 
                 return (
                   <div
                     key={index}
-                    className={invoice.isCreated ? 'bg-green-50/50' : invoice.createError ? 'bg-red-50/50' : ''}
+                    className={invoice.isCreated ? 'bg-accent-soft/40' : invoice.createError ? 'bg-surface-2' : ''}
                   >
                     {/* Card header */}
-                    <div className="flex items-center gap-3 px-4 py-2 bg-default-50 border-b border-divider">
-                      <svg className="w-4 h-4 text-default-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center gap-3 px-4 py-2 bg-surface-2 border-b border-line">
+                      <svg className="w-4 h-4 text-ink-faint shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="text-sm font-medium text-foreground flex-1 truncate">{invoice.filename}</span>
+                      <span className="text-[13px] font-semibold text-ink flex-1 truncate">{invoice.filename}</span>
                       {stillExtracting && (
-                        <span className="text-xs text-primary flex items-center gap-1">
+                        <span className="text-[11px] text-accent flex items-center gap-1">
                           <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
@@ -411,12 +413,12 @@ export default function InvoiceImportModal({
                         </span>
                       )}
                       {invoice.confidence_score > 0 && (
-                        <span className={`text-xs font-medium ${confidenceColor}`}>
+                        <span className={`text-[11px] font-semibold ${confidenceColor}`}>
                           OCR {Math.round(invoice.confidence_score * 100)}%
                         </span>
                       )}
                       {invoice.isCreated && (
-                        <span className="text-green-600 font-medium text-sm flex items-center gap-1">
+                        <span className="text-accent font-semibold text-[13px] flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
@@ -429,7 +431,7 @@ export default function InvoiceImportModal({
                     <div className="flex flex-col md:flex-row">
 
                       {/* LEFT: document preview */}
-                      <div className="md:w-[38%] shrink-0 border-b md:border-b-0 md:border-r border-divider bg-default-50/60 flex items-center justify-center"
+                      <div className="md:w-[38%] shrink-0 border-b md:border-b-0 md:border-r border-line bg-surface-2/60 flex items-center justify-center"
                            style={{ minHeight: 260 }}>
                         <div className="w-full h-full p-3 flex items-center justify-center" style={{ maxHeight: 340 }}>
                           <DocPreview
@@ -447,7 +449,7 @@ export default function InvoiceImportModal({
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                               {/* Artiste */}
                               <div className="col-span-2 sm:col-span-1">
-                                <label className="block text-xs font-medium text-default-600 mb-1">Artiste *</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">Artiste *</label>
                                 <select
                                   value={invoice.selectedArtistId}
                                   onChange={(e) => {
@@ -457,7 +459,7 @@ export default function InvoiceImportModal({
                                       loadCatalog(index, newId, invoice.editedScope);
                                     }
                                   }}
-                                  className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full h-9 px-2 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                                 >
                                   <option value="">Sélectionner…</option>
                                   {artists.map(a => (
@@ -465,13 +467,13 @@ export default function InvoiceImportModal({
                                   ))}
                                 </select>
                                 {invoice.artist_from_filename && !invoice.selectedArtistId && (
-                                  <p className="text-xs text-yellow-600 mt-0.5">Suggéré : {invoice.artist_from_filename}</p>
+                                  <p className="text-[11px] text-ink-faint mt-0.5">Suggéré : {invoice.artist_from_filename}</p>
                                 )}
                               </div>
 
                               {/* Montant */}
                               <div>
-                                <label className="block text-xs font-medium text-default-600 mb-1">
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">
                                   Montant * ({invoice.currency || 'EUR'})
                                 </label>
                                 <input
@@ -480,17 +482,17 @@ export default function InvoiceImportModal({
                                   value={invoice.editedAmount}
                                   onChange={(e) => updateInvoice(index, { editedAmount: e.target.value })}
                                   placeholder="0.00"
-                                  className="w-full h-9 px-3 text-sm rounded-lg bg-default-100 border border-default-200 focus:border-primary focus:outline-none"
+                                  className="w-full h-9 px-3 text-[13px] text-ink rounded-[10px] bg-surface border border-line focus:border-line-strong focus:outline-none transition-colors"
                                 />
                               </div>
 
                               {/* Catégorie */}
                               <div>
-                                <label className="block text-xs font-medium text-default-600 mb-1">Catégorie</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">Catégorie</label>
                                 <select
                                   value={invoice.editedCategory}
                                   onChange={(e) => updateInvoice(index, { editedCategory: e.target.value })}
-                                  className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full h-9 px-2 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                                 >
                                   <option value="">—</option>
                                   {EXPENSE_CATEGORIES.map(cat => (
@@ -501,7 +503,7 @@ export default function InvoiceImportModal({
 
                               {/* Date */}
                               <div>
-                                <label className="block text-xs font-medium text-default-600 mb-1">Date</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">Date</label>
                                 <Input
                                   type="date"
                                   value={invoice.editedDate}
@@ -514,7 +516,7 @@ export default function InvoiceImportModal({
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-end">
                               {/* Description */}
                               <div className="col-span-2">
-                                <label className="block text-xs font-medium text-default-600 mb-1">Description</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">Description</label>
                                 <Input
                                   type="text"
                                   value={invoice.editedDescription}
@@ -526,7 +528,7 @@ export default function InvoiceImportModal({
 
                               {/* Référence */}
                               <div>
-                                <label className="block text-xs font-medium text-default-600 mb-1">N° facture</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">N° facture</label>
                                 <Input
                                   type="text"
                                   value={invoice.editedReference}
@@ -540,7 +542,7 @@ export default function InvoiceImportModal({
                             {/* Scope: Album / Track / Catalog */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-start">
                               <div>
-                                <label className="block text-xs font-medium text-default-600 mb-1">Périmètre</label>
+                                <label className="block text-[11px] font-semibold text-ink-muted mb-1">Périmètre</label>
                                 <select
                                   value={invoice.editedScope}
                                   onChange={(e) => {
@@ -550,7 +552,7 @@ export default function InvoiceImportModal({
                                       loadCatalog(index, invoice.selectedArtistId, newScope);
                                     }
                                   }}
-                                  className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="w-full h-9 px-2 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                                 >
                                   <option value="catalog">Catalogue général</option>
                                   <option value="release">Album</option>
@@ -559,15 +561,15 @@ export default function InvoiceImportModal({
                               </div>
                               {invoice.editedScope !== 'catalog' && (
                                 <div className="col-span-2">
-                                  <label className="block text-xs font-medium text-default-600 mb-1">
+                                  <label className="block text-[11px] font-semibold text-ink-muted mb-1">
                                     {invoice.editedScope === 'release' ? 'Album' : 'Track'}
-                                    {invoice.loadingCatalog && <span className="ml-1 text-default-400 text-xs">Chargement…</span>}
+                                    {invoice.loadingCatalog && <span className="ml-1 text-ink-faint text-[11px] font-normal">Chargement…</span>}
                                   </label>
                                   {(invoice.editedScope === 'release' ? invoice.catalogReleases.length > 0 : invoice.catalogTracks.length > 0) ? (
                                     <select
                                       value={invoice.editedScopeId}
                                       onChange={(e) => updateInvoice(index, { editedScopeId: e.target.value })}
-                                      className="w-full h-9 px-2 bg-background border border-default-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                      className="w-full h-9 px-2 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
                                     >
                                       <option value="">— Sélectionner —</option>
                                       {invoice.editedScope === 'release'
@@ -589,11 +591,11 @@ export default function InvoiceImportModal({
                                           loadCatalog(index, invoice.selectedArtistId, invoice.editedScope);
                                         }
                                       }}
-                                      className="w-full h-9 px-3 text-sm rounded-lg bg-default-100 border border-default-200 focus:border-primary focus:outline-none"
+                                      className="w-full h-9 px-3 text-[13px] text-ink rounded-[10px] bg-surface border border-line focus:border-line-strong focus:outline-none transition-colors"
                                     />
                                   )}
                                   {invoice.album_or_track && !invoice.editedScopeId && (
-                                    <p className="text-xs text-yellow-600 mt-0.5">OCR a détecté : {invoice.album_or_track}</p>
+                                    <p className="text-[11px] text-ink-faint mt-0.5">OCR a détecté : {invoice.album_or_track}</p>
                                   )}
                                 </div>
                               )}
@@ -606,7 +608,7 @@ export default function InvoiceImportModal({
                                 <button
                                   type="button"
                                   onClick={() => updateInvoice(index, { showOcr: !invoice.showOcr })}
-                                  className="text-xs text-default-400 hover:text-default-600 flex items-center gap-1 transition-colors"
+                                  className="text-[11px] text-ink-faint hover:text-ink flex items-center gap-1 transition-colors"
                                 >
                                   <svg className={`w-3.5 h-3.5 transition-transform ${invoice.showOcr ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -616,20 +618,20 @@ export default function InvoiceImportModal({
                               )}
                               {!invoice.raw_text && <span />}
 
-                              <Button
+                              <AccentButton
                                 onClick={() => createAdvance(index)}
                                 disabled={!invoice.editedAmount || !invoice.selectedArtistId || invoice.isCreating}
-                                size="sm"
+                                className="px-3.5 py-2 text-[11.5px]"
                               >
                                 {invoice.isCreating ? 'Création…' : 'Créer l\'avance'}
-                              </Button>
+                              </AccentButton>
                             </div>
 
                             {/* OCR text collapsible */}
                             {invoice.showOcr && invoice.raw_text && (
-                              <div className="mt-1 p-3 bg-default-50 border border-default-200 rounded-lg">
-                                <p className="text-xs font-medium text-default-500 mb-1.5">Texte extrait par OCR :</p>
-                                <pre className="text-xs text-default-600 whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto">
+                              <div className="mt-1 p-3 bg-surface-2 border border-line rounded-[10px]">
+                                <p className="text-[11px] font-semibold text-ink-faint mb-1.5">Texte extrait par OCR :</p>
+                                <pre className="text-[11px] text-ink-muted whitespace-pre-wrap font-mono leading-relaxed max-h-40 overflow-y-auto">
                                   {invoice.raw_text}
                                 </pre>
                               </div>
@@ -637,7 +639,7 @@ export default function InvoiceImportModal({
 
                             {/* Erreur création */}
                             {invoice.createError && (
-                              <div className="p-2 bg-red-50 rounded text-xs text-red-700">
+                              <div className="p-2 bg-surface-2 border border-line rounded-[8px] text-[11px] text-neg">
                                 {invoice.createError}
                               </div>
                             )}
@@ -645,19 +647,19 @@ export default function InvoiceImportModal({
                         )}
 
                         {invoice.isCreated && (
-                          <div className="py-4 text-center text-sm text-green-600">
+                          <div className="py-4 text-center text-[13px] text-accent font-semibold">
                             ✓ Avance créée avec succès
                           </div>
                         )}
 
                         {/* Warnings */}
                         {invoice.warnings && invoice.warnings.length > 0 && (
-                          <div className="p-2 bg-yellow-50 rounded text-xs text-yellow-700">
+                          <div className="p-2 bg-surface-2 border border-line rounded-[8px] text-[11px] text-ink-muted">
                             {invoice.warnings.join(' · ')}
                           </div>
                         )}
                         {invoice.error && (
-                          <div className="p-2 bg-red-50 rounded text-xs text-red-700">
+                          <div className="p-2 bg-surface-2 border border-line rounded-[8px] text-[11px] text-neg">
                             {invoice.error}
                           </div>
                         )}
@@ -672,40 +674,42 @@ export default function InvoiceImportModal({
           {/* ── Done step ── */}
           {step === 'done' && (
             <div className="text-center py-16 px-6">
-              <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 mx-auto mb-4 bg-accent-soft text-accent rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Import terminé</h3>
-              <p className="text-default-500 mb-6">
+              <h3 className="text-[16px] font-bold text-ink mb-2">Import terminé</h3>
+              <p className="text-[13px] text-ink-faint mb-6">
                 {extractedInvoices.filter(i => i.isCreated).length} avance(s) créée(s) avec succès
               </p>
-              <Button onClick={handleClose}>Fermer</Button>
+              <div className="flex justify-center">
+                <AccentButton onClick={handleClose}>Fermer</AccentButton>
+              </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
         {step === 'preview' && (
-          <div className="px-6 py-3 border-t border-divider flex items-center justify-between shrink-0 bg-background">
-            <Button variant="ghost" size="sm" onClick={() => { setStep('upload'); setExtractedInvoices([]); }}>
+          <div className="px-6 py-3 border-t border-line flex items-center justify-between shrink-0 bg-surface-2">
+            <OutlineButton onClick={() => { setStep('upload'); setExtractedInvoices([]); }} className="px-3.5 py-2 text-[11.5px]">
               + Ajouter des fichiers
-            </Button>
+            </OutlineButton>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-default-500">
+              <span className="text-[13px] text-ink-faint">
                 {extractedInvoices.filter(i => i.isCreated).length} / {extractedInvoices.length} créées
               </span>
-              <Button
+              <AccentButton
                 onClick={createAllAdvances}
                 disabled={
                   isExtracting ||
                   extractedInvoices.every(i => i.isCreated || !i.editedAmount || !i.selectedArtistId)
                 }
-                size="sm"
+                className="px-3.5 py-2 text-[11.5px]"
               >
                 Tout créer
-              </Button>
+              </AccentButton>
             </div>
           </div>
         )}

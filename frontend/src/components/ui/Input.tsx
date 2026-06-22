@@ -18,9 +18,9 @@ interface InputProps {
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className = '', label, error, type = 'text', disabled, ...props }, ref) => {
     return (
-      <div className={`flex flex-col gap-2 ${className}`}>
+      <div className={`flex flex-col gap-1.5 ${className}`}>
         {label && (
-          <label className="text-sm font-medium text-foreground">
+          <label className="roy-eyebrow text-[9.5px]">
             {label}
           </label>
         )}
@@ -30,18 +30,17 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           disabled={disabled}
           className={`
             w-full h-12 px-4
-            border-2 rounded-xl
-            bg-background text-foreground
-            placeholder:text-secondary-400
-            focus:outline-none focus:border-primary transition-colors
-            hover:border-default-300
+            border rounded-[10px]
+            bg-surface text-[14px] text-ink
+            placeholder:text-ink-faint
+            focus:outline-none focus:border-line-strong transition-colors
             disabled:opacity-50 disabled:cursor-not-allowed
-            ${error ? 'border-danger' : 'border-default-200'}
+            ${error ? 'border-neg' : 'border-line'}
           `}
           {...props}
         />
         {error && (
-          <span className="text-sm text-danger">{error}</span>
+          <span className="text-[12px] text-neg">{error}</span>
         )}
       </div>
     );

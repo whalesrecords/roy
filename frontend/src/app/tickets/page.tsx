@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Spinner, Button, Input } from '@heroui/react';
+import { Spinner } from '@heroui/react';
 import { Ticket, TicketStats, getTickets, getTicketStats } from '@/lib/api';
+import { Card, Pill, Avatar, AccentButton } from '@/components/roy/ui';
+import { IconPlus, IconChevronRight } from '@/components/roy/icons';
 
 const CATEGORY_LABELS = {
   payment: { label: 'Paiements', icon: '💰', color: '#10b981' },
@@ -16,12 +18,8 @@ const CATEGORY_LABELS = {
   other: { label: 'Autre', icon: '❓', color: '#9ca3af' },
 };
 
-const STATUS_COLORS = {
-  open: 'bg-blue-500',
-  in_progress: 'bg-orange-500',
-  resolved: 'bg-green-500',
-  closed: 'bg-gray-500',
-};
+// Open/in-progress show accent emphasis; resolved/closed are neutral.
+const ACCENT_STATUSES = new Set(['open', 'in_progress']);
 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -73,69 +71,80 @@ export default function TicketsPage() {
     return date.toLocaleDateString('fr-FR');
   };
 
+  const inputClass =
+    'h-[38px] px-3 rounded-[10px] border border-line bg-surface text-[12.5px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+
   if (loading && !tickets.length) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Support Tickets</h1>
-        <Link href="/tickets/new">
-          <Button color="primary" size="lg">
-            + Nouveau ticket
-          </Button>
-        </Link>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Support</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">
+            {stats ? `${stats.total} ticket${stats.total > 1 ? 's' : ''} · ${stats.open} ouvert${stats.open > 1 ? 's' : ''}` : 'Tickets et conversations'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Link href="/tickets/new">
+            <AccentButton>
+              <IconPlus size={14} /> Nouveau ticket
+            </AccentButton>
+          </Link>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-content1 rounded-2xl p-4 border border-divider">
-            <div className="text-sm text-default-500 mb-1">Total</div>
-            <div className="text-2xl font-bold">{stats.total}</div>
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {/* Stats Cards */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+            <Card>
+              <span className="roy-eyebrow text-[9.5px]">Total</span>
+              <div className="roy-num text-[26px] font-bold mt-2 text-ink">{stats.total}</div>
+            </Card>
+            <Card hero>
+              <span className="roy-eyebrow text-[9.5px]">Ouverts</span>
+              <div className="roy-num text-[26px] font-bold mt-2 text-accent">{stats.open}</div>
+            </Card>
+            <Card>
+              <span className="roy-eyebrow text-[9.5px]">En cours</span>
+              <div className="roy-num text-[26px] font-bold mt-2 text-ink">{stats.in_progress}</div>
+            </Card>
+            <Card>
+              <span className="roy-eyebrow text-[9.5px]">Résolus</span>
+              <div className="roy-num text-[26px] font-bold mt-2 text-ink">{stats.resolved}</div>
+            </Card>
+            <Card>
+              <span className="roy-eyebrow text-[9.5px]">Fermés</span>
+              <div className="roy-num text-[26px] font-bold mt-2 text-ink-muted">{stats.closed}</div>
+            </Card>
           </div>
-          <div className="bg-primary/10 rounded-2xl p-4 border border-primary/20">
-            <div className="text-sm text-primary mb-1">Ouverts</div>
-            <div className="text-2xl font-bold text-primary">{stats.open}</div>
-          </div>
-          <div className="bg-warning/10 rounded-2xl p-4 border border-warning/20">
-            <div className="text-sm text-warning mb-1">En cours</div>
-            <div className="text-2xl font-bold text-warning">{stats.in_progress}</div>
-          </div>
-          <div className="bg-success/10 rounded-2xl p-4 border border-success/20">
-            <div className="text-sm text-success mb-1">Résolus</div>
-            <div className="text-2xl font-bold text-success">{stats.resolved}</div>
-          </div>
-          <div className="bg-content1 rounded-2xl p-4 border border-divider">
-            <div className="text-sm text-default-500 mb-1">Fermés</div>
-            <div className="text-2xl font-bold">{stats.closed}</div>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Filters */}
-      <div className="bg-content1 rounded-2xl p-4 border border-divider mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Input
-            placeholder="Rechercher (numéro, sujet...)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            startContent={
-              <svg className="w-4 h-4 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            }
-          />
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              placeholder="Rechercher (numéro, sujet…)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`${inputClass} w-full pl-9`}
+            />
+          </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+            className={`${inputClass} min-w-[170px]`}
           >
             <option value="">Tous les statuts</option>
             <option value="open">Ouvert</option>
@@ -146,7 +155,7 @@ export default function TicketsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+            className={`${inputClass} min-w-[170px]`}
           >
             <option value="">Toutes les catégories</option>
             <option value="payment">Paiements</option>
@@ -161,7 +170,7 @@ export default function TicketsPage() {
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
-            className="h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
+            className={`${inputClass} min-w-[170px]`}
           >
             <option value="">Toutes les priorités</option>
             <option value="low">Basse</option>
@@ -170,81 +179,70 @@ export default function TicketsPage() {
             <option value="urgent">Urgente</option>
           </select>
         </div>
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 mb-6">
-          <p className="text-danger">{error}</p>
-        </div>
-      )}
-
-      {/* Tickets List */}
-      <div className="space-y-3">
-        {tickets.length === 0 ? (
-          <div className="bg-content1 rounded-2xl border border-divider p-12 text-center text-default-500">
-            Aucun ticket trouvé
+        {/* Error */}
+        {error && (
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            {error}
           </div>
-        ) : (
-          tickets.map((ticket) => {
-            const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
-            return (
-              <Link
-                key={ticket.id}
-                href={`/tickets/${ticket.id}`}
-                className="flex items-center gap-4 p-4 bg-content1 rounded-2xl border border-divider hover:border-primary/50 hover:shadow-md transition-all"
-              >
-                {/* Category Icon */}
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                  style={{ backgroundColor: `${categoryInfo?.color}20` }}
-                >
-                  {categoryInfo?.icon}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-xs text-default-500">
-                      {ticket.ticket_number}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs text-white ${
-                        STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]
-                      }`}
-                    >
-                      {ticket.status_label}
-                    </span>
-                    {ticket.unread_count > 0 && (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-danger text-white font-bold">
-                        {ticket.unread_count}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="font-semibold text-base mb-1 truncate text-foreground">
-                    {ticket.subject}
-                  </h3>
-                  <div className="flex items-center gap-3 text-sm text-default-500">
-                    <span>{ticket.category_label}</span>
-                    {ticket.artist_names && ticket.artist_names.length > 0 && (
-                      <>
-                        <span>•</span>
-                        <span>👤 {ticket.artist_names.join(', ')}</span>
-                      </>
-                    )}
-                    <span>•</span>
-                    <span>{formatTimeAgo(ticket.last_message_at)}</span>
-                  </div>
-                </div>
-
-                {/* Arrow */}
-                <svg className="w-5 h-5 text-default-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            );
-          })
         )}
+
+        {/* Tickets List */}
+        <Card padded={false} className="overflow-hidden">
+          {tickets.length === 0 ? (
+            <div className="px-[22px] py-16 text-center text-ink-faint text-[13px]">
+              Aucun ticket trouvé
+            </div>
+          ) : (
+            tickets.map((ticket, i) => {
+              const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
+              const accentStatus = ACCENT_STATUSES.has(ticket.status);
+              return (
+                <Link
+                  key={ticket.id}
+                  href={`/tickets/${ticket.id}`}
+                  className={`flex items-center gap-3.5 px-[22px] py-3.5 hover:bg-surface-2 transition-colors ${i < tickets.length - 1 ? 'border-b border-line' : ''}`}
+                >
+                  {/* Category Icon */}
+                  <div className="w-10 h-10 rounded-[12px] bg-surface-2 flex items-center justify-center text-[18px] shrink-0">
+                    {categoryInfo?.icon}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className="font-mono text-[11px] text-ink-faint">{ticket.ticket_number}</span>
+                      <Pill tone={accentStatus ? 'accent' : 'neutral'}>{ticket.status_label}</Pill>
+                      {ticket.unread_count > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10.5px] font-bold bg-accent text-accent-ink">
+                          {ticket.unread_count}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-[13.5px] font-semibold text-ink truncate">{ticket.subject}</h3>
+                    <div className="flex items-center gap-2 text-[12px] text-ink-faint mt-0.5 flex-wrap">
+                      <span>{ticket.category_label}</span>
+                      {ticket.artist_names && ticket.artist_names.length > 0 && (
+                        <>
+                          <span className="text-ink-faint/60">·</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <Avatar name={ticket.artist_names[0]} size={18} />
+                            {ticket.artist_names.join(', ')}
+                          </span>
+                        </>
+                      )}
+                      <span className="text-ink-faint/60">·</span>
+                      <span>{formatTimeAgo(ticket.last_message_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  <IconChevronRight size={18} className="text-ink-faint shrink-0" />
+                </Link>
+              );
+            })
+          )}
+        </Card>
       </div>
     </div>
   );
