@@ -127,6 +127,7 @@ export default function InventoryPage() {
   const [stockForm, setStockForm] = useState({ quantity: 1, movement_type: 'in', reason: '', source: 'manual' });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
     setFetching(true);
@@ -278,6 +279,134 @@ export default function InventoryPage() {
   };
 
   const formatEUR = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+  // ── Group products by release (release_upc, else title+artist) so a release
+  // with several format variants shows as an expandable folder ──
+  interface ProductGroup {
+    key: string; title: string; artist?: string; image_url?: string;
+    items: Product[]; totalStock: number; totalSold: number;
+  }
+  const productGroups = useMemo<ProductGroup[]>(() => {
+    const map = new Map<string, ProductGroup>();
+    for (const p of products) {
+      const key = (p.release_upc && p.release_upc.trim())
+        || `${p.title.trim().toLowerCase()}|${(p.artist_name || '').trim().toLowerCase()}`;
+      let g = map.get(key);
+      if (!g) {
+        g = { key, title: p.title, artist: p.artist_name, image_url: p.image_url, items: [], totalStock: 0, totalSold: 0 };
+        map.set(key, g);
+      }
+      g.items.push(p);
+      g.totalStock += p.stock_quantity || 0;
+      g.totalSold += p.total_sold || 0;
+      if (!g.image_url && p.image_url) g.image_url = p.image_url;
+    }
+    return Array.from(map.values());
+  }, [products]);
+
+  const toggleGroup = (key: string) =>
+    setExpandedGroups(prev => {
+      const n = new Set(prev);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+
+  const renderProductRow = (product: Product, asVariant = false) => {
+    const isLowStock = product.stock_quantity <= product.low_stock_threshold;
+    const primaryLabel = asVariant
+      ? (product.variant || FORMAT_LABELS[product.format] || product.format)
+      : product.title;
+    const subParts = (asVariant
+      ? [FORMAT_LABELS[product.format] || product.format, product.sku]
+      : [product.variant, product.artist_name]
+    ).filter(Boolean) as string[];
+    return (
+      <div
+        key={product.id}
+        className={`grid grid-cols-[2.4fr_0.9fr_1.4fr_0.9fr_0.9fr_1.1fr] items-center py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors ${asVariant ? 'pl-[52px] pr-[22px] bg-surface-2/20' : 'px-[22px]'}`}
+      >
+        {/* Product info */}
+        <div className="flex items-center gap-3 min-w-0 pr-3">
+          {product.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.image_url} alt={product.title} className="w-10 h-10 rounded-[10px] object-cover shrink-0" />
+          ) : (
+            <div className="w-10 h-10 rounded-[10px] bg-surface-2 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={FORMAT_ICONS[product.format] || FORMAT_ICONS.other} />
+              </svg>
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-[13.5px] font-semibold text-ink truncate">{primaryLabel}</p>
+            <div className="flex items-center gap-2 text-[11px] text-ink-faint mt-0.5">
+              {subParts.map((s, i) => <span key={i} className="truncate">{s}</span>)}
+              {product.limited_edition && (
+                <span className="inline-flex items-center rounded-full bg-accent-soft text-accent px-2 py-[2px] text-[9.5px] font-bold tracking-wide">
+                  LTD{product.edition_size ? ` /${product.edition_size}` : ''}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Format */}
+        <div><Pill tone="neutral">{FORMAT_LABELS[product.format] || product.format}</Pill></div>
+
+        {/* Stock with quick adjust */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleQuickAdjust(product, -1)}
+              className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
+              title="Retirer 1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+            </button>
+            <span className={`roy-num font-bold min-w-[2rem] text-center ${isLowStock ? 'text-neg' : 'text-ink'}`}>{product.stock_quantity}</span>
+            <button
+              onClick={() => handleQuickAdjust(product, 1)}
+              className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
+              title="Ajouter 1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            </button>
+            {isLowStock && (
+              <svg className="w-4 h-4 text-neg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+            )}
+          </div>
+          {((product.total_sold ?? 0) > 0 || (product.initial_stock_quantity ?? 0) > 0) && (
+            <span className="text-[11px] text-ink-faint">
+              {(product.initial_stock_quantity ?? 0) > 0 && (<>/ <span className="roy-num">{product.initial_stock_quantity}</span> pressés </>)}
+              {(product.total_sold ?? 0) > 0 && (<>· <span className="roy-num">{product.total_sold}</span> vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}</>)}
+            </span>
+          )}
+        </div>
+
+        {/* Price */}
+        <div className="text-right roy-num text-[13px] text-ink">{product.price_eur != null ? formatEUR(product.price_eur) : '—'}</div>
+
+        {/* Status */}
+        <div><Pill tone={STATUS_TONE[product.status] || 'neutral'}>{STATUS_LABELS[product.status] || product.status}</Pill></div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={() => { setStockAdjustProduct(product); setStockForm({ quantity: 1, movement_type: 'in', reason: '', source: 'manual' }); }} className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-accent transition-colors" title="Ajuster le stock">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+          </button>
+          <button onClick={() => openMovements(product)} className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors" title="Historique">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </button>
+          <button onClick={() => openEdit(product)} className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors" title="Modifier">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          </button>
+          <button onClick={() => handleDelete(product.id)} disabled={deleting === product.id} className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-neg transition-colors disabled:opacity-50" title="Supprimer">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -543,145 +672,34 @@ export default function InventoryPage() {
               <Eyebrow className="text-[10px]">Statut</Eyebrow>
               <Eyebrow className="text-[10px] text-right">Actions</Eyebrow>
             </div>
-            {products.map(product => {
-              const isLowStock = product.stock_quantity <= product.low_stock_threshold;
+            {productGroups.map(group => {
+              if (group.items.length === 1) return renderProductRow(group.items[0]);
+              const open = expandedGroups.has(group.key);
               return (
-                <div
-                  key={product.id}
-                  className="grid grid-cols-[2.4fr_0.9fr_1.4fr_0.9fr_0.9fr_1.1fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors"
-                >
-                  {/* Product info */}
-                  <div className="flex items-center gap-3 min-w-0 pr-3">
-                    {product.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={product.image_url}
-                        alt={product.title}
-                        className="w-10 h-10 rounded-[10px] object-cover shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-[10px] bg-surface-2 flex items-center justify-center shrink-0">
-                        <svg className="w-5 h-5 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={FORMAT_ICONS[product.format] || FORMAT_ICONS.other} />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-[13.5px] font-semibold text-ink truncate">{product.title}</p>
-                      <div className="flex items-center gap-2 text-[11px] text-ink-faint mt-0.5">
-                        {product.variant && <span className="truncate">{product.variant}</span>}
-                        {product.artist_name && <span className="truncate">{product.artist_name}</span>}
-                        {product.limited_edition && (
-                          <span className="inline-flex items-center rounded-full bg-accent-soft text-accent px-2 py-[2px] text-[9.5px] font-bold tracking-wide">
-                            LTD{product.edition_size ? ` /${product.edition_size}` : ''}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Format */}
-                  <div>
-                    <Pill tone="neutral">{FORMAT_LABELS[product.format] || product.format}</Pill>
-                  </div>
-
-                  {/* Stock with quick adjust */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleQuickAdjust(product, -1)}
-                        className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
-                        title="Retirer 1"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                        </svg>
-                      </button>
-                      <span className={`roy-num font-bold min-w-[2rem] text-center ${isLowStock ? 'text-neg' : 'text-ink'}`}>
-                        {product.stock_quantity}
-                      </span>
-                      <button
-                        onClick={() => handleQuickAdjust(product, 1)}
-                        className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
-                        title="Ajouter 1"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                      {isLowStock && (
-                        <svg className="w-4 h-4 text-neg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
+                <div key={group.key} className="border-b border-line last:border-0">
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    className="w-full flex items-center gap-3 px-[22px] py-3.5 text-left hover:bg-surface-2 transition-colors"
+                  >
+                    <svg className={`w-4 h-4 shrink-0 text-ink-faint transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 6l6 6-6 6" /></svg>
+                    <div className="w-10 h-10 rounded-[10px] bg-accent-soft text-accent flex items-center justify-center shrink-0 overflow-hidden">
+                      {group.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={group.image_url} alt={group.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
                       )}
                     </div>
-                    {((product.total_sold ?? 0) > 0 || (product.initial_stock_quantity ?? 0) > 0) && (
-                      <span className="text-[11px] text-ink-faint">
-                        {(product.initial_stock_quantity ?? 0) > 0 && (
-                          <>/ <span className="roy-num">{product.initial_stock_quantity}</span> pressés </>
-                        )}
-                        {(product.total_sold ?? 0) > 0 && (
-                          <>· <span className="roy-num">{product.total_sold}</span> vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}</>
-                        )}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Price */}
-                  <div className="text-right roy-num text-[13px] text-ink">
-                    {product.price_eur != null ? formatEUR(product.price_eur) : '—'}
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <Pill tone={STATUS_TONE[product.status] || 'neutral'}>
-                      {STATUS_LABELS[product.status] || product.status}
-                    </Pill>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => {
-                        setStockAdjustProduct(product);
-                        setStockForm({ quantity: 1, movement_type: 'in', reason: '', source: 'manual' });
-                      }}
-                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-accent transition-colors"
-                      title="Ajuster le stock"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => openMovements(product)}
-                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors"
-                      title="Historique"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => openEdit(product)}
-                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors"
-                      title="Modifier"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      disabled={deleting === product.id}
-                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-neg transition-colors disabled:opacity-50"
-                      title="Supprimer"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13.5px] font-semibold text-ink truncate">{group.title}</p>
+                      <div className="text-[11px] text-ink-faint mt-0.5 truncate">{group.artist ? `${group.artist} · ` : ''}{group.items.length} variantes</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className={`roy-num font-bold ${group.totalStock <= 0 ? 'text-neg' : 'text-ink'}`}>{group.totalStock}</div>
+                      <div className="text-[11px] text-ink-faint">en stock{group.totalSold > 0 ? ` · ${group.totalSold} vendus` : ''}</div>
+                    </div>
+                  </button>
+                  {open && group.items.map(p => renderProductRow(p, true))}
                 </div>
               );
             })}

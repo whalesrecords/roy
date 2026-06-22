@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, ACCENTS } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getLabelSettings, LabelSettings } from '@/lib/api';
 import {
   IconHome, IconChart, IconMusic, IconFile, IconCard,
@@ -12,19 +13,20 @@ import {
 } from '@/components/roy/icons';
 
 const NAV = [
-  { href: '/', label: 'Accueil', Icon: IconHome },
-  { href: '/stats', label: 'Statistiques', Icon: IconChart },
-  { href: '/musique', label: 'Musique', Icon: IconMusic },
-  { href: '/statements', label: 'Relevés', Icon: IconFile },
-  { href: '/payments', label: 'Paiements', Icon: IconCard },
-  { href: '/promo', label: 'Promo', Icon: IconMegaphone },
-  { href: '/support', label: 'Support', Icon: IconSupport },
-];
+  { href: '/', key: 'nav.home', Icon: IconHome },
+  { href: '/stats', key: 'stats.title', Icon: IconChart },
+  { href: '/musique', key: 'nav.music', Icon: IconMusic },
+  { href: '/statements', key: 'statements.title', Icon: IconFile },
+  { href: '/payments', key: 'payments.title', Icon: IconCard },
+  { href: '/promo', key: 'nav.promo', Icon: IconMegaphone },
+  { href: '/support', key: 'support.title', Icon: IconSupport },
+] as const;
 
 export default function ArtistSidebar() {
   const pathname = usePathname();
   const { artist } = useAuth();
   const { theme, toggleTheme, accent, setAccent } = useTheme();
+  const { t } = useLanguage();
   const [label, setLabel] = useState<LabelSettings | null>(null);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function ArtistSidebar() {
 
       {/* Nav */}
       <nav className="flex flex-col gap-[3px]">
-        {NAV.map(({ href, label: lbl, Icon }) => {
+        {NAV.map(({ href, key, Icon }) => {
           const active = pathname === href || (href !== '/' && pathname.startsWith(href));
           return (
             <Link
@@ -72,7 +74,7 @@ export default function ArtistSidebar() {
               }`}
             >
               <Icon size={18} strokeWidth={active ? 1.9 : 1.8} />
-              {lbl}
+              {t(key)}
             </Link>
           );
         })}
@@ -109,7 +111,7 @@ export default function ArtistSidebar() {
           }`}
         >
           <IconSettings size={18} />
-          Réglages
+          {t('settings.title')}
         </Link>
       </div>
     </aside>

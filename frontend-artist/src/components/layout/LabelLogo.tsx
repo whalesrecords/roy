@@ -75,7 +75,7 @@ export default function LabelLogo({
         }}
       />
       {showName && labelSettings?.label_name && (
-        <span className="text-sm font-medium text-foreground hidden sm:inline">
+        <span className="text-sm font-medium text-ink hidden sm:inline">
           {labelSettings.label_name}
         </span>
       )}

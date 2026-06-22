@@ -11,7 +11,7 @@ function getToken(): string | null {
 // ---------------------------------------------------------------------------
 interface CacheEntry { data: unknown; ts: number }
 const _cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000;
 
 function cacheGet<T>(key: string): T | null {
   const e = _cache.get(key);
