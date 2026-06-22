@@ -657,6 +657,117 @@ async def get_members_breakdown(
     }
 
 
+def _norm_upc(u: Optional[str]) -> Optional[str]:
+    """Normalize a UPC/EAN for tolerant matching (drop surrounding space + leading zeros)."""
+    if not u:
+        return None
+    s = str(u).strip()
+    return s.lstrip("0") or s
+
+
+async def _resolve_release_artwork(db: AsyncSession, upcs: List[str]) -> dict:
+    """Return {upc: image_url} for the given UPCs, resilient to UPC formatting
+    differences and missing release-level artwork.
+
+    Resolution order per UPC:
+      1. ReleaseArtwork exact / normalized match
+      2. TrackArtwork via release_upc (exact / normalized)
+      3. On-demand Spotify lookup (best-effort), cached into ReleaseArtwork
+    """
+    clean = list({str(u).strip() for u in upcs if u})
+    if not clean:
+        return {}
+
+    # candidate keys for the IN() clauses (raw + leading-zero-stripped)
+    all_keys = list(set(clean) | {k for k in (_norm_upc(u) for u in clean) if k})
+
+    # 1. ReleaseArtwork (match on normalized UPC)
+    ra_rows = (await db.execute(
+        select(ReleaseArtwork).where(ReleaseArtwork.upc.in_(all_keys))
+    )).scalars().all()
+    by_norm = {_norm_upc(a.upc): a.image_url for a in ra_rows if a.image_url}
+
+    out: dict = {}
+    missing: List[str] = []
+    for u in clean:
+        img = by_norm.get(_norm_upc(u))
+        if img:
+            out[u] = img
+        else:
+            missing.append(u)
+
+    # 2. TrackArtwork fallback (a release with no cover but tracks that have one)
+    if missing:
+        miss_keys = list({u for u in missing} | {k for k in (_norm_upc(u) for u in missing) if k})
+        ta_rows = (await db.execute(
+            select(TrackArtwork.release_upc, TrackArtwork.image_url).where(
+                and_(TrackArtwork.release_upc.in_(miss_keys), TrackArtwork.image_url.isnot(None))
+            )
+        )).all()
+        track_by_norm: dict = {}
+        for rel_upc, image_url in ta_rows:
+            if rel_upc and image_url:
+                track_by_norm.setdefault(_norm_upc(rel_upc), image_url)
+        still_missing: List[str] = []
+        for u in missing:
+            img = track_by_norm.get(_norm_upc(u))
+            if img:
+                out[u] = img
+            else:
+                still_missing.append(u)
+        missing = still_missing
+
+    # 3. On-demand Spotify backfill (bounded, concurrent, best-effort) — caches for everyone
+    if missing and settings.SPOTIFY_CLIENT_ID and settings.SPOTIFY_CLIENT_SECRET:
+        import asyncio
+        from app.services.spotify import spotify_service
+
+        to_fetch = missing[:24]
+
+        async def _lookup(u: str):
+            try:
+                return u, await spotify_service.search_album_by_upc(u)
+            except Exception:
+                return u, None
+
+        results = await asyncio.gather(*[_lookup(u) for u in to_fetch])
+
+        touched = False
+        existing_rows = {
+            r.upc: r for r in (await db.execute(
+                select(ReleaseArtwork).where(ReleaseArtwork.upc.in_([u for u, _ in results]))
+            )).scalars().all()
+        }
+        for u, data in results:
+            if not data or not data.get("image_url"):
+                continue
+            out[u] = data["image_url"]
+            row = existing_rows.get(u)
+            if row:
+                if not row.image_url:
+                    row.image_url = data.get("image_url")
+                    row.image_url_small = data.get("image_url_small")
+                    row.spotify_id = row.spotify_id or data.get("spotify_id")
+                    row.name = row.name or data.get("name")
+                    touched = True
+            else:
+                db.add(ReleaseArtwork(
+                    upc=u,
+                    spotify_id=data.get("spotify_id"),
+                    name=data.get("name"),
+                    image_url=data.get("image_url"),
+                    image_url_small=data.get("image_url_small"),
+                ))
+                touched = True
+        if touched:
+            try:
+                await db.commit()
+            except Exception:
+                await db.rollback()
+
+    return out
+
+
 @router.get("/releases", response_model=List[ReleaseResponse])
 async def get_releases(
     artist: Artist = Depends(get_current_artist),
@@ -685,12 +796,9 @@ async def get_releases(
 
     rows = result.all()
 
-    # Get artwork for all UPCs
+    # Resolve artwork for all UPCs (tolerant matching + track fallback + Spotify backfill)
     upcs = [row.upc for row in rows if row.upc]
-    artwork_result = await db.execute(
-        select(ReleaseArtwork).where(ReleaseArtwork.upc.in_(upcs))
-    )
-    artworks = {a.upc: a.image_url for a in artwork_result.scalars().all()}
+    artworks = await _resolve_release_artwork(db, upcs)
 
     # Get all contracts for this artist
     contracts_result = await db.execute(
@@ -718,7 +826,7 @@ async def get_releases(
         releases.append({
             "upc": row.upc,
             "title": row.release_title or "Unknown",
-            "artwork_url": artworks.get(row.upc),
+            "artwork_url": artworks.get((row.upc or "").strip()),
             "gross": f"{gross:.2f}",
             "net": f"{net:.2f}",
             "streams": int(row.streams or 0),
