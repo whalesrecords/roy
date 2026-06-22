@@ -117,7 +117,7 @@ export default function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-foreground hover:bg-content2 rounded-full transition-colors"
+        className="relative p-2 text-ink hover:bg-surface-2 rounded-full transition-colors"
       >
         <svg
           className="w-6 h-6"
@@ -133,7 +133,7 @@ export default function NotificationBell() {
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white text-xs font-bold">
+          <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-ink text-xs font-bold">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -149,14 +149,14 @@ export default function NotificationBell() {
           />
 
           {/* Dropdown Panel */}
-          <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-background border border-divider rounded-2xl shadow-lg z-50 max-h-96 overflow-hidden flex flex-col">
+          <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-2xl shadow-roy z-50 max-h-96 overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-divider">
-              <h3 className="font-semibold text-foreground">Notifications</h3>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+              <h3 className="font-semibold text-ink">Notifications</h3>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-accent hover:underline"
                 >
                   Tout marquer lu
                 </button>
@@ -167,23 +167,23 @@ export default function NotificationBell() {
             <div className="flex-1 overflow-y-auto">
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="text-center py-8 text-secondary-500">
+                <div className="text-center py-8 text-ink-muted">
                   <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
                   <p>Aucune notification</p>
                 </div>
               ) : (
-                <div className="divide-y divide-divider">
+                <div className="divide-y divide-line">
                   {notifications.map((notif) => (
                     <button
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`w-full text-left px-4 py-3 hover:bg-content2 transition-colors ${
-                        !notif.is_read ? 'bg-primary/5' : ''
+                      className={`w-full text-left px-4 py-3 hover:bg-surface-2 transition-colors ${
+                        !notif.is_read ? 'bg-accent-soft/40' : ''
                       }`}
                     >
                       <div className="flex gap-3">
@@ -192,19 +192,19 @@ export default function NotificationBell() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <p className={`text-sm ${!notif.is_read ? 'font-semibold' : 'font-medium'} text-foreground`}>
+                            <p className={`text-sm ${!notif.is_read ? 'font-semibold' : 'font-medium'} text-ink`}>
                               {notif.title}
                             </p>
                             {!notif.is_read && (
-                              <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
+                              <div className="w-2 h-2 bg-accent rounded-full flex-shrink-0 mt-1" />
                             )}
                           </div>
                           {notif.message && (
-                            <p className="text-xs text-secondary-500 mt-1 line-clamp-2">
+                            <p className="text-xs text-ink-muted mt-1 line-clamp-2">
                               {notif.message}
                             </p>
                           )}
-                          <p className="text-xs text-secondary-400 mt-1">
+                          <p className="text-xs text-ink-faint mt-1">
                             {formatTimeAgo(notif.created_at)}
                           </p>
                         </div>
