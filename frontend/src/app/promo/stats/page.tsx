@@ -5,7 +5,7 @@ import { Spinner } from '@heroui/react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
-import { getDetailedPromoStats, DetailedPromoStats } from '@/lib/api';
+import { getDetailedPromoStats, getSpotifyAdCampaigns, DetailedPromoStats, SpotifyAdCampaign } from '@/lib/api';
 import Link from 'next/link';
 import { Card, Eyebrow, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconImport, IconContract } from '@/components/roy/icons';
@@ -13,9 +13,12 @@ import { IconImport, IconContract } from '@/components/roy/icons';
 const PIE_COLORS = ['#15CE8E', '#4D8DFF', '#E3B341', '#FC3C44', '#00C7F2', '#8b5cf6', '#f97316', '#ec4899'];
 
 const formatNumber = (n: number) => n.toLocaleString('fr-FR');
+const num = (v?: string | number | null) => (v == null ? 0 : Number(v) || 0);
 
 export default function PromoStatsPage() {
   const [stats, setStats] = useState<DetailedPromoStats | null>(null);
+  const [campaigns, setCampaigns] = useState<SpotifyAdCampaign[]>([]);
+  const [adCurrency, setAdCurrency] = useState('EUR');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,8 +29,15 @@ export default function PromoStatsPage() {
   const loadStats = async () => {
     try {
       setLoading(true);
-      const data = await getDetailedPromoStats();
+      const [data, ads] = await Promise.all([
+        getDetailedPromoStats(),
+        getSpotifyAdCampaigns().catch(() => null),
+      ]);
       setStats(data);
+      if (ads) {
+        setCampaigns(ads.campaigns);
+        setAdCurrency(ads.currency || 'EUR');
+      }
     } catch (err: any) {
       console.error('Error loading promo stats:', err);
       setError(err.message || 'Failed to load stats');
@@ -35,6 +45,25 @@ export default function PromoStatsPage() {
       setLoading(false);
     }
   };
+
+  const fmtEUR = (v: number) =>
+    v.toLocaleString('fr-FR', { style: 'currency', currency: adCurrency, maximumFractionDigits: 0 });
+
+  // ── Spotify Ads aggregates (paid promo) ──
+  const ads = useMemo(() => {
+    const totalSpend = campaigns.reduce((s, c) => s + num(c.spend), 0);
+    const reach = campaigns.reduce((s, c) => s + num(c.reach), 0);
+    const newListeners = campaigns.reduce((s, c) => s + num(c.new_active_listeners), 0);
+    const converted = campaigns.reduce((s, c) => s + num(c.converted_listeners), 0);
+    const playlistAdds = campaigns.reduce((s, c) => s + num(c.playlist_adds), 0);
+    const saves = campaigns.reduce((s, c) => s + num(c.saves), 0);
+    const spendByArtist = new Map<string, number>();
+    campaigns.forEach((c) => {
+      const key = (c.artist_name || '').toLowerCase().trim();
+      if (key) spendByArtist.set(key, (spendByArtist.get(key) || 0) + num(c.spend));
+    });
+    return { totalSpend, reach, newListeners, converted, playlistAdds, saves, count: campaigns.length, spendByArtist };
+  }, [campaigns]);
 
   const sourceData = useMemo(
     () =>
@@ -96,20 +125,50 @@ export default function PromoStatsPage() {
           </Card>
         ) : (
           <>
-            {/* KPI cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-              <Kpi label="Total Submissions" value={formatNumber(stats.total_submissions)} />
-              <Kpi
-                label="Approvals"
-                value={formatNumber(stats.total_approvals)}
-                hero
-                accentValue
-                hint={`${approvalRate}% approval rate`}
-                hintTone="accent"
-              />
-              <Kpi label="Playlist Adds" value={formatNumber(stats.total_playlists)} accentValue />
-              <Kpi label="Listens" value={formatNumber(stats.total_listens)} />
+            {/* KPI cards — promo organique (SubmitHub / Groover) */}
+            <div>
+              <Eyebrow className="mb-2.5 block">Promo curateurs (SubmitHub / Groover)</Eyebrow>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                <Kpi label="Total Submissions" value={formatNumber(stats.total_submissions)} />
+                <Kpi
+                  label="Approvals"
+                  value={formatNumber(stats.total_approvals)}
+                  hero
+                  accentValue
+                  hint={`${approvalRate}% approval rate`}
+                  hintTone="accent"
+                />
+                <Kpi label="Playlist Adds" value={formatNumber(stats.total_playlists)} accentValue />
+                <Kpi label="Listens" value={formatNumber(stats.total_listens)} />
+              </div>
             </div>
+
+            {/* KPI cards — publicité payante (Spotify Ads) */}
+            {campaigns.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <Eyebrow className="block">Publicité payante (Spotify Ads)</Eyebrow>
+                  <span className="text-[11.5px] text-ink-faint">{ads.count} campagne{ads.count > 1 ? 's' : ''}</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+                  <Kpi label="Dépense pub" value={fmtEUR(ads.totalSpend)} hero accentValue />
+                  <Kpi label="Portée" value={formatNumber(ads.reach)} />
+                  <Kpi label="Nouveaux auditeurs" value={formatNumber(ads.newListeners)} />
+                  <Kpi label="Auditeurs convertis" value={formatNumber(ads.converted)} accentValue />
+                  <Kpi label="Ajouts playlist (pub)" value={formatNumber(ads.playlistAdds)} accentValue />
+                  <Kpi label="Enregistrements" value={formatNumber(ads.saves)} />
+                  <Kpi
+                    label="Playlists totales"
+                    value={formatNumber(stats.total_playlists + ads.playlistAdds)}
+                    hint="curateurs + pub"
+                  />
+                  <Kpi
+                    label="Coût / conversion"
+                    value={ads.converted > 0 ? fmtEUR(ads.totalSpend / ads.converted) : '—'}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Charts row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
@@ -184,22 +243,29 @@ export default function PromoStatsPage() {
                         <th className="py-3 px-3 text-right"><Eyebrow>Écoutés</Eyebrow></th>
                         <th className="py-3 px-3 text-right"><Eyebrow>Approuvés</Eyebrow></th>
                         <th className="py-3 px-3 text-right"><Eyebrow>Playlists</Eyebrow></th>
+                        {campaigns.length > 0 && <th className="py-3 px-3 text-right"><Eyebrow>Pub Spotify</Eyebrow></th>}
                         <th className="py-3 px-[22px] text-right"><Eyebrow>Taux</Eyebrow></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {stats.by_artist.map((artist) => (
+                      {stats.by_artist.map((artist) => {
+                        const adSpend = ads.spendByArtist.get((artist.artist_name || '').toLowerCase().trim()) || 0;
+                        return (
                         <tr key={artist.artist_id} className="border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
                           <td className="py-3 px-[22px] text-[13px] font-semibold text-ink">{artist.artist_name}</td>
                           <td className="py-3 px-3 text-right roy-num text-[13px] text-ink">{artist.total_submissions}</td>
                           <td className="py-3 px-3 text-right roy-num text-[13px] text-ink-muted">{artist.total_listened}</td>
                           <td className="py-3 px-3 text-right roy-num text-[13px] font-semibold text-accent">{artist.total_approved}</td>
                           <td className="py-3 px-3 text-right roy-num text-[13px] font-semibold text-ink">{artist.total_playlists}</td>
+                          {campaigns.length > 0 && (
+                            <td className="py-3 px-3 text-right roy-num text-[13px] text-ink-muted">{adSpend > 0 ? fmtEUR(adSpend) : '—'}</td>
+                          )}
                           <td className={`py-3 px-[22px] text-right roy-num text-[13px] font-semibold ${rateTone(artist.approval_rate)}`}>
                             {artist.approval_rate}%
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
