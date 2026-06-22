@@ -252,6 +252,8 @@ class SpotifyAdCampaignResponse(BaseModel):
     end_date: Optional[date] = None
     reach: Optional[int] = None
     clicks: Optional[int] = None
+    amplified_listeners: Optional[int] = None
+    reactivated_listeners: Optional[int] = None
     new_active_listeners: Optional[int] = None
     converted_listeners: Optional[int] = None
     conversion_rate: Optional[str] = None
@@ -261,6 +263,10 @@ class SpotifyAdCampaignResponse(BaseModel):
     playlist_add_rate: Optional[str] = None
     saves: Optional[int] = None
     save_rate: Optional[str] = None
+    listeners_other_releases: Optional[int] = None
+    streams_per_listener_other_releases: Optional[str] = None
+    saves_other_releases: Optional[int] = None
+    playlist_adds_other_releases: Optional[int] = None
 
 
 class SpotifyAdCampaignsListResponse(BaseModel):

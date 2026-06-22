@@ -2554,6 +2554,8 @@ async def get_artist_ad_campaigns(
                 "end_date": c.end_date.isoformat() if c.end_date else None,
                 "reach": c.reach,
                 "clicks": c.clicks,
+                "amplified_listeners": c.amplified_listeners,
+                "reactivated_listeners": c.reactivated_listeners,
                 "new_active_listeners": c.new_active_listeners,
                 "converted_listeners": c.converted_listeners,
                 "conversion_rate": dec(c.conversion_rate),
@@ -2563,6 +2565,10 @@ async def get_artist_ad_campaigns(
                 "playlist_add_rate": dec(c.playlist_add_rate),
                 "saves": c.saves,
                 "save_rate": dec(c.save_rate),
+                "listeners_other_releases": c.listeners_other_releases,
+                "streams_per_listener_other_releases": dec(c.streams_per_listener_other_releases),
+                "saves_other_releases": c.saves_other_releases,
+                "playlist_adds_other_releases": c.playlist_adds_other_releases,
             }
             for c in campaigns
         ],

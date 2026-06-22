@@ -2266,6 +2266,8 @@ export interface SpotifyAdCampaign {
   end_date?: string | null;
   reach?: number | null;
   clicks?: number | null;
+  amplified_listeners?: number | null;
+  reactivated_listeners?: number | null;
   new_active_listeners?: number | null;
   converted_listeners?: number | null;
   conversion_rate?: string | null;
@@ -2275,6 +2277,10 @@ export interface SpotifyAdCampaign {
   playlist_add_rate?: string | null;
   saves?: number | null;
   save_rate?: string | null;
+  listeners_other_releases?: number | null;
+  streams_per_listener_other_releases?: string | null;
+  saves_other_releases?: number | null;
+  playlist_adds_other_releases?: number | null;
 }
 
 export interface SpotifyAdCampaignsList {

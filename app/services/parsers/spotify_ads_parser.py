@@ -42,6 +42,10 @@ class SpotifyAdRow:
     playlist_adds: Optional[int]
     save_rate: Optional[Decimal]
     saves: Optional[int]
+    listeners_other_releases: Optional[int]
+    streams_per_listener_other_releases: Optional[Decimal]
+    saves_other_releases: Optional[int]
+    playlist_adds_other_releases: Optional[int]
 
 
 @dataclass
@@ -141,6 +145,10 @@ _ALIASES = {
     "playlist_adds": ["playlist adds"],
     "save_rate": ["save rate"],
     "saves": ["saves"],
+    "listeners_other_releases": ["listeners of artist's other releases"],
+    "streams_per_listener_other_releases": ["active streams per listener for artist's other releases"],
+    "saves_other_releases": ["saves of artist's other releases"],
+    "playlist_adds_other_releases": ["playlist adds of artist's other releases"],
 }
 
 
@@ -216,6 +224,10 @@ class SpotifyAdsParser:
                 playlist_adds=_to_int(get(row, "playlist_adds")),
                 save_rate=_to_rate(get(row, "save_rate")),
                 saves=_to_int(get(row, "saves")),
+                listeners_other_releases=_to_int(get(row, "listeners_other_releases")),
+                streams_per_listener_other_releases=_to_decimal(get(row, "streams_per_listener_other_releases")),
+                saves_other_releases=_to_int(get(row, "saves_other_releases")),
+                playlist_adds_other_releases=_to_int(get(row, "playlist_adds_other_releases")),
             ))
 
         return result
