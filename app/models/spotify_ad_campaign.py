@@ -69,6 +69,12 @@ class SpotifyAdCampaign(Base):
     save_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=7, scale=4), nullable=True)
     saves: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Spillover impact on the artist's OTHER releases
+    listeners_other_releases: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    streams_per_listener_other_releases: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=10, scale=2), nullable=True)
+    saves_other_releases: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    playlist_adds_other_releases: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     # Link to the recoupable advance booked for this spend
     advance_ledger_entry_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),

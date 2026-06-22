@@ -1472,6 +1472,8 @@ def _serialize_ad_campaign(c: SpotifyAdCampaign, artist_name: Optional[str] = No
         end_date=c.end_date,
         reach=c.reach,
         clicks=c.clicks,
+        amplified_listeners=c.amplified_listeners,
+        reactivated_listeners=c.reactivated_listeners,
         new_active_listeners=c.new_active_listeners,
         converted_listeners=c.converted_listeners,
         conversion_rate=_dec(c.conversion_rate),
@@ -1481,6 +1483,10 @@ def _serialize_ad_campaign(c: SpotifyAdCampaign, artist_name: Optional[str] = No
         playlist_add_rate=_dec(c.playlist_add_rate),
         saves=c.saves,
         save_rate=_dec(c.save_rate),
+        listeners_other_releases=c.listeners_other_releases,
+        streams_per_listener_other_releases=_dec(c.streams_per_listener_other_releases),
+        saves_other_releases=c.saves_other_releases,
+        playlist_adds_other_releases=c.playlist_adds_other_releases,
     )
 
 
@@ -1603,6 +1609,10 @@ async def import_spotify_ads_csv(
                 playlist_adds=row.playlist_adds,
                 save_rate=row.save_rate,
                 saves=row.saves,
+                listeners_other_releases=row.listeners_other_releases,
+                streams_per_listener_other_releases=row.streams_per_listener_other_releases,
+                saves_other_releases=row.saves_other_releases,
+                playlist_adds_other_releases=row.playlist_adds_other_releases,
                 advance_ledger_entry_id=ledger.id,
             )
             db.add(campaign)

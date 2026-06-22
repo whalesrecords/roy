@@ -206,6 +206,152 @@ function PlaylistTrackGroup({ track, subs, onFilterTrack }: {
   );
 }
 
+// ─── Spotify ad campaign card (full transparency: spend + every metric) ────────
+
+function fmtPctVal(v?: string | null): string {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '—';
+  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`;
+}
+
+function fmtDecVal(v?: string | null): string {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (Number.isNaN(n)) return '—';
+  return n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+}
+
+type AdMetric = { label: string; value: string; hint?: string };
+
+function MetricGrid({ title, metrics }: { title: string; metrics: AdMetric[] }) {
+  const shown = metrics.filter((m) => m.value !== '—');
+  if (shown.length === 0) return null;
+  return (
+    <div className="mt-3.5">
+      <Eyebrow className="text-[9px] px-0.5">{title}</Eyebrow>
+      <div className="grid grid-cols-3 gap-2 mt-1.5">
+        {shown.map((m) => (
+          <div key={m.label} className="rounded-[10px] bg-surface-2 px-2.5 py-2">
+            <div className="roy-num text-[13px] font-bold text-ink">{m.value}</div>
+            <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5">{m.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdCampaignCard({ c }: { c: ArtistAdCampaign }) {
+  const [open, setOpen] = useState(false);
+
+  const period = [c.start_date, c.end_date]
+    .filter(Boolean)
+    .map((d) => new Date(d as string).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))
+    .join(' → ');
+
+  // Top-line tiles always visible
+  const headline: AdMetric[] = [
+    { label: 'Portée', value: c.reach != null ? fmtNum(c.reach) : '—' },
+    { label: 'Nouveaux auditeurs', value: c.new_active_listeners != null ? fmtNum(c.new_active_listeners) : '—' },
+    { label: 'Auditeurs convertis', value: c.converted_listeners != null ? fmtNum(c.converted_listeners) : '—' },
+  ];
+
+  const diffusion: AdMetric[] = [
+    { label: 'Portée', value: c.reach != null ? fmtNum(c.reach) : '—' },
+    { label: 'Clics', value: c.clicks != null ? fmtNum(c.clicks) : '—' },
+    { label: 'Format', value: c.ad_format || '—' },
+  ];
+
+  const audience: AdMetric[] = [
+    { label: 'Nouveaux auditeurs actifs', value: c.new_active_listeners != null ? fmtNum(c.new_active_listeners) : '—' },
+    { label: 'Auditeurs amplifiés', value: c.amplified_listeners != null ? fmtNum(c.amplified_listeners) : '—' },
+    { label: 'Auditeurs réactivés', value: c.reactivated_listeners != null ? fmtNum(c.reactivated_listeners) : '—' },
+    { label: 'Auditeurs convertis', value: c.converted_listeners != null ? fmtNum(c.converted_listeners) : '—' },
+    { label: 'Taux de conversion', value: fmtPctVal(c.conversion_rate) },
+    { label: "Taux d'intention", value: fmtPctVal(c.intent_rate) },
+    { label: 'Streams actifs / auditeur', value: fmtDecVal(c.active_streams_per_listener) },
+  ];
+
+  const engagement: AdMetric[] = [
+    { label: 'Enregistrements', value: c.saves != null ? fmtNum(c.saves) : '—' },
+    { label: "Taux d'enregistrement", value: fmtPctVal(c.save_rate) },
+    { label: 'Ajouts en playlist', value: c.playlist_adds != null ? fmtNum(c.playlist_adds) : '—' },
+    { label: "Taux d'ajout playlist", value: fmtPctVal(c.playlist_add_rate) },
+  ];
+
+  const otherReleases: AdMetric[] = [
+    { label: 'Auditeurs', value: c.listeners_other_releases != null ? fmtNum(c.listeners_other_releases) : '—' },
+    { label: 'Streams / auditeur', value: fmtDecVal(c.streams_per_listener_other_releases) },
+    { label: 'Enregistrements', value: c.saves_other_releases != null ? fmtNum(c.saves_other_releases) : '—' },
+    { label: 'Ajouts playlist', value: c.playlist_adds_other_releases != null ? fmtNum(c.playlist_adds_other_releases) : '—' },
+  ];
+
+  return (
+    <div className="px-[18px] py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[13.5px] font-semibold text-ink truncate">{c.release_name || c.campaign_name}</div>
+          <div className="text-[11.5px] text-ink-faint mt-0.5">
+            {period}
+            {c.release_type ? ` · ${c.release_type}` : ''}
+            {c.country ? ` · ${c.country}` : ''}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(c.spend ?? 0, c.currency)}</div>
+          <div className="text-[10px] text-ink-faint">
+            {c.budget ? `dépensé / ${fmtMoney(c.budget, c.currency)}` : 'dépensé'}
+          </div>
+        </div>
+      </div>
+
+      {/* headline tiles */}
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {headline.map((m) => (
+          <div key={m.label} className="rounded-[10px] bg-surface-2 px-2.5 py-2">
+            <div className="roy-num text-[13px] font-bold text-ink">{m.value}</div>
+            <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5">{m.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* expand toggle */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-[10px] bg-surface-2 text-[11px] font-medium text-ink-muted hover:text-ink transition-colors"
+      >
+        {open ? 'Masquer le détail' : 'Voir tous les résultats'}
+        <IconChevronRight size={14} className={`transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="mt-1">
+          <MetricGrid title="Diffusion" metrics={diffusion} />
+          <MetricGrid title="Audience" metrics={audience} />
+          <MetricGrid title="Engagement" metrics={engagement} />
+          {otherReleases.some((m) => m.value !== '—') && (
+            <div className="mt-3.5 rounded-[12px] border border-line bg-surface-2/40 p-3">
+              <div className="text-[11.5px] font-semibold text-ink">Impact sur vos autres sorties</div>
+              <p className="text-[10px] text-ink-faint mt-0.5 leading-snug">
+                Auditeurs touchés par cette campagne qui ont aussi écouté vos autres titres.
+              </p>
+              <div className="grid grid-cols-2 gap-2 mt-2.5">
+                {otherReleases.filter((m) => m.value !== '—').map((m) => (
+                  <div key={m.label} className="rounded-[10px] bg-surface px-2.5 py-2 border border-line">
+                    <div className="roy-num text-[13px] font-bold text-ink">{m.value}</div>
+                    <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5">{m.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PromoPage() {
@@ -353,42 +499,9 @@ export default function PromoPage() {
                   </div>
                 </div>
                 <div className="divide-y divide-line">
-                  {adCampaigns.map((c) => {
-                    const metrics: { label: string; value: string }[] = [
-                      { label: 'Portée', value: c.reach != null ? fmtNum(c.reach) : '—' },
-                      { label: 'Clics', value: c.clicks != null ? fmtNum(c.clicks) : '—' },
-                      { label: 'Nouveaux auditeurs', value: c.new_active_listeners != null ? fmtNum(c.new_active_listeners) : '—' },
-                      { label: 'Conversions', value: c.converted_listeners != null ? fmtNum(c.converted_listeners) : '—' },
-                      { label: 'Saves', value: c.saves != null ? fmtNum(c.saves) : '—' },
-                      { label: 'Ajouts playlist', value: c.playlist_adds != null ? fmtNum(c.playlist_adds) : '—' },
-                    ];
-                    const period = [c.start_date, c.end_date]
-                      .filter(Boolean)
-                      .map((d) => new Date(d as string).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))
-                      .join(' → ');
-                    return (
-                      <div key={c.id} className="px-[18px] py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-[13.5px] font-semibold text-ink truncate">{c.release_name || c.campaign_name}</div>
-                            <div className="text-[11.5px] text-ink-faint mt-0.5">{period}{c.conversion_rate ? ` · conv. ${c.conversion_rate}%` : ''}</div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(c.spend ?? 0, c.currency)}</div>
-                            <div className="text-[10px] text-ink-faint">dépensé</div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 mt-3">
-                          {metrics.map((m) => (
-                            <div key={m.label} className="rounded-[10px] bg-surface-2 px-2.5 py-2">
-                              <div className="roy-num text-[13px] font-bold text-ink">{m.value}</div>
-                              <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5">{m.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {adCampaigns.map((c) => (
+                    <AdCampaignCard key={c.id} c={c} />
+                  ))}
                 </div>
               </Card>
             )}

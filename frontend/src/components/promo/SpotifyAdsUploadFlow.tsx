@@ -13,6 +13,93 @@ const fmtEUR = (v?: string | number | null, cur = 'EUR') =>
   v == null ? '—' : Number(v).toLocaleString('fr-FR', { style: 'currency', currency: cur, maximumFractionDigits: 2 });
 const fmtNum = (v?: number | null) =>
   v == null ? '—' : v >= 1_000_000 ? `${(v / 1e6).toFixed(2)} M` : v >= 1000 ? `${(v / 1000).toFixed(1)} K` : String(v);
+const fmtInt = (v?: number | null) => (v == null ? '—' : v.toLocaleString('fr-FR'));
+const fmtPct = (v?: string | null) => {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  return Number.isNaN(n) ? '—' : `${n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`;
+};
+const fmtDec = (v?: string | null) => {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  return Number.isNaN(n) ? '—' : n.toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+};
+
+function DetailStat({ label, value }: { label: string; value: string }) {
+  if (value === '—') return null;
+  return (
+    <div className="rounded-[10px] bg-surface px-3 py-2 border border-line">
+      <div className="roy-num text-[14px] font-bold text-ink">{value}</div>
+      <div className="text-[10px] text-ink-faint leading-tight mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+function CampaignRow({ c }: { c: SpotifyAdCampaign }) {
+  const [open, setOpen] = useState(false);
+
+  const otherReleases = [
+    { label: 'Auditeurs autres sorties', value: fmtInt(c.listeners_other_releases) },
+    { label: 'Streams / auditeur', value: fmtDec(c.streams_per_listener_other_releases) },
+    { label: 'Enregistrements autres sorties', value: fmtInt(c.saves_other_releases) },
+    { label: 'Ajouts playlist autres sorties', value: fmtInt(c.playlist_adds_other_releases) },
+  ];
+  const hasOther = otherReleases.some((m) => m.value !== '—');
+
+  return (
+    <div className="border-b border-line last:border-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left grid grid-cols-[1.6fr_1.2fr_0.9fr_0.8fr_0.8fr_0.9fr] items-center px-[22px] py-3 hover:bg-surface-2 transition-colors"
+      >
+        <div className="min-w-0 pr-2">
+          <div className="text-[13px] font-semibold text-ink truncate">{c.release_name || c.campaign_name}</div>
+          <div className="text-[11px] text-ink-faint">{c.start_date || ''}{c.track_isrc || c.release_upc ? ' · catalogue ✓' : ''}</div>
+        </div>
+        <div className="text-[12.5px] text-ink-muted truncate pr-2">{c.artist_name || '—'}</div>
+        <div className="text-right roy-num text-[13px] font-bold text-ink">{fmtEUR(c.spend, c.currency)}</div>
+        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.reach)}</div>
+        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.clicks)}</div>
+        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtPct(c.conversion_rate)}</div>
+      </button>
+      {open && (
+        <div className="px-[22px] pb-4 pt-1 bg-surface-2/40">
+          <Eyebrow className="text-[10px]">Audience</Eyebrow>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+            <DetailStat label="Nouveaux auditeurs actifs" value={fmtInt(c.new_active_listeners)} />
+            <DetailStat label="Auditeurs amplifiés" value={fmtInt(c.amplified_listeners)} />
+            <DetailStat label="Auditeurs réactivés" value={fmtInt(c.reactivated_listeners)} />
+            <DetailStat label="Auditeurs convertis" value={fmtInt(c.converted_listeners)} />
+            <DetailStat label="Taux de conversion" value={fmtPct(c.conversion_rate)} />
+            <DetailStat label="Taux d'intention" value={fmtPct(c.intent_rate)} />
+            <DetailStat label="Streams actifs / auditeur" value={fmtDec(c.active_streams_per_listener)} />
+            <DetailStat label="Budget" value={fmtEUR(c.budget, c.currency)} />
+          </div>
+          <Eyebrow className="text-[10px] mt-3.5">Engagement</Eyebrow>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+            <DetailStat label="Enregistrements" value={fmtInt(c.saves)} />
+            <DetailStat label="Taux d'enregistrement" value={fmtPct(c.save_rate)} />
+            <DetailStat label="Ajouts en playlist" value={fmtInt(c.playlist_adds)} />
+            <DetailStat label="Taux d'ajout playlist" value={fmtPct(c.playlist_add_rate)} />
+          </div>
+          {hasOther && (
+            <>
+              <Eyebrow className="text-[10px] mt-3.5">Impact sur les autres sorties de l'artiste</Eyebrow>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1.5">
+                {otherReleases.map((m) => <DetailStat key={m.label} label={m.label} value={m.value} />)}
+              </div>
+            </>
+          )}
+          {(c.ad_format || c.release_type || c.country) && (
+            <p className="text-[11px] text-ink-faint mt-3">
+              {[c.ad_format, c.release_type, c.country].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
@@ -145,19 +232,8 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
                 <Eyebrow key={h} className={`text-[10px] ${i >= 2 ? 'text-right' : ''}`}>{h}</Eyebrow>
               ))}
             </div>
-            {campaigns.map((c) => (
-              <div key={c.id} className="grid grid-cols-[1.6fr_1.2fr_0.9fr_0.8fr_0.8fr_0.9fr] items-center px-[22px] py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
-                <div className="min-w-0 pr-2">
-                  <div className="text-[13px] font-semibold text-ink truncate">{c.release_name || c.campaign_name}</div>
-                  <div className="text-[11px] text-ink-faint">{c.start_date || ''}{c.track_isrc || c.release_upc ? ' · catalogue ✓' : ''}</div>
-                </div>
-                <div className="text-[12.5px] text-ink-muted truncate pr-2">{c.artist_name || '—'}</div>
-                <div className="text-right roy-num text-[13px] font-bold text-ink">{fmtEUR(c.spend, c.currency)}</div>
-                <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.reach)}</div>
-                <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.clicks)}</div>
-                <div className="text-right roy-num text-[12.5px] text-ink-muted">{c.conversion_rate ? `${c.conversion_rate}%` : '—'}</div>
-              </div>
-            ))}
+            {campaigns.map((c) => <CampaignRow key={c.id} c={c} />)}
+            <p className="px-[22px] py-2.5 text-[11px] text-ink-faint">Cliquez sur une campagne pour voir tous les résultats détaillés.</p>
           </Card>
         )}
       </div>
