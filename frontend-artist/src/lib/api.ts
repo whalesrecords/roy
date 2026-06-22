@@ -28,6 +28,27 @@ export function invalidateCache(prefix?: string) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Global in-flight request tracker — drives the top progress bar so the UI
+// shows continuous loading feedback instead of flashing empty (0 €/0 streams)
+// figures while the real numbers are still being fetched. Cache hits are
+// instant and never trigger the bar.
+// ---------------------------------------------------------------------------
+let _inflight = 0;
+const _loadingListeners = new Set<(loading: boolean) => void>();
+function _emitLoading() {
+  const v = _inflight > 0;
+  _loadingListeners.forEach((cb) => cb(v));
+}
+export function subscribeLoading(cb: (loading: boolean) => void): () => void {
+  _loadingListeners.add(cb);
+  cb(_inflight > 0);
+  return () => { _loadingListeners.delete(cb); };
+}
+export function isApiLoading(): boolean {
+  return _inflight > 0;
+}
+
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const isGet = !options.method || options.method === 'GET';
 
@@ -40,16 +61,23 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   const headers: HeadersInit = { ...options.headers };
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+  _inflight++;
+  _emitLoading();
+  try {
+    const res = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
-    throw new Error(error.detail || 'Erreur serveur');
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
+      throw new Error(error.detail || 'Erreur serveur');
+    }
+
+    const data = await res.json();
+    if (isGet) cacheSet(endpoint, data);
+    return data;
+  } finally {
+    _inflight--;
+    _emitLoading();
   }
-
-  const data = await res.json();
-  if (isGet) cacheSet(endpoint, data);
-  return data;
 }
 
 // Types

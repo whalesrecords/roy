@@ -5,12 +5,16 @@ import { Spinner } from '@heroui/react';
 import AppHeader from '@/components/layout/AppHeader';
 import BottomNav from '@/components/layout/BottomNav';
 import ArtistSidebar from '@/components/layout/ArtistSidebar';
+import TopProgressBar from '@/components/roy/TopProgressBar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
 
   return (
     <div className="lg:pl-[236px]">
+      {/* Global loading progress bar */}
+      <TopProgressBar />
+
       {/* Desktop chrome */}
       <ArtistSidebar />
 
