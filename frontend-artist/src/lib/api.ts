@@ -119,6 +119,7 @@ export interface ArtistTrack {
   isrc: string;
   title: string;
   release_title?: string;
+  artwork_url?: string;
   gross: string;
   net: string;
   streams: number;

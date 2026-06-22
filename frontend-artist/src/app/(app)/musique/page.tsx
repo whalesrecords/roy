@@ -97,7 +97,10 @@ export default function MusiquePage() {
                 filteredTracks.length === 0 ? <p className="text-center py-10 text-ink-faint text-sm">Aucun titre</p> :
                 filteredTracks.map((t, i) => (
                   <div key={t.isrc || t.title} className={`flex items-center gap-3.5 py-2.5 ${i < filteredTracks.length - 1 ? 'border-b border-line' : ''}`}>
-                    <div className="w-[46px] h-[46px] rounded-[10px] shrink-0" style={COVER} />
+                    <div className="w-[46px] h-[46px] rounded-[10px] overflow-hidden shrink-0" style={COVER}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {t.artwork_url && <img src={t.artwork_url} alt={t.title} className="w-full h-full object-cover" />}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[14px] font-semibold text-ink truncate">{t.title}</div>
                       <div className="text-[11px] text-ink-faint mt-0.5 truncate">{(t.release_title || 'Single')} · {fmtNum(t.streams)}</div>
@@ -156,7 +159,10 @@ export default function MusiquePage() {
               ) : filteredTracks.map((t) => (
                 <div key={t.isrc || t.title} className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center px-6 py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
                   <span className="flex items-center gap-3.5 min-w-0">
-                    <span className="w-[38px] h-[38px] rounded-[9px] shrink-0" style={COVER} />
+                    <span className="w-[38px] h-[38px] rounded-[9px] overflow-hidden shrink-0 block" style={COVER}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {t.artwork_url && <img src={t.artwork_url} alt={t.title} className="w-full h-full object-cover" />}
+                    </span>
                     <span className="text-[13.5px] font-semibold text-ink truncate">{t.title}</span>
                   </span>
                   <span className="text-[12.5px] text-ink-muted truncate">{t.release_title || 'Single'}</span>
