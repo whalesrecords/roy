@@ -3,8 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Spinner } from '@heroui/react';
 import { getLabelSettings, updateLabelSettings, uploadLabelLogo, deleteLabelLogo, uploadLabelLogoDark, deleteLabelLogoDark, type LabelSettings } from '@/lib/api';
+import { Card, Eyebrow, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconCheck } from '@/components/roy/icons';
+import { useTheme, ACCENTS } from '@/contexts/ThemeContext';
 
 export default function SettingsPage() {
+  const { theme, setTheme, accent, setAccent } = useTheme();
   const [settings, setSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -161,7 +165,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <Spinner size="lg" color="primary" />
       </div>
     );
@@ -170,42 +174,96 @@ export default function SettingsPage() {
   const logoSrc = settings?.logo_base64 || settings?.logo_url;
   const logoDarkSrc = settings?.logo_dark_base64;
 
-  return (
-    <>
-      {/* Header */}
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
-        <div className="max-w-2xl mx-auto px-6 py-5">
-          <h1 className="text-2xl font-bold text-foreground">Parametres</h1>
-          <p className="text-secondary-500 text-sm mt-0.5">Configuration du label</p>
-        </div>
-      </header>
+  const inputClass =
+    'w-full h-12 px-4 bg-surface border border-line rounded-[10px] text-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+  const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
 
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+  return (
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Réglages</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Configuration du label et de l&apos;interface</p>
+        </div>
+        <AccentButton onClick={handleSave} disabled={saving}>
+          {saving && <Spinner size="sm" color="white" />}
+          {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+        </AccentButton>
+      </div>
+
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
         {error && (
-          <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-danger/20 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="text-danger text-sm">{error}</p>
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 flex items-center gap-3">
+            <svg className="w-4 h-4 text-neg shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-neg text-[12.5px]">{error}</p>
           </div>
         )}
 
         {success && (
-          <div className="bg-success/10 border border-success/20 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-success/20 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-success text-sm">{success}</p>
+          <div className="rounded-[12px] border border-line bg-accent-soft px-4 py-3 flex items-center gap-3">
+            <svg className="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-accent text-[12.5px] font-semibold">{success}</p>
           </div>
         )}
 
+        {/* Appearance Section */}
+        <Card>
+          <h2 className="text-[13.5px] font-semibold text-ink mb-4">Apparence</h2>
+
+          <div className="space-y-5">
+            <div>
+              <Eyebrow className="mb-2 block">Thème</Eyebrow>
+              <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1 w-fit">
+                {([
+                  { id: 'light', label: 'Clair' },
+                  { id: 'dark', label: 'Sombre' },
+                ] as const).map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    className={`px-4 py-1.5 rounded-[7px] text-[12px] transition-colors ${
+                      theme === t.id ? 'bg-ink text-app font-semibold' : 'text-ink-muted hover:text-ink font-medium'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Eyebrow className="mb-2 block">Couleur d&apos;accent</Eyebrow>
+              <div className="flex gap-2.5 flex-wrap">
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => setAccent(a.id)}
+                    aria-label={a.label}
+                    className={`relative w-9 h-9 rounded-full transition-transform hover:scale-105 ${
+                      accent === a.id ? 'ring-2 ring-offset-2 ring-offset-surface ring-line-strong' : ''
+                    }`}
+                    style={{ backgroundColor: a.color }}
+                  >
+                    {accent === a.id && (
+                      <span className="absolute inset-0 flex items-center justify-center text-white">
+                        <IconCheck size={16} />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
         {/* Logo Section */}
-        <div className="bg-background border border-divider rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Logo</h2>
+        <Card>
+          <h2 className="text-[13.5px] font-semibold text-ink mb-4">Logo</h2>
 
           <div className="flex items-start gap-6">
             {logoSrc ? (
@@ -213,11 +271,11 @@ export default function SettingsPage() {
                 <img
                   src={logoSrc}
                   alt="Logo du label"
-                  className="w-32 h-32 object-contain border border-divider rounded-xl bg-content2"
+                  className="w-32 h-32 object-contain border border-line rounded-[12px] bg-surface-2"
                 />
               </div>
             ) : (
-              <div className="w-32 h-32 border-2 border-dashed border-default-300 rounded-xl flex items-center justify-center text-secondary-400 text-sm bg-content2">
+              <div className="w-32 h-32 border border-dashed border-line-strong rounded-[12px] flex items-center justify-center text-ink-faint text-[13px] bg-surface-2">
                 Pas de logo
               </div>
             )}
@@ -230,42 +288,38 @@ export default function SettingsPage() {
                 onChange={handleLogoUpload}
                 className="hidden"
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={saving}
-                className="px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 disabled:opacity-50 transition-colors border-2 border-default-200"
-              >
+              <OutlineButton onClick={() => fileInputRef.current?.click()}>
                 {logoSrc ? 'Changer le logo' : 'Ajouter un logo'}
-              </button>
+              </OutlineButton>
               {logoSrc && (
                 <button
                   onClick={handleDeleteLogo}
                   disabled={saving}
-                  className="px-4 py-2.5 bg-danger/10 text-danger font-medium text-sm rounded-full hover:bg-danger/20 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-surface px-3.5 py-2 text-[12px] font-semibold text-neg hover:bg-surface-2 disabled:opacity-50 transition-colors"
                 >
                   Supprimer
                 </button>
               )}
-              <p className="text-xs text-secondary-500">
+              <p className="text-[11px] text-ink-faint">
                 Logo mode clair (PNG, JPG, WEBP). Max 2 Mo.
               </p>
             </div>
           </div>
 
           {/* Dark mode logo */}
-          <div className="mt-6 pt-6 border-t border-divider">
-            <p className="text-sm font-medium text-foreground mb-3">Logo mode sombre</p>
+          <div className="mt-6 pt-6 border-t border-line">
+            <p className="text-[12.5px] font-semibold text-ink mb-3">Logo mode sombre</p>
             <div className="flex items-start gap-6">
               {logoDarkSrc ? (
                 <div className="shrink-0">
                   <img
                     src={logoDarkSrc}
                     alt="Logo mode sombre"
-                    className="w-32 h-auto max-h-20 object-contain rounded-xl bg-zinc-900 p-2"
+                    className="w-32 h-auto max-h-20 object-contain rounded-[12px] bg-zinc-900 p-2"
                   />
                 </div>
               ) : (
-                <div className="w-32 h-20 border-2 border-dashed border-default-300 rounded-xl flex items-center justify-center text-secondary-400 text-xs bg-zinc-900">
+                <div className="w-32 h-20 border border-dashed border-line-strong rounded-[12px] flex items-center justify-center text-ink-faint text-[11px] bg-zinc-900">
                   Pas de logo
                 </div>
               )}
@@ -277,186 +331,178 @@ export default function SettingsPage() {
                   onChange={handleLogoDarkUpload}
                   className="hidden"
                 />
-                <button
-                  onClick={() => fileInputDarkRef.current?.click()}
-                  disabled={saving}
-                  className="px-4 py-2.5 bg-content2 text-foreground font-medium text-sm rounded-full hover:bg-content3 disabled:opacity-50 transition-colors border-2 border-default-200"
-                >
+                <OutlineButton onClick={() => fileInputDarkRef.current?.click()}>
                   {logoDarkSrc ? 'Changer' : 'Ajouter'}
-                </button>
+                </OutlineButton>
                 {logoDarkSrc && (
                   <button
                     onClick={handleDeleteLogoDark}
                     disabled={saving}
-                    className="px-4 py-2.5 bg-danger/10 text-danger font-medium text-sm rounded-full hover:bg-danger/20 disabled:opacity-50 transition-colors"
+                    className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-surface px-3.5 py-2 text-[12px] font-semibold text-neg hover:bg-surface-2 disabled:opacity-50 transition-colors"
                   >
                     Supprimer
                   </button>
                 )}
-                <p className="text-xs text-secondary-500">
+                <p className="text-[11px] text-ink-faint">
                   Version blanche/claire pour fond sombre.
                 </p>
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Information Section */}
-        <div className="bg-background border border-divider rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Informations</h2>
+        <Card>
+          <h2 className="text-[13.5px] font-semibold text-ink mb-4">Informations</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Nom du label *</label>
+              <label className={labelClass}>Nom du label *</label>
               <input
                 type="text"
                 value={labelName}
                 onChange={(e) => setLabelName(e.target.value)}
                 placeholder="Mon Label"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Email</label>
+              <label className={labelClass}>Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="contact@monlabel.com"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Telephone</label>
+              <label className={labelClass}>Telephone</label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+33 1 23 45 67 89"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Site web</label>
+              <label className={labelClass}>Site web</label>
               <input
                 type="text"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="https://monlabel.com"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Address Section */}
-        <div className="bg-background border border-divider rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Adresse</h2>
+        <Card>
+          <h2 className="text-[13.5px] font-semibold text-ink mb-4">Adresse</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Adresse ligne 1</label>
+              <label className={labelClass}>Adresse ligne 1</label>
               <input
                 type="text"
                 value={addressLine1}
                 onChange={(e) => setAddressLine1(e.target.value)}
                 placeholder="123 rue de la Musique"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Adresse ligne 2</label>
+              <label className={labelClass}>Adresse ligne 2</label>
               <input
                 type="text"
                 value={addressLine2}
                 onChange={(e) => setAddressLine2(e.target.value)}
                 placeholder="Batiment A"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Code postal</label>
+                <label className={labelClass}>Code postal</label>
                 <input
                   type="text"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
                   placeholder="75001"
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                  className={inputClass}
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Ville</label>
+                <label className={labelClass}>Ville</label>
                 <input
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Paris"
-                  className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                  className={inputClass}
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Pays</label>
+              <label className={labelClass}>Pays</label>
               <input
                 type="text"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 placeholder="France"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Legal Section */}
-        <div className="bg-background border border-divider rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Informations legales</h2>
+        <Card>
+          <h2 className="text-[13.5px] font-semibold text-ink mb-4">Informations legales</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">SIRET</label>
+              <label className={labelClass}>SIRET</label>
               <input
                 type="text"
                 value={siret}
                 onChange={(e) => setSiret(e.target.value)}
                 placeholder="123 456 789 00012"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Numero TVA</label>
+              <label className={labelClass}>Numero TVA</label>
               <input
                 type="text"
                 value={vatNumber}
                 onChange={(e) => setVatNumber(e.target.value)}
                 placeholder="FR12345678901"
-                className="w-full h-12 px-4 bg-background border-2 border-default-200 rounded-xl text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
+                className={inputClass}
               />
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-medium rounded-full shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 disabled:opacity-50 transition-all"
-          >
+          <AccentButton onClick={handleSave} disabled={saving}>
             {saving && <Spinner size="sm" color="white" />}
-            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </button>
+            {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+          </AccentButton>
         </div>
       </div>
-    </>
+    </div>
   );
 }

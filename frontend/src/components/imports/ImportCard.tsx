@@ -1,6 +1,8 @@
 'use client';
 
 import { ImportRecord, SOURCES } from '@/lib/types';
+import { Pill } from '@/components/roy/ui';
+import { IconContract, IconChevronRight, IconCheck } from '@/components/roy/icons';
 
 interface ImportCardProps {
   import_: ImportRecord;
@@ -19,19 +21,7 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
     });
   };
 
-  const getStatusStyle = () => {
-    switch (import_.status) {
-      case 'completed':
-        return 'bg-success-100 text-success-700 border-success-200';
-      case 'failed':
-        return 'bg-danger-100 text-danger-700 border-danger-200';
-      case 'pending':
-      case 'processing':
-        return 'bg-warning-100 text-warning-700 border-warning-200';
-      default:
-        return 'bg-default-100 text-default-700 border-default-200';
-    }
-  };
+  const isDone = import_.status === 'completed';
 
   const getStatusLabel = () => {
     switch (import_.status) {
@@ -51,45 +41,42 @@ export default function ImportCard({ import_, onClick }: ImportCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-4 px-4 py-3 bg-background hover:bg-content2 border border-divider rounded-xl transition-all duration-200 hover:shadow-md text-left my-1"
+      className="w-full flex items-center gap-4 px-4 py-3 bg-surface hover:bg-surface-2 border border-line rounded-[12px] transition-colors hover:border-line-strong text-left my-1"
     >
       {/* File icon */}
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
+      <div className="w-8 h-8 rounded-[9px] bg-accent-soft text-accent flex items-center justify-center shrink-0">
+        <IconContract size={16} />
       </div>
 
       {/* Date */}
-      <span className="text-sm text-secondary-500 w-24 shrink-0">
+      <span className="text-[12.5px] text-ink-faint w-24 shrink-0">
         {formatDate(import_.created_at)}
       </span>
 
       {/* Source */}
-      <span className="text-sm font-medium text-foreground w-28 shrink-0 truncate">
+      <span className="text-[12.5px] font-semibold text-ink w-28 shrink-0 truncate">
         {sourceLabel}
       </span>
 
       {/* Status badge */}
-      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getStatusStyle()}`}>
+      <Pill tone={isDone ? 'accent' : 'neutral'}>
+        {isDone && <IconCheck size={11} />}
         {getStatusLabel()}
-      </span>
+      </Pill>
 
       {/* Row count */}
-      <span className="text-sm text-secondary-600 ml-auto flex items-center gap-2">
-        <span className="font-medium text-foreground">{import_.success_rows.toLocaleString('fr-FR')}</span>
-        <span className="text-secondary-400">lignes</span>
+      <span className="text-[12.5px] text-ink-muted ml-auto flex items-center gap-2">
+        <span className="roy-num font-semibold text-ink">{import_.success_rows.toLocaleString('fr-FR')}</span>
+        <span className="text-ink-faint">lignes</span>
         {import_.error_rows > 0 && (
-          <span className="text-danger-600 font-medium">
+          <span className="text-neg font-semibold">
             ({import_.error_rows} erreur{import_.error_rows > 1 ? 's' : ''})
           </span>
         )}
       </span>
 
       {/* Chevron */}
-      <svg className="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
+      <IconChevronRight size={16} className="text-ink-faint shrink-0" />
     </button>
   );
 }

@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button, Input, Textarea, Checkbox } from '@heroui/react';
+import { Input, Textarea, Checkbox } from '@heroui/react';
 import { Artist, getArtists, createTicket } from '@/lib/api';
+import { Card, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconChevronRight } from '@/components/roy/icons';
 
 const CATEGORY_OPTIONS = [
   { key: 'payment', label: 'Paiements', icon: '💰' },
@@ -91,140 +93,136 @@ export default function NewTicketPage() {
     ? artists.filter((a) => a.name.toLowerCase().includes(artistSearch.toLowerCase()))
     : artists;
 
+  const selectClass =
+    'w-full h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors';
+  const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
+
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <Link href="/tickets" className="text-blue-500 hover:underline mb-2 inline-block">
-          ← Retour aux tickets
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="px-5 lg:px-7 py-5 border-b border-line">
+        <Link
+          href="/tickets"
+          className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-muted hover:text-ink transition-colors mb-2"
+        >
+          <IconChevronRight size={14} className="rotate-180" /> Retour aux tickets
         </Link>
-        <h1 className="text-3xl font-bold">Nouveau ticket</h1>
+        <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Nouveau ticket</h1>
+        <p className="text-[12.5px] text-ink-faint mt-0.5">Ouvrir une conversation de support</p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 mb-6">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
-        )}
+      <div className="px-5 lg:px-7 py-5 lg:py-6 max-w-[760px]">
+        <Card className="space-y-5">
+          {/* Error */}
+          {error && (
+            <div className="rounded-[12px] border border-line bg-surface-2 px-4 py-3 text-[13px] text-neg">
+              {error}
+            </div>
+          )}
 
-        {/* Artist Selection */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">
-            Artistes * ({selectedArtists.size} sélectionné{selectedArtists.size > 1 ? 's' : ''})
-          </label>
-          <Input
-            placeholder="Rechercher un artiste..."
-            value={artistSearch}
-            onChange={(e) => setArtistSearch(e.target.value)}
-            className="mb-4"
-            classNames={{
-              inputWrapper: "rounded-xl"
-            }}
-            startContent={
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Artist Selection */}
+          <div>
+            <label className={labelClass}>
+              Artistes * ({selectedArtists.size} sélectionné{selectedArtists.size > 1 ? 's' : ''})
+            </label>
+            <div className="relative mb-3">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            }
-          />
-          <div className="border border-gray-200 dark:border-gray-700 rounded-xl max-h-60 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900">
-            {loadingArtists ? (
-              <p className="text-center text-gray-500 py-4">Chargement...</p>
-            ) : filteredArtists.length === 0 ? (
-              <p className="text-center text-gray-500 py-4">Aucun artiste trouvé</p>
-            ) : (
-              <div className="space-y-1">
-                {filteredArtists.map((artist) => (
-                  <div
-                    key={artist.id}
-                    className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors"
-                    onClick={() => handleArtistToggle(artist.id)}
-                  >
-                    <Checkbox
-                      isSelected={selectedArtists.has(artist.id)}
-                      onChange={() => handleArtistToggle(artist.id)}
-                    />
-                    <span>{artist.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+              <input
+                placeholder="Rechercher un artiste…"
+                value={artistSearch}
+                onChange={(e) => setArtistSearch(e.target.value)}
+                className={`${selectClass} pl-9 placeholder:text-ink-faint`}
+              />
+            </div>
+            <div className="border border-line rounded-[12px] max-h-60 overflow-y-auto p-1.5 bg-surface-2">
+              {loadingArtists ? (
+                <p className="text-center text-ink-faint text-[13px] py-4">Chargement…</p>
+              ) : filteredArtists.length === 0 ? (
+                <p className="text-center text-ink-faint text-[13px] py-4">Aucun artiste trouvé</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {filteredArtists.map((artist) => (
+                    <div
+                      key={artist.id}
+                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface rounded-[8px] cursor-pointer transition-colors"
+                      onClick={() => handleArtistToggle(artist.id)}
+                    >
+                      <Checkbox
+                        isSelected={selectedArtists.has(artist.id)}
+                        onChange={() => handleArtistToggle(artist.id)}
+                      />
+                      <span className="text-[13px] text-ink">{artist.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Category */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Catégorie *</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
-          >
-            <option value="payment">💰 Paiements</option>
-            <option value="profile">👤 Profil</option>
-            <option value="technical">⚙️ Technique</option>
-            <option value="royalties">📊 Royalties</option>
-            <option value="contracts">📄 Contrats</option>
-            <option value="catalog">🎵 Catalogue</option>
-            <option value="general">💬 Général</option>
-            <option value="other">❓ Autre</option>
-          </select>
-        </div>
+          {/* Category */}
+          <div>
+            <label className={labelClass}>Catégorie *</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={selectClass}
+            >
+              {CATEGORY_OPTIONS.map((c) => (
+                <option key={c.key} value={c.key}>{c.icon} {c.label}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Priority */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Priorité</label>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="w-full h-10 px-4 bg-content1 border border-divider rounded-xl text-sm font-medium focus:outline-none focus:border-primary transition-colors"
-          >
-            <option value="low">Basse</option>
-            <option value="medium">Moyenne</option>
-            <option value="high">Haute</option>
-            <option value="urgent">Urgente</option>
-          </select>
-        </div>
+          {/* Priority */}
+          <div>
+            <label className={labelClass}>Priorité</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className={selectClass}
+            >
+              {PRIORITY_OPTIONS.map((p) => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Subject */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Sujet *</label>
-          <Input
-            placeholder="Sujet du ticket..."
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-        </div>
+          {/* Subject */}
+          <div>
+            <label className={labelClass}>Sujet *</label>
+            <Input
+              placeholder="Sujet du ticket…"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
 
-        {/* Message */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Message *</label>
-          <Textarea
-            placeholder="Votre message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            minRows={6}
-          />
-        </div>
+          {/* Message */}
+          <div>
+            <label className={labelClass}>Message *</label>
+            <Textarea
+              placeholder="Votre message…"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              minRows={6}
+            />
+          </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-4">
-          <Button
-            variant="flat"
-            onClick={() => router.back()}
-            isDisabled={creating}
-          >
-            Annuler
-          </Button>
-          <Button
-            color="primary"
-            onClick={handleSubmit}
-            isLoading={creating}
-            isDisabled={!subject.trim() || !message.trim() || selectedArtists.size === 0}
-          >
-            Créer le ticket
-          </Button>
-        </div>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-1">
+            <OutlineButton onClick={() => router.back()}>
+              Annuler
+            </OutlineButton>
+            <AccentButton
+              onClick={handleSubmit}
+              disabled={creating || !subject.trim() || !message.trim() || selectedArtists.size === 0}
+            >
+              Créer le ticket
+            </AccentButton>
+          </div>
+        </Card>
       </div>
     </div>
   );

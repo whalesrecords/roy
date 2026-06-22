@@ -3,12 +3,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Spinner } from '@heroui/react';
 import { analyzeSubmitHubCSV, importSubmitHubCSV, getArtists, Artist } from '@/lib/api';
+import { AccentButton, OutlineButton, Eyebrow } from '@/components/roy/ui';
+import { IconCheck, IconImport } from '@/components/roy/icons';
 
 interface SubmitHubUploadFlowProps {
   onSuccess: () => void;
 }
 
 type Step = 'upload' | 'preview' | 'importing' | 'done';
+
+const fieldClass =
+  'w-full h-11 px-3.5 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
 
 export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowProps) {
   const [step, setStep] = useState<Step>('upload');
@@ -126,26 +132,27 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
 
   if (step === 'upload') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         {/* Info box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
-            <strong>Format du fichier:</strong> Nommez votre CSV <code className="bg-blue-100 px-1 rounded">Nom Artiste - Titre Chanson.csv</code>
+        <div className="bg-accent-soft rounded-[12px] p-4">
+          <p className="text-[13px] text-accent">
+            <strong>Format du fichier :</strong> Nommez votre CSV{' '}
+            <code className="font-mono bg-surface px-1.5 py-0.5 rounded text-[12px]">Nom Artiste - Titre Chanson.csv</code>
           </p>
-          <p className="text-xs text-blue-700 mt-1">
-            Exemple: <code className="bg-blue-100 px-1 rounded">Jonathan Fitas - Radiance.csv</code>
+          <p className="text-[12px] text-accent/80 mt-1.5">
+            Exemple : <code className="font-mono bg-surface px-1.5 py-0.5 rounded">Jonathan Fitas - Radiance.csv</code>
           </p>
         </div>
 
         {/* Artist selection (optional) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Artiste <span className="text-gray-500 text-xs">(optionnel - auto-détecté depuis le nom du fichier)</span>
+          <label className={labelClass}>
+            Artiste <span className="normal-case tracking-normal text-[10px] text-ink-faint font-normal">(optionnel — auto-détecté depuis le nom du fichier)</span>
           </label>
           <select
             value={selectedArtistId}
             onChange={(e) => setSelectedArtistId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={fieldClass}
           >
             <option value="">Auto-détection depuis le nom du fichier</option>
             {artists.map((artist) => (
@@ -158,94 +165,77 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
 
         {/* File upload */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Fichier CSV SubmitHub
-          </label>
+          <label className={labelClass}>Fichier CSV SubmitHub</label>
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              isDragging
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
+            className={`relative border-2 border-dashed rounded-[12px] p-8 text-center transition-colors ${
+              isDragging || file ? 'border-accent bg-accent-soft' : 'border-line-strong hover:border-accent'
             }`}
           >
             {file ? (
               <div>
-                <p className="text-gray-700 font-medium">{file.name}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {(file.size / 1024).toFixed(2)} KB
-                </p>
+                <p className="text-[13.5px] font-semibold text-ink">{file.name}</p>
+                <p className="text-[12px] text-ink-faint mt-1">{(file.size / 1024).toFixed(2)} KB</p>
                 <button
                   onClick={() => setFile(null)}
-                  className="mt-3 text-sm text-red-600 hover:text-red-700"
+                  className="mt-3 text-[12px] font-semibold text-neg hover:opacity-80 transition-opacity"
                 >
                   Supprimer
                 </button>
               </div>
             ) : (
-              <div>
-                <p className="text-gray-600 mb-2">
-                  Glissez-déposez votre CSV ici ou
-                </p>
-                <label className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer">
-                  Parcourir
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+              <>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <svg className="w-8 h-8 mx-auto text-ink-faint mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="text-[13.5px] font-semibold text-ink">Glissez-déposez votre CSV ici</p>
+                <p className="text-[12.5px] text-ink-faint mt-1">ou cliquez pour sélectionner</p>
+              </>
             )}
           </div>
         </div>
 
         {/* Optional campaign info */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nom de campagne (optionnel)
-            </label>
+            <label className={labelClass}>Nom de campagne (optionnel)</label>
             <input
               type="text"
               value={campaignName}
               onChange={(e) => setCampaignName(e.target.value)}
               placeholder="Ex: Q1 2026 Campaign"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={fieldClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Budget (€, optionnel)
-            </label>
+            <label className={labelClass}>Budget (€, optionnel)</label>
             <input
               type="number"
               value={budget}
               onChange={(e) => setBudget(e.target.value)}
               placeholder="Ex: 500"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={fieldClass}
             />
           </div>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-            {error}
-          </div>
+          <p className="text-[13px] text-neg bg-surface-2 border border-line rounded-[12px] px-3.5 py-3">{error}</p>
         )}
 
         <div className="flex justify-end">
-          <button
-            onClick={handleAnalyze}
-            disabled={loading || !file}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
+          <AccentButton onClick={handleAnalyze} disabled={loading || !file}>
             {loading && <Spinner size="sm" color="white" />}
             Analyser
-          </button>
+          </AccentButton>
         </div>
       </div>
     );
@@ -253,20 +243,20 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
 
   if (step === 'preview' && previewData) {
     return (
-      <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 font-medium">
+      <div className="space-y-5">
+        <div className="bg-accent-soft rounded-[12px] p-4">
+          <p className="text-[13.5px] font-semibold text-accent">
             {previewData.total_rows} ligne{previewData.total_rows > 1 ? 's' : ''} détectée{previewData.total_rows > 1 ? 's' : ''}
           </p>
-          <p className="text-blue-700 text-sm mt-1">
-            Colonnes: {previewData.columns_detected.join(', ')}
+          <p className="text-[12.5px] text-accent/80 mt-1">
+            Colonnes : {previewData.columns_detected.join(', ')}
           </p>
         </div>
 
         {previewData.warnings.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 font-medium mb-2">Avertissements:</p>
-            <ul className="list-disc list-inside text-sm text-yellow-700">
+          <div className="bg-surface-2 border border-line-strong rounded-[12px] p-4">
+            <Eyebrow>Avertissements</Eyebrow>
+            <ul className="list-disc list-inside text-[12.5px] text-ink-muted mt-2 space-y-1">
               {previewData.warnings.map((warning: string, i: number) => (
                 <li key={i}>{warning}</li>
               ))}
@@ -276,24 +266,24 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
 
         {previewData.sample_rows.length > 0 && (
           <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Aperçu (5 premières lignes)</h3>
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Song</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Outlet</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Action</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Date</th>
+            <Eyebrow>Aperçu (5 premières lignes)</Eyebrow>
+            <div className="mt-2 border border-line rounded-[12px] overflow-hidden">
+              <table className="w-full text-[12.5px]">
+                <thead>
+                  <tr className="border-b border-line text-left bg-surface-2">
+                    <th className="px-4 py-2.5 font-semibold text-ink-muted">Song</th>
+                    <th className="px-4 py-2.5 font-semibold text-ink-muted">Outlet</th>
+                    <th className="px-4 py-2.5 font-semibold text-ink-muted">Action</th>
+                    <th className="px-4 py-2.5 font-semibold text-ink-muted">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {previewData.sample_rows.map((row: any, i: number) => (
-                    <tr key={i}>
-                      <td className="px-4 py-2">{row.song_title}</td>
-                      <td className="px-4 py-2">{row.outlet_name}</td>
-                      <td className="px-4 py-2">{row.action}</td>
-                      <td className="px-4 py-2">{row.sent_date}</td>
+                    <tr key={i} className="border-b border-line last:border-0">
+                      <td className="px-4 py-2.5 text-ink">{row.song_title}</td>
+                      <td className="px-4 py-2.5 text-ink">{row.outlet_name}</td>
+                      <td className="px-4 py-2.5 text-ink-muted">{row.action}</td>
+                      <td className="px-4 py-2.5 text-ink-faint">{row.sent_date}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -303,26 +293,15 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-            {error}
-          </div>
+          <p className="text-[13px] text-neg bg-surface-2 border border-line rounded-[12px] px-3.5 py-3">{error}</p>
         )}
 
         <div className="flex justify-between">
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 text-gray-700 hover:text-gray-900"
-          >
-            ← Retour
-          </button>
-          <button
-            onClick={handleImport}
-            disabled={loading}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-          >
+          <OutlineButton onClick={handleReset}>Retour</OutlineButton>
+          <AccentButton onClick={handleImport} disabled={loading}>
             {loading && <Spinner size="sm" color="white" />}
-            Importer
-          </button>
+            <IconImport size={14} /> Importer
+          </AccentButton>
         </div>
       </div>
     );
@@ -331,46 +310,48 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
   if (step === 'importing') {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Spinner size="lg" />
-        <p className="text-gray-600 mt-4">Import en cours...</p>
+        <div className="animate-spin w-10 h-10 border-[3px] border-accent border-t-transparent rounded-full mb-4" />
+        <p className="text-[13px] text-ink-muted">Import en cours…</p>
       </div>
     );
   }
 
   if (step === 'done' && importResult) {
     return (
-      <div className="space-y-6">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-          <div className="text-4xl mb-4">✓</div>
-          <p className="text-green-800 font-medium text-lg mb-2">Import réussi !</p>
-          <p className="text-green-700">
+      <div className="space-y-5">
+        <div className="bg-accent-soft rounded-[16px] p-6 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-accent text-accent-ink flex items-center justify-center">
+            <IconCheck size={26} />
+          </div>
+          <p className="text-[15px] font-bold text-ink mb-1">Import réussi !</p>
+          <p className="text-[13px] text-ink-muted">
             {importResult.created_count} submission{importResult.created_count > 1 ? 's' : ''} importée{importResult.created_count > 1 ? 's' : ''}
           </p>
         </div>
 
         {importResult.matched_songs.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-800 font-medium mb-2">
+          <div className="bg-accent-soft rounded-[12px] p-4">
+            <p className="text-[13px] font-semibold text-accent">
               {importResult.matched_songs.length} song{importResult.matched_songs.length > 1 ? 's' : ''} associée{importResult.matched_songs.length > 1 ? 's' : ''} au catalogue
             </p>
           </div>
         )}
 
         {importResult.unmatched_songs.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 font-medium mb-2">
+          <div className="bg-surface-2 border border-line-strong rounded-[12px] p-4">
+            <p className="text-[13px] font-semibold text-ink mb-1">
               {importResult.unmatched_songs.length} song{importResult.unmatched_songs.length > 1 ? 's' : ''} non trouvée{importResult.unmatched_songs.length > 1 ? 's' : ''} dans le catalogue
             </p>
-            <p className="text-yellow-700 text-sm">
+            <p className="text-[12.5px] text-ink-faint">
               Ces soumissions ont été créées mais ne sont pas liées à un UPC/ISRC.
             </p>
           </div>
         )}
 
         {importResult.errors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800 font-medium mb-2">Erreurs:</p>
-            <ul className="list-disc list-inside text-sm text-red-700">
+          <div className="bg-surface-2 border border-line rounded-[12px] p-4">
+            <Eyebrow className="text-neg">Erreurs</Eyebrow>
+            <ul className="list-disc list-inside text-[12.5px] text-neg mt-2 space-y-1">
               {importResult.errors.slice(0, 5).map((error: string, i: number) => (
                 <li key={i}>{error}</li>
               ))}
@@ -379,18 +360,8 @@ export default function SubmitHubUploadFlow({ onSuccess }: SubmitHubUploadFlowPr
         )}
 
         <div className="flex justify-between">
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 text-gray-700 hover:text-gray-900"
-          >
-            Importer un autre fichier
-          </button>
-          <button
-            onClick={onSuccess}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Terminer
-          </button>
+          <OutlineButton onClick={handleReset}>Importer un autre fichier</OutlineButton>
+          <AccentButton onClick={onSuccess}>Terminer</AccentButton>
         </div>
       </div>
     );

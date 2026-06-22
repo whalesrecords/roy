@@ -5,15 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import { getContracts, Contract } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, Eyebrow, Pill } from '@/components/roy/ui';
+import { IconCalendar, IconContract } from '@/components/roy/icons';
 
-const SCOPE_COLORS: Record<string, { color: string; bg: string }> = {
-  catalog: { color: 'text-primary', bg: 'bg-primary/10' },
-  release: { color: 'text-amber-500', bg: 'bg-amber-500/10' },
-  track: { color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+const SCOPE_TONE: Record<string, 'accent' | 'neutral'> = {
+  catalog: 'accent',
+  release: 'neutral',
+  track: 'neutral',
 };
 
-function getScopeColors(scope: string) {
-  return SCOPE_COLORS[scope] || { color: 'text-default-500', bg: 'bg-default-100' };
+function getScopeTone(scope: string): 'accent' | 'neutral' {
+  return SCOPE_TONE[scope] || 'neutral';
 }
 
 function isActive(contract: Contract): boolean {
@@ -53,9 +55,33 @@ export default function ContractsPage() {
 
   const activeCount = useMemo(() => contracts.filter(isActive).length, [contracts]);
 
+  const PARTY_LABELS: Record<string, string> = {
+    manager: 'Manager', booker: 'Booker', agent: 'Agent', publisher: 'Publisher', other: 'Other',
+  };
+
   return (
-    <div className="min-h-screen bg-background safe-top">
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Contrats</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">Vos accords et répartitions de royalties</div>
+        </div>
+        {contracts.length > 0 && (
+          <div className="flex items-center gap-7">
+            <div className="text-right">
+              <Eyebrow className="text-[9.5px]">{t('contracts.total')}</Eyebrow>
+              <div className="roy-num text-[22px] font-bold text-ink leading-none mt-1.5">{contracts.length}</div>
+            </div>
+            <div className="text-right">
+              <Eyebrow className="text-[9.5px]">{t('contracts.activeCount')}</Eyebrow>
+              <div className="roy-num text-[22px] font-bold text-accent leading-none mt-1.5">{activeCount}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
         {(authLoading || loading) ? (
           <div className="flex items-center justify-center py-20">
             <Spinner size="lg" color="primary" />
@@ -63,103 +89,81 @@ export default function ContractsPage() {
         ) : (
         <>
         {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
+          <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm">{error}</div>
         )}
 
-        {/* Summary */}
+        {/* Mobile summary */}
         {contracts.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
-              <p className="text-[10px] text-default-500 mb-1">{t('contracts.total')}</p>
-              <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
-            </div>
-            <div className="bg-content1 border border-divider rounded-2xl p-3 text-center">
-              <p className="text-[10px] text-default-500 mb-1">{t('contracts.activeCount')}</p>
-              <p className="text-2xl font-bold text-emerald-400">{activeCount}</p>
-            </div>
+          <div className="grid grid-cols-2 gap-3 lg:hidden">
+            <Card className="text-center">
+              <Eyebrow className="text-[9.5px]">{t('contracts.total')}</Eyebrow>
+              <div className="roy-num text-[30px] font-bold text-ink leading-none mt-2">{contracts.length}</div>
+            </Card>
+            <Card className="text-center">
+              <Eyebrow className="text-[9.5px]">{t('contracts.activeCount')}</Eyebrow>
+              <div className="roy-num text-[30px] font-bold text-accent leading-none mt-2">{activeCount}</div>
+            </Card>
           </div>
         )}
 
         {/* Empty state */}
         {sortedContracts.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+            <div className="w-14 h-14 bg-surface-2 border border-line rounded-[18px] flex items-center justify-center mx-auto mb-4 text-ink-faint">
+              <IconContract size={24} />
             </div>
-            <p className="text-default-500 text-sm">{t('contracts.noContracts')}</p>
+            <p className="text-ink-faint text-sm">{t('contracts.noContracts')}</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 lg:space-y-4">
             {sortedContracts.map(contract => {
               const active = isActive(contract);
-              const scope = getScopeColors(contract.scope);
-              const PARTY_LABELS: Record<string, string> = {
-                manager: 'Manager', booker: 'Booker', agent: 'Agent', publisher: 'Publisher', other: 'Other',
-              };
-              const PARTY_COLORS: Record<string, string> = {
-                manager: 'bg-amber-500/10 text-amber-500',
-                booker: 'bg-default-100 text-default-600',
-                agent: 'bg-danger/10 text-danger',
-                publisher: 'bg-cyan-500/10 text-cyan-500',
-                other: 'bg-default-100 text-default-500',
-              };
+              const scopeTone = getScopeTone(contract.scope);
+              const team = (contract.parties || []).filter(p => !['artist', 'label'].includes(p.party_type));
 
               return (
-                <div
-                  key={contract.id}
-                  className={`bg-content1 border border-divider rounded-2xl p-4 space-y-4 ${!active && 'opacity-60'}`}
-                >
+                <Card key={contract.id} className={`space-y-4 ${!active ? 'opacity-60' : ''}`}>
                   {/* Top row */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`px-2.5 py-1 ${scope.bg} ${scope.color} text-xs font-semibold rounded-full shrink-0`}>
-                        {t('contracts.' + contract.scope)}
-                      </span>
+                      <Pill tone={scopeTone}>{t('contracts.' + contract.scope)}</Pill>
                       {contract.scope_title && (
-                        <span className="text-sm font-medium text-foreground truncate">{contract.scope_title}</span>
+                        <span className="text-[14px] font-semibold text-ink truncate">{contract.scope_title}</span>
                       )}
                     </div>
-                    <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full shrink-0 ${
-                      active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-default-100 text-default-500'
-                    }`}>
+                    <Pill tone={active ? 'accent' : 'neutral'}>
                       {active ? t('contracts.active') : t('contracts.expired')}
-                    </span>
+                    </Pill>
                   </div>
 
                   {/* Dates */}
-                  <div className="flex items-center gap-2 text-xs text-default-500">
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                  <div className="flex items-center gap-2 text-[12px] text-ink-faint">
+                    <IconCalendar size={15} className="shrink-0" />
                     <span>{formatDate(contract.start_date)} → {contract.end_date ? formatDate(contract.end_date) : t('contracts.ongoing')}</span>
                   </div>
 
                   {/* Split bar */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span className="text-emerald-500">{t('contracts.artistShare')} {contract.artist_share}%</span>
-                      <span className="text-default-400">{t('contracts.labelShare')} {contract.label_share}%</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[12.5px] font-semibold">
+                      <span className="text-accent">{t('contracts.artistShare')} <span className="roy-num">{contract.artist_share}%</span></span>
+                      <span className="text-ink-faint">{t('contracts.labelShare')} <span className="roy-num">{contract.label_share}%</span></span>
                     </div>
-                    <div className="flex h-2 rounded-full overflow-hidden bg-default-100">
-                      <div className="bg-emerald-500 rounded-l-full" style={{ width: `${contract.artist_share}%` }} />
-                      <div className="bg-default-200 rounded-r-full flex-1" />
+                    <div className="flex h-2 rounded-full overflow-hidden bg-track">
+                      <div className="bg-accent rounded-l-full" style={{ width: `${contract.artist_share}%` }} />
+                      <div className="bg-surface-2 rounded-r-full flex-1" />
                     </div>
                   </div>
 
                   {/* Team */}
-                  {contract.parties && contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">{t('contracts.team')}</p>
+                  {team.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                      <Eyebrow className="text-[9.5px]">{t('contracts.team')}</Eyebrow>
                       <div className="flex flex-wrap gap-1.5">
-                        {contract.parties.filter(p => !['artist', 'label'].includes(p.party_type)).map((p, i) => (
-                          <div key={i} className={`px-2.5 py-1 rounded-xl text-xs ${PARTY_COLORS[p.party_type] || PARTY_COLORS.other}`}>
-                            <span className="font-semibold">{PARTY_LABELS[p.party_type] || p.party_type}</span>
-                            {p.label_name && <span className="ml-1 opacity-75">— {p.label_name}</span>}
-                            <span className="ml-1 opacity-60">({(parseFloat(p.share_percentage) * 100).toFixed(0)}%)</span>
+                        {team.map((p, i) => (
+                          <div key={i} className="flex items-center gap-1 rounded-xl bg-surface-2 px-2.5 py-1.5 text-[12px] text-ink-muted">
+                            <span className="font-semibold text-ink">{PARTY_LABELS[p.party_type] || p.party_type}</span>
+                            {p.label_name && <span className="text-ink-faint">— {p.label_name}</span>}
+                            <span className="roy-num text-ink-faint">({(parseFloat(p.share_percentage) * 100).toFixed(0)}%)</span>
                           </div>
                         ))}
                       </div>
@@ -168,9 +172,9 @@ export default function ContractsPage() {
 
                   {/* Description */}
                   {contract.description && (
-                    <p className="text-xs text-default-400 italic">{contract.description}</p>
+                    <p className="text-[12px] text-ink-faint italic">{contract.description}</p>
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>

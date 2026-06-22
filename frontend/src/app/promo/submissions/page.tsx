@@ -1,23 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Spinner, Badge } from '@heroui/react';
+import { Spinner } from '@heroui/react';
 import { getTracksSummary, getPromoSubmissions, getArtists, TrackSummary, PromoSubmission, Artist } from '@/lib/api';
 import Link from 'next/link';
+import { Card, Eyebrow, Pill, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconImport, IconChevronRight } from '@/components/roy/icons';
 
-const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  submithub: { label: 'SubmitHub', color: 'bg-blue-100 text-blue-800' },
-  groover: { label: 'Groover', color: 'bg-blue-100 text-blue-800' },
-  manual: { label: 'Manuel', color: 'bg-gray-100 text-gray-800' },
+type Tone = 'accent' | 'neutral' | 'neg';
+
+const SOURCE_LABELS: Record<string, { label: string; tone: Tone }> = {
+  submithub: { label: 'SubmitHub', tone: 'accent' },
+  groover: { label: 'Groover', tone: 'accent' },
+  manual: { label: 'Manuel', tone: 'neutral' },
 };
 
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  listen: { label: 'Écouté', color: 'bg-blue-100 text-blue-800' },
-  declined: { label: 'Refusé', color: 'bg-red-100 text-red-800' },
-  approved: { label: 'Approuvé', color: 'bg-green-100 text-green-800' },
-  shared: { label: 'Partagé', color: 'bg-blue-100 text-blue-800' },
-  playlist: { label: 'Playlist', color: 'bg-blue-600 text-white' },
+const ACTION_LABELS: Record<string, { label: string; tone: Tone }> = {
+  listen: { label: 'Écouté', tone: 'neutral' },
+  declined: { label: 'Refusé', tone: 'neg' },
+  approved: { label: 'Approuvé', tone: 'accent' },
+  shared: { label: 'Partagé', tone: 'neutral' },
+  playlist: { label: 'Playlist', tone: 'accent' },
 };
+
+// Small status pill that supports a negative tone in addition to the shared Pill tones.
+function StatusPill({ label, tone }: { label: string; tone: Tone }) {
+  if (tone === 'neg') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[10.5px] font-semibold bg-surface-2 text-neg">
+        {label}
+      </span>
+    );
+  }
+  return <Pill tone={tone}>{label}</Pill>;
+}
 
 export default function PromoSubmissionsPage() {
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
@@ -109,361 +125,173 @@ export default function PromoSubmissionsPage() {
     return false;
   });
 
+  const selectClass =
+    'w-full h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors';
+  const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
+
+  const STATUS_FILTERS: { key: string; label: string; count: number }[] = selectedTrack
+    ? [
+        { key: 'all', label: 'Tous', count: trackSubmissions.length },
+        { key: 'listened', label: 'Écoutés', count: selectedTrack.total_listened },
+        { key: 'approved', label: 'Approuvés', count: selectedTrack.total_approved },
+        { key: 'playlist', label: 'Playlists', count: selectedTrack.total_playlists },
+        { key: 'shared', label: 'Partagés', count: selectedTrack.total_shared },
+        { key: 'declined', label: 'Refusés', count: selectedTrack.total_declined },
+      ]
+    : [];
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p className="font-medium">Error:</p>
-          <p>{error}</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Submissions Promo</h1>
-            <p className="text-gray-600">Vue par track avec métriques d'efficacité</p>
-          </div>
-          <Link
-            href="/promo/import"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Importer CSV
-          </Link>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Submissions Promo</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Vue par track avec métriques d'efficacité</p>
         </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Artiste</label>
-            <select
-              value={selectedArtist}
-              onChange={(e) => {
-                setSelectedArtist(e.target.value);
-                setSelectedAlbum('');
-                setSelectedTrack(null);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tous les artistes</option>
-              {artists.map((artist) => (
-                <option key={artist.id} value={artist.id}>
-                  {artist.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Album</label>
-            <select
-              value={selectedAlbum}
-              onChange={(e) => {
-                setSelectedAlbum(e.target.value);
-                setSelectedTrack(null);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tous les albums</option>
-              {albums.map((album) => (
-                <option key={album} value={albumsWithUpc[album as string]}>
-                  {album}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <Link href="/promo/import">
+          <AccentButton>
+            <IconImport size={14} /> Importer CSV
+          </AccentButton>
+        </Link>
       </div>
 
-      {tracks.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-lg mb-4">Aucune submission promo</p>
-          <Link
-            href="/promo/import"
-            className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Importer maintenant
-          </Link>
-        </div>
-      ) : !selectedTrack ? (
-        /* Track Summary View */
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Track
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Artiste / Album
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Écoutés
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Approuvés
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Playlists
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Partagés
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Refusés
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sources
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {tracks.map((track) => {
-                const approvalRate = track.total_submissions > 0
-                  ? Math.round((track.total_approved / track.total_submissions) * 100)
-                  : 0;
-                const playlistRate = track.total_submissions > 0
-                  ? Math.round((track.total_playlists / track.total_submissions) * 100)
-                  : 0;
-
-                return (
-                  <tr
-                    key={`${track.artist_id}-${track.song_title}-${track.release_upc}`}
-                    onClick={() => setSelectedTrack(track)}
-                    className="hover:bg-gray-50 cursor-pointer"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{track.song_title}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{track.artist_name}</div>
-                      <div className="text-xs text-gray-500">{track.release_title || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm font-medium text-gray-900">
-                      {track.total_submissions}
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-700">
-                      {track.total_listened}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="text-sm font-medium text-green-600">{track.total_approved}</div>
-                      <div className="text-xs text-gray-500">{approvalRate}%</div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="text-sm font-medium text-blue-600">{track.total_playlists}</div>
-                      <div className="text-xs text-gray-500">{playlistRate}%</div>
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm text-blue-600">
-                      {track.total_shared}
-                    </td>
-                    <td className="px-6 py-4 text-center text-sm text-red-600">
-                      {track.total_declined}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-1">
-                        {track.sources.map(source => {
-                          const info = SOURCE_LABELS[source] || { label: source, color: 'bg-gray-100 text-gray-800' };
-                          return (
-                            <span key={source} className={`px-2 py-1 text-xs font-medium rounded-full ${info.color}`}>
-                              {info.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        /* Track Detail View */
-        <div>
-          <div className="mb-6 flex items-center justify-between">
-            <button
-              onClick={() => setSelectedTrack(null)}
-              className="flex items-center text-blue-600 hover:text-blue-700"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Retour
-            </button>
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {error && (
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            {error}
           </div>
+        )}
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-            <h2 className="text-2xl font-bold mb-2">{selectedTrack.song_title}</h2>
-            <p className="text-gray-600 mb-4">
-              {selectedTrack.artist_name} {selectedTrack.release_title && `• ${selectedTrack.release_title}`}
-            </p>
+        {!selectedTrack && (
+          /* Filters */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Artiste</label>
+              <select
+                value={selectedArtist}
+                onChange={(e) => {
+                  setSelectedArtist(e.target.value);
+                  setSelectedAlbum('');
+                  setSelectedTrack(null);
+                }}
+                className={selectClass}
+              >
+                <option value="">Tous les artistes</option>
+                {artists.map((artist) => (
+                  <option key={artist.id} value={artist.id}>
+                    {artist.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{selectedTrack.total_submissions}</div>
-                <div className="text-xs text-gray-500">Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{selectedTrack.total_listened}</div>
-                <div className="text-xs text-gray-500">Écoutés</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{selectedTrack.total_approved}</div>
-                <div className="text-xs text-gray-500">Approuvés</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{selectedTrack.total_playlists}</div>
-                <div className="text-xs text-gray-500">Playlists</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-500">{selectedTrack.total_shared}</div>
-                <div className="text-xs text-gray-500">Partagés</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{selectedTrack.total_declined}</div>
-                <div className="text-xs text-gray-500">Refusés</div>
-              </div>
+            <div>
+              <label className={labelClass}>Album</label>
+              <select
+                value={selectedAlbum}
+                onChange={(e) => {
+                  setSelectedAlbum(e.target.value);
+                  setSelectedTrack(null);
+                }}
+                className={selectClass}
+              >
+                <option value="">Tous les albums</option>
+                {albums.map((album) => (
+                  <option key={album} value={albumsWithUpc[album as string]}>
+                    {album}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+        )}
 
-          {/* Status Filters */}
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-2">
-            <button
-              onClick={() => setStatusFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Tous ({trackSubmissions.length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('listened')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'listened'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Écoutés ({selectedTrack.total_listened})
-            </button>
-            <button
-              onClick={() => setStatusFilter('approved')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'approved'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Approuvés ({selectedTrack.total_approved})
-            </button>
-            <button
-              onClick={() => setStatusFilter('playlist')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'playlist'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Playlists ({selectedTrack.total_playlists})
-            </button>
-            <button
-              onClick={() => setStatusFilter('shared')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'shared'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Partagés ({selectedTrack.total_shared})
-            </button>
-            <button
-              onClick={() => setStatusFilter('declined')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap ${
-                statusFilter === 'declined'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Refusés ({selectedTrack.total_declined})
-            </button>
-          </div>
-
-          {/* Submissions List */}
-          {detailLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Spinner size="lg" />
+        {tracks.length === 0 ? (
+          <Card className="py-12 text-center">
+            <p className="text-ink-faint text-[14px] mb-4">Aucune submission promo</p>
+            <div className="flex justify-center">
+              <Link href="/promo/import">
+                <AccentButton>
+                  <IconImport size={14} /> Importer maintenant
+                </AccentButton>
+              </Link>
             </div>
-          ) : (
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          </Card>
+        ) : !selectedTrack ? (
+          /* Track Summary View */
+          <Card padded={false} className="overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Outlet / Influencer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Source
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Feedback
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
+                <thead>
+                  <tr className="border-b border-line text-left">
+                    <th className="px-[22px] py-3"><Eyebrow>Track</Eyebrow></th>
+                    <th className="px-3 py-3"><Eyebrow>Artiste / Album</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Total</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Écoutés</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Approuvés</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Playlists</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Partagés</Eyebrow></th>
+                    <th className="px-3 py-3 text-center"><Eyebrow>Refusés</Eyebrow></th>
+                    <th className="px-[22px] py-3"><Eyebrow>Sources</Eyebrow></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredTrackSubmissions.map((sub) => {
-                    const sourceInfo = SOURCE_LABELS[sub.source] || { label: sub.source, color: 'bg-gray-100 text-gray-800' };
-                    const status = sub.action || sub.decision || '-';
-                    const statusInfo = ACTION_LABELS[status.toLowerCase()] || { label: status, color: 'bg-gray-100 text-gray-800' };
-                    const outlet = sub.outlet_name || sub.influencer_name || '-';
+                <tbody>
+                  {tracks.map((track) => {
+                    const approvalRate = track.total_submissions > 0
+                      ? Math.round((track.total_approved / track.total_submissions) * 100)
+                      : 0;
+                    const playlistRate = track.total_submissions > 0
+                      ? Math.round((track.total_playlists / track.total_submissions) * 100)
+                      : 0;
 
                     return (
-                      <tr key={sub.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-900">{outlet}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${sourceInfo.color}`}>
-                            {sourceInfo.label}
-                          </span>
+                      <tr
+                        key={`${track.artist_id}-${track.song_title}-${track.release_upc}`}
+                        onClick={() => setSelectedTrack(track)}
+                        className="border-b border-line last:border-0 hover:bg-surface-2 cursor-pointer transition-colors"
+                      >
+                        <td className="px-[22px] py-4">
+                          <div className="text-[13px] font-semibold text-ink">{track.song_title}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </span>
+                        <td className="px-3 py-4">
+                          <div className="text-[13px] text-ink">{track.artist_name}</div>
+                          <div className="text-[11px] text-ink-faint mt-0.5">{track.release_title || 'N/A'}</div>
                         </td>
-                        <td className="px-6 py-4">
-                          {sub.feedback ? (
-                            <div className="text-sm text-gray-600 max-w-md">
-                              {sub.feedback.substring(0, 100)}
-                              {sub.feedback.length > 100 && '...'}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
+                        <td className="px-3 py-4 text-center roy-num text-[13px] font-semibold text-ink">
+                          {track.total_submissions}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString('fr-FR') : '-'}
+                        <td className="px-3 py-4 text-center roy-num text-[13px] text-ink-muted">
+                          {track.total_listened}
+                        </td>
+                        <td className="px-3 py-4 text-center">
+                          <div className="roy-num text-[13px] font-semibold text-accent">{track.total_approved}</div>
+                          <div className="text-[11px] text-ink-faint">{approvalRate}%</div>
+                        </td>
+                        <td className="px-3 py-4 text-center">
+                          <div className="roy-num text-[13px] font-semibold text-ink">{track.total_playlists}</div>
+                          <div className="text-[11px] text-ink-faint">{playlistRate}%</div>
+                        </td>
+                        <td className="px-3 py-4 text-center roy-num text-[13px] text-ink-muted">
+                          {track.total_shared}
+                        </td>
+                        <td className="px-3 py-4 text-center roy-num text-[13px] text-neg">
+                          {track.total_declined}
+                        </td>
+                        <td className="px-[22px] py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {track.sources.map(source => {
+                              const info = SOURCE_LABELS[source] || { label: source, tone: 'neutral' as Tone };
+                              return <StatusPill key={source} label={info.label} tone={info.tone} />;
+                            })}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -471,9 +299,118 @@ export default function PromoSubmissionsPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      )}
+          </Card>
+        ) : (
+          /* Track Detail View */
+          <>
+            <button
+              onClick={() => setSelectedTrack(null)}
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-muted hover:text-ink transition-colors"
+            >
+              <IconChevronRight size={15} className="rotate-180" />
+              Retour
+            </button>
+
+            <Card>
+              <h2 className="text-[18px] font-bold text-ink">{selectedTrack.song_title}</h2>
+              <p className="text-[13px] text-ink-faint mt-1 mb-5">
+                {selectedTrack.artist_name} {selectedTrack.release_title && `· ${selectedTrack.release_title}`}
+              </p>
+
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                {[
+                  { label: 'Total', value: selectedTrack.total_submissions, accent: false },
+                  { label: 'Écoutés', value: selectedTrack.total_listened, accent: false },
+                  { label: 'Approuvés', value: selectedTrack.total_approved, accent: true },
+                  { label: 'Playlists', value: selectedTrack.total_playlists, accent: true },
+                  { label: 'Partagés', value: selectedTrack.total_shared, accent: false },
+                  { label: 'Refusés', value: selectedTrack.total_declined, accent: false, neg: true },
+                ].map((m) => (
+                  <div key={m.label} className="bg-surface-2 rounded-[12px] p-4 text-center">
+                    <div className={`roy-num text-[22px] font-bold ${m.accent ? 'text-accent' : m.neg ? 'text-neg' : 'text-ink'}`}>
+                      {m.value}
+                    </div>
+                    <Eyebrow>{m.label}</Eyebrow>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Status Filters */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  className={`px-3.5 py-1.5 rounded-[10px] text-[12px] font-semibold whitespace-nowrap transition-colors ${
+                    statusFilter === f.key
+                      ? 'bg-accent-soft text-accent'
+                      : 'bg-surface border border-line text-ink-muted hover:text-ink'
+                  }`}
+                >
+                  {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+
+            {/* Submissions List */}
+            {detailLoading ? (
+              <Card className="flex items-center justify-center py-12">
+                <Spinner size="lg" />
+              </Card>
+            ) : (
+              <Card padded={false} className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-line text-left">
+                        <th className="px-[22px] py-3"><Eyebrow>Outlet / Influencer</Eyebrow></th>
+                        <th className="px-3 py-3"><Eyebrow>Source</Eyebrow></th>
+                        <th className="px-3 py-3"><Eyebrow>Status</Eyebrow></th>
+                        <th className="px-3 py-3"><Eyebrow>Feedback</Eyebrow></th>
+                        <th className="px-[22px] py-3"><Eyebrow>Date</Eyebrow></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTrackSubmissions.map((sub) => {
+                        const sourceInfo = SOURCE_LABELS[sub.source] || { label: sub.source, tone: 'neutral' as Tone };
+                        const status = sub.action || sub.decision || '-';
+                        const statusInfo = ACTION_LABELS[status.toLowerCase()] || { label: status, tone: 'neutral' as Tone };
+                        const outlet = sub.outlet_name || sub.influencer_name || '-';
+
+                        return (
+                          <tr key={sub.id} className="border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                            <td className="px-[22px] py-4 text-[13px] text-ink">{outlet}</td>
+                            <td className="px-3 py-4">
+                              <StatusPill label={sourceInfo.label} tone={sourceInfo.tone} />
+                            </td>
+                            <td className="px-3 py-4">
+                              <StatusPill label={statusInfo.label} tone={statusInfo.tone} />
+                            </td>
+                            <td className="px-3 py-4">
+                              {sub.feedback ? (
+                                <div className="text-[12.5px] text-ink-muted max-w-md">
+                                  {sub.feedback.substring(0, 100)}
+                                  {sub.feedback.length > 100 && '...'}
+                                </div>
+                              ) : (
+                                <span className="text-ink-faint">-</span>
+                              )}
+                            </td>
+                            <td className="px-[22px] py-4 text-[12.5px] text-ink-faint">
+                              {sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString('fr-FR') : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

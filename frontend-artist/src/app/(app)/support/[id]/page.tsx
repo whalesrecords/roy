@@ -6,13 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTicketDetail, addMyTicketMessage, closeMyTicket, TicketDetail } from '@/lib/api';
+import { Card, Pill, AccentButton } from '@/components/roy/ui';
+import { IconChevronLeft } from '@/components/roy/icons';
 
-const STATUS_DOT: Record<string, string> = {
-  open: 'bg-blue-500',
-  in_progress: 'bg-amber-500',
-  resolved: 'bg-emerald-500',
-  closed: 'bg-default-400',
-};
+function statusTone(status: string): 'accent' | 'neutral' {
+  return status === 'open' || status === 'resolved' ? 'accent' : 'neutral';
+}
 
 export default function TicketDetailPage() {
   const params = useParams();
@@ -86,64 +85,55 @@ export default function TicketDetailPage() {
     new Date(dateStr).toLocaleString('fr-FR', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   if (authLoading || loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-background"><Spinner size="lg" color="primary" /></div>;
+    return <div className="min-h-screen flex items-center justify-center bg-app"><Spinner size="lg" color="primary" /></div>;
   }
 
   if (!ticket) {
     return (
-      <div className="min-h-screen bg-background px-4 py-8">
-        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
-          <p className="text-danger text-sm">Ticket introuvable</p>
-        </div>
+      <div className="min-h-screen bg-app px-4 py-8">
+        <div className="rounded-2xl bg-neg/10 border border-neg/20 p-4 text-neg text-sm">Ticket introuvable</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background safe-top">
+    <div className="min-h-screen bg-app safe-top">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3 max-w-lg mx-auto">
-          <Link href="/support" className="p-2 -ml-2 hover:bg-content1 rounded-xl transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+      <header className="sticky top-0 z-50 bg-app/90 backdrop-blur-md border-b border-line">
+        <div className="px-4 py-3 lg:px-7 lg:py-[18px] flex items-center gap-3 max-w-lg lg:max-w-none mx-auto">
+          <Link href="/support" className="p-2 -ml-2 hover:bg-surface-2 rounded-xl transition-colors text-ink">
+            <IconChevronLeft size={20} />
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[ticket.status] || 'bg-default-400'}`} />
-              <span className="font-mono text-[10px] text-default-400">{ticket.ticket_number}</span>
-              <span className="text-[10px] text-default-500">· {ticket.status_label}</span>
+              <span className="font-mono text-[10px] text-ink-faint">{ticket.ticket_number}</span>
+              <Pill tone={statusTone(ticket.status)}>{ticket.status_label}</Pill>
             </div>
-            <h1 className="text-sm font-semibold text-foreground truncate mt-0.5">{ticket.subject}</h1>
+            <h1 className="text-[15px] font-semibold text-ink truncate mt-0.5">{ticket.subject}</h1>
           </div>
         </div>
       </header>
 
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-3">
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-2xl mx-auto space-y-3">
         {error && (
-          <div className="bg-danger/10 border border-danger/20 rounded-2xl p-3">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
+          <div className="rounded-2xl bg-neg/10 border border-neg/20 p-3 text-neg text-sm">{error}</div>
         )}
 
         {/* Info card */}
-        <div className="bg-content1 border border-divider rounded-2xl px-4 py-3 flex items-center gap-3">
+        <Card className="flex items-center gap-3">
           <div>
-            <p className="text-xs text-default-500">{ticket.category_label}</p>
-            <p className="text-[10px] text-default-400 mt-0.5">Créé le {formatTime(ticket.created_at)}</p>
+            <p className="text-xs text-ink-muted">{ticket.category_label}</p>
+            <p className="text-[10px] text-ink-faint mt-0.5">Créé le {formatTime(ticket.created_at)}</p>
           </div>
           {ticket.priority_label && (
-            <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] bg-default-100 text-default-600">
-              {ticket.priority_label}
-            </span>
+            <span className="ml-auto"><Pill tone="neutral">{ticket.priority_label}</Pill></span>
           )}
-        </div>
+        </Card>
 
         {/* Messages */}
-        <div className="bg-content1 border border-divider rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-divider">
-            <p className="text-xs font-semibold text-default-400 uppercase tracking-wider">Conversation</p>
+        <Card padded={false} className="overflow-hidden">
+          <div className="px-4 py-3 border-b border-line">
+            <span className="roy-eyebrow text-[10px]">Conversation</span>
           </div>
           <div className="p-4 space-y-3 max-h-[55vh] overflow-y-auto">
             {ticket.messages.map(message => {
@@ -151,18 +141,18 @@ export default function TicketDetailPage() {
               const isSystem = message.sender_type === 'system';
               return (
                 <div key={message.id} className={`flex ${isArtist ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-3 py-2.5 ${
+                  <div className={`max-w-[85%] rounded-[14px] px-3.5 py-2.5 ${
                     isSystem
-                      ? 'bg-content2 text-center w-full max-w-none text-xs text-default-400'
+                      ? 'bg-surface-2 text-center w-full max-w-none text-xs text-ink-faint'
                       : isArtist
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-content2'
+                      ? 'bg-accent-soft text-ink'
+                      : 'bg-surface-2 text-ink'
                   }`}>
                     {!isSystem && (
-                      <p className="text-[10px] font-semibold mb-1 opacity-70">{message.sender_name || 'Support'}</p>
+                      <p className="text-[10px] font-semibold mb-1 text-ink-faint">{message.sender_name || 'Support'}</p>
                     )}
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.message}</p>
-                    <p className={`text-[10px] mt-1 ${isArtist ? 'text-primary-foreground/60' : 'text-default-400'}`}>
+                    <p className="text-[10px] mt-1 text-ink-faint">
                       {formatTime(message.created_at)}
                     </p>
                   </div>
@@ -171,48 +161,48 @@ export default function TicketDetailPage() {
             })}
             <div ref={messagesEndRef} />
           </div>
-        </div>
+        </Card>
 
         {/* Reply / Closed */}
         {ticket.status === 'closed' ? (
-          <div className="bg-content1 border border-divider rounded-2xl p-6 text-center">
-            <p className="text-default-500 text-sm">Ce ticket est fermé</p>
-          </div>
+          <Card className="py-6 text-center">
+            <p className="text-ink-muted text-sm">Ce ticket est fermé</p>
+          </Card>
         ) : (
-          <div className="bg-content1 border border-divider rounded-2xl p-4 space-y-3">
+          <Card className="space-y-3">
             <textarea
               placeholder="Votre message…"
               value={newMessage}
               onChange={e => setNewMessage(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 bg-content2 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
+              className="w-full px-3.5 py-2.5 bg-surface-2 border border-line rounded-[14px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors text-sm resize-none"
             />
             <div className="flex items-center gap-2">
               {ticket.status === 'resolved' && (
                 <button
                   onClick={() => setShowCloseConfirm(true)}
                   disabled={closing}
-                  className="px-3 py-2 rounded-xl text-xs font-medium text-danger bg-danger/10 hover:bg-danger/15 transition-colors"
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-neg bg-neg/10 hover:bg-neg/15 transition-colors"
                 >
                   Fermer le ticket
                 </button>
               )}
-              <button
+              <AccentButton
                 onClick={handleSendMessage}
                 disabled={sending || !newMessage.trim()}
-                className="ml-auto px-4 py-2 rounded-xl text-sm font-semibold bg-primary text-white disabled:opacity-50 flex items-center gap-2"
+                className="ml-auto"
               >
                 {sending ? <Spinner size="sm" color="white" /> : (
                   <>
                     <span>Envoyer</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   </>
                 )}
-              </button>
+              </AccentButton>
             </div>
-          </div>
+          </Card>
         )}
       </main>
 
@@ -220,24 +210,24 @@ export default function TicketDetailPage() {
       {showCloseConfirm && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCloseConfirm(false)} />
-          <div className="relative bg-background rounded-t-3xl p-6 space-y-4">
-            <div className="w-10 h-1 bg-default-200 rounded-full mx-auto" />
-            <h3 className="font-bold text-lg text-foreground">Fermer le ticket</h3>
-            <p className="text-default-500 text-sm">
+          <div className="relative bg-surface rounded-t-3xl shadow-roy p-6 space-y-4 lg:max-w-md lg:mx-auto lg:rounded-3xl lg:mb-8">
+            <div className="w-10 h-1 bg-surface-2 rounded-full mx-auto" />
+            <h3 className="font-bold text-lg text-ink">Fermer le ticket</h3>
+            <p className="text-ink-muted text-sm">
               Êtes-vous sûr de vouloir fermer ce ticket ? Vous ne pourrez plus envoyer de messages.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCloseConfirm(false)}
                 disabled={closing}
-                className="flex-1 py-3 rounded-xl text-sm font-medium bg-content1 border border-divider text-foreground"
+                className="flex-1 py-3 rounded-xl text-sm font-medium bg-surface border border-line text-ink"
               >
                 Annuler
               </button>
               <button
                 onClick={handleCloseTicket}
                 disabled={closing}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold bg-danger text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-xl text-sm font-semibold bg-neg text-white disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {closing ? <Spinner size="sm" color="white" /> : 'Fermer'}
               </button>

@@ -6,12 +6,14 @@ import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { getMyTickets, createMyTicket, Ticket, CreateTicketRequest } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, Segmented, AccentButton } from '@/components/roy/ui';
+import { IconSupport, IconChevronRight } from '@/components/roy/icons';
 
 const STATUS_DOT: Record<string, string> = {
-  open: 'bg-blue-500',
+  open: 'bg-accent',
   in_progress: 'bg-amber-500',
-  resolved: 'bg-emerald-500',
-  closed: 'bg-default-400',
+  resolved: 'bg-accent',
+  closed: 'bg-ink-faint',
 };
 
 export default function SupportPage() {
@@ -99,44 +101,50 @@ export default function SupportPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  const statusOpts = STATUS_OPTIONS.map(o => ({ value: o.key, label: o.label }));
+
   return (
-    <div className="min-h-screen bg-background safe-top">
-      {/* Filters + new ticket */}
-      <div className="sticky top-14 z-40 bg-background/90 backdrop-blur-md border-b border-divider">
+    <div className="min-h-screen bg-app safe-top">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Support</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">Vos demandes et conversations</div>
+        </div>
+        <AccentButton onClick={() => { setSheetOpen(true); setFormError(null); }}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          {t('support.new')}
+        </AccentButton>
+      </div>
+
+      {/* Mobile filters + new ticket */}
+      <div className="lg:hidden sticky top-14 z-40 bg-app/90 backdrop-blur-md border-b border-line">
         <div className="px-4 pt-3 pb-2 max-w-lg mx-auto flex items-center justify-between gap-3">
-          {/* Status filter pills */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1">
-            {STATUS_OPTIONS.map(opt => (
-              <button
-                key={opt.key}
-                onClick={() => setStatusFilter(opt.key)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  statusFilter === opt.key
-                    ? 'bg-primary text-white'
-                    : 'bg-content1 border border-divider text-default-500 hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="flex-1 overflow-x-auto no-scrollbar">
+            <Segmented options={statusOpts} value={statusFilter} onChange={setStatusFilter} />
           </div>
-          <button
+          <AccentButton
             onClick={() => { setSheetOpen(true); setFormError(null); }}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-sm font-medium rounded-xl"
+            className="shrink-0 px-3 py-1.5 rounded-xl text-sm"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             {t('support.new')}
-          </button>
+          </AccentButton>
         </div>
       </div>
 
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-2">
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-2.5 lg:space-y-3">
+        {/* Desktop status filter */}
+        <div className="hidden lg:block">
+          <Segmented options={statusOpts} value={statusFilter} onChange={setStatusFilter} />
+        </div>
+
         {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
+          <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm">{error}</div>
         )}
 
         {(authLoading || loading) && (
@@ -147,45 +155,45 @@ export default function SupportPage() {
 
         {!authLoading && !loading && tickets.length === 0 && (
           <div className="text-center py-16">
-            <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
+            <div className="w-14 h-14 bg-surface border border-line rounded-[18px] flex items-center justify-center mx-auto mb-4 text-ink-faint">
+              <IconSupport size={24} />
             </div>
-            <p className="text-default-500 text-sm">{t('support.noTickets')}</p>
-            <p className="text-default-400 text-xs mt-1">{t('support.subtitle')}</p>
+            <p className="text-ink-muted text-sm">{t('support.noTickets')}</p>
+            <p className="text-ink-faint text-xs mt-1">{t('support.subtitle')}</p>
           </div>
         )}
 
-        {!authLoading && !loading && tickets.map(ticket => (
-          <Link
-            key={ticket.id}
-            href={`/support/${ticket.id}`}
-            className="flex items-center gap-3 p-4 bg-content1 border border-divider rounded-2xl hover:border-primary/30 transition-colors"
-          >
-            {/* Status dot */}
-            <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[ticket.status] || 'bg-default-400'}`} />
+        {!authLoading && !loading && tickets.length > 0 && (
+          <Card padded={false} className="overflow-hidden">
+            {tickets.map((ticket, i) => (
+              <Link
+                key={ticket.id}
+                href={`/support/${ticket.id}`}
+                className={`flex items-center gap-3.5 px-4 py-3.5 hover:bg-surface-2 transition-colors ${i < tickets.length - 1 ? 'border-b border-line' : ''}`}
+              >
+                {/* Status dot */}
+                <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[ticket.status] || 'bg-ink-faint'}`} />
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="font-mono text-[10px] text-default-400">{ticket.ticket_number}</span>
-                <span className="text-[10px] text-default-500">{ticket.category_label}</span>
-                {ticket.unread_count > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-danger text-white font-bold">
-                    {ticket.unread_count > 9 ? '9+' : ticket.unread_count}
-                  </span>
-                )}
-              </div>
-              <p className="text-sm font-semibold text-foreground truncate">{ticket.subject}</p>
-              <p className="text-[10px] text-default-400 mt-0.5">{formatTimeAgo(ticket.last_message_at)}</p>
-            </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-mono text-[10px] text-ink-faint">{ticket.ticket_number}</span>
+                    <span className="text-[10px] text-ink-muted">{ticket.category_label}</span>
+                    {ticket.unread_count > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-accent text-accent-ink font-bold">
+                        {ticket.unread_count > 9 ? '9+' : ticket.unread_count}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[13.5px] font-semibold text-ink truncate">{ticket.subject}</p>
+                  <p className="text-[10px] text-ink-faint mt-0.5">{formatTimeAgo(ticket.last_message_at)}</p>
+                </div>
 
-            <svg className="w-4 h-4 text-default-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        ))}
+                <IconChevronRight size={16} className="text-ink-faint shrink-0" />
+              </Link>
+            ))}
+          </Card>
+        )}
       </main>
 
       {/* Bottom Sheet — New Ticket */}
@@ -195,34 +203,32 @@ export default function SupportPage() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => !creating && setSheetOpen(false)}
           />
-          <div className="relative bg-background rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-surface rounded-t-3xl shadow-roy max-h-[90vh] overflow-y-auto lg:max-w-lg lg:mx-auto lg:rounded-3xl lg:mb-8">
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-default-200 rounded-full" />
+              <div className="w-10 h-1 bg-surface-2 rounded-full" />
             </div>
 
             <div className="px-5 pb-8 pt-3 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-foreground">{t('support.newTicket')}</h2>
+                <h2 className="text-lg font-bold text-ink">{t('support.newTicket')}</h2>
                 <button
                   onClick={() => !creating && setSheetOpen(false)}
-                  className="p-1.5 rounded-xl hover:bg-content2 transition-colors"
+                  className="p-1.5 rounded-xl hover:bg-surface-2 transition-colors text-ink-faint"
                 >
-                  <svg className="w-5 h-5 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
               {formError && (
-                <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl">
-                  <p className="text-danger text-sm">{formError}</p>
-                </div>
+                <div className="p-3 rounded-xl bg-neg/10 border border-neg/20 text-neg text-sm">{formError}</div>
               )}
 
               {/* Category */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">{t('support.category')}</label>
+                <label className="text-sm font-medium text-ink block">{t('support.category')}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {CATEGORY_OPTIONS.map(c => (
                     <button
@@ -231,8 +237,8 @@ export default function SupportPage() {
                       onClick={() => setCategory(c.key)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
                         category === c.key
-                          ? 'bg-primary text-white'
-                          : 'bg-content1 border border-divider text-default-500 hover:text-foreground'
+                          ? 'bg-accent text-accent-ink'
+                          : 'bg-surface border border-line text-ink-muted hover:text-ink'
                       }`}
                     >
                       {c.label}
@@ -243,25 +249,25 @@ export default function SupportPage() {
 
               {/* Subject */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">{t('support.subject')}</label>
+                <label className="text-sm font-medium text-ink block">{t('support.subject')}</label>
                 <input
                   type="text"
                   placeholder={t('support.subjectPlaceholder')}
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
-                  className="w-full px-4 py-3 bg-content1 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
+                  className="w-full px-4 py-3 bg-surface-2 border border-line rounded-xl text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors text-sm"
                 />
               </div>
 
               {/* Message */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground block">{t('support.send')}</label>
+                <label className="text-sm font-medium text-ink block">{t('support.send')}</label>
                 <textarea
                   placeholder={t('support.detailPlaceholder')}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
                   rows={5}
-                  className="w-full px-4 py-3 bg-content1 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm resize-none"
+                  className="w-full px-4 py-3 bg-surface-2 border border-line rounded-xl text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors text-sm resize-none"
                 />
               </div>
 
@@ -270,17 +276,17 @@ export default function SupportPage() {
                 <button
                   onClick={() => !creating && setSheetOpen(false)}
                   disabled={creating}
-                  className="flex-1 py-3 rounded-xl text-sm font-medium bg-content1 border border-divider text-default-500 hover:text-foreground transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl text-sm font-medium bg-surface border border-line text-ink-muted hover:text-ink transition-colors disabled:opacity-50"
                 >
                   {t('app.cancel')}
                 </button>
-                <button
+                <AccentButton
                   onClick={handleCreateTicket}
                   disabled={creating || !subject.trim() || !message.trim()}
-                  className="flex-1 py-3 rounded-xl text-sm font-semibold bg-primary text-white disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3"
                 >
                   {creating ? <Spinner size="sm" color="white" /> : t('support.send')}
-                </button>
+                </AccentButton>
               </div>
             </div>
           </div>

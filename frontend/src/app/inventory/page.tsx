@@ -17,6 +17,8 @@ import {
   InventorySummary,
   StockMovement,
 } from '@/lib/api';
+import { Card, Eyebrow, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconPlus, IconImport } from '@/components/roy/icons';
 import AssetsTab from './AssetsTab';
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -35,11 +37,11 @@ const STATUS_LABELS: Record<string, string> = {
   discontinued: 'Arrêté',
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  available: 'bg-green-100 text-green-700',
-  sold_out: 'bg-red-100 text-red-700',
-  preorder: 'bg-blue-100 text-blue-700',
-  discontinued: 'bg-gray-100 text-gray-700',
+const STATUS_TONE: Record<string, 'accent' | 'neutral'> = {
+  available: 'accent',
+  sold_out: 'neutral',
+  preorder: 'accent',
+  discontinued: 'neutral',
 };
 
 const FORMAT_ICONS: Record<string, string> = {
@@ -83,6 +85,10 @@ const emptyProduct: Partial<Product> = {
   image_url: '',
   notes: '',
 };
+
+const inputClass =
+  'w-full h-11 px-3.5 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -271,37 +277,33 @@ export default function InventoryPage() {
     }
   };
 
+  const formatEUR = (n: number) => n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-center min-h-[60vh]">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Inventaire</h1>
-          <p className="text-sm text-secondary-500 mt-1">
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Inventaire</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">
             {activeTab === 'products' ? 'Gestion du stock physique et merch' : 'Immobilisations corporelles & incorporelles'}
           </p>
         </div>
-        <div className={`flex items-center gap-2 ${activeTab === 'assets' ? 'hidden' : ''}`}>
-          <button
-            onClick={() => { setShowCsvImport(true); setCsvFile(null); }}
-            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Import CSV
-          </button>
-          <button
-            disabled={recalculatingStock}
+        <div className={`flex items-center gap-2.5 ${activeTab === 'assets' ? 'hidden' : ''}`}>
+          <OutlineButton onClick={() => { setShowCsvImport(true); setCsvFile(null); }}>
+            <IconImport size={14} /> Import CSV
+          </OutlineButton>
+          <OutlineButton
             onClick={async () => {
+              if (recalculatingStock) return;
               setRecalculatingStock(true);
               setError(null);
               setSuccessMsg(null);
@@ -315,22 +317,22 @@ export default function InventoryPage() {
                 setRecalculatingStock(false);
               }
             }}
-            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className={recalculatingStock ? 'opacity-50 pointer-events-none' : ''}
           >
             {recalculatingStock ? (
-              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             )}
             Recalculer stock
-          </button>
-          <button
-            disabled={autoDiscovering}
+          </OutlineButton>
+          <OutlineButton
             onClick={async () => {
+              if (autoDiscovering) return;
               setAutoDiscovering(true);
               setError(null);
               setSuccessMsg(null);
@@ -356,791 +358,751 @@ export default function InventoryPage() {
                 setAutoDiscovering(false);
               }
             }}
-            className="px-4 py-2 bg-default-100 text-foreground rounded-xl font-medium hover:bg-default-200 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className={autoDiscovering ? 'opacity-50 pointer-events-none' : ''}
           >
             {autoDiscovering ? (
-              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             )}
             Auto-découvrir
-          </button>
-          <button
+          </OutlineButton>
+          <AccentButton
             onClick={() => {
               setFormData(emptyProduct);
               setShowCreateModal(true);
             }}
-            className="px-4 py-2 bg-primary text-white rounded-xl font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nouveau produit
-          </button>
+            <IconPlus size={14} /> Nouveau produit
+          </AccentButton>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-divider">
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'products'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary-500 hover:text-foreground'
-          }`}
-        >
-          Produits & merch
-        </button>
-        <button
-          onClick={() => setActiveTab('assets')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'assets'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-secondary-500 hover:text-foreground'
-          }`}
-        >
-          Immobilisations
-        </button>
-      </div>
-
-      {activeTab === 'assets' ? (
-        <AssetsTab />
-      ) : (
-      <>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-danger/10 border border-danger/30 text-danger rounded-xl p-4 text-sm flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-4 underline shrink-0">Fermer</button>
-        </div>
-      )}
-
-      {/* Success */}
-      {successMsg && (
-        <div className="bg-success/10 border border-success/30 text-success rounded-xl p-4 text-sm flex items-center justify-between">
-          <span>{successMsg}</span>
-          <button onClick={() => setSuccessMsg(null)} className="ml-4 underline shrink-0">Fermer</button>
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-            <p className="text-xs text-secondary-500 uppercase tracking-wide">Produits</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{summary.total_products}</p>
-          </div>
-          <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-            <p className="text-xs text-secondary-500 uppercase tracking-wide">Stock total</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{summary.total_stock}</p>
-          </div>
-          <div className={`rounded-2xl p-4 border ${summary.low_stock_count > 0 ? 'bg-warning/10 border-warning/30' : 'bg-default-50 border-divider'}`}>
-            <p className="text-xs text-secondary-500 uppercase tracking-wide">Stock faible</p>
-            <p className={`text-2xl font-bold mt-1 ${summary.low_stock_count > 0 ? 'text-warning' : 'text-foreground'}`}>
-              {summary.low_stock_count}
-            </p>
-          </div>
-          <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-            <p className="text-xs text-secondary-500 uppercase tracking-wide">Valeur totale</p>
-            <p className="text-2xl font-bold text-foreground mt-1">
-              {summary.total_value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Par format */}
-      {summary && Object.keys(summary.by_format || {}).length > 0 && (
-        <div className="bg-default-50 rounded-2xl p-4 border border-divider">
-          <p className="text-xs text-secondary-500 uppercase tracking-wide mb-3">Répartition par format</p>
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(summary.by_format)
-              .sort(([, a], [, b]) => b - a)
-              .map(([fmt, count]) => (
-                <button
-                  key={fmt}
-                  onClick={() => setFormatFilter(formatFilter === fmt ? '' : fmt)}
-                  className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors border ${
-                    formatFilter === fmt
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-default-100 text-foreground border-divider hover:bg-default-200'
-                  }`}
-                >
-                  {FORMAT_LABELS[fmt] || fmt} · {count}
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          {fetching ? (
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          ) : (
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          )}
-          <input
-            type="text"
-            placeholder="Rechercher un produit..."
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-        </div>
-
-        <select
-          value={formatFilter}
-          onChange={e => setFormatFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-        >
-          <option value="">Tous les formats</option>
-          {Object.entries(FORMAT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {/* Tabs — segmented pill control */}
+        <div className="flex gap-1 rounded-[11px] border border-line bg-surface p-1 w-fit">
+          {([
+            { key: 'products', label: 'Produits & merch' },
+            { key: 'assets', label: 'Immobilisations' },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-1.5 rounded-lg text-[12.5px] transition-colors ${
+                activeTab === t.key
+                  ? 'bg-accent-soft text-accent font-semibold'
+                  : 'text-ink-muted hover:text-ink font-medium'
+              }`}
+            >
+              {t.label}
+            </button>
           ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-        >
-          <option value="">Tous les statuts</option>
-          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-
-        <label className="flex items-center gap-2 text-sm text-secondary-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={lowStockOnly}
-            onChange={e => setLowStockOnly(e.target.checked)}
-            className="rounded border-divider"
-          />
-          Stock faible
-        </label>
-      </div>
-
-      {/* Products Table */}
-      {products.length === 0 ? (
-        <div className="text-center py-16 bg-default-50 rounded-2xl border border-divider">
-          <svg className="w-12 h-12 mx-auto text-secondary-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-          <p className="text-secondary-500">Aucun produit trouvé</p>
-          <button
-            onClick={() => { setFormData(emptyProduct); setShowCreateModal(true); }}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            Ajouter un produit
-          </button>
         </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-divider text-left">
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Produit</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Format</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Stock</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Prix</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide">Statut</th>
-                <th className="pb-3 font-semibold text-secondary-500 text-xs uppercase tracking-wide text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => {
-                const isLowStock = product.stock_quantity <= product.low_stock_threshold;
-                return (
-                  <tr key={product.id} className="border-b border-divider/50 hover:bg-default-50 transition-colors">
-                    {/* Product info */}
-                    <td className="py-3 pr-4">
-                      <div className="flex items-center gap-3">
-                        {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.title}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-default-100 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={FORMAT_ICONS[product.format] || FORMAT_ICONS.other} />
-                            </svg>
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-foreground">{product.title}</p>
-                          <div className="flex items-center gap-2 text-xs text-secondary-500">
-                            {product.variant && <span>{product.variant}</span>}
-                            {product.artist_name && <span>{product.artist_name}</span>}
-                            {product.limited_edition && (
-                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-semibold">
-                                LTD{product.edition_size ? ` /${product.edition_size}` : ''}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
 
-                    {/* Format */}
-                    <td className="py-3 pr-4">
-                      <span className="px-2 py-1 bg-default-100 rounded-lg text-xs font-medium text-secondary-600">
-                        {FORMAT_LABELS[product.format] || product.format}
-                      </span>
-                    </td>
+        {activeTab === 'assets' ? (
+          <AssetsTab />
+        ) : (
+        <>
 
-                    {/* Stock with quick adjust */}
-                    <td className="py-3 pr-4">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleQuickAdjust(product, -1)}
-                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                            title="Retirer 1"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                            </svg>
-                          </button>
-                          <span className={`font-bold min-w-[2rem] text-center ${isLowStock ? 'text-danger' : 'text-foreground'}`}>
-                            {product.stock_quantity}
-                          </span>
-                          <button
-                            onClick={() => handleQuickAdjust(product, 1)}
-                            className="w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-secondary-600 transition-colors"
-                            title="Ajouter 1"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                          {isLowStock && (
-                            <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                          )}
-                        </div>
-                        {((product.total_sold ?? 0) > 0 || (product.initial_stock_quantity ?? 0) > 0) && (
-                          <span className="text-[11px] text-secondary-500">
-                            {(product.initial_stock_quantity ?? 0) > 0 && (
-                              <>/ {product.initial_stock_quantity} pressés </>
-                            )}
-                            {(product.total_sold ?? 0) > 0 && (
-                              <>· {product.total_sold} vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}</>
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </td>
+        {/* Error */}
+        {error && (
+          <div className="bg-surface border border-line rounded-[16px] px-4 py-3 text-[12.5px] text-neg flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="ml-4 underline shrink-0 text-ink-muted hover:text-ink">Fermer</button>
+          </div>
+        )}
 
-                    {/* Price */}
-                    <td className="py-3 pr-4 text-foreground">
-                      {product.price_eur != null
-                        ? product.price_eur.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-                        : '—'}
-                    </td>
+        {/* Success */}
+        {successMsg && (
+          <div className="bg-surface border border-line rounded-[16px] px-4 py-3 text-[12.5px] text-accent flex items-center justify-between">
+            <span>{successMsg}</span>
+            <button onClick={() => setSuccessMsg(null)} className="ml-4 underline shrink-0 text-ink-muted hover:text-ink">Fermer</button>
+          </div>
+        )}
 
-                    {/* Status */}
-                    <td className="py-3 pr-4">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${STATUS_COLORS[product.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {STATUS_LABELS[product.status] || product.status}
-                      </span>
-                    </td>
+        {/* Summary KPIs */}
+        {summary && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+            <Kpi label="Produits" value={String(summary.total_products)} />
+            <Kpi label="Stock total" value={String(summary.total_stock)} />
+            <Kpi
+              label="Stock faible"
+              value={String(summary.low_stock_count)}
+              accentValue={summary.low_stock_count > 0}
+              hint={summary.low_stock_count > 0 ? 'À réapprovisionner' : undefined}
+              hintTone="accent"
+            />
+            <Kpi label="Valeur totale" value={formatEUR(summary.total_value)} hero accentValue />
+          </div>
+        )}
 
-                    {/* Actions */}
-                    <td className="py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            setStockAdjustProduct(product);
-                            setStockForm({ quantity: 1, movement_type: 'in', reason: '', source: 'manual' });
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-default-100 text-secondary-500 hover:text-primary transition-colors"
-                          title="Ajuster le stock"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => openMovements(product)}
-                          className="p-1.5 rounded-lg hover:bg-default-100 text-secondary-500 hover:text-foreground transition-colors"
-                          title="Historique"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => openEdit(product)}
-                          className="p-1.5 rounded-lg hover:bg-default-100 text-secondary-500 hover:text-foreground transition-colors"
-                          title="Modifier"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          disabled={deleting === product.id}
-                          className="p-1.5 rounded-lg hover:bg-danger/10 text-secondary-500 hover:text-danger transition-colors disabled:opacity-50"
-                          title="Supprimer"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Create / Edit Product Modal */}
-      {(showCreateModal || editingProduct) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setShowCreateModal(false); setEditingProduct(null); }}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-lg max-h-[90vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">
-                {editingProduct ? 'Modifier le produit' : 'Nouveau produit'}
-              </h2>
+        {/* Par format */}
+        {summary && Object.keys(summary.by_format || {}).length > 0 && (
+          <Card>
+            <Eyebrow>Répartition par format</Eyebrow>
+            <div className="flex flex-wrap gap-2 mt-3">
+              {Object.entries(summary.by_format)
+                .sort(([, a], [, b]) => b - a)
+                .map(([fmt, count]) => {
+                  const active = formatFilter === fmt;
+                  return (
+                    <button
+                      key={fmt}
+                      onClick={() => setFormatFilter(active ? '' : fmt)}
+                      className={`inline-flex items-center gap-1 rounded-full px-3 py-[5px] text-[11px] font-semibold transition-colors ${
+                        active ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-ink-muted hover:text-ink'
+                      }`}
+                    >
+                      {FORMAT_LABELS[fmt] || fmt} · <span className="roy-num">{count}</span>
+                    </button>
+                  );
+                })}
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Titre *</label>
-                <input
-                  type="text"
-                  value={formData.title || ''}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  placeholder="Nom du produit"
-                />
-              </div>
+          </Card>
+        )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Format *</label>
-                  <select
-                    value={formData.format || 'vinyl'}
-                    onChange={e => setFormData({ ...formData, format: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  >
-                    {Object.entries(FORMAT_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Statut</label>
-                  <select
-                    value={formData.status || 'available'}
-                    onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  >
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            {fetching ? (
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-accent animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ) : (
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            )}
+            <input
+              type="text"
+              placeholder="Rechercher un produit…"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              className="h-11 w-full pl-10 pr-4 rounded-[10px] bg-surface border border-line text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors"
+            />
+          </div>
 
-              <div className="grid grid-cols-2 gap-4">
+          <select
+            value={formatFilter}
+            onChange={e => setFormatFilter(e.target.value)}
+            className="h-11 px-3.5 rounded-[10px] bg-surface border border-line text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
+          >
+            <option value="">Tous les formats</option>
+            {Object.entries(FORMAT_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="h-11 px-3.5 rounded-[10px] bg-surface border border-line text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors"
+          >
+            <option value="">Tous les statuts</option>
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+
+          <label className="flex items-center gap-2 text-[12.5px] text-ink-muted cursor-pointer px-1">
+            <input
+              type="checkbox"
+              checked={lowStockOnly}
+              onChange={e => setLowStockOnly(e.target.checked)}
+              className="rounded border-line accent-[var(--accent)]"
+            />
+            Stock faible
+          </label>
+        </div>
+
+        {/* Products Table */}
+        {products.length === 0 ? (
+          <Card className="text-center py-16">
+            <svg className="w-12 h-12 mx-auto text-ink-faint mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <p className="text-ink-faint text-[13px]">Aucun produit trouvé</p>
+            <div className="mt-4 flex justify-center">
+              <AccentButton onClick={() => { setFormData(emptyProduct); setShowCreateModal(true); }}>
+                <IconPlus size={14} /> Ajouter un produit
+              </AccentButton>
+            </div>
+          </Card>
+        ) : (
+          <Card padded={false} className="overflow-hidden">
+            {/* Header row */}
+            <div className="grid grid-cols-[2.4fr_0.9fr_1.4fr_0.9fr_0.9fr_1.1fr] px-[22px] py-3 border-b border-line">
+              <Eyebrow className="text-[10px]">Produit</Eyebrow>
+              <Eyebrow className="text-[10px]">Format</Eyebrow>
+              <Eyebrow className="text-[10px]">Stock</Eyebrow>
+              <Eyebrow className="text-[10px] text-right">Prix</Eyebrow>
+              <Eyebrow className="text-[10px]">Statut</Eyebrow>
+              <Eyebrow className="text-[10px] text-right">Actions</Eyebrow>
+            </div>
+            {products.map(product => {
+              const isLowStock = product.stock_quantity <= product.low_stock_threshold;
+              return (
+                <div
+                  key={product.id}
+                  className="grid grid-cols-[2.4fr_0.9fr_1.4fr_0.9fr_0.9fr_1.1fr] items-center px-[22px] py-3.5 border-b border-line last:border-0 hover:bg-surface-2 transition-colors"
+                >
+                  {/* Product info */}
+                  <div className="flex items-center gap-3 min-w-0 pr-3">
+                    {product.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.image_url}
+                        alt={product.title}
+                        className="w-10 h-10 rounded-[10px] object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-[10px] bg-surface-2 flex items-center justify-center shrink-0">
+                        <svg className="w-5 h-5 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={FORMAT_ICONS[product.format] || FORMAT_ICONS.other} />
+                        </svg>
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold text-ink truncate">{product.title}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-ink-faint mt-0.5">
+                        {product.variant && <span className="truncate">{product.variant}</span>}
+                        {product.artist_name && <span className="truncate">{product.artist_name}</span>}
+                        {product.limited_edition && (
+                          <span className="inline-flex items-center rounded-full bg-accent-soft text-accent px-2 py-[2px] text-[9.5px] font-bold tracking-wide">
+                            LTD{product.edition_size ? ` /${product.edition_size}` : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Format */}
+                  <div>
+                    <Pill tone="neutral">{FORMAT_LABELS[product.format] || product.format}</Pill>
+                  </div>
+
+                  {/* Stock with quick adjust */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleQuickAdjust(product, -1)}
+                        className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
+                        title="Retirer 1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                        </svg>
+                      </button>
+                      <span className={`roy-num font-bold min-w-[2rem] text-center ${isLowStock ? 'text-neg' : 'text-ink'}`}>
+                        {product.stock_quantity}
+                      </span>
+                      <button
+                        onClick={() => handleQuickAdjust(product, 1)}
+                        className="w-6 h-6 rounded-full bg-surface-2 hover:bg-track flex items-center justify-center text-ink-muted transition-colors"
+                        title="Ajouter 1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                      {isLowStock && (
+                        <svg className="w-4 h-4 text-neg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                      )}
+                    </div>
+                    {((product.total_sold ?? 0) > 0 || (product.initial_stock_quantity ?? 0) > 0) && (
+                      <span className="text-[11px] text-ink-faint">
+                        {(product.initial_stock_quantity ?? 0) > 0 && (
+                          <>/ <span className="roy-num">{product.initial_stock_quantity}</span> pressés </>
+                        )}
+                        {(product.total_sold ?? 0) > 0 && (
+                          <>· <span className="roy-num">{product.total_sold}</span> vendu{(product.total_sold ?? 0) > 1 ? 's' : ''}</>
+                        )}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Price */}
+                  <div className="text-right roy-num text-[13px] text-ink">
+                    {product.price_eur != null ? formatEUR(product.price_eur) : '—'}
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <Pill tone={STATUS_TONE[product.status] || 'neutral'}>
+                      {STATUS_LABELS[product.status] || product.status}
+                    </Pill>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => {
+                        setStockAdjustProduct(product);
+                        setStockForm({ quantity: 1, movement_type: 'in', reason: '', source: 'manual' });
+                      }}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-accent transition-colors"
+                      title="Ajuster le stock"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => openMovements(product)}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors"
+                      title="Historique"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => openEdit(product)}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-ink transition-colors"
+                      title="Modifier"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      disabled={deleting === product.id}
+                      className="p-1.5 rounded-[8px] hover:bg-surface text-ink-faint hover:text-neg transition-colors disabled:opacity-50"
+                      title="Supprimer"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* Create / Edit Product Modal */}
+        {(showCreateModal || editingProduct) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => { setShowCreateModal(false); setEditingProduct(null); }}>
+            <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-lg max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-5 border-b border-line">
+                <h2 className="text-[16px] font-bold text-ink">
+                  {editingProduct ? 'Modifier le produit' : 'Nouveau produit'}
+                </h2>
+              </div>
+              <div className="px-6 py-5 overflow-y-auto max-h-[64vh] space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Variante</label>
+                  <label className={labelClass}>Titre *</label>
                   <input
                     type="text"
-                    value={formData.variant || ''}
-                    onChange={e => setFormData({ ...formData, variant: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                    placeholder="ex: Couleur, édition..."
+                    value={formData.title || ''}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                    className={inputClass}
+                    placeholder="Nom du produit"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Artiste</label>
-                  <input
-                    type="text"
-                    value={formData.artist_name || ''}
-                    onChange={e => setFormData({ ...formData, artist_name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                    placeholder="Nom de l'artiste"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">SKU</label>
-                  <input
-                    type="text"
-                    value={formData.sku || ''}
-                    onChange={e => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Format *</label>
+                    <select
+                      value={formData.format || 'vinyl'}
+                      onChange={e => setFormData({ ...formData, format: e.target.value })}
+                      className={inputClass}
+                    >
+                      {Object.entries(FORMAT_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Statut</label>
+                    <select
+                      value={formData.status || 'available'}
+                      onChange={e => setFormData({ ...formData, status: e.target.value })}
+                      className={inputClass}
+                    >
+                      {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">UPC</label>
-                  <input
-                    type="text"
-                    value={formData.release_upc || ''}
-                    onChange={e => setFormData({ ...formData, release_upc: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Prix (EUR)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price_eur ?? ''}
-                    onChange={e => setFormData({ ...formData, price_eur: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Variante</label>
+                    <input
+                      type="text"
+                      value={formData.variant || ''}
+                      onChange={e => setFormData({ ...formData, variant: e.target.value })}
+                      className={inputClass}
+                      placeholder="ex: Couleur, édition..."
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Artiste</label>
+                    <input
+                      type="text"
+                      value={formData.artist_name || ''}
+                      onChange={e => setFormData({ ...formData, artist_name: e.target.value })}
+                      className={inputClass}
+                      placeholder="Nom de l'artiste"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Coût (EUR)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.cost_eur ?? ''}
-                    onChange={e => setFormData({ ...formData, cost_eur: e.target.value ? parseFloat(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Pressage (base)</label>
-                  <input
-                    type="number"
-                    value={formData.initial_stock_quantity ?? 300}
-                    onChange={e => setFormData({ ...formData, initial_stock_quantity: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                    title="Nombre d'unités pressées (sert au recalcul stock = base − vendus)"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>SKU</label>
+                    <input
+                      type="text"
+                      value={formData.sku || ''}
+                      onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>UPC</label>
+                    <input
+                      type="text"
+                      value={formData.release_upc || ''}
+                      onChange={e => setFormData({ ...formData, release_upc: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Stock actuel</label>
-                  <input
-                    type="number"
-                    value={formData.stock_quantity ?? 0}
-                    onChange={e => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Seuil alerte</label>
-                  <input
-                    type="number"
-                    value={formData.low_stock_threshold ?? 5}
-                    onChange={e => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
-                </div>
-              </div>
 
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.limited_edition || false}
-                    onChange={e => setFormData({ ...formData, limited_edition: e.target.checked })}
-                    className="rounded border-divider"
-                  />
-                  Édition limitée
-                </label>
-                {formData.limited_edition && (
-                  <div className="flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Prix (EUR)</label>
                     <input
                       type="number"
-                      placeholder="Taille de l'édition"
-                      value={formData.edition_size ?? ''}
-                      onChange={e => setFormData({ ...formData, edition_size: e.target.value ? parseInt(e.target.value) : undefined })}
-                      className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
+                      step="0.01"
+                      value={formData.price_eur ?? ''}
+                      onChange={e => setFormData({ ...formData, price_eur: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className={inputClass}
                     />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Coût (EUR)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.cost_eur ?? ''}
+                      onChange={e => setFormData({ ...formData, cost_eur: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>Pressage (base)</label>
+                    <input
+                      type="number"
+                      value={formData.initial_stock_quantity ?? 300}
+                      onChange={e => setFormData({ ...formData, initial_stock_quantity: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                      title="Nombre d'unités pressées (sert au recalcul stock = base − vendus)"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Stock actuel</label>
+                    <input
+                      type="number"
+                      value={formData.stock_quantity ?? 0}
+                      onChange={e => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Seuil alerte</label>
+                    <input
+                      type="number"
+                      value={formData.low_stock_threshold ?? 5}
+                      onChange={e => setFormData({ ...formData, low_stock_threshold: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-[13px] text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.limited_edition || false}
+                      onChange={e => setFormData({ ...formData, limited_edition: e.target.checked })}
+                      className="rounded border-line accent-[var(--accent)]"
+                    />
+                    Édition limitée
+                  </label>
+                  {formData.limited_edition && (
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        placeholder="Taille de l'édition"
+                        value={formData.edition_size ?? ''}
+                        onChange={e => setFormData({ ...formData, edition_size: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={labelClass}>URL image</label>
+                  <input
+                    type="text"
+                    value={formData.image_url || ''}
+                    onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                    className={inputClass}
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Notes</label>
+                  <textarea
+                    value={formData.notes || ''}
+                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-surface border border-line rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors resize-none"
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+                <OutlineButton onClick={() => { setShowCreateModal(false); setEditingProduct(null); }}>
+                  Annuler
+                </OutlineButton>
+                <AccentButton
+                  onClick={editingProduct ? handleUpdate : handleCreate}
+                  disabled={saving || !formData.title}
+                >
+                  {saving && <Spinner size="sm" color="white" />}
+                  {saving ? 'Enregistrement...' : editingProduct ? 'Mettre à jour' : 'Créer'}
+                </AccentButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stock Adjustment Modal */}
+        {stockAdjustProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setStockAdjustProduct(null)}>
+            <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-5 border-b border-line">
+                <h2 className="text-[16px] font-bold text-ink">Ajuster le stock</h2>
+                <p className="text-[12.5px] text-ink-faint mt-0.5">{stockAdjustProduct.title}</p>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Quantité</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={stockForm.quantity}
+                      onChange={e => setStockForm({ ...stockForm, quantity: parseInt(e.target.value) || 1 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Type</label>
+                    <select
+                      value={stockForm.movement_type}
+                      onChange={e => setStockForm({ ...stockForm, movement_type: e.target.value })}
+                      className={inputClass}
+                    >
+                      {MOVEMENT_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Source</label>
+                  <select
+                    value={stockForm.source}
+                    onChange={e => setStockForm({ ...stockForm, source: e.target.value })}
+                    className={inputClass}
+                  >
+                    {MOVEMENT_SOURCES.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Raison</label>
+                  <input
+                    type="text"
+                    value={stockForm.reason}
+                    onChange={e => setStockForm({ ...stockForm, reason: e.target.value })}
+                    className={inputClass}
+                    placeholder="Optionnel"
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+                <OutlineButton onClick={() => setStockAdjustProduct(null)}>
+                  Annuler
+                </OutlineButton>
+                <AccentButton onClick={handleStockAdjust} disabled={saving}>
+                  {saving && <Spinner size="sm" color="white" />}
+                  {saving ? 'Enregistrement...' : 'Valider'}
+                </AccentButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CSV Import Modal */}
+        {showCsvImport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowCsvImport(false)}>
+            <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-md" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-5 border-b border-line">
+                <h2 className="text-[16px] font-bold text-ink">Import CSV</h2>
+                <p className="text-[12.5px] text-ink-faint mt-0.5">Importer des produits physiques depuis Bandcamp ou Squarespace</p>
+              </div>
+              <div className="px-6 py-5 space-y-4">
+                <div>
+                  <label className={labelClass}>Source</label>
+                  <div className="flex gap-2">
+                    {(['bandcamp', 'squarespace'] as const).map(src => (
+                      <button
+                        key={src}
+                        onClick={() => setCsvSource(src)}
+                        className={`flex-1 px-4 py-2.5 rounded-[10px] border text-[12.5px] font-semibold transition-colors ${
+                          csvSource === src
+                            ? 'bg-accent text-accent-ink border-accent'
+                            : 'bg-surface text-ink-muted border-line hover:bg-surface-2'
+                        }`}
+                      >
+                        {src === 'bandcamp' ? 'Bandcamp' : 'Squarespace'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Fichier CSV</label>
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-line rounded-[12px] cursor-pointer hover:border-line-strong hover:bg-surface-2 transition-colors">
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
+                    />
+                    {csvFile ? (
+                      <div className="text-center px-4">
+                        <svg className="w-6 h-6 text-accent mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-[13px] font-semibold text-ink truncate max-w-xs">{csvFile.name}</p>
+                        <p className="text-[11px] text-ink-faint mt-0.5">{(csvFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <svg className="w-8 h-8 text-ink-faint mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        <p className="text-[13px] text-ink-muted">Cliquer pour sélectionner un fichier</p>
+                        <p className="text-[11px] text-ink-faint mt-0.5">CSV uniquement</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-line flex justify-end gap-3 bg-surface-2">
+                <OutlineButton onClick={() => { setShowCsvImport(false); setCsvFile(null); }}>
+                  Annuler
+                </OutlineButton>
+                <AccentButton
+                  onClick={handleCsvImport}
+                  disabled={!csvFile || csvImporting}
+                >
+                  {csvImporting ? <Spinner size="sm" color="white" /> : null}
+                  {csvImporting ? 'Import en cours...' : 'Importer'}
+                </AccentButton>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Movements History Modal */}
+        {movementsProduct && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setMovementsProduct(null)}>
+            <div className="relative bg-surface border border-line rounded-[16px] shadow-roy w-full max-w-lg max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="px-6 py-5 border-b border-line">
+                <h2 className="text-[16px] font-bold text-ink">Historique des mouvements</h2>
+                <p className="text-[12.5px] text-ink-faint mt-0.5">{movementsProduct.title}</p>
+              </div>
+              <div className="px-6 py-5 overflow-y-auto max-h-[56vh]">
+                {loadingMovements ? (
+                  <div className="flex justify-center py-8"><Spinner size="sm" /></div>
+                ) : movements.length === 0 ? (
+                  <p className="text-center text-ink-faint text-[13px] py-8">Aucun mouvement enregistré</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {movements.map(m => {
+                      const inbound = m.movement_type === 'in' || m.movement_type === 'return';
+                      return (
+                        <div key={m.id} className="flex items-center gap-3 p-3 bg-surface-2 rounded-[12px]">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            inbound ? 'bg-accent-soft text-accent' : 'bg-surface text-ink-muted border border-line'
+                          }`}>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d={inbound ? 'M12 19V5m0 0l-4 4m4-4l4 4' : 'M12 5v14m0 0l-4-4m4 4l4-4'}
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="roy-num text-[13px] font-semibold text-ink">
+                                {m.movement_type === 'in' ? '+' : m.movement_type === 'return' ? '+' : '-'}{m.quantity}
+                              </span>
+                              <span className="text-[11px] text-ink-faint">
+                                {MOVEMENT_TYPES.find(t => t.value === m.movement_type)?.label || m.movement_type}
+                              </span>
+                              {m.source && (
+                                <span className="text-[11px] text-ink-faint">
+                                  ({MOVEMENT_SOURCES.find(s => s.value === m.source)?.label || m.source})
+                                </span>
+                              )}
+                            </div>
+                            {m.reason && <p className="text-[11px] text-ink-faint mt-0.5">{m.reason}</p>}
+                          </div>
+                          <span className="text-[11px] text-ink-faint flex-shrink-0">
+                            {new Date(m.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">URL image</label>
-                <input
-                  type="text"
-                  value={formData.image_url || ''}
-                  onChange={e => setFormData({ ...formData, image_url: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  placeholder="https://..."
-                />
+              <div className="px-6 py-4 border-t border-line flex justify-end bg-surface-2">
+                <OutlineButton onClick={() => setMovementsProduct(null)}>
+                  Fermer
+                </OutlineButton>
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Notes</label>
-                <textarea
-                  value={formData.notes || ''}
-                  onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground resize-none"
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-divider flex justify-end gap-3">
-              <button
-                onClick={() => { setShowCreateModal(false); setEditingProduct(null); }}
-                className="px-4 py-2 rounded-xl bg-default-100 text-secondary-600 text-sm font-medium hover:bg-default-200 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={editingProduct ? handleUpdate : handleCreate}
-                disabled={saving || !formData.title}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Enregistrement...' : editingProduct ? 'Mettre à jour' : 'Créer'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Stock Adjustment Modal */}
-      {stockAdjustProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setStockAdjustProduct(null)}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">Ajuster le stock</h2>
-              <p className="text-sm text-secondary-500 mt-1">{stockAdjustProduct.title}</p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Quantité</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={stockForm.quantity}
-                    onChange={e => setStockForm({ ...stockForm, quantity: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary-500 mb-1">Type</label>
-                  <select
-                    value={stockForm.movement_type}
-                    onChange={e => setStockForm({ ...stockForm, movement_type: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  >
-                    {MOVEMENT_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Source</label>
-                <select
-                  value={stockForm.source}
-                  onChange={e => setStockForm({ ...stockForm, source: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                >
-                  {MOVEMENT_SOURCES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-1">Raison</label>
-                <input
-                  type="text"
-                  value={stockForm.reason}
-                  onChange={e => setStockForm({ ...stockForm, reason: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-default-100 border border-divider text-sm text-foreground"
-                  placeholder="Optionnel"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-divider flex justify-end gap-3">
-              <button
-                onClick={() => setStockAdjustProduct(null)}
-                className="px-4 py-2 rounded-xl bg-default-100 text-secondary-600 text-sm font-medium hover:bg-default-200 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleStockAdjust}
-                disabled={saving}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Enregistrement...' : 'Valider'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CSV Import Modal */}
-      {showCsvImport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCsvImport(false)}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-md m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">Import CSV</h2>
-              <p className="text-sm text-secondary-500 mt-1">Importer des produits physiques depuis Bandcamp ou Squarespace</p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-2">Source</label>
-                <div className="flex gap-2">
-                  {(['bandcamp', 'squarespace'] as const).map(src => (
-                    <button
-                      key={src}
-                      onClick={() => setCsvSource(src)}
-                      className={`flex-1 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                        csvSource === src
-                          ? 'bg-primary text-white border-primary'
-                          : 'bg-default-50 text-secondary-600 border-divider hover:bg-default-100'
-                      }`}
-                    >
-                      {src === 'bandcamp' ? 'Bandcamp' : 'Squarespace'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-secondary-500 mb-2">Fichier CSV</label>
-                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-divider rounded-xl cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    className="hidden"
-                    onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
-                  />
-                  {csvFile ? (
-                    <div className="text-center px-4">
-                      <svg className="w-6 h-6 text-primary mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <p className="text-sm font-medium text-foreground truncate max-w-xs">{csvFile.name}</p>
-                      <p className="text-xs text-secondary-500 mt-0.5">{(csvFile.size / 1024).toFixed(1)} KB</p>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <svg className="w-8 h-8 text-secondary-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      <p className="text-sm text-secondary-500">Cliquer pour sélectionner un fichier</p>
-                      <p className="text-xs text-secondary-400 mt-0.5">CSV uniquement</p>
-                    </div>
-                  )}
-                </label>
-              </div>
-            </div>
-            <div className="p-6 border-t border-divider flex justify-end gap-3">
-              <button
-                onClick={() => { setShowCsvImport(false); setCsvFile(null); }}
-                className="px-4 py-2 rounded-xl bg-default-100 text-secondary-600 text-sm font-medium hover:bg-default-200 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleCsvImport}
-                disabled={!csvFile || csvImporting}
-                className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {csvImporting ? <Spinner size="sm" color="white" /> : null}
-                {csvImporting ? 'Import en cours...' : 'Importer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Movements History Modal */}
-      {movementsProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setMovementsProduct(null)}>
-          <div className="bg-background rounded-2xl shadow-xl border border-divider w-full max-w-lg max-h-[80vh] overflow-y-auto m-4" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-divider">
-              <h2 className="text-lg font-bold text-foreground">Historique des mouvements</h2>
-              <p className="text-sm text-secondary-500 mt-1">{movementsProduct.title}</p>
-            </div>
-            <div className="p-6">
-              {loadingMovements ? (
-                <div className="flex justify-center py-8"><Spinner size="sm" /></div>
-              ) : movements.length === 0 ? (
-                <p className="text-center text-secondary-500 py-8">Aucun mouvement enregistré</p>
-              ) : (
-                <div className="space-y-3">
-                  {movements.map(m => (
-                    <div key={m.id} className="flex items-center gap-3 p-3 bg-default-50 rounded-xl">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        m.movement_type === 'in' || m.movement_type === 'return' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d={m.movement_type === 'in' || m.movement_type === 'return' ? 'M12 19V5m0 0l-4 4m4-4l4 4' : 'M12 5v14m0 0l-4-4m4 4l4-4'}
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {m.movement_type === 'in' ? '+' : m.movement_type === 'return' ? '+' : '-'}{m.quantity}
-                          </span>
-                          <span className="text-xs text-secondary-500">
-                            {MOVEMENT_TYPES.find(t => t.value === m.movement_type)?.label || m.movement_type}
-                          </span>
-                          {m.source && (
-                            <span className="text-xs text-secondary-400">
-                              ({MOVEMENT_SOURCES.find(s => s.value === m.source)?.label || m.source})
-                            </span>
-                          )}
-                        </div>
-                        {m.reason && <p className="text-xs text-secondary-500 mt-0.5">{m.reason}</p>}
-                      </div>
-                      <span className="text-xs text-secondary-400 flex-shrink-0">
-                        {new Date(m.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-6 border-t border-divider flex justify-end">
-              <button
-                onClick={() => setMovementsProduct(null)}
-                className="px-4 py-2 rounded-xl bg-default-100 text-secondary-600 text-sm font-medium hover:bg-default-200 transition-colors"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      </>
-      )}
+        )}
+        </>
+        )}
+      </div>
     </div>
   );
 }

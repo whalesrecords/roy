@@ -1,12 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Spinner,
-} from '@heroui/react';
+import { Spinner } from '@heroui/react';
+import Link from 'next/link';
 import {
   BarChart,
   Bar,
@@ -18,11 +14,12 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts';
 import { getAnalyticsSummary, AnalyticsSummary } from '@/lib/api';
+import { Card, Kpi } from '@/components/roy/ui';
+import { IconChevronRight } from '@/components/roy/icons';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FF6B6B', '#4ECDC4'];
+const COLORS = ['#15CE8E', '#4D8DFF', '#E3B341', '#FC3C44', '#00C7F2', '#8b5cf6', '#f97316', '#ec4899'];
 
 interface ChartData {
   month: string;
@@ -109,284 +106,229 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   return (
-    <>
-      <header className="bg-background/80 backdrop-blur-md border-b border-divider sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Analytics</h1>
-              <p className="text-secondary-500 text-sm mt-0.5">Vue d'ensemble financière</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <a
-                href="/analytics/streaming"
-                className="text-sm text-primary hover:underline whitespace-nowrap"
-              >
-                Streaming & Social →
-              </a>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-4 py-2 bg-content2 border-2 border-default-200 rounded-xl text-sm font-medium focus:outline-none focus:border-primary"
-            >
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            </div>
-          </div>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">Analytics</h1>
+          <p className="text-[12.5px] text-ink-faint mt-0.5">Whales Records · vue d'ensemble financière {selectedYear}</p>
         </div>
-      </header>
+        <div className="flex items-center gap-2.5">
+          <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1">
+            {years.slice(0, 4).map((y) => (
+              <button key={y} onClick={() => setSelectedYear(y)}
+                className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === selectedYear ? 'semibold' : 'medium'} ${y === selectedYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
+                {y}
+              </button>
+            ))}
+          </div>
+          <Link href="/analytics/streaming"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink hover:bg-surface-2 transition-colors">
+            Streaming &amp; Social <IconChevronRight size={14} />
+          </Link>
+        </div>
+      </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
         {error && (
-          <Card className="bg-danger-50">
-            <CardBody>
-              <p className="text-danger">{error}</p>
-            </CardBody>
-          </Card>
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            {error}
+          </div>
         )}
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Recettes</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(totalRevenue)}</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Avances/Frais</p>
-              <p className="text-2xl font-bold text-warning">{formatCurrency(totalExpenses)}</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Royalties artistes</p>
-              <p className="text-2xl font-bold text-secondary">{formatCurrency(totalRoyaltiesPayable)}</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Total Sorties</p>
-              <p className="text-2xl font-bold text-danger">{formatCurrency(totalOutflow)}</p>
-            </CardBody>
-          </Card>
-          <Card className="border border-divider rounded-2xl shadow-sm col-span-2 sm:col-span-1">
-            <CardBody className="p-4">
-              <p className="text-sm text-default-500">Resultat Net</p>
-              <p className={`text-2xl font-bold ${net >= 0 ? 'text-success' : 'text-danger'}`}>
-                {formatCurrency(net)}
-              </p>
-            </CardBody>
-          </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+          <Kpi label="Recettes" value={formatCurrency(totalRevenue)} accentValue />
+          <Kpi label="Avances / Frais" value={formatCurrency(totalExpenses)} />
+          <Kpi label="Royalties artistes" value={formatCurrency(totalRoyaltiesPayable)} />
+          <Kpi label="Total sorties" value={formatCurrency(totalOutflow)} />
+          <div className="col-span-2 sm:col-span-1">
+            <Kpi
+              label="Résultat net"
+              value={formatCurrency(net)}
+              hero
+              accentValue={net >= 0}
+            />
+          </div>
         </div>
 
         {/* Monthly Revenue vs Expenses Chart */}
-        <Card className="border border-divider rounded-2xl shadow-sm">
-          <CardHeader className="px-4 py-3 border-b border-divider">
-            <h2 className="font-semibold text-foreground">Recettes vs Sorties par Mois</h2>
-          </CardHeader>
-          <CardBody className="p-4">
-            {monthlyChartData.some((d) => d.revenue > 0 || d.expenses > 0) ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyChartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-default-200" />
-                  <XAxis dataKey="month" className="text-default-500" />
-                  <YAxis
-                    className="text-default-500"
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(value as number)}
-                    contentStyle={{
-                      backgroundColor: 'var(--heroui-background)',
-                      border: '1px solid var(--heroui-divider)',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="revenue" name="Recettes" fill="#17C964" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expenses" name="Sorties (avances + royalties)" fill="#F31260" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-64 flex items-center justify-center text-default-500">
-                Aucune donnee pour {selectedYear}
-              </div>
-            )}
-          </CardBody>
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-[13.5px] font-semibold text-ink">Recettes vs Sorties par mois</span>
+            <div className="flex gap-3">
+              <span className="flex items-center gap-1.5 text-[11px] text-ink-muted"><span className="w-1.5 h-1.5 rounded-full bg-accent" />Recettes</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-ink-muted"><span className="w-1.5 h-1.5 rounded-full bg-ink-faint" />Sorties</span>
+            </div>
+          </div>
+          {monthlyChartData.some((d) => d.revenue > 0 || d.expenses > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyChartData} margin={{ top: 12, right: 4, left: -8, bottom: 0 }}>
+                <CartesianGrid stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="month" tick={{ fill: 'var(--text-3)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  tick={{ fill: 'var(--text-3)', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value) => formatCurrency(value as number)}
+                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }}
+                />
+                <Bar dataKey="revenue" name="Recettes" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Sorties" fill="var(--text-3)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-ink-faint text-[13px]">
+              Aucune donnée pour {selectedYear}
+            </div>
+          )}
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
           {/* Revenue by Source */}
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Recettes par Source</h2>
-            </CardHeader>
-            <CardBody className="p-4">
-              {revenueBySourceData.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={revenueBySourceData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {revenueBySourceData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {data?.revenue_by_source.map((source, idx) => (
-                      <div key={source.source} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                          />
-                          <span className="text-foreground">{source.source_label}</span>
-                        </div>
-                        <span className="font-medium text-foreground">{formatCurrency(source.gross)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="h-64 flex items-center justify-center text-default-500">
-                  Aucune recette pour {selectedYear}
+          <Card>
+            <span className="text-[13.5px] font-semibold text-ink">Recettes par source</span>
+            {revenueBySourceData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={revenueBySourceData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {revenueBySourceData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => formatCurrency(value as number)}
+                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2.5">
+                  {data?.revenue_by_source.map((source, idx) => (
+                    <div key={source.source} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-[13px] text-ink">
+                        <span className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                        {source.source_label}
+                      </span>
+                      <span className="roy-num text-[13px] font-semibold text-ink">{formatCurrency(source.gross)}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </CardBody>
+              </>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-ink-faint text-[13px]">
+                Aucune recette pour {selectedYear}
+              </div>
+            )}
           </Card>
 
           {/* Expenses by Category */}
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Sorties par Categorie</h2>
-            </CardHeader>
-            <CardBody className="p-4">
-              {expensesByCategoryData.length > 0 ? (
-                <>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={expensesByCategoryData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {expensesByCategoryData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 space-y-2">
-                    {data?.expenses_by_category.map((cat, idx) => (
-                      <div key={cat.category} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                          />
-                          <span className="text-foreground">{cat.category_label}</span>
-                        </div>
-                        <span className="font-medium text-foreground">{formatCurrency(cat.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="h-64 flex items-center justify-center text-default-500">
-                  Aucune sortie enregistree pour {selectedYear}
+          <Card>
+            <span className="text-[13.5px] font-semibold text-ink">Sorties par catégorie</span>
+            {expensesByCategoryData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={expensesByCategoryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {expensesByCategoryData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => formatCurrency(value as number)}
+                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--text)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2.5">
+                  {data?.expenses_by_category.map((cat, idx) => (
+                    <div key={cat.category} className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-[13px] text-ink">
+                        <span className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                        {cat.category_label}
+                      </span>
+                      <span className="roy-num text-[13px] font-semibold text-ink">{formatCurrency(cat.amount)}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </CardBody>
+              </>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-ink-faint text-[13px]">
+                Aucune sortie enregistrée pour {selectedYear}
+              </div>
+            )}
           </Card>
         </div>
 
         {/* Detailed Tables */}
         {data && data.revenue_by_source.length > 0 && (
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Detail des Recettes par Source</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              <div className="divide-y divide-divider">
-                {data.revenue_by_source.map((source, idx) => (
-                  <div key={source.source} className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                      />
-                      <div>
-                        <p className="font-medium text-foreground">{source.source_label}</p>
-                        <p className="text-sm text-default-500">
-                          {source.transaction_count.toLocaleString('fr-FR')} transactions
-                        </p>
-                      </div>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-[22px] py-4 border-b border-line text-[13.5px] font-semibold text-ink">Détail des recettes par source</div>
+            <div>
+              {data.revenue_by_source.map((source, idx) => (
+                <div key={source.source} className="flex items-center justify-between px-[22px] py-3.5 border-b border-line last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <div>
+                      <p className="text-[13px] font-semibold text-ink">{source.source_label}</p>
+                      <p className="text-[11px] text-ink-faint mt-0.5">
+                        {source.transaction_count.toLocaleString('fr-FR')} transactions
+                      </p>
                     </div>
-                    <p className="font-semibold text-success">{formatCurrency(source.gross)}</p>
                   </div>
-                ))}
-              </div>
-            </CardBody>
+                  <p className="roy-num text-[13px] font-bold text-accent">{formatCurrency(source.gross)}</p>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
 
         {data && data.expenses_by_category.length > 0 && (
-          <Card className="border border-divider rounded-2xl shadow-sm">
-            <CardHeader className="px-4 py-3 border-b border-divider">
-              <h2 className="font-semibold text-foreground">Detail des Sorties par Categorie</h2>
-            </CardHeader>
-            <CardBody className="p-0">
-              <div className="divide-y divide-divider">
-                {data.expenses_by_category.map((cat, idx) => (
-                  <div key={cat.category} className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                      />
-                      <div>
-                        <p className="font-medium text-foreground">{cat.category_label}</p>
-                        <p className="text-sm text-default-500">
-                          {cat.count} entree{cat.count > 1 ? 's' : ''}
-                        </p>
-                      </div>
+          <Card padded={false} className="overflow-hidden">
+            <div className="px-[22px] py-4 border-b border-line text-[13.5px] font-semibold text-ink">Détail des sorties par catégorie</div>
+            <div>
+              {data.expenses_by_category.map((cat, idx) => (
+                <div key={cat.category} className="flex items-center justify-between px-[22px] py-3.5 border-b border-line last:border-0">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                    <div>
+                      <p className="text-[13px] font-semibold text-ink">{cat.category_label}</p>
+                      <p className="text-[11px] text-ink-faint mt-0.5">
+                        {cat.count} entrée{cat.count > 1 ? 's' : ''}
+                      </p>
                     </div>
-                    <p className="font-semibold text-danger">{formatCurrency(cat.amount)}</p>
                   </div>
-                ))}
-              </div>
-            </CardBody>
+                  <p className="roy-num text-[13px] font-bold text-ink">{formatCurrency(cat.amount)}</p>
+                </div>
+              ))}
+            </div>
           </Card>
         )}
       </div>
-    </>
+    </div>
   );
 }

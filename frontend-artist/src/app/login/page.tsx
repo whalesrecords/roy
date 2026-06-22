@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
+import { Card, Eyebrow, AccentButton } from '@/components/roy/ui';
+import { IconMusic, IconArrowUp } from '@/components/roy/icons';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -21,78 +23,74 @@ export default function LoginPage() {
     setLoading(false);
   };
 
+  const inputClass =
+    'w-full px-4 py-3 bg-surface border border-line rounded-[12px] text-ink text-[14px] placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors';
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-background">
-      {/* Icon */}
-      <div className="mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-900/30">
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-          </svg>
-        </div>
-      </div>
-
-      <h1 className="text-2xl font-bold text-foreground mb-1">Portail Artiste</h1>
-      <p className="text-default-500 text-sm text-center mb-8 max-w-xs">
-        Consultez vos revenus et statistiques
-      </p>
-
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="votre@email.com"
-            className="w-full h-12 px-4 bg-content1 border border-divider rounded-2xl text-base placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors"
-            autoComplete="email"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
-            Mot de passe
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full h-12 px-4 bg-content1 border border-divider rounded-2xl text-base placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors"
-            autoComplete="current-password"
-          />
-        </div>
-
-        {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl">
-            <p className="text-danger text-sm text-center">{error}</p>
+    <div className="min-h-screen bg-app flex flex-col items-center justify-center px-6 py-12">
+      <Card className="w-full max-w-[380px] rounded-[20px] p-7">
+        {/* Brand */}
+        <div className="flex flex-col items-center text-center mb-7">
+          <div className="w-14 h-14 rounded-[16px] bg-accent text-accent-ink flex items-center justify-center shadow-roy">
+            <IconMusic size={26} />
           </div>
-        )}
+          <h1 className="text-[22px] font-bold tracking-[-0.02em] text-ink mt-4">Portail Artiste</h1>
+          <p className="text-[12.5px] text-ink-faint mt-1 max-w-[260px]">
+            Consultez vos revenus et statistiques
+          </p>
+        </div>
 
-        <button
-          type="submit"
-          disabled={loading || !email.trim() || !password.trim()}
-          className="w-full h-12 bg-primary text-white font-semibold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <Spinner size="sm" color="white" />
-          ) : (
-            <>
-              <span>Se connecter</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </>
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          <div className="space-y-1.5">
+            <Eyebrow>Email</Eyebrow>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="votre@email.com"
+              className={inputClass}
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Eyebrow>Mot de passe</Eyebrow>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className={inputClass}
+              autoComplete="current-password"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-[12px] bg-neg/10 border border-neg/20">
+              <p className="text-neg text-[13px] text-center">{error}</p>
+            </div>
           )}
-        </button>
-      </form>
 
-      <p className="mt-8 text-xs text-default-400 text-center max-w-xs">
+          <AccentButton
+            type="submit"
+            disabled={loading || !email.trim() || !password.trim()}
+            className="w-full py-3"
+          >
+            {loading ? (
+              <Spinner size="sm" color="white" />
+            ) : (
+              <>
+                <span>Se connecter</span>
+                <IconArrowUp size={15} className="rotate-90" />
+              </>
+            )}
+          </AccentButton>
+        </form>
+      </Card>
+
+      <p className="mt-6 text-[11.5px] text-ink-faint text-center max-w-[320px]">
         Vos identifiants vous ont été envoyés par votre label. Contactez-les si vous ne les avez pas reçus.
       </p>
     </div>

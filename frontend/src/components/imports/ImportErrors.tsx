@@ -10,16 +10,16 @@ export default function ImportErrors({ errors }: ImportErrorsProps) {
   if (errors.length === 0) return null;
 
   return (
-    <div className="bg-red-50 rounded-xl p-4">
-      <h3 className="font-medium text-red-800 mb-3">
+    <div className="rounded-[12px] border border-line bg-surface-2 p-4">
+      <h3 className="text-[13.5px] font-semibold text-neg mb-3">
         Erreurs ({errors.length})
       </h3>
       <ul className="space-y-2">
         {errors.map((error, index) => (
-          <li key={index} className="text-sm text-red-700">
-            <span className="font-medium">Ligne {error.row}</span>
+          <li key={index} className="text-[12.5px] text-ink-muted">
+            <span className="font-semibold text-ink">Ligne {error.row}</span>
             {error.field && (
-              <span className="text-red-600"> - {error.field}</span>
+              <span className="text-ink-faint"> · {error.field}</span>
             )}
             : {error.message}
           </li>

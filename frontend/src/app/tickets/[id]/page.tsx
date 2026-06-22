@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Spinner, Button, Textarea, Select, SelectItem, Checkbox } from '@heroui/react';
+import { Spinner, Textarea, Checkbox } from '@heroui/react';
 import {
   TicketDetail,
   getTicketDetail,
@@ -11,6 +11,8 @@ import {
   addTicketMessage,
   deleteTicket,
 } from '@/lib/api';
+import { Card, Pill, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { IconChevronRight, IconCheck } from '@/components/roy/icons';
 
 const CATEGORY_LABELS = {
   payment: { label: 'Paiements', icon: '💰', color: '#10b981' },
@@ -22,6 +24,8 @@ const CATEGORY_LABELS = {
   general: { label: 'Général', icon: '💬', color: '#6b7280' },
   other: { label: 'Autre', icon: '❓', color: '#9ca3af' },
 };
+
+const ACCENT_STATUSES = new Set(['open', 'in_progress']);
 
 export default function TicketDetailPage() {
   const params = useParams();
@@ -125,178 +129,199 @@ export default function TicketDetailPage() {
     });
   };
 
+  const selectClass =
+    'w-full h-10 px-3 bg-surface border border-line rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-line-strong transition-colors disabled:opacity-50';
+  const labelClass = 'roy-eyebrow text-[9.5px] mb-1.5 block';
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spinner size="lg" />
+      <div className="min-h-screen flex items-center justify-center bg-app">
+        <Spinner size="lg" color="primary" />
       </div>
     );
   }
 
   if (!ticket) {
     return (
-      <div className="px-4 py-6 max-w-4xl mx-auto">
-        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4">
-          <p className="text-danger">Ticket non trouvé</p>
+      <div className="min-h-full bg-app">
+        <div className="px-5 lg:px-7 py-5 lg:py-6 max-w-[1200px]">
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            Ticket non trouvé
+          </div>
         </div>
       </div>
     );
   }
 
   const categoryInfo = CATEGORY_LABELS[ticket.category as keyof typeof CATEGORY_LABELS];
+  const isResolvedOrClosed = ticket.status === 'resolved' || ticket.status === 'closed';
 
   return (
-    <div className="px-4 py-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <Link href="/tickets" className="text-primary hover:underline mb-2 inline-block">
-          ← Retour aux tickets
-        </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{categoryInfo?.icon}</span>
-              <span className="font-mono text-default-500">{ticket.ticket_number}</span>
-            </div>
-            <h1 className="text-2xl font-bold mb-2">{ticket.subject}</h1>
-            <div className="flex items-center gap-4 text-sm text-default-500">
-              <span>{ticket.category_label}</span>
-              <span>Créé le {formatTime(ticket.created_at)}</span>
-              {ticket.participants.length > 0 && (
-                <span>👤 {ticket.participants.join(', ')}</span>
-              )}
-            </div>
+    <div className="min-h-full bg-app">
+      {/* Topbar */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 px-5 lg:px-7 py-5 border-b border-line">
+        <div className="min-w-0">
+          <Link
+            href="/tickets"
+            className="inline-flex items-center gap-1 text-[12px] font-semibold text-ink-muted hover:text-ink transition-colors mb-2"
+          >
+            <IconChevronRight size={14} className="rotate-180" /> Retour aux tickets
+          </Link>
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className="text-[18px]">{categoryInfo?.icon}</span>
+            <span className="font-mono text-[12px] text-ink-faint">{ticket.ticket_number}</span>
+            <Pill tone={ACCENT_STATUSES.has(ticket.status) ? 'accent' : 'neutral'}>{ticket.status_label}</Pill>
           </div>
-          <Button color="danger" variant="light" size="sm" onClick={handleDelete}>
+          <h1 className="text-[20px] lg:text-[21px] font-bold tracking-[-0.02em] text-ink">{ticket.subject}</h1>
+          <div className="flex items-center gap-2 text-[12.5px] text-ink-faint mt-1 flex-wrap">
+            <span>{ticket.category_label}</span>
+            <span className="text-ink-faint/60">·</span>
+            <span>Créé le {formatTime(ticket.created_at)}</span>
+            {ticket.participants.length > 0 && (
+              <>
+                <span className="text-ink-faint/60">·</span>
+                <span>{ticket.participants.join(', ')}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          {!isResolvedOrClosed ? (
+            <AccentButton onClick={() => handleStatusChange('resolved')} disabled={updating}>
+              <IconCheck size={14} /> Marquer résolu
+            </AccentButton>
+          ) : (
+            <OutlineButton onClick={() => handleStatusChange('open')}>
+              Rouvrir
+            </OutlineButton>
+          )}
+          <OutlineButton onClick={handleDelete} className="text-neg">
             Supprimer
-          </Button>
+          </OutlineButton>
         </div>
       </div>
 
-      {/* Status & Priority Controls */}
-      <div className="bg-content1 rounded-2xl border border-divider p-4 mb-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Statut</label>
-            <Select
-              selectedKeys={[ticket.status]}
-              onSelectionChange={(keys) => {
-                const val = Array.from(keys as Set<string>)[0];
-                if (val) handleStatusChange(val);
-              }}
-              isDisabled={updating}
-            >
-              <SelectItem key="open">Ouvert</SelectItem>
-              <SelectItem key="in_progress">En cours</SelectItem>
-              <SelectItem key="resolved">Résolu</SelectItem>
-              <SelectItem key="closed">Fermé</SelectItem>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Priorité</label>
-            <Select
-              selectedKeys={[ticket.priority]}
-              onSelectionChange={(keys) => {
-                const val = Array.from(keys as Set<string>)[0];
-                if (val) handlePriorityChange(val);
-              }}
-              isDisabled={updating}
-            >
-              <SelectItem key="low">Basse</SelectItem>
-              <SelectItem key="medium">Moyenne</SelectItem>
-              <SelectItem key="high">Haute</SelectItem>
-              <SelectItem key="urgent">Urgente</SelectItem>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-danger/10 border border-danger/20 rounded-2xl p-4 mb-6">
-          <p className="text-danger">{error}</p>
-        </div>
-      )}
-
-      {/* Messages Thread */}
-      <div className="bg-content1 rounded-2xl border border-divider overflow-hidden mb-6">
-        <div className="p-4 border-b border-divider bg-content2">
-          <h2 className="font-semibold">Conversation</h2>
-        </div>
-        <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
-          {ticket.messages.map((message) => {
-            const isArtist = message.sender_type === 'artist';
-            const isSystem = message.sender_type === 'system';
-            const isAdmin = message.sender_type === 'admin';
-
-            return (
-              <div
-                key={message.id}
-                className={`flex ${isArtist ? 'justify-end' : 'justify-start'}`}
+      <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
+        {/* Status & Priority Controls */}
+        <Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Statut</label>
+              <select
+                value={ticket.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={updating}
+                className={selectClass}
               >
-                <div
-                  className={`max-w-[80%] rounded-2xl p-4 ${
-                    isSystem
-                      ? 'bg-content2 text-center w-full max-w-none text-sm'
-                      : isArtist
-                      ? 'bg-gradient-to-br from-primary to-primary-600 text-white shadow-sm'
-                      : message.is_internal
-                      ? 'bg-warning/10 border-2 border-warning'
-                      : 'bg-content2 border border-divider'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold text-sm">
-                      {message.sender_name || 'Système'}
-                    </span>
-                    {message.is_internal && (
-                      <span className="text-xs bg-warning text-white px-2 py-0.5 rounded-full font-medium">
-                        Note interne
-                      </span>
-                    )}
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.message}</p>
-                  <p className={`text-xs mt-2 ${isArtist ? 'text-primary-100' : 'text-default-500'}`}>
-                    {formatTime(message.created_at)}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+                <option value="open">Ouvert</option>
+                <option value="in_progress">En cours</option>
+                <option value="resolved">Résolu</option>
+                <option value="closed">Fermé</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Priorité</label>
+              <select
+                value={ticket.priority}
+                onChange={(e) => handlePriorityChange(e.target.value)}
+                disabled={updating}
+                className={selectClass}
+              >
+                <option value="low">Basse</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Haute</option>
+                <option value="urgent">Urgente</option>
+              </select>
+            </div>
+          </div>
+        </Card>
 
-      {/* Reply Form */}
-      <div className="bg-content1 rounded-2xl border border-divider p-4">
-        <h3 className="font-semibold mb-3">Répondre</h3>
-        <Textarea
-          placeholder="Votre message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          minRows={4}
-          className="mb-4"
-        />
-        <div className="flex items-center justify-between gap-4">
-          <Checkbox
-            isSelected={isInternal}
-            onValueChange={setIsInternal}
-            classNames={{
-              label: "text-sm"
-            }}
-          >
-            Note interne (invisible pour l'artiste)
-          </Checkbox>
-          <Button
-            color="primary"
-            onClick={handleSendMessage}
-            isLoading={sending}
-            isDisabled={!newMessage.trim()}
-            className="rounded-xl"
-          >
-            Envoyer
-          </Button>
-        </div>
+        {/* Error */}
+        {error && (
+          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+            {error}
+          </div>
+        )}
+
+        {/* Messages Thread */}
+        <Card padded={false} className="overflow-hidden">
+          <div className="px-[22px] py-4 border-b border-line">
+            <span className="text-[13.5px] font-semibold text-ink">Conversation</span>
+          </div>
+          <div className="px-[22px] py-5 space-y-3 max-h-[600px] overflow-y-auto">
+            {ticket.messages.map((message) => {
+              const isArtist = message.sender_type === 'artist';
+              const isSystem = message.sender_type === 'system';
+              // Admin (own) messages align right with accent; artist/others align left.
+              const isOwn = !isArtist && !isSystem;
+
+              if (isSystem) {
+                return (
+                  <div key={message.id} className="flex justify-center">
+                    <div className="rounded-full bg-surface-2 px-3.5 py-1.5 text-[11.5px] text-ink-faint">
+                      {message.message}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[80%] rounded-[14px] px-4 py-3 ${
+                      message.is_internal
+                        ? 'bg-surface-2 border border-line-strong'
+                        : isOwn
+                        ? 'bg-accent-soft'
+                        : 'bg-surface-2'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <span className={`text-[12px] font-semibold ${isOwn ? 'text-accent' : 'text-ink'}`}>
+                        {message.sender_name || 'Système'}
+                      </span>
+                      {message.is_internal && <Pill tone="neutral">Note interne</Pill>}
+                    </div>
+                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{message.message}</p>
+                    <p className={`text-[11px] mt-2 ${isOwn ? 'text-accent/70' : 'text-ink-faint'}`}>
+                      {formatTime(message.created_at)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </Card>
+
+        {/* Reply Form */}
+        <Card>
+          <span className="text-[13.5px] font-semibold text-ink">Répondre</span>
+          <div className="mt-3">
+            <Textarea
+              placeholder="Votre message…"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              minRows={4}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 mt-4 flex-wrap">
+            <Checkbox
+              isSelected={isInternal}
+              onValueChange={setIsInternal}
+              classNames={{ label: 'text-[12.5px] text-ink-muted' }}
+            >
+              Note interne (invisible pour l&apos;artiste)
+            </Checkbox>
+            <AccentButton
+              onClick={handleSendMessage}
+              disabled={sending || !newMessage.trim()}
+            >
+              {sending && <Spinner size="sm" color="white" />}
+              Envoyer
+            </AccentButton>
+          </div>
+        </Card>
       </div>
     </div>
   );
