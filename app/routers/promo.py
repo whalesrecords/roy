@@ -20,6 +20,7 @@ from app.models.artist import Artist
 from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.promo_campaign import CampaignStatus, PromoCampaign
 from app.models.promo_submission import PromoSource, PromoSubmission
+from app.models.spotify_ad_campaign import SpotifyAdCampaign
 from app.schemas.promo import (
     AlbumPromoStats,
     ArtistPromoStats,
@@ -35,9 +36,13 @@ from app.schemas.promo import (
     SubmitHubAnalyzeResponse,
     TracksSummaryResponse,
     TrackSummary,
+    SpotifyAdCampaignResponse,
+    SpotifyAdCampaignsListResponse,
+    ImportSpotifyAdsResponse,
 )
 from app.services.parsers.groover_parser import GrooverParser
 from app.services.parsers.submithub_parser import SubmitHubParser
+from app.services.parsers.spotify_ads_parser import SpotifyAdsParser
 
 router = APIRouter(prefix="/promo", tags=["promo"])
 
@@ -1440,3 +1445,215 @@ async def delete_promo_submission(
     await db.commit()
 
     return {"success": True, "deleted_id": submission_id}
+
+
+# ============ Spotify Ad Campaigns ============
+
+def _dec(v) -> Optional[str]:
+    return str(v) if v is not None else None
+
+
+def _serialize_ad_campaign(c: SpotifyAdCampaign, artist_name: Optional[str] = None) -> SpotifyAdCampaignResponse:
+    return SpotifyAdCampaignResponse(
+        id=c.id,
+        artist_id=c.artist_id,
+        artist_name=artist_name,
+        campaign_name=c.campaign_name,
+        release_name=c.release_name,
+        release_upc=c.release_upc,
+        track_isrc=c.track_isrc,
+        ad_format=c.ad_format,
+        release_type=c.release_type,
+        country=c.country,
+        currency=c.currency or "EUR",
+        budget=_dec(c.budget),
+        spend=_dec(c.spend),
+        start_date=c.start_date,
+        end_date=c.end_date,
+        reach=c.reach,
+        clicks=c.clicks,
+        new_active_listeners=c.new_active_listeners,
+        converted_listeners=c.converted_listeners,
+        conversion_rate=_dec(c.conversion_rate),
+        active_streams_per_listener=_dec(c.active_streams_per_listener),
+        intent_rate=_dec(c.intent_rate),
+        playlist_adds=c.playlist_adds,
+        playlist_add_rate=_dec(c.playlist_add_rate),
+        saves=c.saves,
+        save_rate=_dec(c.save_rate),
+    )
+
+
+@router.post("/import/spotify-ads", response_model=ImportSpotifyAdsResponse)
+async def import_spotify_ads_csv(
+    file: Annotated[UploadFile, File()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Annotated[Optional[str], Form()] = None,
+) -> ImportSpotifyAdsResponse:
+    """
+    Import a Spotify Ad Studio "Campaigns" CSV.
+
+    Keeps only campaign-level rows (numeric Spend). Each campaign is stored with
+    its metrics, the artist is matched by name (or forced via artist_id), the
+    release/track is matched to the catalog, and the spend is booked as a
+    recoupable advance (category spotify_ads) deducted from the artist's royalties.
+    """
+    artist_uuid: Optional[UUID] = None
+    if artist_id:
+        try:
+            artist_uuid = UUID(artist_id)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid artist_id format")
+        result = await db.execute(select(Artist).where(Artist.id == artist_uuid))
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
+
+    content = await file.read()
+    try:
+        parse_result = SpotifyAdsParser().parse(content)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse CSV: {e}")
+
+    created = 0
+    skipped = 0
+    matched = 0
+    total_spend = Decimal(0)
+    not_found: set[str] = set()
+    errors: List[str] = [f"Row {e.row_number}: {e.error}" for e in parse_result.errors]
+
+    try:
+        for row in parse_result.rows:
+            row_artist_id = artist_uuid
+            if not row_artist_id:
+                row_artist_id = await match_artist_by_name(row.artist_name, db)
+            if not row_artist_id:
+                not_found.add(row.artist_name)
+                continue
+
+            # Deduplicate on (artist, campaign, start_date)
+            dup = await db.execute(
+                select(SpotifyAdCampaign).where(
+                    SpotifyAdCampaign.artist_id == row_artist_id,
+                    SpotifyAdCampaign.campaign_name == row.campaign_name,
+                    SpotifyAdCampaign.start_date == row.start_date,
+                )
+            )
+            if dup.scalars().first():
+                skipped += 1
+                continue
+
+            # Match to catalog (best effort) on the release/campaign name
+            track_isrc, release_upc = await match_song_to_catalog(
+                row.release_name or row.campaign_name, row_artist_id, db
+            )
+            if track_isrc or release_upc:
+                matched += 1
+
+            if track_isrc:
+                scope, scope_id = "track", track_isrc
+            elif release_upc:
+                scope, scope_id = "release", release_upc
+            else:
+                scope, scope_id = "catalog", None
+
+            eff = datetime.combine(row.start_date, datetime.min.time()) if row.start_date else datetime.utcnow()
+
+            # Recoupable advance for the ad spend
+            ledger = AdvanceLedgerEntry(
+                artist_id=row_artist_id,
+                scope=scope,
+                scope_id=scope_id,
+                entry_type=LedgerEntryType.ADVANCE,
+                amount=row.spend,
+                currency=row.currency or "EUR",
+                category=ExpenseCategory.SPOTIFY_ADS.value,
+                description=f"Spotify Ads — {row.campaign_name}",
+                reference=row.campaign_name,
+                effective_date=eff,
+            )
+            db.add(ledger)
+            await db.flush()
+
+            campaign = SpotifyAdCampaign(
+                artist_id=row_artist_id,
+                release_upc=release_upc,
+                track_isrc=track_isrc,
+                campaign_name=row.campaign_name,
+                release_name=row.release_name,
+                ad_format=row.ad_format,
+                release_type=row.release_type,
+                country=row.country,
+                currency=row.currency or "EUR",
+                budget=row.budget,
+                spend=row.spend,
+                release_date=row.release_date,
+                start_date=row.start_date,
+                end_date=row.end_date,
+                reach=row.reach,
+                clicks=row.clicks,
+                amplified_listeners=row.amplified_listeners,
+                reactivated_listeners=row.reactivated_listeners,
+                new_active_listeners=row.new_active_listeners,
+                converted_listeners=row.converted_listeners,
+                conversion_rate=row.conversion_rate,
+                active_streams_per_listener=row.active_streams_per_listener,
+                intent_rate=row.intent_rate,
+                playlist_add_rate=row.playlist_add_rate,
+                playlist_adds=row.playlist_adds,
+                save_rate=row.save_rate,
+                saves=row.saves,
+                advance_ledger_entry_id=ledger.id,
+            )
+            db.add(campaign)
+            created += 1
+            total_spend += row.spend or Decimal(0)
+
+        await db.commit()
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        print("Error in import_spotify_ads_csv:", e)
+        print(traceback.format_exc())
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal error during import: {e}")
+
+    if not_found:
+        errors.append(f"Artists not found: {', '.join(sorted(not_found))}")
+    if skipped:
+        errors.append(f"{skipped} duplicate campaign(s) skipped")
+
+    return ImportSpotifyAdsResponse(
+        created_count=created,
+        skipped_duplicates=skipped,
+        total_spend=str(total_spend),
+        matched_campaigns=matched,
+        artists_not_found=sorted(not_found),
+        errors=errors,
+    )
+
+
+@router.get("/ad-campaigns", response_model=SpotifyAdCampaignsListResponse)
+async def list_ad_campaigns(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[str] = None,
+) -> SpotifyAdCampaignsListResponse:
+    """List Spotify ad campaigns (admin), optionally filtered by artist."""
+    query = select(SpotifyAdCampaign, Artist.name).join(Artist, Artist.id == SpotifyAdCampaign.artist_id)
+    if artist_id:
+        try:
+            query = query.where(SpotifyAdCampaign.artist_id == UUID(artist_id))
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid artist_id")
+    query = query.order_by(SpotifyAdCampaign.start_date.desc().nullslast())
+    rows = (await db.execute(query)).all()
+
+    campaigns = [_serialize_ad_campaign(c, name) for c, name in rows]
+    total = sum((c.spend for c, _ in rows if c.spend is not None), Decimal(0))
+    currency = rows[0][0].currency if rows else "EUR"
+    return SpotifyAdCampaignsListResponse(
+        campaigns=campaigns,
+        count=len(campaigns),
+        total_spend=str(total),
+        currency=currency or "EUR",
+    )

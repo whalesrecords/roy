@@ -229,3 +229,53 @@ class TracksSummaryResponse(BaseModel):
     """Response for tracks summary."""
     tracks: List[TrackSummary]
     total_tracks: int
+
+
+# ============ Spotify Ad Campaigns ============
+
+class SpotifyAdCampaignResponse(BaseModel):
+    """A single Spotify ad campaign (campaign-level metrics)."""
+    id: UUID
+    artist_id: UUID
+    artist_name: Optional[str] = None
+    campaign_name: str
+    release_name: Optional[str] = None
+    release_upc: Optional[str] = None
+    track_isrc: Optional[str] = None
+    ad_format: Optional[str] = None
+    release_type: Optional[str] = None
+    country: Optional[str] = None
+    currency: str = "EUR"
+    budget: Optional[str] = None
+    spend: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    reach: Optional[int] = None
+    clicks: Optional[int] = None
+    new_active_listeners: Optional[int] = None
+    converted_listeners: Optional[int] = None
+    conversion_rate: Optional[str] = None
+    active_streams_per_listener: Optional[str] = None
+    intent_rate: Optional[str] = None
+    playlist_adds: Optional[int] = None
+    playlist_add_rate: Optional[str] = None
+    saves: Optional[int] = None
+    save_rate: Optional[str] = None
+
+
+class SpotifyAdCampaignsListResponse(BaseModel):
+    """List of Spotify ad campaigns with aggregate spend."""
+    campaigns: List[SpotifyAdCampaignResponse]
+    count: int
+    total_spend: str
+    currency: str = "EUR"
+
+
+class ImportSpotifyAdsResponse(BaseModel):
+    """Result of importing a Spotify Ad Studio CSV."""
+    created_count: int
+    skipped_duplicates: int
+    total_spend: str
+    matched_campaigns: int
+    artists_not_found: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)

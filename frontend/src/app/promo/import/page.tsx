@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import SubmitHubUploadFlow from '@/components/promo/SubmitHubUploadFlow';
 import GrooverUploadFlow from '@/components/promo/GrooverUploadFlow';
 import ManualPromoForm from '@/components/promo/ManualPromoForm';
+import SpotifyAdsUploadFlow from '@/components/promo/SpotifyAdsUploadFlow';
 import { Card, OutlineButton } from '@/components/roy/ui';
-import { IconChart, IconMusic, IconContract, IconChevronRight } from '@/components/roy/icons';
+import { IconChart, IconMusic, IconContract, IconChevronRight, IconMegaphone } from '@/components/roy/icons';
 
 const TABS = [
   {
@@ -22,6 +23,13 @@ const TABS = [
     icon: IconMusic,
     title: 'Import Groover CSV',
     desc: 'Exportez votre historique de campagnes depuis Groover et importez le CSV ici.',
+  },
+  {
+    key: 'spotify-ads',
+    label: 'Spotify Ads',
+    icon: IconMegaphone,
+    title: 'Import Spotify Ad Studio (Campaigns)',
+    desc: "Exportez le CSV « Campaigns » depuis Spotify Ad Studio et importez-le ici : la dépense et les résultats de chaque campagne sont enregistrés et visibles côté artiste.",
   },
   {
     key: 'manual',
@@ -83,6 +91,7 @@ export default function PromoImportPage() {
 
           {selected === 'submithub' && <SubmitHubUploadFlow onSuccess={handleSuccess} />}
           {selected === 'groover' && <GrooverUploadFlow onSuccess={handleSuccess} />}
+          {selected === 'spotify-ads' && <SpotifyAdsUploadFlow />}
           {selected === 'manual' && <ManualPromoForm onSuccess={handleSuccess} />}
         </Card>
       </div>
