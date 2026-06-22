@@ -3,8 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import Link from 'next/link';
 import { getArtistTracks, ArtistTrack } from '@/lib/api';
+import { Card, Eyebrow, Segmented, fmtMoney, fmtNum } from '@/components/roy/ui';
+import { IconSearch } from '@/components/roy/icons';
+
+const COVER = { background: 'var(--cover)' } as const;
 
 type SortKey = 'revenue' | 'streams' | 'name';
 
@@ -35,12 +38,6 @@ export default function TracksPage() {
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
     return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
-  };
-
-  const formatNumber = (value: number) => {
-    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
-    if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
-    return value.toLocaleString('en-US');
   };
 
   // Summary stats
@@ -74,168 +71,156 @@ export default function TracksPage() {
     });
   }, [tracks, search, sortBy]);
 
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" color="primary" />
-      </div>
-    );
-  }
+  const searchBox = (full = false) => (
+    <div className={`flex items-center gap-2.5 rounded-[14px] bg-surface border border-line px-3.5 py-2.5 ${full ? '' : 'w-[260px]'}`}>
+      <IconSearch size={16} className="text-ink-faint" />
+      <input
+        type="text"
+        placeholder="Search by title or ISRC…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-faint focus:outline-none"
+      />
+      {search && (
+        <button onClick={() => setSearch('')} className="text-ink-faint hover:text-ink shrink-0">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+
+  const sortControl = (
+    <Segmented
+      options={[
+        { value: 'revenue' as SortKey, label: 'Revenue' },
+        { value: 'streams' as SortKey, label: 'Streams' },
+        { value: 'name' as SortKey, label: 'Name' },
+      ]}
+      value={sortBy}
+      onChange={setSortBy}
+    />
+  );
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="font-semibold text-foreground">My Tracks</h1>
-            <p className="text-xs text-secondary-500">{tracks.length} track{tracks.length !== 1 ? 's' : ''}</p>
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">My Tracks</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">
+            {tracks.length} track{tracks.length !== 1 ? 's' : ''} · {fmtNum(totalStreams)} streams
           </div>
         </div>
-      </header>
+        {tracks.length > 0 && searchBox()}
+      </div>
 
-      <main className="px-4 py-4 pb-24 space-y-4">
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto">
         {error && (
-          <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
-          </div>
+          <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm mb-3">{error}</div>
         )}
 
-        {/* Summary Stats */}
-        {tracks.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-content1 rounded-2xl p-3 text-center">
-              <p className="text-xs text-secondary-500 mb-1">Tracks</p>
-              <p className="text-lg font-bold text-foreground">{tracks.length}</p>
+        {(authLoading || loading) ? (
+          <div className="flex items-center justify-center py-20"><Spinner size="lg" color="primary" /></div>
+        ) : (<>
+          {/* Mobile header */}
+          <div className="lg:hidden mb-4">
+            <Eyebrow>Tracks</Eyebrow>
+            <div className="flex items-baseline gap-2.5 mt-1.5">
+              <div className="roy-num text-[44px] font-bold text-ink leading-none">{tracks.length}</div>
+              <div className="text-[14px] text-ink-muted">track{tracks.length !== 1 ? 's' : ''} · {fmtNum(totalStreams)} streams</div>
             </div>
-            <div className="bg-content1 rounded-2xl p-3 text-center">
-              <p className="text-xs text-secondary-500 mb-1">Streams</p>
-              <p className="text-lg font-bold text-foreground">{formatNumber(totalStreams)}</p>
-            </div>
-            <div className="bg-content1 rounded-2xl p-3 text-center">
-              <p className="text-xs text-secondary-500 mb-1">Revenue</p>
-              <p className="text-lg font-bold text-success">{formatCurrency(totalRevenue.toFixed(2), currency)}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Search + Sort */}
-        {tracks.length > 0 && (
-          <div className="space-y-3">
-            {/* Search bar */}
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search by title or ISRC..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-content1 border border-divider rounded-xl text-sm text-foreground placeholder:text-secondary-400 focus:outline-none focus:border-primary transition-colors"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-foreground"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {/* Sort pills */}
-            <div className="flex gap-2">
-              {([
-                { key: 'revenue' as SortKey, label: 'Revenue' },
-                { key: 'streams' as SortKey, label: 'Streams' },
-                { key: 'name' as SortKey, label: 'Name' },
-              ]).map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() => setSortBy(opt.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    sortBy === opt.key
-                      ? 'bg-primary text-white'
-                      : 'bg-content1 text-secondary-500 hover:bg-content2'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-              {search && (
-                <span className="px-3 py-1.5 text-xs text-secondary-400">
-                  {filtered.length} result{filtered.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {tracks.length === 0 && !error && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-content2 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-            </div>
-            <p className="text-secondary-500">No tracks yet</p>
-          </div>
-        )}
-
-        {/* No search results */}
-        {tracks.length > 0 && filtered.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-secondary-500 text-sm">No tracks match your search</p>
-            <button onClick={() => setSearch('')} className="text-primary text-sm mt-2 hover:underline">
-              Clear search
-            </button>
-          </div>
-        )}
-
-        {/* Track list */}
-        <div className="space-y-0">
-          {filtered.map((track, index) => (
-            <div key={`${track.isrc}-${index}`}>
-              <div className="flex items-center gap-3 py-3">
-                {/* Music note icon */}
-                <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-primary/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                </div>
-
-                {/* Title + release + ISRC */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-foreground truncate text-sm">{track.title}</p>
-                  {track.release_title && (
-                    <p className="text-xs text-secondary-500 truncate">{track.release_title}</p>
+            {tracks.length > 0 && (
+              <>
+                <div className="mt-5">{searchBox(true)}</div>
+                <div className="mt-3.5 flex items-center gap-3">
+                  {sortControl}
+                  {search && (
+                    <span className="text-[12px] text-ink-faint">
+                      {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+                    </span>
                   )}
-                  <p className="font-mono text-[10px] text-secondary-400 mt-0.5">{track.isrc}</p>
                 </div>
+              </>
+            )}
+          </div>
 
-                {/* Streams + revenue */}
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-success text-sm">{formatCurrency(track.net, track.currency)}</p>
-                  <p className="text-xs text-secondary-500">{formatNumber(track.streams)} streams</p>
-                </div>
+          {/* Desktop summary + sort */}
+          {tracks.length > 0 && (
+            <>
+              <div className="hidden lg:grid grid-cols-3 gap-4 mb-5">
+                <Card><Eyebrow className="text-[9.5px]">Tracks</Eyebrow><div className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">{tracks.length}</div></Card>
+                <Card><Eyebrow className="text-[9.5px]">Streams</Eyebrow><div className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">{fmtNum(totalStreams)}</div></Card>
+                <Card hero><Eyebrow className="text-[9.5px]">Revenue</Eyebrow><div className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">{fmtMoney(totalRevenue, currency)}</div></Card>
               </div>
+              <div className="hidden lg:flex items-center justify-end mb-3.5">{sortControl}</div>
+            </>
+          )}
 
-              {/* Separator */}
-              {index < filtered.length - 1 && (
-                <div className="border-b border-divider ml-13" />
-              )}
+          {/* Empty state */}
+          {tracks.length === 0 && !error && (
+            <Card className="text-center py-12">
+              <div className="w-14 h-14 rounded-full bg-surface-2 flex items-center justify-center mx-auto mb-4" style={COVER} />
+              <p className="text-ink-faint text-sm">No tracks yet</p>
+            </Card>
+          )}
+
+          {/* No search results */}
+          {tracks.length > 0 && filtered.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-ink-faint text-sm">No tracks match your search</p>
+              <button onClick={() => setSearch('')} className="text-accent text-sm mt-2 font-semibold hover:underline">
+                Clear search
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+
+          {/* Mobile rows */}
+          {filtered.length > 0 && (
+            <div className="lg:hidden flex flex-col">
+              {filtered.map((track, index) => (
+                <div
+                  key={`${track.isrc}-${index}`}
+                  className={`flex items-center gap-3.5 py-2.5 ${index < filtered.length - 1 ? 'border-b border-line' : ''}`}
+                >
+                  <div className="w-[46px] h-[46px] rounded-[10px] shrink-0" style={COVER} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold text-ink truncate">{track.title}</div>
+                    <div className="text-[11px] text-ink-faint mt-0.5 truncate">
+                      {(track.release_title || 'Single')} · {fmtNum(track.streams)} streams
+                    </div>
+                    <div className="font-mono text-[10px] text-ink-faint mt-0.5">{track.isrc}</div>
+                  </div>
+                  <span className="roy-num text-[13px] font-bold text-ink">{formatCurrency(track.net, track.currency)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Desktop tracks table */}
+          {filtered.length > 0 && (
+            <Card padded={false} className="hidden lg:block overflow-hidden rounded-[18px]">
+              <div className="grid grid-cols-[2fr_1.4fr_1fr_1fr] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
+                <span>Track</span><span>Release</span><span className="text-right">Streams</span><span className="text-right">Revenue</span>
+              </div>
+              {filtered.map((track, index) => (
+                <div key={`${track.isrc}-${index}`} className="grid grid-cols-[2fr_1.4fr_1fr_1fr] items-center px-6 py-3 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                  <span className="flex items-center gap-3.5 min-w-0">
+                    <span className="w-[38px] h-[38px] rounded-[9px] shrink-0" style={COVER} />
+                    <span className="min-w-0">
+                      <span className="block text-[13.5px] font-semibold text-ink truncate">{track.title}</span>
+                      <span className="block font-mono text-[10px] text-ink-faint truncate">{track.isrc}</span>
+                    </span>
+                  </span>
+                  <span className="text-[12.5px] text-ink-muted truncate">{track.release_title || 'Single'}</span>
+                  <span className="text-right roy-num text-[13px] text-ink-muted">{fmtNum(track.streams)}</span>
+                  <span className="text-right roy-num text-[13px] font-bold text-ink">{formatCurrency(track.net, track.currency)}</span>
+                </div>
+              ))}
+            </Card>
+          )}
+        </>)}
       </main>
     </div>
   );

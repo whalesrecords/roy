@@ -3,47 +3,56 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import LabelLogo from '@/components/layout/LabelLogo';
 import { Spinner } from '@heroui/react';
 import { getArtistPromoSubmissions, PromoSubmission } from '@/lib/api';
+import { Card, Eyebrow, Pill } from '@/components/roy/ui';
+import { IconChevronLeft } from '@/components/roy/icons';
 
-const SOURCE_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
-  submithub: { label: 'SubmitHub', emoji: '📊', color: 'from-blue-500 to-blue-600' },
-  groover: { label: 'Groover', emoji: '🎵', color: 'from-purple-500 to-purple-600' },
-  manual: { label: 'Manuel', emoji: '✍️', color: 'from-gray-500 to-gray-600' },
+const SOURCE_LABELS: Record<string, { label: string; emoji: string }> = {
+  submithub: { label: 'SubmitHub', emoji: '📊' },
+  groover: { label: 'Groover', emoji: '🎵' },
+  manual: { label: 'Manuel', emoji: '✍️' },
 };
 
-const getBadgeColor = (status: string): string => {
+const getBadgeTone = (status: string): 'accent' | 'neutral' | 'neg' => {
   const lower = status.toLowerCase();
-  if (lower.includes('approved') || lower.includes('accepted') || lower.includes('added')) return 'bg-success/20 text-success';
-  if (lower.includes('declined') || lower.includes('rejected')) return 'bg-danger/20 text-danger';
-  if (lower.includes('listen')) return 'bg-primary/20 text-primary';
-  if (lower.includes('playlist')) return 'bg-purple-500/20 text-purple-600';
-  return 'bg-content2 text-foreground';
+  if (lower.includes('approved') || lower.includes('accepted') || lower.includes('added')) return 'accent';
+  if (lower.includes('declined') || lower.includes('rejected')) return 'neg';
+  if (lower.includes('listen')) return 'accent';
+  if (lower.includes('playlist')) return 'accent';
+  return 'neutral';
 };
 
-const parseSharingLinks = (sharingLink: string): { url: string; platform: string; emoji: string; color: string }[] => {
+function StatusBadge({ status }: { status: string }) {
+  const tone = getBadgeTone(status);
+  if (tone === 'neg') {
+    return <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11px] font-semibold bg-neg/10 text-neg">{status}</span>;
+  }
+  return <Pill tone={tone}>{status}</Pill>;
+}
+
+const parseSharingLinks = (sharingLink: string): { url: string; platform: string; emoji: string }[] => {
   const urls = sharingLink.split(',').map(url => url.trim()).filter(url => url.length > 0);
 
   return urls.map(url => {
     if (url.includes('spotify.com')) {
-      return { url, platform: 'Spotify', emoji: '🎵', color: 'from-green-500 to-green-600' };
+      return { url, platform: 'Spotify', emoji: '🎵' };
     } else if (url.includes('apple.com') || url.includes('music.apple')) {
-      return { url, platform: 'Apple Music', emoji: '🍎', color: 'from-pink-500 to-red-500' };
+      return { url, platform: 'Apple Music', emoji: '🍎' };
     } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      return { url, platform: 'YouTube', emoji: '📺', color: 'from-red-500 to-red-600' };
+      return { url, platform: 'YouTube', emoji: '📺' };
     } else if (url.includes('deezer.com')) {
-      return { url, platform: 'Deezer', emoji: '🎧', color: 'from-purple-500 to-purple-600' };
+      return { url, platform: 'Deezer', emoji: '🎧' };
     } else if (url.includes('soundcloud.com')) {
-      return { url, platform: 'SoundCloud', emoji: '☁️', color: 'from-orange-500 to-orange-600' };
+      return { url, platform: 'SoundCloud', emoji: '☁️' };
     } else if (url.includes('tidal.com')) {
-      return { url, platform: 'Tidal', emoji: '🌊', color: 'from-blue-500 to-blue-600' };
+      return { url, platform: 'Tidal', emoji: '🌊' };
     } else if (url.includes('instagram.com')) {
-      return { url, platform: 'Instagram', emoji: '📸', color: 'from-pink-500 to-purple-600' };
+      return { url, platform: 'Instagram', emoji: '📸' };
     } else if (url.includes('tiktok.com')) {
-      return { url, platform: 'TikTok', emoji: '🎬', color: 'from-black to-gray-800' };
+      return { url, platform: 'TikTok', emoji: '🎬' };
     } else {
-      return { url, platform: 'Link', emoji: '🔗', color: 'from-gray-500 to-gray-600' };
+      return { url, platform: 'Link', emoji: '🔗' };
     }
   });
 };
@@ -81,7 +90,7 @@ export default function MediaDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-app">
         <Spinner size="lg" color="primary" />
       </div>
     );
@@ -89,22 +98,20 @@ export default function MediaDetailPage() {
 
   if (!artist || !submission) {
     return (
-      <div className="min-h-screen bg-background safe-top safe-bottom">
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-          <div className="px-4 py-3 flex items-center gap-3">
-            <button onClick={() => router.back()} className="text-primary">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-xl font-bold text-foreground flex-1">Media Details</h1>
-            <LabelLogo className="h-7 w-auto max-w-[80px] object-contain" />
-          </div>
-        </header>
-        <main className="px-4 py-6">
-          <div className="p-4 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error || 'Not found'}</p>
-          </div>
+      <div className="min-h-screen bg-app">
+        {/* Desktop topbar */}
+        <div className="hidden lg:flex items-center gap-3 px-7 py-[22px] border-b border-line">
+          <button onClick={() => router.back()} className="p-1.5 -ml-1.5 rounded-full text-ink-muted hover:bg-surface-2 transition-colors">
+            <IconChevronLeft size={20} />
+          </button>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Media Details</div>
+        </div>
+        <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto">
+          {/* Mobile back */}
+          <button onClick={() => router.back()} className="lg:hidden inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent mb-4">
+            <IconChevronLeft size={16} /> Back
+          </button>
+          <div className="p-3 rounded-2xl bg-neg/10 border border-neg/20 text-neg text-sm">{error || 'Not found'}</div>
         </main>
       </div>
     );
@@ -115,142 +122,131 @@ export default function MediaDetailPage() {
   const status = submission.action || submission.decision || 'Pending';
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <button onClick={() => router.back()} className="text-primary">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-foreground truncate">{submission.song_title}</h1>
-            <p className="text-sm text-secondary-500 truncate">{outlet}</p>
-          </div>
-          <LabelLogo className="h-7 w-auto max-w-[80px] object-contain" />
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center gap-3 px-7 py-[22px] border-b border-line">
+        <button onClick={() => router.back()} className="p-1.5 -ml-1.5 rounded-full text-ink-muted hover:bg-surface-2 transition-colors">
+          <IconChevronLeft size={20} />
+        </button>
+        <div className="min-w-0">
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink truncate">{submission.song_title}</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5 truncate">{outlet}</div>
         </div>
-      </header>
+      </div>
 
-      <main className="px-4 py-6 pb-24 space-y-6">
-        {/* Source Badge */}
-        <div className="bg-background border border-divider rounded-2xl p-6">
-          <p className="text-xs text-secondary-500 uppercase mb-3">Source</p>
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r ${sourceInfo?.color || 'from-gray-400 to-gray-500'} text-white font-medium`}>
-            <span className="text-xl">{sourceInfo?.emoji}</span>
-            <span>{sourceInfo?.label}</span>
-          </div>
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
+        {/* Mobile header */}
+        <div className="lg:hidden">
+          <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent mb-3">
+            <IconChevronLeft size={16} /> Back
+          </button>
+          <div className="text-[22px] font-bold tracking-[-0.01em] text-ink truncate">{submission.song_title}</div>
+          <div className="text-[13px] text-ink-muted truncate">{outlet}</div>
         </div>
+
+        {/* Source */}
+        <Card>
+          <Eyebrow>Source</Eyebrow>
+          <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-2 text-ink font-semibold text-[13px]">
+            <span className="text-lg">{sourceInfo?.emoji}</span>
+            <span>{sourceInfo?.label || submission.source}</span>
+          </div>
+        </Card>
 
         {/* Status */}
-        <div className="bg-background border border-divider rounded-2xl p-6">
-          <p className="text-xs text-secondary-500 uppercase mb-3">Status</p>
-          <span className={`inline-block px-4 py-2 rounded-full font-medium ${getBadgeColor(status)}`}>
-            {status}
-          </span>
-        </div>
+        <Card>
+          <Eyebrow>Status</Eyebrow>
+          <div className="mt-3"><StatusBadge status={status} /></div>
+        </Card>
 
         {/* Outlet/Influencer */}
-        <div className="bg-background border border-divider rounded-2xl p-6">
-          <p className="text-xs text-secondary-500 uppercase mb-3">
-            {submission.source === 'groover' ? 'Influencer' : 'Outlet'}
-          </p>
-          <p className="text-foreground font-medium">{outlet}</p>
+        <Card>
+          <Eyebrow>{submission.source === 'groover' ? 'Influencer' : 'Outlet'}</Eyebrow>
+          <p className="text-ink font-semibold mt-3">{outlet}</p>
           {submission.outlet_type && (
-            <p className="text-sm text-secondary-500 mt-1">{submission.outlet_type}</p>
+            <p className="text-[13px] text-ink-faint mt-1">{submission.outlet_type}</p>
           )}
           {submission.influencer_type && (
-            <p className="text-sm text-secondary-500 mt-1">{submission.influencer_type}</p>
+            <p className="text-[13px] text-ink-faint mt-1">{submission.influencer_type}</p>
           )}
-        </div>
+        </Card>
 
         {/* Dates */}
         {(submission.submitted_at || submission.responded_at) && (
-          <div className="bg-background border border-divider rounded-2xl p-6">
-            <p className="text-xs text-secondary-500 uppercase mb-3">Timeline</p>
-            <div className="space-y-3">
+          <Card>
+            <Eyebrow>Timeline</Eyebrow>
+            <div className="space-y-3 mt-3">
               {submission.submitted_at && (
                 <div>
-                  <p className="text-xs text-secondary-500">Submitted</p>
-                  <p className="text-foreground">
-                    {new Date(submission.submitted_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+                  <p className="text-[11.5px] text-ink-faint">Submitted</p>
+                  <p className="text-ink text-[14px]">
+                    {new Date(submission.submitted_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
               )}
               {submission.responded_at && (
                 <div>
-                  <p className="text-xs text-secondary-500">Responded</p>
-                  <p className="text-foreground">
-                    {new Date(submission.responded_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+                  <p className="text-[11.5px] text-ink-faint">Responded</p>
+                  <p className="text-ink text-[14px]">
+                    {new Date(submission.responded_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </p>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Feedback */}
         {submission.feedback && (
-          <div className="bg-background border border-divider rounded-2xl p-6">
-            <p className="text-xs text-secondary-500 uppercase mb-3">Feedback</p>
-            <p className="text-foreground whitespace-pre-wrap leading-relaxed">{submission.feedback}</p>
-          </div>
+          <Card>
+            <Eyebrow>Feedback</Eyebrow>
+            <p className="text-ink text-[14px] whitespace-pre-wrap leading-relaxed mt-3">{submission.feedback}</p>
+          </Card>
         )}
 
-        {/* Sharing Links (YouTube, Playlists, etc.) */}
+        {/* Sharing Links */}
         {submission.sharing_link && (() => {
           const links = parseSharingLinks(submission.sharing_link);
           return (
-            <div className="bg-background border border-divider rounded-2xl p-6">
-              <p className="text-xs text-secondary-500 uppercase mb-3">
-                {links.length > 1 ? 'Links' : 'Link'}
-              </p>
-              <div className="space-y-3">
+            <Card>
+              <Eyebrow>{links.length > 1 ? 'Links' : 'Link'}</Eyebrow>
+              <div className="space-y-3 mt-3">
                 {links.map((link, index) => (
                   <a
                     key={index}
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl hover:from-purple-500/20 hover:to-pink-500/20 transition-colors"
+                    className="flex items-center gap-3 p-3.5 bg-surface-2 rounded-[14px] hover:opacity-80 transition-opacity"
                   >
-                    <div className={`flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r ${link.color} flex-shrink-0`}>
-                      <span className="text-xl">{link.emoji}</span>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent-soft shrink-0">
+                      <span className="text-lg">{link.emoji}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-foreground font-medium">{link.platform}</p>
-                      <p className="text-xs text-secondary-500 truncate">{link.url}</p>
+                      <p className="text-ink font-semibold text-[14px]">{link.platform}</p>
+                      <p className="text-[11.5px] text-ink-faint truncate">{link.url}</p>
                     </div>
-                    <svg className="w-5 h-5 text-purple-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
                 ))}
               </div>
-            </div>
+            </Card>
           );
         })()}
 
-        {/* Listen Time (SubmitHub only) */}
+        {/* Listen Time */}
         {submission.listen_time && (
-          <div className="bg-background border border-divider rounded-2xl p-6">
-            <p className="text-xs text-secondary-500 uppercase mb-3">Listen Time</p>
-            <p className="text-2xl font-bold text-foreground">
+          <Card>
+            <Eyebrow>Listen Time</Eyebrow>
+            <p className="roy-num text-[30px] font-bold text-ink leading-none mt-2.5">
               {Math.floor(submission.listen_time / 60)}:{(submission.listen_time % 60).toString().padStart(2, '0')}
             </p>
-            <p className="text-sm text-secondary-500 mt-1">minutes</p>
-          </div>
+            <p className="text-[13px] text-ink-faint mt-1">minutes</p>
+          </Card>
         )}
       </main>
-
     </div>
   );
 }

@@ -5,19 +5,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import { getProfile, updateProfile, ArtistProfile, getSocialMedia, updateSocialMedia, SocialMedia, getLabelSettings, LabelSettings } from '@/lib/api';
 import { useLanguage, LANGUAGES } from '@/contexts/LanguageContext';
+import { useTheme, ACCENTS } from '@/contexts/ThemeContext';
+import { Card, Eyebrow, AccentButton } from '@/components/roy/ui';
+import { IconUser, IconCard, IconFile, IconCheck } from '@/components/roy/icons';
 
 function FieldInput({ label, placeholder, value, onChange, type = 'text' }: {
   label: string; placeholder: string; value?: string; onChange: (v: string) => void; type?: string;
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-default-500 block uppercase tracking-wide">{label}</label>
+      <Eyebrow>{label}</Eyebrow>
       <input
         type={type}
         placeholder={placeholder}
         value={value || ''}
         onChange={e => onChange(e.target.value)}
-        className="w-full px-4 py-3 bg-content1 border border-divider rounded-xl text-foreground placeholder:text-default-400 focus:outline-none focus:border-primary transition-colors text-sm"
+        className="w-full px-4 py-3 bg-surface border border-line rounded-[12px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-line-strong transition-colors text-[14px]"
       />
     </div>
   );
@@ -25,19 +28,20 @@ function FieldInput({ label, placeholder, value, onChange, type = 'text' }: {
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="bg-content1 border border-divider rounded-2xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-divider flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+    <Card padded={false} className="overflow-hidden">
+      <div className="px-[18px] py-3.5 border-b border-line flex items-center gap-2.5">
+        <span className="text-ink-muted">{icon}</span>
+        <h2 className="text-[14px] font-semibold text-ink">{title}</h2>
       </div>
-      <div className="p-4 space-y-4">{children}</div>
-    </section>
+      <div className="p-[18px] space-y-4">{children}</div>
+    </Card>
   );
 }
 
 export default function SettingsPage() {
   const { artist, loading: authLoading, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { theme, toggleTheme, accent, setAccent } = useTheme();
   const [labelSettings, setLabelSettings] = useState<LabelSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -139,8 +143,16 @@ export default function SettingsPage() {
     setSocialData(prev => ({ ...prev, [field]: value }));
 
   return (
-    <div className="min-h-screen bg-background safe-top">
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">{t('settings.title') || 'Réglages'}</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">Profil, coordonnées bancaires et préférences</div>
+        </div>
+      </div>
+
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
         {(authLoading || loading) && (
           <div className="flex items-center justify-center py-20">
             <Spinner size="lg" color="primary" />
@@ -149,149 +161,180 @@ export default function SettingsPage() {
         {!authLoading && !loading && (
         <>
         {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
+          <div className="p-3 bg-neg/10 border border-neg/20 rounded-[14px]">
+            <p className="text-neg text-sm">{error}</p>
           </div>
         )}
         {success && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-2">
-            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <p className="text-emerald-400 text-sm">{success}</p>
+          <div className="p-3 bg-accent-soft border border-accent/20 rounded-[14px] flex items-center gap-2">
+            <span className="text-accent shrink-0"><IconCheck size={16} /></span>
+            <p className="text-accent text-sm">{success}</p>
           </div>
         )}
 
-        {/* Profile form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Section title={t('settings.contact')} icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-            </svg>
-          }>
-            <FieldInput label={t('settings.email')} type="email" placeholder="votre@email.com" value={formData.email} onChange={v => handleChange('email', v)} />
-            <FieldInput label={t('settings.phone')} type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={v => handleChange('phone', v)} />
-          </Section>
+        <div className="lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start space-y-3 lg:space-y-0">
+          {/* Profile form */}
+          <form onSubmit={handleSubmit} className="space-y-3 lg:space-y-4">
+            <Section title={t('settings.contact')} icon={<IconUser size={18} />}>
+              <FieldInput label={t('settings.email')} type="email" placeholder="votre@email.com" value={formData.email} onChange={v => handleChange('email', v)} />
+              <FieldInput label={t('settings.phone')} type="tel" placeholder="+33 6 12 34 56 78" value={formData.phone} onChange={v => handleChange('phone', v)} />
+            </Section>
 
-          <Section title={t('settings.address')} icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }>
-            <FieldInput label={t('settings.addressLine1')} placeholder="123 rue de la Musique" value={formData.address_line1} onChange={v => handleChange('address_line1', v)} />
-            <FieldInput label={t('settings.addressLine2')} placeholder="Appartement, bâtiment…" value={formData.address_line2} onChange={v => handleChange('address_line2', v)} />
-            <div className="grid grid-cols-2 gap-3">
-              <FieldInput label={t('settings.postalCode')} placeholder="75001" value={formData.postal_code} onChange={v => handleChange('postal_code', v)} />
-              <FieldInput label={t('settings.city')} placeholder="Paris" value={formData.city} onChange={v => handleChange('city', v)} />
-            </div>
-            <FieldInput label={t('settings.country')} placeholder="France" value={formData.country} onChange={v => handleChange('country', v)} />
-          </Section>
+            <Section title={t('settings.address')} icon={
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            }>
+              <FieldInput label={t('settings.addressLine1')} placeholder="123 rue de la Musique" value={formData.address_line1} onChange={v => handleChange('address_line1', v)} />
+              <FieldInput label={t('settings.addressLine2')} placeholder="Appartement, bâtiment…" value={formData.address_line2} onChange={v => handleChange('address_line2', v)} />
+              <div className="grid grid-cols-2 gap-3">
+                <FieldInput label={t('settings.postalCode')} placeholder="75001" value={formData.postal_code} onChange={v => handleChange('postal_code', v)} />
+                <FieldInput label={t('settings.city')} placeholder="Paris" value={formData.city} onChange={v => handleChange('city', v)} />
+              </div>
+              <FieldInput label={t('settings.country')} placeholder="France" value={formData.country} onChange={v => handleChange('country', v)} />
+            </Section>
 
-          <Section title={t('settings.bankDetails')} icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-          }>
-            <FieldInput label={t('settings.accountHolder')} placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={v => handleChange('account_holder', v)} />
-            <FieldInput label={t('settings.bankName')} placeholder="Crédit Agricole" value={formData.bank_name} onChange={v => handleChange('bank_name', v)} />
-            <FieldInput label={t('settings.iban')} placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={v => handleChange('iban', v)} />
-            <FieldInput label={t('settings.bic')} placeholder="AGRIFRPP" value={formData.bic} onChange={v => handleChange('bic', v)} />
-          </Section>
+            <Section title={t('settings.bankDetails')} icon={<IconCard size={18} />}>
+              <FieldInput label={t('settings.accountHolder')} placeholder="Nom complet ou raison sociale" value={formData.account_holder} onChange={v => handleChange('account_holder', v)} />
+              <FieldInput label={t('settings.bankName')} placeholder="Crédit Agricole" value={formData.bank_name} onChange={v => handleChange('bank_name', v)} />
+              <FieldInput label={t('settings.iban')} placeholder="FR76 1234 5678 9012 3456 7890 123" value={formData.iban} onChange={v => handleChange('iban', v)} />
+              <FieldInput label={t('settings.bic')} placeholder="AGRIFRPP" value={formData.bic} onChange={v => handleChange('bic', v)} />
+            </Section>
 
-          <Section title={t('settings.legalInfo')} icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          }>
-            <FieldInput label={t('settings.siret')} placeholder="123 456 789 00012" value={formData.siret} onChange={v => handleChange('siret', v)} />
-            <FieldInput label={t('settings.vatNumber')} placeholder="FR12345678901" value={formData.vat_number} onChange={v => handleChange('vat_number', v)} />
-          </Section>
+            <Section title={t('settings.legalInfo')} icon={<IconFile size={18} />}>
+              <FieldInput label={t('settings.siret')} placeholder="123 456 789 00012" value={formData.siret} onChange={v => handleChange('siret', v)} />
+              <FieldInput label={t('settings.vatNumber')} placeholder="FR12345678901" value={formData.vat_number} onChange={v => handleChange('vat_number', v)} />
+            </Section>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveChanges')}
-          </button>
-        </form>
+            <AccentButton type="submit" disabled={saving} className="w-full py-3">
+              {saving ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveChanges')}
+            </AccentButton>
+          </form>
 
-        {/* Social media form */}
-        <form onSubmit={handleSocialSubmit} className="space-y-4">
-          <Section title={t('settings.socialMedia')} icon={
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          }>
-            <p className="text-xs text-default-400">{t('settings.socialMediaDesc')}</p>
-            {[
-              { field: 'instagram_url' as keyof SocialMedia, label: 'Instagram', placeholder: 'https://instagram.com/…' },
-              { field: 'twitter_url' as keyof SocialMedia, label: 'Twitter / X', placeholder: 'https://x.com/…' },
-              { field: 'facebook_url' as keyof SocialMedia, label: 'Facebook', placeholder: 'https://facebook.com/…' },
-              { field: 'tiktok_url' as keyof SocialMedia, label: 'TikTok', placeholder: 'https://tiktok.com/@…' },
-              { field: 'youtube_url' as keyof SocialMedia, label: 'YouTube', placeholder: 'https://youtube.com/@…' },
-            ].map(({ field, label, placeholder }) => (
-              <FieldInput
-                key={field}
-                label={label}
-                placeholder={placeholder}
-                value={socialData[field]}
-                onChange={v => handleSocialChange(field, v)}
-                type="url"
-              />
-            ))}
-          </Section>
+          {/* Right column: social + preferences */}
+          <div className="space-y-3 lg:space-y-4">
+            {/* Social media form */}
+            <form onSubmit={handleSocialSubmit} className="space-y-3 lg:space-y-4">
+              <Section title={t('settings.socialMedia')} icon={
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              }>
+                <p className="text-[12px] text-ink-faint">{t('settings.socialMediaDesc')}</p>
+                {[
+                  { field: 'instagram_url' as keyof SocialMedia, label: 'Instagram', placeholder: 'https://instagram.com/…' },
+                  { field: 'twitter_url' as keyof SocialMedia, label: 'Twitter / X', placeholder: 'https://x.com/…' },
+                  { field: 'facebook_url' as keyof SocialMedia, label: 'Facebook', placeholder: 'https://facebook.com/…' },
+                  { field: 'tiktok_url' as keyof SocialMedia, label: 'TikTok', placeholder: 'https://tiktok.com/@…' },
+                  { field: 'youtube_url' as keyof SocialMedia, label: 'YouTube', placeholder: 'https://youtube.com/@…' },
+                ].map(({ field, label, placeholder }) => (
+                  <FieldInput
+                    key={field}
+                    label={label}
+                    placeholder={placeholder}
+                    value={socialData[field]}
+                    onChange={v => handleSocialChange(field, v)}
+                    type="url"
+                  />
+                ))}
+              </Section>
 
-          <button
-            type="submit"
-            disabled={savingSocial}
-            className="w-full py-3 bg-primary text-white font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {savingSocial ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveNetworks')}
-          </button>
+              <AccentButton type="submit" disabled={savingSocial} className="w-full py-3">
+                {savingSocial ? <><Spinner size="sm" color="white" />{t('settings.saving')}</> : t('settings.saveNetworks')}
+              </AccentButton>
 
-          <p className="text-[10px] text-default-400 text-center">
-            {t('settings.notificationInfo')} {labelSettings?.label_name || 'label'} {t('settings.forVerification')}
-          </p>
-        </form>
+              <p className="text-[10.5px] text-ink-faint text-center">
+                {t('settings.notificationInfo')} {labelSettings?.label_name || 'label'} {t('settings.forVerification')}
+              </p>
+            </form>
 
-        {/* Language */}
-        <div className="bg-content1 border border-divider rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-divider flex items-center gap-2">
-            <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-            </svg>
-            <h2 className="text-sm font-semibold text-foreground">{t('settings.language')}</h2>
-          </div>
-          <div className="p-4 grid grid-cols-2 gap-2">
-            {LANGUAGES.map(lang => (
-              <button
-                key={lang.code}
-                onClick={() => setLanguage(lang.code)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  language === lang.code
-                    ? 'bg-primary text-white'
-                    : 'bg-content2 text-foreground hover:bg-content3'
-                }`}
-              >
-                <span>{lang.flag}</span>
-                <span>{lang.label}</span>
-              </button>
-            ))}
+            {/* Appearance: theme + accent */}
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[18px] py-3.5 border-b border-line flex items-center gap-2.5">
+                <span className="text-ink-muted">
+                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
+                  </svg>
+                </span>
+                <h2 className="text-[14px] font-semibold text-ink">Apparence</h2>
+              </div>
+              <div className="p-[18px] space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[13.5px] font-medium text-ink">Thème sombre</div>
+                    <div className="text-[11.5px] text-ink-faint mt-0.5">Basculer clair / sombre</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    aria-label="Basculer le thème"
+                    className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${theme === 'dark' ? 'bg-accent' : 'bg-track'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-surface shadow-roy transition-transform ${theme === 'dark' ? 'translate-x-5' : ''}`} />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <Eyebrow>Accent</Eyebrow>
+                  <div className="flex gap-2.5">
+                    {ACCENTS.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setAccent(a.id)}
+                        aria-label={a.label}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform ${accent === a.id ? 'ring-2 ring-offset-2 ring-offset-surface ring-line-strong scale-105' : ''}`}
+                        style={{ backgroundColor: a.color }}
+                      >
+                        {accent === a.id && <span className="text-white"><IconCheck size={15} /></span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Language */}
+            <Card padded={false} className="overflow-hidden">
+              <div className="px-[18px] py-3.5 border-b border-line flex items-center gap-2.5">
+                <span className="text-ink-muted">
+                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                </span>
+                <h2 className="text-[14px] font-semibold text-ink">{t('settings.language')}</h2>
+              </div>
+              <div className="p-[18px] grid grid-cols-2 gap-2">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => setLanguage(lang.code)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-[11px] text-[13px] font-medium transition-colors ${
+                      language === lang.code
+                        ? 'bg-accent text-accent-ink'
+                        : 'bg-surface-2 text-ink hover:bg-surface-2/70'
+                    }`}
+                  >
+                    <span>{lang.flag}</span>
+                    <span>{lang.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            {/* Logout */}
+            <button
+              onClick={logout}
+              className="w-full py-3 text-neg hover:bg-neg/10 rounded-[14px] transition-colors flex items-center justify-center gap-2 text-sm font-medium border border-line bg-surface"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {t('settings.logout')}
+            </button>
           </div>
         </div>
-
-        {/* Logout */}
-        <button
-          onClick={logout}
-          className="w-full py-3 text-danger hover:bg-danger/10 rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm font-medium border border-divider bg-content1"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          {t('settings.logout')}
-        </button>
         </>
         )}
       </main>

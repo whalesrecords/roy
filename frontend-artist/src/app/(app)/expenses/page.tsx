@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
 import { getExpenses, Expense } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, Eyebrow, Pill, fmtMoney } from '@/components/roy/ui';
+import { IconFile, IconDownload } from '@/components/roy/icons';
 
 // Category icons (SVG paths)
 const CATEGORY_ICONS: Record<string, string> = {
@@ -24,33 +26,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   other: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
 };
 
-const CATEGORY_COLORS: Record<string, string> = {
-  mastering: 'bg-purple-500/10 text-purple-400',
-  mixing: 'bg-indigo-500/10 text-indigo-400',
-  recording: 'bg-red-500/10 text-red-400',
-  photos: 'bg-pink-500/10 text-pink-400',
-  video: 'bg-rose-500/10 text-rose-400',
-  advertising: 'bg-orange-500/10 text-orange-400',
-  groover: 'bg-orange-500/10 text-orange-400',
-  submithub: 'bg-blue-500/10 text-blue-400',
-  distribution: 'bg-teal-500/10 text-teal-400',
-  artwork: 'bg-fuchsia-500/10 text-fuchsia-400',
-  cd: 'bg-slate-500/10 text-slate-400',
-  vinyl: 'bg-slate-500/10 text-slate-400',
-  pr: 'bg-cyan-500/10 text-cyan-400',
-  other: 'bg-default-100 text-default-500',
-};
-
+// Accent-aware breakdown palette (theme tokens + a couple of platform-style hues)
 const BAR_COLORS = [
-  '#818cf8', '#34d399', '#f59e0b', '#f43f5e',
-  '#a78bfa', '#22d3ee', '#fb923c', '#4ade80',
+  'var(--accent)', '#4D8DFF', '#E3B341', '#FC3C44',
+  '#9b7bff', '#00C7F2', '#FF9900', '#1DB954',
 ];
 
 function getIconPath(category?: string): string {
   return CATEGORY_ICONS[category || 'other'] || CATEGORY_ICONS.other;
-}
-function getColor(category?: string): string {
-  return CATEGORY_COLORS[category || 'other'] || CATEGORY_COLORS.other;
 }
 
 /** Open a document URL in a new tab. Supports both https:// and data: URLs. */
@@ -144,6 +127,8 @@ export default function ExpensesPage() {
     [filtered]
   );
 
+  const currency = expenses[0]?.currency || 'EUR';
+
   // Category breakdown of filtered expenses
   const categoryBreakdown = useMemo(() => {
     const map = new Map<string, { label: string; total: number }>();
@@ -184,9 +169,24 @@ export default function ExpensesPage() {
 
   const scopeItems = scopeFilter === 'track' ? uniqueTracks : scopeFilter === 'release' ? uniqueReleases : [];
 
+  const scopeLabel = (s: ScopeFilter) =>
+    s === 'all' ? 'Tout' : s === 'track' ? 'Track' : s === 'release' ? 'Album' : 'Général';
+
   return (
-    <div className="min-h-screen bg-background safe-top">
-      <main className="px-4 py-4 pb-28 max-w-lg mx-auto space-y-4">
+    <div className="min-h-screen bg-app">
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div>
+          <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Dépenses</div>
+          <div className="text-[12.5px] text-ink-faint mt-0.5">Mastering, promo, distribution et plus</div>
+        </div>
+        <div className="text-right">
+          <Eyebrow className="text-[9.5px]">Total</Eyebrow>
+          <div className="roy-num text-[22px] font-bold text-ink leading-none mt-1.5">{fmt(totalFiltered, currency)}</div>
+        </div>
+      </div>
+
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
         {(authLoading || loading) ? (
           <div className="flex items-center justify-center py-20">
             <Spinner size="lg" color="primary" />
@@ -194,24 +194,23 @@ export default function ExpensesPage() {
         ) : (
         <>
         {error && (
-          <div className="p-3 bg-danger/10 border border-danger/20 rounded-2xl">
-            <p className="text-danger text-sm">{error}</p>
+          <div className="p-3 bg-neg/10 border border-neg/20 rounded-[14px]">
+            <p className="text-neg text-sm">{error}</p>
           </div>
         )}
 
-        {/* Summary card */}
-        <div className="relative overflow-hidden rounded-3xl bg-content1 border border-white/[0.06] p-5">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-danger/40 to-transparent" />
-          <p className="text-[10px] font-semibold text-default-400 uppercase tracking-[0.15em] mb-1">Total dépenses</p>
-          <p className="text-3xl font-black text-foreground leading-none">{fmt(totalFiltered)}</p>
-          <p className="text-xs text-default-400 mt-1">{filtered.length} entrée{filtered.length > 1 ? 's' : ''}</p>
+        {/* Mobile total */}
+        <div className="lg:hidden">
+          <Eyebrow>Total dépenses</Eyebrow>
+          <div className="roy-num text-[48px] font-bold text-ink leading-none mt-1.5">{fmt(totalFiltered, currency)}</div>
+          <div className="text-[12.5px] text-ink-muted mt-2">{filtered.length} entrée{filtered.length > 1 ? 's' : ''}</div>
         </div>
 
-        {/* Breakdown bar */}
+        {/* Breakdown */}
         {categoryBreakdown.length > 1 && (
-          <div className="bg-content1 border border-divider rounded-2xl p-4 space-y-3">
-            <p className="text-[10px] font-semibold text-default-400 uppercase tracking-widest">Répartition</p>
-            <div className="flex h-2.5 rounded-full overflow-hidden gap-px">
+          <Card className="space-y-3">
+            <Eyebrow>Répartition</Eyebrow>
+            <div className="flex h-2.5 rounded-full overflow-hidden gap-px bg-track">
               {categoryBreakdown.map((cat, i) => (
                 <div
                   key={cat.key}
@@ -225,34 +224,35 @@ export default function ExpensesPage() {
                 <div key={cat.key} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: BAR_COLORS[i % BAR_COLORS.length] }} />
-                    <span className="text-xs text-foreground">{cat.label}</span>
+                    <span className="text-[12.5px] text-ink">{cat.label}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-default-400">{cat.pct.toFixed(0)}%</span>
-                    <span className="text-xs font-semibold text-foreground tabular-nums">{fmt(cat.total)}</span>
+                    <span className="text-[10.5px] text-ink-faint">{cat.pct.toFixed(0)}%</span>
+                    <span className="text-[12.5px] font-semibold text-ink roy-num">{fmt(cat.total, currency)}</span>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
-        {/* Scope filter */}
+        {/* Filters */}
         {expenses.length > 0 && (
           <div className="space-y-2">
-            <div className="flex gap-1 bg-content1 border border-divider rounded-xl p-1">
+            <div className="flex gap-1 rounded-[11px] border border-line bg-surface p-1">
               {(['all', 'track', 'release', 'catalog'] as ScopeFilter[]).map(s => {
                 const count = s === 'all' ? expenses.length : expenses.filter(e => e.scope === s).length;
                 if (s !== 'all' && !count) return null;
+                const active = scopeFilter === s;
                 return (
                   <button
                     key={s}
                     onClick={() => { setScopeFilter(s); setScopeItemFilter(null); setCategoryFilter(null); }}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      scopeFilter === s ? 'bg-primary text-white' : 'text-default-500'
+                    className={`flex-1 py-1.5 rounded-lg text-[12.5px] font-medium transition-colors ${
+                      active ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'
                     }`}
                   >
-                    {s === 'all' ? 'Tout' : s === 'track' ? 'Track' : s === 'release' ? 'Album' : 'Général'}
+                    {scopeLabel(s)}
                   </button>
                 );
               })}
@@ -263,8 +263,8 @@ export default function ExpensesPage() {
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 <button
                   onClick={() => setScopeItemFilter(null)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                    !scopeItemFilter ? 'bg-primary text-white' : 'bg-content1 border border-divider text-default-500'
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                    !scopeItemFilter ? 'bg-accent-soft text-accent' : 'bg-surface border border-line text-ink-muted'
                   }`}
                 >
                   Tout
@@ -273,8 +273,8 @@ export default function ExpensesPage() {
                   <button
                     key={item}
                     onClick={() => setScopeItemFilter(scopeItemFilter === item ? null : item)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                      scopeItemFilter === item ? 'bg-primary text-white' : 'bg-content1 border border-divider text-default-500'
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                      scopeItemFilter === item ? 'bg-accent-soft text-accent' : 'bg-surface border border-line text-ink-muted'
                     }`}
                   >
                     {item}
@@ -288,8 +288,8 @@ export default function ExpensesPage() {
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 <button
                   onClick={() => setCategoryFilter(null)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                    !categoryFilter ? 'bg-foreground text-background' : 'bg-content1 border border-divider text-default-500'
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                    !categoryFilter ? 'bg-ink text-app' : 'bg-surface border border-line text-ink-muted'
                   }`}
                 >
                   Toutes catégories
@@ -298,8 +298,8 @@ export default function ExpensesPage() {
                   <button
                     key={key}
                     onClick={() => setCategoryFilter(categoryFilter === key ? null : key)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                      categoryFilter === key ? 'bg-foreground text-background' : 'bg-content1 border border-divider text-default-500'
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${
+                      categoryFilter === key ? 'bg-ink text-app' : 'bg-surface border border-line text-ink-muted'
                     }`}
                   >
                     {label}
@@ -313,71 +313,61 @@ export default function ExpensesPage() {
         {/* Expense list */}
         {filtered.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-14 h-14 bg-content1 border border-divider rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-default-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+            <div className="w-14 h-14 bg-surface border border-line rounded-[16px] flex items-center justify-center mx-auto mb-4 text-ink-faint">
+              <IconFile size={24} />
             </div>
-            <p className="text-default-500 text-sm">Aucune dépense</p>
+            <p className="text-ink-faint text-sm">Aucune dépense</p>
           </div>
         ) : (
           <div className="space-y-5">
             {groupedByMonth.map(([monthKey, items]) => (
               <div key={monthKey} className="space-y-2">
-                <h3 className="text-[10px] font-semibold text-default-400 uppercase tracking-widest px-1">
-                  {formatMonthHeader(monthKey)}
-                </h3>
-                <div className="space-y-2">
-                  {items.map(expense => (
+                <h3 className="roy-eyebrow text-[10px] px-1">{formatMonthHeader(monthKey)}</h3>
+                <Card padded={false} className="overflow-hidden">
+                  {items.map((expense, i) => (
                     <div
                       key={expense.id}
-                      className="bg-content1 border border-divider rounded-2xl p-3 flex items-center gap-3"
+                      className={`p-[14px] flex items-center gap-3.5 ${i < items.length - 1 ? 'border-b border-line' : ''}`}
                     >
                       {/* Category icon */}
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getColor(expense.category)}`}>
-                        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={getIconPath(expense.category)} />
+                      <div className="w-10 h-10 rounded-[12px] bg-surface-2 text-ink-muted flex items-center justify-center shrink-0">
+                        <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d={getIconPath(expense.category)} />
                         </svg>
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-sm font-medium text-foreground">
+                          <span className="text-[13.5px] font-semibold text-ink">
                             {expense.category_label || 'Autre'}
                           </span>
-                          {expense.scope_title && (
-                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded-lg font-medium">
-                              {expense.scope_title}
-                            </span>
-                          )}
+                          {expense.scope_title && <Pill tone="accent">{expense.scope_title}</Pill>}
                         </div>
                         {expense.description && (
-                          <p className="text-xs text-default-400 truncate mt-0.5">{expense.description}</p>
+                          <p className="text-[11.5px] text-ink-muted truncate mt-0.5">{expense.description}</p>
                         )}
-                        <p className="text-[10px] text-default-300 mt-0.5">{formatDate(expense.date)}</p>
+                        <p className="text-[11px] text-ink-faint mt-0.5">{formatDate(expense.date)}</p>
                       </div>
 
                       {/* Amount + PDF */}
                       <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <p className="font-bold text-danger text-sm tabular-nums">
+                        <p className="font-bold text-neg text-[14px] roy-num">
                           -{fmt(expense.amount, expense.currency)}
                         </p>
                         {expense.document_url && (
                           <button
                             onClick={() => openDocument(expense.document_url!)}
-                            className="flex items-center gap-1 px-2 py-0.5 bg-default-100 rounded-lg text-[10px] text-default-500 hover:bg-default-200 transition-colors"
+                            className="flex items-center gap-1 px-2 py-0.5 bg-surface-2 rounded-lg text-[10.5px] font-medium text-ink-muted hover:bg-surface-2/70 transition-colors"
                           >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
+                            <IconDownload size={12} />
                             PDF
                           </button>
                         )}
                       </div>
                     </div>
                   ))}
-                </div>
+                </Card>
               </div>
             ))}
           </div>

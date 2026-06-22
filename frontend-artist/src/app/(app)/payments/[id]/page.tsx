@@ -6,6 +6,8 @@ import { Spinner } from '@heroui/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { getStatementDetail, getLabelSettings, StatementDetail, LabelSettings } from '@/lib/api';
+import { Card, Eyebrow, Pill, fmtMoney } from '@/components/roy/ui';
+import { IconChevronLeft, IconMusic, IconChart } from '@/components/roy/icons';
 
 export default function StatementDetailPage() {
   const { artist, loading: authLoading } = useAuth();
@@ -37,7 +39,7 @@ export default function StatementDetailPage() {
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
+    return fmtMoney(value, currency);
   };
 
   const formatDate = (dateStr: string) => {
@@ -51,17 +53,17 @@ export default function StatementDetailPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <span className="px-3 py-1 bg-success/10 text-success text-sm font-medium rounded-full">Paid</span>;
+        return <Pill tone="accent">Paid</Pill>;
       case 'finalized':
-        return <span className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">Finalized</span>;
+        return <Pill tone="accent">Finalized</Pill>;
       default:
-        return <span className="px-3 py-1 bg-secondary/10 text-secondary-600 text-sm font-medium rounded-full">Draft</span>;
+        return <Pill tone="neutral">Draft</Pill>;
     }
   };
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-app flex items-center justify-center">
         <Spinner size="lg" color="primary" />
       </div>
     );
@@ -69,149 +71,159 @@ export default function StatementDetailPage() {
 
   if (error || !statement) {
     return (
-      <div className="min-h-screen bg-background safe-top safe-bottom">
-        <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
+      <div className="min-h-screen bg-app">
+        <header className="sticky top-0 z-50 bg-app/80 backdrop-blur-md border-b border-line lg:hidden">
           <div className="px-4 py-3 flex items-center gap-3">
-            <Link href="/payments" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
-              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+            <Link href="/payments" className="p-2 -ml-2 rounded-full hover:bg-surface-2 transition-colors text-ink">
+              <IconChevronLeft size={20} />
             </Link>
-            <h1 className="font-semibold text-foreground">Statement</h1>
+            <h1 className="font-semibold text-ink">Statement</h1>
           </div>
         </header>
-        <main className="px-4 py-8">
-          <div className="text-center">
-            <p className="text-danger">{error || 'Statement not found'}</p>
-          </div>
+        <main className="px-4 py-8 lg:px-7 lg:py-6 max-w-lg lg:max-w-none mx-auto">
+          <div className="text-center text-neg text-sm">{error || 'Statement not found'}</div>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background safe-top safe-bottom">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-divider">
+    <div className="min-h-screen bg-app">
+      {/* Mobile header */}
+      <header className="sticky top-0 z-50 bg-app/80 backdrop-blur-md border-b border-line lg:hidden">
         <div className="px-4 py-3 flex items-center gap-3">
-          <Link href="/payments" className="p-2 -ml-2 rounded-full hover:bg-content2 transition-colors">
-            <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+          <Link href="/payments" className="p-2 -ml-2 rounded-full hover:bg-surface-2 transition-colors text-ink">
+            <IconChevronLeft size={20} />
           </Link>
-          <div className="flex-1">
-            <h1 className="font-semibold text-foreground">Statement {statement.period_label}</h1>
-            <p className="text-xs text-secondary-500">{formatDate(statement.created_at)}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-semibold text-ink truncate">Statement {statement.period_label}</h1>
+            <p className="text-[11px] text-ink-faint">{formatDate(statement.created_at)}</p>
           </div>
           {getStatusBadge(statement.status)}
         </div>
       </header>
 
-      <main className="px-4 py-4 pb-24 space-y-4">
-        {/* Label Info */}
-        {labelSettings?.label_name && (
-          <div className="flex items-center gap-3 p-3 bg-content2 rounded-xl">
-            <img
-              src={labelSettings.logo_base64 || labelSettings.logo_url || '/icon.svg'}
-              alt={labelSettings.label_name}
-              className="h-10 w-auto object-contain"
-            />
-            <span className="font-medium text-foreground">{labelSettings.label_name}</span>
+      {/* Desktop topbar */}
+      <div className="hidden lg:flex items-center justify-between px-7 py-[22px] border-b border-line">
+        <div className="flex items-center gap-4">
+          <Link href="/payments" className="p-2 -ml-2 rounded-full hover:bg-surface-2 transition-colors text-ink-muted">
+            <IconChevronLeft size={20} />
+          </Link>
+          <div>
+            <div className="text-[21px] font-bold tracking-[-0.02em] text-ink">Statement {statement.period_label}</div>
+            <div className="text-[12.5px] text-ink-faint mt-0.5">{formatDate(statement.created_at)}</div>
           </div>
-        )}
-
-        {/* Period */}
-        <div className="bg-content2 rounded-xl p-3 text-center">
-          <p className="text-sm text-secondary-500">Period</p>
-          <p className="font-medium text-foreground">
-            {formatDate(statement.period_start)} - {formatDate(statement.period_end)}
-          </p>
         </div>
+        {getStatusBadge(statement.status)}
+      </div>
 
-        {/* Summary Card */}
-        <div className="bg-gradient-to-br from-primary/10 to-success/10 rounded-2xl p-4 border border-primary/20">
-          <h2 className="font-semibold text-foreground mb-3">Summary</h2>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-secondary-600">Gross revenue</span>
-              <span className="font-medium text-foreground">{formatCurrency(statement.gross_revenue, statement.currency)}</span>
+      <main className="px-4 py-4 pb-28 lg:px-7 lg:py-6 lg:pb-10 max-w-lg lg:max-w-none mx-auto space-y-3 lg:space-y-4">
+        {/* Hero — net payable */}
+        <Card hero className="rounded-[20px]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <Eyebrow>Net payable</Eyebrow>
+              <div className="roy-num text-[44px] font-bold text-ink leading-none mt-2">
+                {formatCurrency(statement.net_payable, statement.currency)}
+              </div>
+              <div className="text-[12px] text-ink-faint mt-2.5">
+                {formatDate(statement.period_start)} – {formatDate(statement.period_end)}
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-secondary-600">Your royalties</span>
-              <span className="font-medium text-foreground">{formatCurrency(statement.artist_royalties, statement.currency)}</span>
+            {getStatusBadge(statement.status)}
+          </div>
+
+          {labelSettings?.label_name && (
+            <div className="flex items-center gap-2.5 mt-4 pt-4 border-t border-line">
+              <img
+                src={labelSettings.logo_base64 || labelSettings.logo_url || '/icon.svg'}
+                alt={labelSettings.label_name}
+                className="h-7 w-auto object-contain"
+              />
+              <span className="text-[12.5px] font-semibold text-ink-muted">{labelSettings.label_name}</span>
+            </div>
+          )}
+        </Card>
+
+        {/* Summary breakdown */}
+        <Card>
+          <Eyebrow className="text-[9.5px]">Summary</Eyebrow>
+          <div className="mt-3 space-y-3">
+            <div className="flex justify-between items-baseline">
+              <span className="text-[13px] text-ink-muted">Gross revenue</span>
+              <span className="roy-num text-[13.5px] font-semibold text-ink">{formatCurrency(statement.gross_revenue, statement.currency)}</span>
+            </div>
+            <div className="flex justify-between items-baseline">
+              <span className="text-[13px] text-ink-muted">Your royalties</span>
+              <span className="roy-num text-[13.5px] font-semibold text-ink">{formatCurrency(statement.artist_royalties, statement.currency)}</span>
             </div>
             {parseFloat(statement.advance_balance) > 0 && (
-              <div className="flex justify-between">
-                <span className="text-secondary-600">Advance balance</span>
-                <span className="font-medium text-warning">{formatCurrency(statement.advance_balance, statement.currency)}</span>
+              <div className="flex justify-between items-baseline">
+                <span className="text-[13px] text-ink-muted">Advance balance</span>
+                <span className="roy-num text-[13.5px] font-semibold text-neg">{formatCurrency(statement.advance_balance, statement.currency)}</span>
               </div>
             )}
             {parseFloat(statement.recouped) > 0 && (
-              <div className="flex justify-between">
-                <span className="text-secondary-600">Advances recouped</span>
-                <span className="font-medium text-warning">-{formatCurrency(statement.recouped, statement.currency)}</span>
+              <div className="flex justify-between items-baseline">
+                <span className="text-[13px] text-ink-muted">Advances recouped</span>
+                <span className="roy-num text-[13.5px] font-semibold text-neg">-{formatCurrency(statement.recouped, statement.currency)}</span>
               </div>
             )}
-            <div className="flex justify-between pt-3 border-t border-divider">
-              <span className="font-semibold text-foreground">Net payable</span>
-              <span className="font-bold text-success text-xl">{formatCurrency(statement.net_payable, statement.currency)}</span>
+            <div className="flex justify-between items-baseline pt-3 border-t border-line">
+              <span className="text-[13.5px] font-semibold text-ink">Net payable</span>
+              <span className="roy-num text-[18px] font-bold text-accent">{formatCurrency(statement.net_payable, statement.currency)}</span>
             </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Releases Breakdown */}
+        {/* Releases breakdown */}
         {statement.releases && statement.releases.length > 0 && (
-          <div className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              By album
-            </h2>
-            <div className="space-y-3">
+          <Card>
+            <div className="flex items-center gap-2 text-ink">
+              <IconMusic size={16} className="text-accent" />
+              <Eyebrow className="text-[9.5px]">By album</Eyebrow>
+            </div>
+            <div className="mt-3 space-y-1.5">
               {statement.releases.map((release, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 border-b border-divider last:border-0">
+                <div key={idx} className="flex items-center justify-between gap-3 bg-surface-2 rounded-xl px-3 py-2.5">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{release.title}</p>
-                    <p className="text-xs text-secondary-500">{release.track_count} track{release.track_count > 1 ? 's' : ''}</p>
+                    <p className="text-[13px] font-medium text-ink truncate">{release.title}</p>
+                    <p className="text-[11px] text-ink-faint mt-0.5">{release.track_count} track{release.track_count > 1 ? 's' : ''}</p>
                   </div>
-                  <div className="text-right ml-3">
-                    <p className="font-medium text-foreground">{formatCurrency(release.artist_royalties, statement.currency)}</p>
-                    <p className="text-xs text-secondary-500">of {formatCurrency(release.gross, statement.currency)}</p>
+                  <div className="text-right shrink-0">
+                    <p className="roy-num text-[13px] font-semibold text-ink">{formatCurrency(release.artist_royalties, statement.currency)}</p>
+                    <p className="roy-num text-[11px] text-ink-faint mt-0.5">of {formatCurrency(release.gross, statement.currency)}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
 
-        {/* Sources Breakdown */}
+        {/* Sources breakdown */}
         {statement.sources && statement.sources.length > 0 && (
-          <div className="bg-background border border-divider rounded-2xl p-4">
-            <h2 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              By platform
-            </h2>
-            <div className="space-y-3">
+          <Card>
+            <div className="flex items-center gap-2 text-ink">
+              <IconChart size={16} className="text-accent" />
+              <Eyebrow className="text-[9.5px]">By platform</Eyebrow>
+            </div>
+            <div className="mt-3 space-y-1.5">
               {statement.sources.map((source, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 border-b border-divider last:border-0">
+                <div key={idx} className="flex items-center justify-between gap-3 bg-surface-2 rounded-xl px-3 py-2.5">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground">{source.source_label}</p>
-                    <p className="text-xs text-secondary-500">{source.transaction_count} transaction{source.transaction_count > 1 ? 's' : ''}</p>
+                    <p className="text-[13px] font-medium text-ink">{source.source_label}</p>
+                    <p className="text-[11px] text-ink-faint mt-0.5">{source.transaction_count} transaction{source.transaction_count > 1 ? 's' : ''}</p>
                   </div>
-                  <div className="text-right ml-3">
-                    <p className="font-medium text-foreground">{formatCurrency(source.artist_royalties, statement.currency)}</p>
-                    <p className="text-xs text-secondary-500">of {formatCurrency(source.gross, statement.currency)}</p>
+                  <div className="text-right shrink-0">
+                    <p className="roy-num text-[13px] font-semibold text-ink">{formatCurrency(source.artist_royalties, statement.currency)}</p>
+                    <p className="roy-num text-[11px] text-ink-faint mt-0.5">of {formatCurrency(source.gross, statement.currency)}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         )}
       </main>
-
     </div>
   );
 }
