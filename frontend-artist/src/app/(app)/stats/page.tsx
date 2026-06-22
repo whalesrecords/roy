@@ -277,7 +277,7 @@ export default function StatsPage() {
               <div className="flex items-center gap-[18px] mt-3.5">
                 <div className="relative w-32 h-32 shrink-0 rounded-full" style={{ background: donut.gradient }}>
                   <div className="absolute inset-[18px] rounded-full bg-surface flex flex-col items-center justify-center">
-                    <span className="roy-num text-[16px] font-bold text-ink">{fmtMoney(totalGross, currency, { notation: 'compact', maximumFractionDigits: 1 })}</span>
+                    <span className="roy-num text-[16px] font-bold text-ink">{fmtMoney(totalGross, currency, { notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 1 })}</span>
                     <span className="text-[9.5px] text-ink-faint">total</span>
                   </div>
                 </div>

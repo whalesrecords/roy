@@ -37,7 +37,7 @@ export default function TracksPage() {
   };
 
   const formatCurrency = (value: string, currency: string = 'EUR') => {
-    return parseFloat(value).toLocaleString('en-US', { style: 'currency', currency });
+    return parseFloat(value).toLocaleString('fr-FR', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // Summary stats
