@@ -1,0 +1,11 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env*.local
+.DS_Store
+*.log
+ios/
+android/
+google-play-service-account.json
+expo-env.d.ts

@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Whales Artists",
+    "slug": "whales-records-artist",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "whalesartist",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0B0D"
+    },
+    "ios": {
+      "bundleIdentifier": "com.whalesrecords.artist",
+      "supportsTablet": false,
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
+    },
+    "android": {
+      "package": "com.whalesrecords.artist",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A0B0D"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://artists.whalesrecords.com"
+      },
+      "eas": {
+        "projectId": "REPLACE_ME_AFTER_EAS_INIT"
+      }
+    }
+  }
+}
