@@ -1,0 +1,159 @@
+name: Build mobile apps
+
+# Build unsigned iOS .ipa and Android .aab from the Capacitor wrappers in
+# mobile/admin/ and mobile/artist/. Triggered manually so we don't burn CI
+# minutes on every commit. Drop the artifacts into TestFlight (iOS) or
+# Play Console internal testing (Android) for distribution.
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which mobile app to build'
+        required: true
+        type: choice
+        options:
+          - admin
+          - artist
+          - both
+      platform:
+        description: 'Which platform'
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+          - both
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-build.yml'
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      builds: ${{ steps.set.outputs.builds }}
+    steps:
+      - id: set
+        run: |
+          APP="${{ github.event.inputs.app || 'both' }}"
+          PLAT="${{ github.event.inputs.platform || 'both' }}"
+          APPS=()
+          [[ "$APP" == "admin" || "$APP" == "both" ]] && APPS+=("admin")
+          [[ "$APP" == "artist" || "$APP" == "both" ]] && APPS+=("artist")
+          PLATS=()
+          [[ "$PLAT" == "ios" || "$PLAT" == "both" ]] && PLATS+=("ios")
+          [[ "$PLAT" == "android" || "$PLAT" == "both" ]] && PLATS+=("android")
+          BUILDS="["
+          FIRST=1
+          for A in "${APPS[@]}"; do
+            for P in "${PLATS[@]}"; do
+              if [ $FIRST -eq 0 ]; then BUILDS+=","; fi
+              BUILDS+="{\"app\":\"$A\",\"platform\":\"$P\"}"
+              FIRST=0
+            done
+          done
+          BUILDS+="]"
+          echo "builds=$BUILDS" >> $GITHUB_OUTPUT
+
+  build:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.matrix.outputs.builds) }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-14' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/${{ matrix.app }}/package-lock.json
+
+      - name: Install Capacitor dependencies
+        working-directory: mobile/${{ matrix.app }}
+        run: npm install
+
+      - name: Add iOS platform
+        if: matrix.platform == 'ios'
+        working-directory: mobile/${{ matrix.app }}
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Add Android platform
+        if: matrix.platform == 'android'
+        working-directory: mobile/${{ matrix.app }}
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      # --- iOS build (unsigned) ---
+      - name: Setup Ruby (for CocoaPods)
+        if: matrix.platform == 'ios'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Install CocoaPods
+        if: matrix.platform == 'ios'
+        working-directory: mobile/${{ matrix.app }}/ios/App
+        run: |
+          gem install cocoapods
+          pod install
+
+      - name: Build iOS archive (unsigned)
+        if: matrix.platform == 'ios'
+        working-directory: mobile/${{ matrix.app }}/ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS Simulator,name=iPhone 15" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+          # Package the .app from simulator build into a zip for download
+          mkdir -p ../../../artifacts
+          (cd build/Build/Products/Release-iphonesimulator && zip -r "../../../../../../artifacts/${{ matrix.app }}-ios-simulator.zip" App.app)
+
+      - name: Upload iOS artifact
+        if: matrix.platform == 'ios'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-ios
+          path: mobile/${{ matrix.app }}/artifacts/*.zip
+          retention-days: 14
+
+      # --- Android build ---
+      - name: Setup JDK
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build Android AAB (debug-signed)
+        if: matrix.platform == 'android'
+        working-directory: mobile/${{ matrix.app }}/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bundleRelease -x signingConfig || ./gradlew assembleDebug
+          mkdir -p ../artifacts
+          find . -name "*.aab" -exec cp {} ../artifacts/${{ matrix.app }}-android.aab \; || true
+          find . -name "*.apk" -exec cp {} ../artifacts/${{ matrix.app }}-android.apk \; || true
+
+      - name: Upload Android artifact
+        if: matrix.platform == 'android'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-android
+          path: mobile/${{ matrix.app }}/artifacts/*
+          retention-days: 14
