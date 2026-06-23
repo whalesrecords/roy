@@ -2246,6 +2246,18 @@ export async function importReverbAssets(file: File, defaultPurchaseDate?: strin
   return result;
 }
 
+export interface ScrapePhotosResult {
+  updated: number;
+  skipped: number;
+  not_found: number;
+}
+
+export async function scrapeAssetPhotos(): Promise<ScrapePhotosResult> {
+  const result = await fetchApi<ScrapePhotosResult>('/assets/scrape-photos', { method: 'POST' });
+  invalidateCache('/assets');
+  return result;
+}
+
 // ============ Spotify Ad Campaigns ============
 
 export interface SpotifyAdCampaign {

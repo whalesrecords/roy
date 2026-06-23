@@ -10,6 +10,7 @@ import {
   getAssets,
   getAssetsSummary,
   importReverbAssets,
+  scrapeAssetPhotos,
   updateAsset,
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
@@ -91,6 +92,7 @@ export default function AssetsTab() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importDate, setImportDate] = useState('');
   const [importing, setImporting] = useState(false);
+  const [scraping, setScraping] = useState(false);
 
   const load = useCallback(async () => {
     setFetching(true);
@@ -164,6 +166,24 @@ export default function AssetsTab() {
     }
   };
 
+  const handleScrapePhotos = async () => {
+    setScraping(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await scrapeAssetPhotos();
+      await load();
+      setSuccessMsg(
+        `${res.updated} photo${res.updated > 1 ? 's' : ''} récupérée${res.updated > 1 ? 's' : ''} sur Reverb` +
+          (res.not_found > 0 ? ` — ${res.not_found} introuvable${res.not_found > 1 ? 's' : ''}.` : '.')
+      );
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la récupération des photos');
+    } finally {
+      setScraping(false);
+    }
+  };
+
   const handleImport = async () => {
     if (!importFile) return;
     setImporting(true);
@@ -210,6 +230,9 @@ export default function AssetsTab() {
     <div className="space-y-4">
       {/* Header actions */}
       <div className="flex flex-wrap items-center justify-end gap-2.5">
+        <OutlineButton onClick={handleScrapePhotos} disabled={scraping}>
+          {scraping ? 'Récupération...' : 'Récupérer photos manquantes'}
+        </OutlineButton>
         <OutlineButton onClick={() => { setShowImport(true); setImportFile(null); }}>
           <IconImport size={14} /> Import Reverb CSV
         </OutlineButton>

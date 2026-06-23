@@ -547,3 +547,82 @@ async def import_reverb_csv(
         # surface the number of photo backfills in the message via errors slot
         errors.insert(0, f"{updated} photo(s) ajoutée(s) sur des immobilisations existantes")
     return ImportResult(created=created, skipped=skipped, errors=errors)
+
+
+# --- Photo scraper (uses Reverb's public listings API) ---
+
+
+class PhotoScrapeResult(BaseModel):
+    updated: int
+    skipped: int
+    not_found: int
+
+
+async def _reverb_search_photo(client, query: str) -> Optional[str]:
+    """Query Reverb's public listings API and return the first product photo."""
+    try:
+        resp = await client.get(
+            "https://api.reverb.com/api/listings/all",
+            params={"query": query, "per_page": 1},
+            headers={"Accept-Version": "3.0", "Accept": "application/hal+json"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        listings = data.get("listings", [])
+        if not listings:
+            return None
+        photos = listings[0].get("photos") or []
+        if not photos:
+            return None
+        return photos[0].get("_links", {}).get("full", {}).get("href")
+    except Exception:
+        return None
+
+
+@router.post("/scrape-photos", response_model=PhotoScrapeResult)
+async def scrape_missing_photos(
+    _token: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    For every asset with image_url IS NULL, search Reverb's public listings
+    API by name and fill in the first product photo. Used to backfill the
+    Reverb gear collection import where the CSV rarely includes images.
+    """
+    import httpx
+
+    result = await db.execute(
+        select(FixedAsset).where(FixedAsset.image_url.is_(None))
+    )
+    targets = result.scalars().all()
+    if not targets:
+        return PhotoScrapeResult(updated=0, skipped=0, not_found=0)
+
+    updated = 0
+    not_found = 0
+    async with httpx.AsyncClient() as client:
+        for asset in targets:
+            name = asset.name or ""
+            # Strip trailing year/range suffix that hurts search ("1972 - 1974 Black")
+            clean = re.sub(r"\s+\d{4}.*$", "", name).strip()
+            queries = [clean, name] if clean and clean != name else [name]
+            photo: Optional[str] = None
+            for q in queries:
+                if not q:
+                    continue
+                photo = await _reverb_search_photo(client, q)
+                if photo:
+                    break
+            if photo:
+                asset.image_url = photo
+                asset.updated_at = datetime.utcnow()
+                updated += 1
+            else:
+                not_found += 1
+
+    if updated:
+        await db.commit()
+
+    return PhotoScrapeResult(updated=updated, skipped=0, not_found=not_found)
