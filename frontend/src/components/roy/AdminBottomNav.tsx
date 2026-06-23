@@ -16,7 +16,7 @@ const ADMIN_TABS: BottomNavItem[] = [
     ),
   },
   {
-    href: '/royalties',
+    href: '/dashboard/royalties',
     label: 'Royalties',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
@@ -25,7 +25,7 @@ const ADMIN_TABS: BottomNavItem[] = [
     ),
   },
   {
-    href: '/artists',
+    href: '/dashboard/artists',
     label: 'Artistes',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
@@ -35,7 +35,7 @@ const ADMIN_TABS: BottomNavItem[] = [
     ),
   },
   {
-    href: '/finances',
+    href: '/dashboard/finances',
     label: 'Finances',
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
