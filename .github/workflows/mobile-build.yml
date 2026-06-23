@@ -118,9 +118,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
-          # Package the .app from simulator build into a zip for download
-          mkdir -p ../../../artifacts
-          (cd build/Build/Products/Release-iphonesimulator && zip -r "../../../../../../artifacts/${{ matrix.app }}-ios-simulator.zip" App.app)
+          ARTIFACTS_DIR="$GITHUB_WORKSPACE/mobile/${{ matrix.app }}/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+          (cd build/Build/Products/Release-iphonesimulator && zip -r "$ARTIFACTS_DIR/${{ matrix.app }}-ios-simulator.zip" App.app)
 
       - name: Upload iOS artifact
         if: matrix.platform == 'ios'
