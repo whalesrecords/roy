@@ -1,0 +1,31 @@
+{
+  "name": "whales-records-admin-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor wrapper that loads admin.whalesrecords.com as a native iOS/Android app",
+  "scripts": {
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android",
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "run:ios": "cap run ios",
+    "run:android": "cap run android",
+    "build:ios": "cap build ios",
+    "build:android": "cap build android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/ios": "^6.2.0",
+    "@capacitor/keyboard": "^6.0.3",
+    "@capacitor/push-notifications": "^6.0.4",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}
