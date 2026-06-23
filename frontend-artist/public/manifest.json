@@ -1,12 +1,13 @@
 {
-  "name": "Whales Records - Espace Artiste",
+  "name": "Whales Records — Espace Artiste",
   "short_name": "Whales Artists",
-  "description": "Consultez vos revenus, statistiques et demandez vos paiements",
-  "start_url": "/",
-  "id": "/",
+  "description": "Revenus, statistiques et relevés — Whales Records",
+  "start_url": "/m",
+  "id": "/m",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0A0B0D",
+  "theme_color": "#0A0B0D",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "fr",
@@ -16,7 +17,8 @@
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
     },
     {
       "src": "/icon.svg",
@@ -25,18 +27,29 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Home",
-      "url": "/",
+      "name": "Accueil",
+      "short_name": "Accueil",
+      "url": "/m",
       "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     },
     {
       "name": "Statistiques",
       "short_name": "Stats",
-      "url": "/stats",
+      "url": "/m/stats",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Musique",
+      "short_name": "Musique",
+      "url": "/m/musique",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Relevés",
+      "short_name": "Relevés",
+      "url": "/m/releves",
       "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]

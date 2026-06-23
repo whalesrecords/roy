@@ -5,6 +5,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { MaintenanceProvider } from '@/contexts/MaintenanceContext';
 import AppShell from '@/components/layout/AppShell';
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration';
 import { HeroUIProvider } from '@heroui/react';
 
 const sans = Schibsted_Grotesk({
@@ -22,7 +23,13 @@ const mono = IBM_Plex_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: '#6366f1',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F4F5F7' },
+    { media: '(prefers-color-scheme: dark)', color: '#0A0B0D' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -80,6 +87,7 @@ export default function RootLayout({
                 <AppShell>
                   {children}
                 </AppShell>
+                <ServiceWorkerRegistration />
               </AuthProvider>
             </MaintenanceProvider>
           </HeroUIProvider>
