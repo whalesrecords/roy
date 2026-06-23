@@ -106,3 +106,14 @@ body { background: var(--bg); color: var(--text); }
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
 }
+
+/* ── ROY redesign — sheet & popover animations ── */
+@keyframes royFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes roySheet { from { transform: translateY(101%); } to { transform: translateY(0); } }
+@keyframes royPop { from { transform: translateY(-10px) scale(.98); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+:root { --nav: rgba(255, 255, 255, 0.85); --scrim: rgba(20,23,28,0.38); --sheet: #FFFFFF; --cover: linear-gradient(135deg,#E9ECF0,#DCE0E6); }
+html.dark, .dark { --nav: rgba(14, 16, 20, 0.82); --scrim: rgba(0,0,0,0.6); --sheet: #15181D; --cover: linear-gradient(135deg,#23262C,#15171B); }
+
+.roy-eyebrow { font-family: var(--font-mono, 'IBM Plex Mono', monospace); font-weight: 500; text-transform: uppercase; letter-spacing: 0.13em; color: var(--text-3); }
+.roy-num { font-variant-numeric: tabular-nums; letter-spacing: -0.025em; }
