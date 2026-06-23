@@ -1,18 +1,50 @@
 {
   "name": "Whales Records Admin",
   "short_name": "WR Admin",
-  "description": "Gestion des royalties, contrats et inventaire",
-  "start_url": "/",
+  "description": "Tableau de bord, royalties et finances — Whales Records",
+  "start_url": "/dashboard",
+  "id": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#6366f1",
-  "orientation": "any",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0A0B0D",
+  "theme_color": "#0A0B0D",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["finance", "business"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Royalties",
+      "short_name": "Royalties",
+      "description": "Calcul de royalties en cours",
+      "url": "/dashboard/royalties"
+    },
+    {
+      "name": "Artistes",
+      "short_name": "Artistes",
+      "description": "Catalogue artistes",
+      "url": "/dashboard/artists"
+    },
+    {
+      "name": "Finances",
+      "short_name": "Finances",
+      "description": "Revenus & dépenses",
+      "url": "/dashboard/finances"
     }
   ]
 }
