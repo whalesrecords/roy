@@ -61,11 +61,11 @@ export function AccentButton({
 
 /* ── OutlineButton ── */
 export function OutlineButton({
-  children, onClick, className = '',
-}: { children: ReactNode; onClick?: () => void; className?: string }) {
+  children, onClick, className = '', disabled = false, type = 'button',
+}: { children: ReactNode; onClick?: () => void; className?: string; disabled?: boolean; type?: 'button' | 'submit' }) {
   return (
-    <button onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink hover:bg-surface-2 transition-colors ${className}`}>
+    <button type={type} onClick={onClick} disabled={disabled}
+      className={`inline-flex items-center gap-1.5 rounded-[10px] border border-line-strong bg-surface px-3.5 py-2 text-[12px] font-semibold text-ink hover:bg-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}>
       {children}
     </button>
   );
