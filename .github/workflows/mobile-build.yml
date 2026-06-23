@@ -71,9 +71,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: mobile/${{ matrix.app }}/package-lock.json
+          node-version: '22'
 
       - name: Install Capacitor dependencies
         working-directory: mobile/${{ matrix.app }}
