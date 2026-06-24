@@ -109,19 +109,19 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 32, gap: 14 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.accent} />}
       >
         {/* Top bar : logo Whales Records + avatar artiste */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-          <LabelLogo height={24} />
-          <Pressable onPress={() => nav.navigate('Settings')}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 }}>
+          <LabelLogo height={30} maxWidth={150} />
+          <Pressable onPress={() => nav.navigate('Settings')} hitSlop={8}>
             <Avatar name={artist?.name} uri={artist?.artwork_url} size={40} />
           </Pressable>
         </View>
 
         {/* Greeting */}
-        <View style={{ marginBottom: 2 }}>
+        <View>
           <Text style={{ color: p.text3, fontSize: 12 }}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
           <Text style={{ color: p.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 }}>Bonjour, {firstName}</Text>
         </View>
