@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
@@ -8,13 +8,86 @@ import {
   PromoSubmission, ArtistAdCampaign,
 } from '@/lib/api';
 import { Card, Eyebrow, Money, Loader } from '@/components/ui';
-import { IconSpotify, IconChevronRight } from '@/components/icons';
+import { IconSpotify, IconChevronRight, IconLink } from '@/components/icons';
 import { fmtMoney, fmtNum, fmtPct, fmtDec, fmtDateShort } from '@/lib/format';
 
 const POSITIVE = ['approved', 'shared', 'playlisted', 'accepted'];
 function isPositive(s: PromoSubmission) {
   const d = (s.decision || s.action || '').toLowerCase();
   return POSITIVE.some((k) => d.includes(k));
+}
+
+function formatListen(ms: number | null): string {
+  if (!ms) return '—';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s} s`;
+  return `${Math.floor(s / 60)} min ${s % 60} s`;
+}
+
+function MetaRow({ label, value }: { label: string; value?: string | null }) {
+  const p = usePalette();
+  if (!value) return null;
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+      <Text style={{ color: p.text3, fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: p.text, fontSize: 12.5, fontWeight: '600', flexShrink: 1, textAlign: 'right' }}>{value}</Text>
+    </View>
+  );
+}
+
+function SubmissionRow({ s, isLast }: { s: PromoSubmission; isLast: boolean }) {
+  const p = usePalette();
+  const [open, setOpen] = useState(false);
+  const positive = isPositive(s);
+  const link = s.sharing_link || s.campaign_url || null;
+  const title = s.outlet_name || s.influencer_name || s.song_title;
+  const subtype = s.outlet_type || s.influencer_type;
+
+  return (
+    <View style={{ borderBottomColor: p.border, borderBottomWidth: isLast ? 0 : 1 }}>
+      <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: p.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{title}</Text>
+          <Text style={{ color: p.text3, fontSize: 11 }} numberOfLines={1}>{s.song_title}{subtype ? ` · ${subtype}` : ''} · {s.source}</Text>
+        </View>
+        <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: positive ? p.accentSoft : p.surface2 }}>
+          <Text style={{ color: positive ? p.accent : p.text3, fontSize: 10.5, fontWeight: '600' }}>{s.decision || s.action || '—'}</Text>
+        </View>
+        <View style={{ transform: [{ rotate: open ? '90deg' : '0deg' }] }}>
+          <IconChevronRight size={15} color={p.text3} />
+        </View>
+      </Pressable>
+
+      {open ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 8 }}>
+          {s.feedback ? (
+            <View style={{ backgroundColor: p.surface2, borderRadius: 12, padding: 12 }}>
+              <Text style={{ color: p.text3, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.6, marginBottom: 4 }}>RETOUR</Text>
+              <Text style={{ color: p.text, fontSize: 13, lineHeight: 19 }}>{s.feedback}</Text>
+            </View>
+          ) : null}
+          <MetaRow label="Média / curateur" value={[title, subtype].filter(Boolean).join(' · ')} />
+          <MetaRow label="Action" value={s.action} />
+          <MetaRow label="Décision" value={s.decision} />
+          {s.listen_time ? <MetaRow label="Écoute" value={formatListen(s.listen_time)} /> : null}
+          <MetaRow label="Envoyé le" value={s.submitted_at ? fmtDateShort(s.submitted_at) : null} />
+          <MetaRow label="Réponse le" value={s.responded_at ? fmtDateShort(s.responded_at) : null} />
+          {link ? (
+            <Pressable
+              onPress={() => Linking.openURL(link).catch(() => {})}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, paddingVertical: 11, borderRadius: 12, backgroundColor: p.accent }}
+            >
+              <IconLink size={15} color={p.accentInk} />
+              <Text style={{ color: p.accentInk, fontWeight: '700', fontSize: 13 }}>Ouvrir la playlist / le lien</Text>
+            </Pressable>
+          ) : null}
+          {!s.feedback && !link ? (
+            <Text style={{ color: p.text3, fontSize: 12 }}>Aucun détail supplémentaire (ni lien playlist ni retour écrit).</Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function MetricTile({ label, value }: { label: string; value: string }) {
@@ -163,16 +236,8 @@ export default function PromoScreen() {
           </View>
           {subs.length === 0 ? (
             <Text style={{ color: p.text3, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>Aucune soumission</Text>
-          ) : subs.slice(0, 100).map((s, i) => (
-            <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11, borderBottomColor: p.border, borderBottomWidth: i < Math.min(subs.length, 100) - 1 ? 1 : 0 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: p.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{s.outlet_name || s.influencer_name || s.song_title}</Text>
-                <Text style={{ color: p.text3, fontSize: 11 }} numberOfLines={1}>{s.song_title} · {s.source}</Text>
-              </View>
-              <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: isPositive(s) ? p.accentSoft : p.surface2 }}>
-                <Text style={{ color: isPositive(s) ? p.accent : p.text3, fontSize: 10.5, fontWeight: '600' }}>{s.decision || s.action || '—'}</Text>
-              </View>
-            </View>
+          ) : subs.slice(0, 100).map((s, i, arr) => (
+            <SubmissionRow key={s.id} s={s} isLast={i === arr.length - 1} />
           ))}
         </Card>
       </ScrollView>
