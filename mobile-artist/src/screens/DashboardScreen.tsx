@@ -6,11 +6,11 @@ import { useAuth } from '@/auth/AuthProvider';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import {
-  getArtistDashboard, getStatements, getArtistTracks, getQuarterlyRevenue, getArtistPayments,
-  getAvailableYears, getMembersBreakdown, requestPayment, invalidateCache,
+  getArtistDashboard, getStatements, getArtistTracks, getArtistPayments,
+  getMembersBreakdown, requestPayment, invalidateCache,
   ArtistDashboard, Statement, ArtistTrack, ArtistPayment, MembersBreakdown,
 } from '@/lib/api';
-import { Card, Eyebrow, Money, AccentButton, Sparkline, Cover, Loader, Avatar } from '@/components/ui';
+import { Card, Eyebrow, Money, AccentButton, Cover, Loader, Avatar } from '@/components/ui';
 import { LabelLogo } from '@/components/LabelLogo';
 import { IconInflow, IconOutflow, IconArrowDown } from '@/components/icons';
 import { fmtMoney, fmtNum, fmtDateShort } from '@/lib/format';
@@ -25,7 +25,6 @@ export default function DashboardScreen() {
   const [data, setData] = useState<ArtistDashboard | null>(null);
   const [statements, setStatements] = useState<Statement[]>([]);
   const [tracks, setTracks] = useState<ArtistTrack[]>([]);
-  const [quarterly, setQuarterly] = useState<number[]>([]);
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
   const [breakdown, setBreakdown] = useState<MembersBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,9 +40,7 @@ export default function DashboardScreen() {
 
   const loadSecondary = useCallback(async () => {
     try {
-      const [years, tr, pay] = await Promise.all([getAvailableYears(), getArtistTracks(), getArtistPayments()]);
-      const q = years.default_year ? await getQuarterlyRevenue(years.default_year) : [];
-      setQuarterly(q.map((x) => parseFloat(x.gross)).filter((x) => x > 0));
+      const [tr, pay] = await Promise.all([getArtistTracks(), getArtistPayments()]);
       setTracks(tr);
       setPayments(pay);
     } catch { /* non-critique */ }
@@ -72,7 +69,6 @@ export default function DashboardScreen() {
     .filter((s) => ['approved', 'ready', 'pending_payment'].includes(s.status))
     .reduce((sum, s) => sum + parseFloat(s.net_payable), 0);
   const totalUnpaid = unpaid.reduce((sum, s) => sum + parseFloat(s.net_payable), 0);
-  const pendingValidation = Math.max(totalUnpaid - available, 0);
   const displayAvailable = available || totalUnpaid;
 
   const handleRequest = async () => {
@@ -136,32 +132,19 @@ export default function DashboardScreen() {
         <Card hero>
           <Eyebrow>{t('common.available')}</Eyebrow>
           <Money style={{ fontSize: 42, fontWeight: '800', marginTop: 8 }}>{fmtMoney(displayAvailable, currency)}</Money>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-            <View style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: p.accent }} />
-            <Text style={{ color: p.text2, fontSize: 12.5 }}>
-              <Text style={{ color: p.text, fontWeight: '700' }}>+ {fmtMoney(pendingValidation, currency)}</Text> {t('common.pendingValidation')}
-            </Text>
-          </View>
-          {quarterly.length > 1 ? <View style={{ marginTop: 14 }}><Sparkline points={quarterly} width={300} height={34} /></View> : null}
           {totalUnpaid > 0 ? (
-            <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: 18 }}>
               <AccentButton label={t('common.requestPayment')} onClick={handleRequest} loading={requesting} icon={<IconArrowDown size={15} color={p.accentInk} />} />
             </View>
           ) : null}
         </Card>
 
-        {/* KPIs */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Card style={{ flex: 1 }}>
-            <Eyebrow>{t('common.netCumulative')}</Eyebrow>
-            <Money style={{ fontSize: 21, fontWeight: '800', marginTop: 6 }}>{fmtMoney(data?.total_net ?? 0, currency)}</Money>
-          </Card>
-          <Card style={{ flex: 1 }}>
-            <Eyebrow>{t('common.grossRevenue')}</Eyebrow>
-            <Money style={{ fontSize: 21, fontWeight: '800', marginTop: 6 }}>{fmtMoney(data?.total_gross ?? 0, currency)}</Money>
-            <Text style={{ color: p.text3, fontSize: 11, marginTop: 4 }}>{fmtNum(data?.total_streams ?? 0)} {t('common.streams')}</Text>
-          </Card>
-        </View>
+        {/* KPI : Revenus bruts */}
+        <Card>
+          <Eyebrow>{t('common.grossRevenue')}</Eyebrow>
+          <Money style={{ fontSize: 24, fontWeight: '800', marginTop: 6 }}>{fmtMoney(data?.total_gross ?? 0, currency)}</Money>
+          <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 4 }}>{fmtNum(data?.total_streams ?? 0)} {t('common.streams')}</Text>
+        </Card>
 
         {/* Activity */}
         <Card style={{ padding: 0 }}>
