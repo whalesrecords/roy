@@ -5,11 +5,14 @@ import { useTheme } from '@/theme/ThemeProvider';
 
 /**
  * Logo du label (Whales Records) — récupéré via /artist-portal/label-settings,
- * avec variante sombre, exactement comme l'app web. Repli sur le nom texte.
+ * avec variante sombre, comme l'app web. La largeur épouse le logo (ratio réel
+ * mesuré) pour qu'il soit collé à gauche et aligné, sans retrait flottant.
+ * Repli sur le nom texte si aucun logo.
  */
-export function LabelLogo({ height = 24, maxWidth = 150 }: { height?: number; maxWidth?: number }) {
+export function LabelLogo({ height = 26, maxWidth = 150 }: { height?: number; maxWidth?: number }) {
   const { theme, palette } = useTheme();
   const [ls, setLs] = useState<LabelSettings | null>(null);
+  const [ratio, setRatio] = useState<number | null>(null); // largeur / hauteur
 
   useEffect(() => {
     let cancelled = false;
@@ -21,14 +24,20 @@ export function LabelLogo({ height = 24, maxWidth = 150 }: { height?: number; ma
   const logoDark = ls?.logo_dark_base64;
   const src = theme === 'dark' && logoDark ? logoDark : logoLight || logoDark;
 
-  if (src) {
-    return (
-      <Image
-        source={{ uri: src }}
-        resizeMode="contain"
-        style={{ height, width: maxWidth, alignSelf: 'flex-start' }}
-      />
+  useEffect(() => {
+    if (!src) return;
+    let cancelled = false;
+    Image.getSize(
+      src,
+      (w, h) => { if (!cancelled && h > 0) setRatio(w / h); },
+      () => {},
     );
+    return () => { cancelled = true; };
+  }, [src]);
+
+  if (src) {
+    const width = Math.min(maxWidth, Math.round(height * (ratio ?? 3)));
+    return <Image source={{ uri: src }} resizeMode="contain" style={{ height, width }} />;
   }
   return (
     <Text style={{ color: palette.text, fontSize: 17, fontWeight: '800', letterSpacing: -0.4 }}>
