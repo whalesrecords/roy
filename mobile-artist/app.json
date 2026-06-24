@@ -13,13 +13,13 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.whalesrecords.artist",
+      "bundleIdentifier": "com.whalesrecords.royartist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.whalesrecords.artist",
+      "package": "com.whalesrecords.royartist",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0A0B0D"
