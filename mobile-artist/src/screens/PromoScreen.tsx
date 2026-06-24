@@ -8,7 +8,7 @@ import {
   PromoSubmission, ArtistAdCampaign,
 } from '@/lib/api';
 import { Card, Eyebrow, Money, Loader } from '@/components/ui';
-import { IconSpotify, IconChevronRight, IconLink } from '@/components/icons';
+import { IconSpotify, IconChevronRight, IconLink, IconFolder } from '@/components/icons';
 import { fmtMoney, fmtNum, fmtPct, fmtDec, fmtDateShort } from '@/lib/format';
 
 const POSITIVE = ['approved', 'shared', 'playlisted', 'accepted'];
@@ -177,6 +177,7 @@ export default function PromoScreen() {
   const [adCurrency, setAdCurrency] = useState('EUR');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [pastOpen, setPastOpen] = useState(false);
 
   const load = useCallback(async () => {
     const s = await getArtistPromoSubmissions({ limit: 500 });
@@ -194,8 +195,15 @@ export default function PromoScreen() {
 
   if (loading) return <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}><Loader /></SafeAreaView>;
 
-  const totalPositive = subs.filter(isPositive).length;
-  const totalPlaylists = subs.filter((s) => (s.outlet_type || '').toLowerCase().includes('playlist') || (s.action || '').toLowerCase().includes('playlist')).length;
+  // Campagnes en cours vs terminées (selon la date de fin)
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isOngoing = (c: ArtistAdCampaign) => {
+    if (!c.end_date) return true;
+    const d = new Date(c.end_date);
+    return isNaN(d.getTime()) ? true : d >= today;
+  };
+  const ongoing = campaigns.filter(isOngoing);
+  const past = campaigns.filter((c) => !isOngoing(c));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
@@ -204,13 +212,6 @@ export default function PromoScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.accent} />}
       >
         <Text style={{ color: p.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 }}>{t('nav.promo')}</Text>
-
-        {/* Summary */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Card style={{ flex: 1 }}><Eyebrow>Soumissions</Eyebrow><Money style={{ fontSize: 20, fontWeight: '800', marginTop: 6 }}>{fmtNum(subs.length)}</Money></Card>
-          <Card style={{ flex: 1 }}><Eyebrow>Retours +</Eyebrow><Money style={{ fontSize: 20, fontWeight: '800', marginTop: 6, color: p.accent }}>{fmtNum(totalPositive)}</Money></Card>
-          <Card style={{ flex: 1 }}><Eyebrow>Playlists</Eyebrow><Money style={{ fontSize: 20, fontWeight: '800', marginTop: 6 }}>{fmtNum(totalPlaylists)}</Money></Card>
-        </View>
 
         {/* Spotify Ads */}
         {campaigns.length > 0 ? (
@@ -225,7 +226,38 @@ export default function PromoScreen() {
                 <Money style={{ fontSize: 15, fontWeight: '800' }}>{fmtMoney(adSpend, adCurrency)}</Money>
               </View>
             </View>
-            {campaigns.map((c) => <AdCard key={c.id} c={c} />)}
+
+            {/* En cours — visibles directement */}
+            {ongoing.length > 0 ? (
+              <>
+                <Text style={{ color: p.text3, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 16, paddingTop: 4 }}>EN COURS · {ongoing.length}</Text>
+                {ongoing.map((c) => <AdCard key={c.id} c={c} />)}
+              </>
+            ) : (
+              <Text style={{ color: p.text3, fontSize: 12.5, paddingHorizontal: 16, paddingBottom: 12 }}>Aucune campagne en cours.</Text>
+            )}
+
+            {/* Terminées — repliées dans un dossier */}
+            {past.length > 0 ? (
+              <>
+                <Pressable
+                  onPress={() => setPastOpen((v) => !v)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13, borderTopColor: p.border, borderTopWidth: 1 }}
+                >
+                  <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: p.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                    <IconFolder size={16} color={p.text2} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '700' }}>Campagnes terminées</Text>
+                    <Text style={{ color: p.text3, fontSize: 11 }}>{past.length} campagne{past.length > 1 ? 's' : ''}</Text>
+                  </View>
+                  <View style={{ transform: [{ rotate: pastOpen ? '90deg' : '0deg' }] }}>
+                    <IconChevronRight size={16} color={p.text3} />
+                  </View>
+                </Pressable>
+                {pastOpen ? past.map((c) => <AdCard key={c.id} c={c} />) : null}
+              </>
+            ) : null}
           </Card>
         ) : null}
 
