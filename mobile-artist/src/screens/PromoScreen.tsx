@@ -178,6 +178,7 @@ export default function PromoScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pastOpen, setPastOpen] = useState(false);
+  const [oldSubsOpen, setOldSubsOpen] = useState(false);
 
   const load = useCallback(async () => {
     const s = await getArtistPromoSubmissions({ limit: 500 });
@@ -204,6 +205,19 @@ export default function PromoScreen() {
   };
   const ongoing = campaigns.filter(isOngoing);
   const past = campaigns.filter((c) => !isOngoing(c));
+
+  // Retours promo : récents (≤ 1 mois) vs anciens (dossier)
+  const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
+  const subDate = (s: PromoSubmission) => {
+    const d = s.responded_at || s.submitted_at;
+    if (!d) return null;
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? null : dt;
+  };
+  const byDateDesc = (a: PromoSubmission, b: PromoSubmission) =>
+    (subDate(b)?.getTime() || 0) - (subDate(a)?.getTime() || 0);
+  const recentSubs = subs.filter((s) => { const d = subDate(s); return !d || d >= monthAgo; }).sort(byDateDesc).slice(0, 200);
+  const olderSubs = subs.filter((s) => { const d = subDate(s); return d && d < monthAgo; }).sort(byDateDesc).slice(0, 200);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
@@ -268,9 +282,41 @@ export default function PromoScreen() {
           </View>
           {subs.length === 0 ? (
             <Text style={{ color: p.text3, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>Aucune soumission</Text>
-          ) : subs.slice(0, 100).map((s, i, arr) => (
-            <SubmissionRow key={s.id} s={s} isLast={i === arr.length - 1} />
-          ))}
+          ) : (
+            <>
+              {/* Récents (≤ 1 mois) — visibles directement */}
+              {recentSubs.length > 0 ? (
+                <>
+                  <Text style={{ color: p.text3, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 16, paddingTop: 10 }}>DEPUIS 1 MOIS · {recentSubs.length}</Text>
+                  {recentSubs.map((s, i) => <SubmissionRow key={s.id} s={s} isLast={i === recentSubs.length - 1} />)}
+                </>
+              ) : (
+                <Text style={{ color: p.text3, fontSize: 12.5, paddingHorizontal: 16, paddingVertical: 12 }}>Aucun retour récent.</Text>
+              )}
+
+              {/* Plus d'un mois — repliés dans un dossier */}
+              {olderSubs.length > 0 ? (
+                <>
+                  <Pressable
+                    onPress={() => setOldSubsOpen((v) => !v)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13, borderTopColor: p.border, borderTopWidth: 1 }}
+                  >
+                    <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: p.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                      <IconFolder size={16} color={p.text2} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '700' }}>Retours de plus d'un mois</Text>
+                      <Text style={{ color: p.text3, fontSize: 11 }}>{olderSubs.length} retour{olderSubs.length > 1 ? 's' : ''}</Text>
+                    </View>
+                    <View style={{ transform: [{ rotate: oldSubsOpen ? '90deg' : '0deg' }] }}>
+                      <IconChevronRight size={16} color={p.text3} />
+                    </View>
+                  </Pressable>
+                  {oldSubsOpen ? olderSubs.map((s, i) => <SubmissionRow key={s.id} s={s} isLast={i === olderSubs.length - 1} />) : null}
+                </>
+              ) : null}
+            </>
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>
