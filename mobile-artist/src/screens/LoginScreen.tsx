@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { AccentButton } from '@/components/ui';
+import { LabelLogo } from '@/components/LabelLogo';
 
 type Mode = 'code' | 'email';
 
@@ -40,9 +41,8 @@ export default function LoginScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 28 }}>
-            <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: p.accent }} />
-            <Text style={{ color: p.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 }}>ROY</Text>
+          <View style={{ marginBottom: 28 }}>
+            <LabelLogo height={30} maxWidth={180} />
           </View>
 
           <Text style={{ color: p.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }}>{t('login.title')}</Text>

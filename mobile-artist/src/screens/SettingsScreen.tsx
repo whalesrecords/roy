@@ -6,7 +6,7 @@ import { usePalette, useTheme } from '@/theme/ThemeProvider';
 import { ACCENTS } from '@/theme/tokens';
 import { useLanguage, Lang } from '@/i18n';
 import { useAuth } from '@/auth/AuthProvider';
-import { Card, Eyebrow } from '@/components/ui';
+import { Card, Eyebrow, Avatar } from '@/components/ui';
 import { IconCard, IconSupport, IconLogout, IconChevronRight } from '@/components/icons';
 
 export default function SettingsScreen() {
@@ -16,8 +16,6 @@ export default function SettingsScreen() {
   const { artist, logout } = useAuth();
   const nav = useNavigation<any>();
 
-  const initials = (artist?.name || '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 14 }}>
@@ -26,11 +24,7 @@ export default function SettingsScreen() {
         {/* Profile */}
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {artist?.artwork_url ? null : (
-              <View style={{ width: 48, height: 48, borderRadius: 999, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: p.accent, fontWeight: '800', fontSize: 16 }}>{initials}</Text>
-              </View>
-            )}
+            <Avatar name={artist?.name} uri={artist?.artwork_url} size={48} />
             <View>
               <Text style={{ color: p.text, fontSize: 16, fontWeight: '700' }}>{artist?.name}</Text>
               <Text style={{ color: p.text3, fontSize: 12 }}>Artiste · Whales Records</Text>

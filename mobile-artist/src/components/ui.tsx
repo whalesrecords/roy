@@ -96,6 +96,20 @@ export function Cover({ size = 46, radius = 10, uri }: { size?: number; radius?:
   );
 }
 
+/** Avatar artiste : photo (artwork_url) sinon initiales sur fond accent. */
+export function Avatar({ name, uri, size = 38 }: { name?: string; uri?: string | null; size?: number }) {
+  const p = usePalette();
+  const initials = (name || '').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  if (uri) {
+    return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: p.surface2 }} />;
+  }
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: p.accent, fontWeight: '800', fontSize: size * 0.36 }}>{initials}</Text>
+    </View>
+  );
+}
+
 /** Mini courbe (sparkline) en SVG. */
 export function Sparkline({ points, width = 280, height = 32 }: { points: number[]; width?: number; height?: number }) {
   const p = usePalette();

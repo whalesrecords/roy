@@ -10,8 +10,9 @@ import {
   getAvailableYears, getMembersBreakdown, requestPayment, invalidateCache,
   ArtistDashboard, Statement, ArtistTrack, ArtistPayment, MembersBreakdown,
 } from '@/lib/api';
-import { Card, Eyebrow, Money, AccentButton, Sparkline, Cover, Loader } from '@/components/ui';
-import { IconInflow, IconOutflow, IconArrowDown, IconSettings } from '@/components/icons';
+import { Card, Eyebrow, Money, AccentButton, Sparkline, Cover, Loader, Avatar } from '@/components/ui';
+import { LabelLogo } from '@/components/LabelLogo';
+import { IconInflow, IconOutflow, IconArrowDown } from '@/components/icons';
 import { fmtMoney, fmtNum, fmtDateShort } from '@/lib/format';
 
 interface Activity { id: string; label: string; sub: string; amount: number; inflow: boolean; date: number }
@@ -111,15 +112,18 @@ export default function DashboardScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 14 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.accent} />}
       >
-        {/* Greeting */}
+        {/* Top bar : logo Whales Records + avatar artiste */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: p.text3, fontSize: 12 }}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
-            <Text style={{ color: p.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 }}>Bonjour, {firstName}</Text>
-          </View>
-          <Pressable onPress={() => nav.navigate('Settings')} style={{ width: 42, height: 42, borderRadius: 12, borderColor: p.border, borderWidth: 1, backgroundColor: p.surface, alignItems: 'center', justifyContent: 'center' }}>
-            <IconSettings size={19} color={p.text} />
+          <LabelLogo height={24} />
+          <Pressable onPress={() => nav.navigate('Settings')}>
+            <Avatar name={artist?.name} uri={artist?.artwork_url} size={40} />
           </Pressable>
+        </View>
+
+        {/* Greeting */}
+        <View style={{ marginBottom: 2 }}>
+          <Text style={{ color: p.text3, fontSize: 12 }}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+          <Text style={{ color: p.text, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 }}>Bonjour, {firstName}</Text>
         </View>
 
         {toast ? (
