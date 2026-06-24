@@ -2,6 +2,7 @@
   "expo": {
     "name": "Whales Records",
     "slug": "roy-artist",
+    "owner": "whalesrecords",
     "scheme": "royartist",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +34,7 @@
     "extra": {
       "apiUrl": "https://api.whalesrecords.com",
       "eas": {
-        "projectId": ""
+        "projectId": "716c45c8-cea1-4dd6-84d8-11b96e5ccd76"
       }
     }
   }
