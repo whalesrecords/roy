@@ -42,9 +42,6 @@
     "extra": {
       "router": {
         "origin": "https://admin.whalesrecords.com"
-      },
-      "eas": {
-        "projectId": "REPLACE_ME_AFTER_EAS_INIT"
       }
     }
   }

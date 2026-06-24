@@ -51,16 +51,40 @@ Then scan the QR with **Expo Go** on your iPhone (App Store) or Android.
 
 Builds run on Expo's macOS/Linux fleet, no local Xcode required.
 
+### One-time setup (per app, run locally first)
+
 ```bash
-cd native-apps/admin
 npm install -g eas-cli
 eas login                            # uses your Expo account
-eas build:configure                  # first time only
+
+cd native-apps/admin
+eas init                             # creates the Expo project + writes
+                                     # extra.eas.projectId in app.json.
+                                     # Commit that file after.
+
+cd ../artist
+eas init
+git add -A && git commit -m "chore: link EAS projectIds"
+```
+
+If you skip `eas init`, builds fail with **"Invalid UUID appId"** — EAS
+needs a real project ID, not a placeholder. Once `eas init` has run,
+the `app.json` of each app contains `extra.eas.projectId` and CI builds
+will resolve it automatically.
+
+### Building
+
+```bash
 eas build --profile preview --platform ios       # → .ipa downloadable
 eas build --profile preview --platform android   # → .apk downloadable
 ```
 
 Output URLs are shown in the terminal and emailed.
+
+You can also trigger builds from GitHub Actions — see
+`.github/workflows/native-apps-build.yml`. Requires `EXPO_TOKEN`
+secret in repo settings, generated at
+https://expo.dev/accounts/<your-account>/settings/access-tokens.
 
 ## Submitting to stores
 
