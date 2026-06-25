@@ -1,12 +1,16 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow, Money, Sparkline } from '@/components/ui';
 import { Screen, State, SectionTitle, BarRow } from '@/components/kit';
 import { useFetch } from '@/lib/useFetch';
-import { getAnalyticsSummary } from '@/lib/api';
-import { fmtMoney, fmtNum } from '@/lib/format';
+import { getAnalyticsSummary, getImports } from '@/lib/api';
+import { fmtMoney, fmtNum, fmtDateLong, fmtDateShort } from '@/lib/format';
+import { maybeNotifyImportReminder } from '@/lib/notifications';
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 
 function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'accent' | 'neg' }) {
   const p = usePalette();
@@ -19,10 +23,67 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'acc
   );
 }
 
+/** Last CSV import freshness: green <1mo, yellow ≥1mo, orange ≥2mo, red ≥3mo. */
+function ImportStatusCard() {
+  const p = usePalette();
+  const { t } = useLanguage();
+  const { data } = useFetch(() => getImports(20), [], 'imports');
+  const last = data && data.length ? data[0] : null;
+
+  React.useEffect(() => {
+    if (!last) return;
+    const days = (Date.now() - new Date(last.created_at).getTime()) / 86_400_000;
+    const months = Math.floor(days / 30.44);
+    maybeNotifyImportReminder(months, fmtDateLong(last.created_at));
+  }, [last]);
+
+  if (!data) return null;
+
+  if (!last) {
+    return (
+      <Card>
+        <Eyebrow>{t('home.lastImport')}</Eyebrow>
+        <Text style={{ color: p.text3, fontSize: 13.5, marginTop: 8 }}>{t('home.noImport')}</Text>
+      </Card>
+    );
+  }
+
+  const days = (Date.now() - new Date(last.created_at).getTime()) / 86_400_000;
+  const { color, label } =
+    days < 30 ? { color: p.accent, label: t('home.importUpToDate') }
+    : days < 60 ? { color: '#E3B341', label: t('home.importSoon') }
+    : days < 90 ? { color: '#E8833A', label: t('home.importLate') }
+    : { color: p.neg, label: t('home.importVeryLate') };
+  const stale = days >= 30;
+
+  return (
+    <Card style={{ borderColor: stale ? color : p.border, borderWidth: stale ? 1.5 : 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Eyebrow>{t('home.lastImport')}</Eyebrow>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 9, height: 9, borderRadius: 999, backgroundColor: color }} />
+          <Text style={{ color, fontSize: 11.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</Text>
+        </View>
+      </View>
+      <Text style={{ color: p.text, fontSize: 17, fontWeight: '800', marginTop: 6 }}>{fmtDateLong(last.created_at)}</Text>
+      <Text style={{ color: p.text3, fontSize: 12, marginTop: 3 }}>
+        {t('home.importPeriod')} : {fmtDateShort(last.period_start)} – {fmtDateShort(last.period_end)}
+        {last.source ? `  ·  ${last.source}` : ''}
+      </Text>
+      {stale ? (
+        <View style={{ marginTop: 10, backgroundColor: `${color}1A`, borderRadius: 10, padding: 10 }}>
+          <Text style={{ color, fontSize: 12.5, fontWeight: '600' }}>{t('home.importReminder')}</Text>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
 export default function DashboardScreen() {
   const p = usePalette();
   const { t } = useLanguage();
-  const { data, loading, error, reload } = useFetch(getAnalyticsSummary, [], 'analytics');
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const { data, loading, error, reload } = useFetch(() => getAnalyticsSummary(year), [year], `analytics:${year}`);
 
   const cur = data?.currency || 'EUR';
   const sources = [...(data?.revenue_by_source || [])].sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross)).slice(0, 6);
@@ -33,6 +94,21 @@ export default function DashboardScreen() {
 
   return (
     <Screen title={t('home.title')} onRefresh={reload} refreshing={loading}>
+      {/* Year selector */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {YEARS.map((y) => (
+          <Pressable
+            key={y}
+            onPress={() => setYear(y)}
+            style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: year === y ? p.accent : p.surface2, borderColor: year === y ? p.accent : p.border, borderWidth: 1 }}
+          >
+            <Text style={{ color: year === y ? p.accentInk : p.text2, fontSize: 13, fontWeight: '700' }}>{y}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <ImportStatusCard />
+
       <State loading={loading} error={error} onRetry={reload}>
         {data ? (
           <>

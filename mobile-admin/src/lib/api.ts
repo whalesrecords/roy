@@ -251,7 +251,13 @@ export interface ContractDetail extends ContractListItem {
 }
 
 // ============================ API ============================
-export const getAnalyticsSummary = () => fetchApi<AnalyticsSummary>('/analytics/summary');
+export const getAnalyticsSummary = (year: number) => fetchApi<AnalyticsSummary>(`/analytics/summary?year=${year}`);
+
+export interface ImportItem {
+  id: string; source: string; status: string; period_start: string; period_end: string;
+  filename?: string | null; total_rows: number; success_rows: number; error_rows: number; created_at: string;
+}
+export const getImports = (limit = 20) => fetchApi<ImportItem[]>(`/imports?limit=${limit}`);
 export const getFinancesSummary = () => fetchApi<FinancesSummary>('/finances/summary');
 export const getExpenses = () => fetchApi<ExpenseResponse[]>('/finances/expenses');
 export const getRoyaltyPayments = () => fetchApi<RoyaltyPaymentResponse[]>('/finances/royalty-payments');

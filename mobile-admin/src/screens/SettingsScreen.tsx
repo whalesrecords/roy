@@ -11,6 +11,7 @@ import { State, SectionTitle, Divider } from '@/components/kit';
 import { IconLogout } from '@/components/icons';
 import { useFetch } from '@/lib/useFetch';
 import { getLabelSettings } from '@/lib/api';
+import { notificationsEnabled, setNotificationsEnabled } from '@/lib/notifications';
 
 export default function SettingsScreen() {
   const p = usePalette();
@@ -19,8 +20,15 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const nav = useNavigation<any>();
   const labelQ = useFetch(getLabelSettings, [], 'label');
+  const [notif, setNotif] = React.useState(false);
 
   React.useEffect(() => { nav.setOptions?.({ title: t('settings.title') }); }, [nav, t]);
+  React.useEffect(() => { notificationsEnabled().then(setNotif); }, []);
+
+  const toggleNotif = async (on: boolean) => {
+    const ok = await setNotificationsEnabled(on);
+    setNotif(on && ok);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['bottom']}>
@@ -44,6 +52,15 @@ export default function SettingsScreen() {
               </Pressable>
             ))}
           </View>
+        </Card>
+
+        <Card>
+          <SectionTitle>{t('settings.notifications')}</SectionTitle>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}>
+            <Text style={{ color: p.text, fontSize: 14.5, fontWeight: '600', flex: 1, paddingRight: 12 }}>{t('settings.notifImport')}</Text>
+            <Switch value={notif} onValueChange={toggleNotif} trackColor={{ true: p.accent }} thumbColor="#fff" />
+          </View>
+          <Text style={{ color: p.text3, fontSize: 11.5 }}>{t('settings.notifHint')}</Text>
         </Card>
 
         <Card>
