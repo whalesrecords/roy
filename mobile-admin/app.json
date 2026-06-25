@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Whales Admin",
+    "slug": "roy-admin",
+    "owner": "whalesrecords",
+    "scheme": "royadmin",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.whalesrecords.royadmin",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.whalesrecords.royadmin",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0B0D"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiUrl": "https://api.whalesrecords.com",
+      "supabaseUrl": "https://huolkgcnizwrhzyboemd.supabase.co",
+      "supabaseKey": "sb_publishable_2LcoFcxRuOveq3YgA15KEg_SJR7z1DD",
+      "eas": {
+        "projectId": "PLACEHOLDER_RUN_EAS_INIT"
+      }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0B0D"
+        }
+      ]
+    ]
+  }
+}
