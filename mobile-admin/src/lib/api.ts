@@ -233,6 +233,21 @@ export interface AdCampaign {
 }
 export interface AdCampaignsList { campaigns: AdCampaign[]; count: number; total_spend: string; currency: string }
 
+export interface ContractParty {
+  id: string; contract_id: string; party_type: string; artist_id?: string | null;
+  label_name?: string | null; share_percentage: string | number;
+  share_physical?: string | number | null; share_digital?: string | number | null;
+  contact_email?: string | null; contact_phone?: string | null; created_at: string;
+}
+export interface ContractListItem {
+  id: string; artist_id: string; scope: string; scope_id?: string | null;
+  start_date: string; end_date?: string | null; parties: ContractParty[];
+  artist_share?: string | number | null; label_share?: string | number | null;
+}
+export interface ContractDetail extends ContractListItem {
+  description?: string | null; document_url?: string | null; created_at: string; updated_at: string;
+}
+
 // ============================ API ============================
 export const getAnalyticsSummary = () => fetchApi<AnalyticsSummary>('/analytics/summary');
 export const getFinancesSummary = () => fetchApi<FinancesSummary>('/finances/summary');
@@ -269,3 +284,11 @@ export const getDetailedPromoStats = () => fetchApi<DetailedPromoStats>('/promo/
 export const getPromoSubmissions = (limit = 50, offset = 0) =>
   fetchApi<PromoSubmissionsList>(`/promo/submissions?limit=${limit}&offset=${offset}`);
 export const getAdCampaigns = () => fetchApi<AdCampaignsList>('/promo/ad-campaigns');
+
+export const getContracts = (artistId?: string, scope?: string) => {
+  const p: string[] = [];
+  if (artistId) p.push(`artist_id=${artistId}`);
+  if (scope) p.push(`scope=${scope}`);
+  return fetchApi<ContractListItem[]>(`/contracts${p.length ? `?${p.join('&')}` : ''}`);
+};
+export const getContract = (id: string) => fetchApi<ContractDetail>(`/contracts/${id}`);

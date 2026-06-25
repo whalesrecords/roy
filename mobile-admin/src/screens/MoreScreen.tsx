@@ -6,7 +6,7 @@ import { useLanguage } from '@/i18n';
 import { Card } from '@/components/ui';
 import { Screen, Divider } from '@/components/kit';
 import {
-  IconWallet, IconBox, IconSupport, IconSettings, IconChevronRight, IconProps,
+  IconWallet, IconBox, IconSupport, IconSettings, IconFile, IconChevronRight, IconProps,
 } from '@/components/icons';
 
 export default function MoreScreen() {
@@ -15,6 +15,7 @@ export default function MoreScreen() {
   const nav = useNavigation<any>();
 
   const items: { key: string; label: string; icon: (pr: IconProps) => React.JSX.Element; route: string }[] = [
+    { key: 'contracts', label: t('more.contracts'), icon: IconFile, route: 'Contracts' },
     { key: 'finances', label: t('more.finances'), icon: IconWallet, route: 'Finances' },
     { key: 'inventory', label: t('more.inventory'), icon: IconBox, route: 'Inventory' },
     { key: 'support', label: t('more.support'), icon: IconSupport, route: 'Support' },

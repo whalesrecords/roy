@@ -6,7 +6,7 @@ import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow, Money, Avatar, Loader } from '@/components/ui';
 import { State, SectionTitle, Divider, StatusBadge } from '@/components/kit';
-import { IconChevronRight, IconLink } from '@/components/icons';
+import { IconChevronRight, IconLink, IconFile } from '@/components/icons';
 import { useFetch } from '@/lib/useFetch';
 import { getArtist, getAdvanceBalance } from '@/lib/api';
 import { fmtMoney, fmtDateLong } from '@/lib/format';
@@ -101,6 +101,21 @@ export default function ArtistDetailScreen() {
                   </View>
                 </Card>
               ) : null}
+
+              <Pressable
+                onPress={() => nav.navigate('Contracts', { artistId: id, artistName: a.name })}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              >
+                <Card>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <IconFile size={18} color={p.accent} />
+                    </View>
+                    <Text style={{ color: p.text, fontSize: 14.5, fontWeight: '700', flex: 1 }}>{t('contracts.viewArtist')}</Text>
+                    <IconChevronRight size={18} color={p.text3} />
+                  </View>
+                </Card>
+              </Pressable>
 
               <Card>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -41,6 +41,14 @@ export function fmtDec(v: string | number | null | undefined): string {
   return n.toFixed(2).replace('.', ',').replace(/,00$/, '');
 }
 
+/** Part 0..1 -> pourcentage lisible : 0.7 -> "70 %", 0.155 -> "15,5 %". */
+export function fmtShare(v: string | number | null | undefined): string {
+  const n = typeof v === 'string' ? parseFloat(v) : v ?? NaN;
+  if (n == null || !isFinite(n)) return '—';
+  const pct = n * 100;
+  return `${pct.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')} %`;
+}
+
 /** "2026-06-24" -> "24 juin". */
 const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 export function fmtDateShort(str: string | null | undefined): string {
