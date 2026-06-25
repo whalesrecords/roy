@@ -7,7 +7,7 @@ import { useLanguage } from '@/i18n';
 import { Card, Eyebrow } from '@/components/ui';
 import { State, StatusBadge } from '@/components/kit';
 import { IconChevronRight } from '@/components/icons';
-import { useFetch } from '@/lib/useFetch';
+import { useFetch, useRefreshOnFocus } from '@/lib/useFetch';
 import { getContracts, getArtistsSummary, ContractListItem, ContractParty } from '@/lib/api';
 import { fmtShare, fmtDateShort } from '@/lib/format';
 
@@ -34,14 +34,26 @@ export default function ContractsScreen() {
   const nav = useNavigation<any>();
   const { artistId, artistName } = route.params || {};
 
-  const { data, loading, error, reload } = useFetch(() => getContracts(artistId), [artistId]);
-  const namesQ = useFetch(getArtistsSummary);
+  const cacheKey = `contracts:${artistId || 'all'}`;
+  const { data, loading, error, reload } = useFetch(() => getContracts(artistId), [artistId], cacheKey);
+  const namesQ = useFetch(getArtistsSummary, [], 'artists');
   const names: Record<string, string> = {};
   (namesQ.data || []).forEach((a) => { names[a.id] = a.name; });
+  useRefreshOnFocus(cacheKey, reload);
 
   React.useEffect(() => {
-    nav.setOptions?.({ title: artistName ? `${t('contracts.title')} · ${artistName}` : t('contracts.title') });
-  }, [nav, t, artistName]);
+    nav.setOptions?.({
+      title: artistName ? `${t('contracts.title')} · ${artistName}` : t('contracts.title'),
+      headerRight: () => (
+        <Pressable
+          onPress={() => nav.navigate('ContractForm', artistId ? { artistId, artistName } : {})}
+          hitSlop={10}
+        >
+          <Text style={{ color: p.accent, fontSize: 26, fontWeight: '600', marginRight: 4 }}>＋</Text>
+        </Pressable>
+      ),
+    });
+  }, [nav, t, artistName, artistId, p.accent]);
 
   const contracts = data ? [...data].sort((a, b) => (b.start_date || '').localeCompare(a.start_date || '')) : [];
 

@@ -22,7 +22,7 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'acc
 export default function DashboardScreen() {
   const p = usePalette();
   const { t } = useLanguage();
-  const { data, loading, error, reload } = useFetch(getAnalyticsSummary);
+  const { data, loading, error, reload } = useFetch(getAnalyticsSummary, [], 'analytics');
 
   const cur = data?.currency || 'EUR';
   const sources = [...(data?.revenue_by_source || [])].sort((a, b) => parseFloat(b.gross) - parseFloat(a.gross)).slice(0, 6);

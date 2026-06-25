@@ -14,7 +14,7 @@ export default function ArtistsScreen() {
   const p = usePalette();
   const { t } = useLanguage();
   const nav = useNavigation<any>();
-  const { data, loading, error, reload } = useFetch(getArtistsSummary);
+  const { data, loading, error, reload } = useFetch(getArtistsSummary, [], 'artists');
   const [q, setQ] = useState('');
 
   const list = useMemo(() => {

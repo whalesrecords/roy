@@ -16,7 +16,7 @@ export default function RunDetailScreen() {
   const route = useRoute<any>();
   const nav = useNavigation<any>();
   const { id } = route.params || {};
-  const { data: r, loading, error, reload } = useFetch(() => getRoyaltyRun(id), [id]);
+  const { data: r, loading, error, reload } = useFetch(() => getRoyaltyRun(id), [id], `run:${id}`);
 
   React.useEffect(() => { nav.setOptions?.({ title: t('royalties.detail') }); }, [nav, t]);
 

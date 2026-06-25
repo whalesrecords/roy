@@ -8,7 +8,7 @@ import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Loader } from '@/components/ui';
 import { State, StatusBadge } from '@/components/kit';
-import { useFetch } from '@/lib/useFetch';
+import { useFetch, clearFetchCache } from '@/lib/useFetch';
 import { getTicket, replyToTicket, TicketMessage } from '@/lib/api';
 import { fmtDateLong } from '@/lib/format';
 
@@ -37,7 +37,7 @@ export default function TicketDetailScreen() {
   const route = useRoute<any>();
   const nav = useNavigation<any>();
   const { id, subject } = route.params || {};
-  const { data: tk, loading, error, reload } = useFetch(() => getTicket(id), [id]);
+  const { data: tk, loading, error, reload } = useFetch(() => getTicket(id), [id], `ticket:${id}`);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -49,6 +49,8 @@ export default function TicketDetailScreen() {
     setSending(true);
     try {
       await replyToTicket(id, msg);
+      clearFetchCache('tickets');
+      clearFetchCache('ticket-stats');
       setDraft('');
       reload();
     } catch {

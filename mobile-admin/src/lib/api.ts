@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { clearFetchCache } from '@/lib/useFetch';
 
 const API_URL: string =
   (Constants.expoConfig?.extra?.apiUrl as string) ||
@@ -93,7 +94,8 @@ async function fetchApi<T>(endpoint: string, options: ReqOptions = {}): Promise<
       const error = await res.json().catch(() => ({ detail: 'Erreur serveur' }));
       throw new Error((error as { detail?: string }).detail || 'Erreur serveur');
     }
-    const data = await res.json();
+    let data: unknown = null;
+    try { data = await res.json(); } catch { data = null; } // tolerate empty bodies (204)
     if (isGet) cacheSet(endpoint, data);
     return data as T;
   } finally {
@@ -292,3 +294,40 @@ export const getContracts = (artistId?: string, scope?: string) => {
   return fetchApi<ContractListItem[]>(`/contracts${p.length ? `?${p.join('&')}` : ''}`);
 };
 export const getContract = (id: string) => fetchApi<ContractDetail>(`/contracts/${id}`);
+
+export interface ContractPartyInput {
+  party_type: string; artist_id?: string | null; label_name?: string | null;
+  share_percentage: number; share_physical?: number | null; share_digital?: number | null;
+  contact_email?: string | null; contact_phone?: string | null;
+}
+export interface ContractCreateInput {
+  scope: string; scope_id?: string | null; start_date: string; end_date?: string | null;
+  description?: string | null; artist_id: string; parties: ContractPartyInput[];
+}
+export interface ContractUpdateInput {
+  start_date?: string; end_date?: string | null; description?: string | null; parties?: ContractPartyInput[];
+}
+
+function bustContracts(id?: string) {
+  invalidateCache('/contracts');
+  clearFetchCache('contracts:');
+  if (id) clearFetchCache(`contract:${id}`);
+}
+export async function createContract(input: ContractCreateInput): Promise<ContractDetail> {
+  const r = await fetchApi<ContractDetail>('/contracts', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustContracts();
+  return r;
+}
+export async function updateContract(id: string, input: ContractUpdateInput): Promise<ContractDetail> {
+  const r = await fetchApi<ContractDetail>(`/contracts/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustContracts(id);
+  return r;
+}
+export async function deleteContract(id: string): Promise<void> {
+  await fetchApi(`/contracts/${id}`, { method: 'DELETE' });
+  bustContracts(id);
+}

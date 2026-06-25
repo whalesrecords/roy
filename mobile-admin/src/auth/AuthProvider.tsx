@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { setAuthToken, setTokenProvider, getLabelSettings, invalidateCache } from '@/lib/api';
+import { clearFetchCache } from '@/lib/useFetch';
 import { Session, signInWithPassword, refreshSession, signOut } from '@/lib/supabase';
 
 interface AdminUser { email: string | null }
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (s?.access_token) await signOut(s.access_token);
     await persist(null);
     invalidateCache();
+    clearFetchCache();
     setUser(null);
   };
 

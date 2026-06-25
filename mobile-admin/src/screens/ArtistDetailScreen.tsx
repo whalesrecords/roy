@@ -29,8 +29,8 @@ export default function ArtistDetailScreen() {
   const nav = useNavigation<any>();
   const { id, name } = route.params || {};
 
-  const artistQ = useFetch(() => getArtist(id), [id]);
-  const balanceQ = useFetch(() => getAdvanceBalance(id), [id]);
+  const artistQ = useFetch(() => getArtist(id), [id], `artist:${id}`);
+  const balanceQ = useFetch(() => getAdvanceBalance(id), [id], `balance:${id}`);
   const a = artistQ.data;
   const bal = balanceQ.data;
 

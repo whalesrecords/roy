@@ -18,6 +18,7 @@ import PromoScreen from '@/screens/PromoScreen';
 import MoreScreen from '@/screens/MoreScreen';
 import ContractsScreen from '@/screens/ContractsScreen';
 import ContractDetailScreen from '@/screens/ContractDetailScreen';
+import ContractFormScreen from '@/screens/ContractFormScreen';
 import FinancesScreen from '@/screens/FinancesScreen';
 import InventoryScreen from '@/screens/InventoryScreen';
 import SupportScreen from '@/screens/SupportScreen';
@@ -84,6 +85,7 @@ export default function RootNavigator() {
                 <Stack.Screen name="ArtistDetail" component={ArtistDetailScreen} options={{ ...headerOpts, title: 'Artiste' }} />
                 <Stack.Screen name="Contracts" component={ContractsScreen} options={headerOpts} />
                 <Stack.Screen name="ContractDetail" component={ContractDetailScreen} options={headerOpts} />
+                <Stack.Screen name="ContractForm" component={ContractFormScreen} options={headerOpts} />
                 <Stack.Screen name="RunDetail" component={RunDetailScreen} options={headerOpts} />
                 <Stack.Screen name="Finances" component={FinancesScreen} options={headerOpts} />
                 <Stack.Screen name="Inventory" component={InventoryScreen} options={headerOpts} />

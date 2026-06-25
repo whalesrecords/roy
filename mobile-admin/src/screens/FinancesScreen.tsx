@@ -25,9 +25,9 @@ export default function FinancesScreen() {
   const p = usePalette();
   const { t } = useLanguage();
   const nav = useNavigation<any>();
-  const sumQ = useFetch(getFinancesSummary);
-  const expQ = useFetch(getExpenses);
-  const payQ = useFetch(getRoyaltyPayments);
+  const sumQ = useFetch(getFinancesSummary, [], 'fin-summary');
+  const expQ = useFetch(getExpenses, [], 'expenses');
+  const payQ = useFetch(getRoyaltyPayments, [], 'royalty-payments');
 
   React.useEffect(() => { nav.setOptions?.({ title: t('finances.title') }); }, [nav, t]);
 

@@ -18,7 +18,7 @@ export default function SettingsScreen() {
   const { t, lang, setLang } = useLanguage();
   const { user, logout } = useAuth();
   const nav = useNavigation<any>();
-  const labelQ = useFetch(getLabelSettings);
+  const labelQ = useFetch(getLabelSettings, [], 'label');
 
   React.useEffect(() => { nav.setOptions?.({ title: t('settings.title') }); }, [nav, t]);
 

@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow } from '@/components/ui';
 import { State, SectionTitle, StatusBadge, Divider } from '@/components/kit';
-import { IconLink, IconChevronRight } from '@/components/icons';
-import { useFetch } from '@/lib/useFetch';
-import { getContract, getArtistsSummary, ContractParty } from '@/lib/api';
+import { IconLink, IconChevronRight, IconLogout } from '@/components/icons';
+import { useFetch, useRefreshOnFocus } from '@/lib/useFetch';
+import { getContract, getArtistsSummary, deleteContract, ContractParty } from '@/lib/api';
 import { fmtShare, fmtDateLong } from '@/lib/format';
 
 const PARTY_LABELS_FR: Record<string, string> = {
@@ -22,12 +22,35 @@ export default function ContractDetailScreen() {
   const route = useRoute<any>();
   const nav = useNavigation<any>();
   const { id, title } = route.params || {};
-  const { data: c, loading, error, reload } = useFetch(() => getContract(id), [id]);
-  const namesQ = useFetch(getArtistsSummary);
+  const { data: c, loading, error, reload } = useFetch(() => getContract(id), [id], `contract:${id}`);
+  const namesQ = useFetch(getArtistsSummary, [], 'artists');
   const names: Record<string, string> = {};
   (namesQ.data || []).forEach((a) => { names[a.id] = a.name; });
+  useRefreshOnFocus(`contract:${id}`, reload);
 
-  React.useEffect(() => { nav.setOptions?.({ title: title || t('contracts.title') }); }, [nav, t, title]);
+  const confirmDelete = () => {
+    Alert.alert('Supprimer le contrat', 'Cette action est irréversible.', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer', style: 'destructive',
+        onPress: async () => {
+          try { await deleteContract(id); nav.goBack(); }
+          catch (e: any) { Alert.alert('Erreur', e?.message || 'Suppression impossible'); }
+        },
+      },
+    ]);
+  };
+
+  React.useEffect(() => {
+    nav.setOptions?.({
+      title: title || t('contracts.title'),
+      headerRight: () => c ? (
+        <Pressable onPress={() => nav.navigate('ContractForm', { id, prefill: c, artistName: title })} hitSlop={10}>
+          <Text style={{ color: p.accent, fontSize: 15, fontWeight: '700', marginRight: 4 }}>{t('common.edit')}</Text>
+        </Pressable>
+      ) : null,
+    });
+  }, [nav, t, title, c, id, p.accent]);
 
   const partyName = (pty: ContractParty) =>
     pty.party_type === 'artist'
@@ -98,6 +121,14 @@ export default function ContractDetailScreen() {
                   ))}
                 </View>
               </Card>
+
+              <Pressable
+                onPress={confirmDelete}
+                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, paddingVertical: 13, backgroundColor: 'rgba(220,76,87,0.1)', borderRadius: 12, opacity: pressed ? 0.7 : 1 })}
+              >
+                <IconLogout size={17} color={p.neg} />
+                <Text style={{ color: p.neg, fontWeight: '700', fontSize: 14 }}>{t('common.delete')}</Text>
+              </Pressable>
             </>
           ) : null}
         </State>

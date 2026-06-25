@@ -61,8 +61,8 @@ function CampaignCard({ c }: { c: AdCampaign }) {
 export default function PromoScreen() {
   const p = usePalette();
   const { t } = useLanguage();
-  const statsQ = useFetch(getDetailedPromoStats);
-  const adsQ = useFetch(getAdCampaigns);
+  const statsQ = useFetch(getDetailedPromoStats, [], 'promo-detailed');
+  const adsQ = useFetch(getAdCampaigns, [], 'ad-campaigns');
   const s = statsQ.data;
   const ads = adsQ.data;
 

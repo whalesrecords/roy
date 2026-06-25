@@ -25,8 +25,8 @@ export default function InventoryScreen() {
   const p = usePalette();
   const { t } = useLanguage();
   const nav = useNavigation<any>();
-  const sumQ = useFetch(getInventorySummary);
-  const prodQ = useFetch(getProducts);
+  const sumQ = useFetch(getInventorySummary, [], 'inv-summary');
+  const prodQ = useFetch(getProducts, [], 'products');
 
   React.useEffect(() => { nav.setOptions?.({ title: t('inventory.title') }); }, [nav, t]);
 

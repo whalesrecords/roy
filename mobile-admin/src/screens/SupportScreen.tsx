@@ -21,8 +21,8 @@ export default function SupportScreen() {
   const p = usePalette();
   const { t } = useLanguage();
   const nav = useNavigation<any>();
-  const statsQ = useFetch(getTicketStats);
-  const listQ = useFetch(() => getTickets());
+  const statsQ = useFetch(getTicketStats, [], 'ticket-stats');
+  const listQ = useFetch(() => getTickets(), [], 'tickets');
 
   React.useEffect(() => { nav.setOptions?.({ title: t('support.title') }); }, [nav, t]);
 

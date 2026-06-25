@@ -14,7 +14,7 @@ export default function RoyaltiesScreen() {
   const p = usePalette();
   const { t } = useLanguage();
   const nav = useNavigation<any>();
-  const { data, loading, error, reload } = useFetch(() => getRoyaltyRuns(50, 0));
+  const { data, loading, error, reload } = useFetch(() => getRoyaltyRuns(50, 0), [], 'runs');
 
   const runs = data || [];
 
