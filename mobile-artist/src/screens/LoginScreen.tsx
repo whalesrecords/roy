@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, KeyboardAvoidingView, Platform, Pressable, ScrollView,
+  View, Text, TextInput, KeyboardAvoidingView, Platform, Pressable, ScrollView, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/auth/AuthProvider';
-import { usePalette } from '@/theme/ThemeProvider';
+import { usePalette, useTheme } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { AccentButton } from '@/components/ui';
-import { LabelLogo } from '@/components/LabelLogo';
 
 type Mode = 'code' | 'email';
 
 export default function LoginScreen() {
   const p = usePalette();
+  const { theme } = useTheme();
   const { t } = useLanguage();
   const { loginWithCode, loginWithEmail } = useAuth();
   const [mode, setMode] = useState<Mode>('code');
@@ -42,7 +42,11 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
           <View style={{ marginBottom: 28 }}>
-            <LabelLogo height={30} maxWidth={180} />
+            <Image
+              source={theme === 'dark' ? require('../../assets/logo-light.png') : require('../../assets/logo-dark.png')}
+              style={{ width: 168, height: 168 * (581 / 1000) }}
+              resizeMode="contain"
+            />
           </View>
 
           <Text style={{ color: p.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5 }}>{t('login.title')}</Text>
