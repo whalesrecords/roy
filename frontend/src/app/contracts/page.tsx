@@ -424,8 +424,8 @@ export default function ContractsPage() {
         description: description || undefined,
         parties: parties.map(p => ({
           party_type: p.party_type,
-          artist_id: p.party_type === 'artist' ? p.artist_id : undefined,
-          label_name: p.party_type !== 'artist' ? p.label_name : undefined,
+          artist_id: p.party_type === 'artist' ? (p.artist_id || undefined) : undefined,
+          label_name: p.label_name || undefined,
           share_percentage: p.share_percentage,
           contact_email: p.contact_email || undefined,
           contact_phone: p.contact_phone || undefined,
@@ -498,7 +498,7 @@ export default function ContractsPage() {
         const labelParties = contract.parties.filter(p => p.party_type === 'label');
 
         const artistNames = artistParties
-          .map(p => artists.find(a => a.id === p.artist_id)?.name || 'Inconnu')
+          .map(p => artists.find(a => a.id === p.artist_id)?.name || p.label_name || 'Inconnu')
           .join(', ');
         const artistShares = artistParties
           .map(p => `${(parseFloat(p.share_percentage) * 100).toFixed(1)}%`)
@@ -951,9 +951,9 @@ export default function ContractsPage() {
               const currentScopeInfo = contract.scope_id ? scopeInfo[contract.scope_id] : null;
 
               // Artist name: prefer the linked artist, then the scope title (album/track), then artist party label.
-              const artistParty = contract.parties.find(p => p.party_type === 'artist' && p.artist_id);
+              const artistParty = contract.parties.find(p => p.party_type === 'artist' && (p.artist_id || p.label_name));
               const partyArtistName = artistParty
-                ? artists.find(a => a.id === artistParty.artist_id)?.name
+                ? (artists.find(a => a.id === artistParty.artist_id)?.name || artistParty.label_name || undefined)
                 : undefined;
               const artistName =
                 artist?.name ||
@@ -1316,18 +1316,30 @@ export default function ContractsPage() {
                     <div key={index} className="flex gap-3 items-start p-4 rounded-[12px] border border-line bg-surface-2">
                       <div className="flex-1 space-y-2">
                         {party.party_type === 'artist' ? (
-                          <div>
-                            <label className="block text-[11px] font-medium text-ink-muted mb-1.5">Artiste</label>
-                            <select
-                              value={party.artist_id || ''}
-                              onChange={(e) => handlePartyChange(index, 'artist_id', e.target.value)}
-                              className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-accent transition-colors"
-                            >
-                              <option value="">Selectionner</option>
-                              {artists.map((artist) => (
-                                <option key={artist.id} value={artist.id}>{artist.name}</option>
-                              ))}
-                            </select>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-[11px] font-medium text-ink-muted mb-1.5">Nom affiche</label>
+                              <input
+                                type="text"
+                                placeholder="ex : Mondial Toboggan"
+                                value={party.label_name || ''}
+                                onChange={(e) => handlePartyChange(index, 'label_name', e.target.value)}
+                                className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-ink-muted mb-1.5">Lier a un artiste (optionnel)</label>
+                              <select
+                                value={party.artist_id || ''}
+                                onChange={(e) => handlePartyChange(index, 'artist_id', e.target.value)}
+                                className="w-full h-10 px-3 bg-surface border border-line-strong rounded-[10px] text-[13px] text-ink focus:outline-none focus:border-accent transition-colors"
+                              >
+                                <option value="">Aucun</option>
+                                {artists.map((artist) => (
+                                  <option key={artist.id} value={artist.id}>{artist.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         ) : (
                           <div>
