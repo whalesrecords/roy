@@ -16,6 +16,9 @@
       "bundleIdentifier": "com.whalesrecords.royartist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "aps-environment": "production"
       }
     },
     "android": {
