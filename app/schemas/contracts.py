@@ -120,6 +120,7 @@ class ContractResponse(ContractBase):
     """Schema for contract response."""
     id: UUID
     artist_id: UUID
+    scope_title: Optional[str] = None  # resolved album / track name
     document_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -139,6 +140,7 @@ class ContractListItem(BaseModel):
     artist_id: UUID
     scope: str
     scope_id: Optional[str]
+    scope_title: Optional[str] = None  # resolved album / track name
     start_date: date
     end_date: Optional[date]
     parties: list[PartyResponse]
@@ -148,3 +150,27 @@ class ContractListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ContributorInput(BaseModel):
+    """A single track contributor (documentation of royalty split)."""
+    isrc: Optional[str] = None
+    track_title: Optional[str] = None
+    contributor_name: str
+    role: Optional[str] = None
+    percentage: Optional[Decimal] = None
+
+
+class ContributorItem(ContributorInput):
+    id: UUID
+
+    class Config:
+        from_attributes = True
+
+
+class SetContributorsRequest(BaseModel):
+    contributors: list[ContributorInput] = Field(default_factory=list)
+
+
+class ContributorsResponse(BaseModel):
+    contributors: list[ContributorItem] = Field(default_factory=list)

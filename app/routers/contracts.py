@@ -17,12 +17,37 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import verify_admin_token
 from app.core.database import get_db
 from app.models import Artist, Contract, ContractParty
+from app.models.artwork import ReleaseArtwork, TrackArtwork
+from app.models.contract_track_contributor import ContractTrackContributor
 from app.schemas.contracts import (
     ContractCreate,
     ContractListItem,
     ContractResponse,
     ContractUpdate,
+    ContributorsResponse,
+    SetContributorsRequest,
 )
+
+
+async def _attach_scope_titles(db: AsyncSession, contracts: list[Contract]) -> None:
+    """Resolve and attach the album (UPC) / track (ISRC) name on each contract."""
+    upcs = [c.scope_id for c in contracts if c.scope == "release" and c.scope_id]
+    isrcs = [c.scope_id for c in contracts if c.scope == "track" and c.scope_id]
+    rel: dict[str, str] = {}
+    trk: dict[str, str] = {}
+    if upcs:
+        r = await db.execute(select(ReleaseArtwork.upc, ReleaseArtwork.name).where(ReleaseArtwork.upc.in_(upcs)))
+        rel = {row.upc: row.name for row in r.all()}
+    if isrcs:
+        r = await db.execute(select(TrackArtwork.isrc, TrackArtwork.name).where(TrackArtwork.isrc.in_(isrcs)))
+        trk = {row.isrc: row.name for row in r.all()}
+    for c in contracts:
+        if c.scope == "release" and c.scope_id:
+            c.scope_title = rel.get(c.scope_id, c.scope_id)
+        elif c.scope == "track" and c.scope_id:
+            c.scope_title = trk.get(c.scope_id, c.scope_id)
+        else:
+            c.scope_title = None
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -52,7 +77,8 @@ async def list_contracts(
     query = query.order_by(Contract.start_date.desc())
 
     result = await db.execute(query)
-    contracts = result.scalars().all()
+    contracts = list(result.scalars().all())
+    await _attach_scope_titles(db, contracts)
 
     return contracts
 
@@ -74,7 +100,64 @@ async def get_contract(
             detail=f"Contract {contract_id} not found",
         )
 
+    await _attach_scope_titles(db, [contract])
     return contract
+
+
+@router.get("/{contract_id}/contributors", response_model=ContributorsResponse)
+async def get_contract_contributors(
+    contract_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _token: str = Depends(verify_admin_token),
+):
+    """List the per-track contributors recorded on a contract."""
+    result = await db.execute(
+        select(ContractTrackContributor)
+        .where(ContractTrackContributor.contract_id == contract_id)
+        .order_by(ContractTrackContributor.isrc, ContractTrackContributor.created_at)
+    )
+    return ContributorsResponse(contributors=list(result.scalars().all()))
+
+
+@router.put("/{contract_id}/contributors", response_model=ContributorsResponse)
+async def set_contract_contributors(
+    contract_id: UUID,
+    payload: SetContributorsRequest,
+    db: AsyncSession = Depends(get_db),
+    _token: str = Depends(verify_admin_token),
+):
+    """Replace the full set of per-track contributors for a contract."""
+    contract = (await db.execute(select(Contract).where(Contract.id == contract_id))).scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    # Replace-all: clear then re-insert.
+    existing = await db.execute(
+        select(ContractTrackContributor).where(ContractTrackContributor.contract_id == contract_id)
+    )
+    for row in existing.scalars().all():
+        await db.delete(row)
+
+    for c in payload.contributors:
+        name = (c.contributor_name or "").strip()
+        if not name:
+            continue
+        db.add(ContractTrackContributor(
+            contract_id=contract_id,
+            isrc=(c.isrc or None),
+            track_title=(c.track_title or None),
+            contributor_name=name,
+            role=(c.role or None),
+            percentage=c.percentage,
+        ))
+    await db.commit()
+
+    result = await db.execute(
+        select(ContractTrackContributor)
+        .where(ContractTrackContributor.contract_id == contract_id)
+        .order_by(ContractTrackContributor.isrc, ContractTrackContributor.created_at)
+    )
+    return ContributorsResponse(contributors=list(result.scalars().all()))
 
 
 @router.post("", response_model=ContractResponse, status_code=status.HTTP_201_CREATED)
