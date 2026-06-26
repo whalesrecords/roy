@@ -8,7 +8,7 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,6 +143,23 @@ class ContractResponse(BaseModel):
     artist_share: float
     label_share: float
     description: Optional[str] = None
+    signed: bool = False
+    signed_at: Optional[str] = None
+
+
+class SignContractRequest(BaseModel):
+    signature_image: str  # base64 PNG (data URL accepted)
+    consent: bool = True
+    signer_name: Optional[str] = None
+
+
+class ContractSignatureResponse(BaseModel):
+    contract_id: str
+    signed: bool
+    signed_at: Optional[str] = None
+    signer_name: Optional[str] = None
+    document_hash: Optional[str] = None
+    has_certificate: bool = False
 
 
 class QuarterlyRevenueResponse(BaseModel):
@@ -1246,6 +1263,18 @@ async def get_contracts(
 
     contract_list = result.scalars().all()
 
+    # Bulk-load signatures (by this artist) for these contracts
+    from app.models.contract_signature import ContractSignature
+    sig_map: dict[str, datetime] = {}
+    if contract_list:
+        sig_rows = await db.execute(
+            select(ContractSignature.contract_id, ContractSignature.signed_at).where(
+                ContractSignature.contract_id.in_([c.id for c in contract_list]),
+                ContractSignature.artist_id == artist.id,
+            )
+        )
+        sig_map = {str(cid): sat for cid, sat in sig_rows.all()}
+
     # Bulk-load artwork to avoid N+1 queries
     c_release_ids = [c.scope_id for c in contract_list if c.scope == "release" and c.scope_id]
     c_track_ids = [c.scope_id for c in contract_list if c.scope == "track" and c.scope_id]
@@ -1309,6 +1338,7 @@ async def get_contracts(
         elif contract.scope == "track" and contract.scope_id:
             scope_title = c_track_names.get(contract.scope_id, contract.scope_id)
 
+        signed_at = sig_map.get(str(contract.id))
         contracts.append({
             "id": str(contract.id),
             "scope": contract.scope or "catalog",
@@ -1319,9 +1349,144 @@ async def get_contracts(
             "artist_share": artist_share,
             "label_share": label_share,
             "description": contract.description,
+            "signed": signed_at is not None,
+            "signed_at": signed_at.isoformat() if signed_at else None,
         })
 
     return contracts
+
+
+@router.post("/contracts/{contract_id}/sign", response_model=ContractSignatureResponse)
+async def sign_contract(
+    contract_id: str,
+    data: SignContractRequest,
+    request: Request,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sign a contract with a hand-drawn signature (simple electronic signature)."""
+    from app.models.contract_signature import ContractSignature
+    from app.services.signature import build_certificate_pdf, compute_document_hash
+
+    try:
+        cid = uuid.UUID(contract_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+
+    res = await db.execute(
+        select(Contract).options(selectinload(Contract.parties)).where(Contract.id == cid)
+    )
+    contract = res.scalar_one_or_none()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contrat introuvable")
+
+    allowed = (contract.artist_id == artist.id) or any(
+        p.party_type == "artist" and p.artist_id == artist.id for p in contract.parties
+    )
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Accès refusé à ce contrat")
+    if not data.consent:
+        raise HTTPException(status_code=400, detail="Consentement requis")
+    if not data.signature_image or len(data.signature_image) < 50:
+        raise HTTPException(status_code=400, detail="Signature manquante")
+
+    # Idempotent: a contract already signed by this artist returns the existing signature.
+    existing = await db.execute(
+        select(ContractSignature).where(
+            ContractSignature.contract_id == cid,
+            ContractSignature.artist_id == artist.id,
+        )
+    )
+    sig = existing.scalar_one_or_none()
+    if sig:
+        return ContractSignatureResponse(
+            contract_id=str(cid), signed=True,
+            signed_at=sig.signed_at.isoformat() if sig.signed_at else None,
+            signer_name=sig.signer_name, document_hash=sig.document_hash,
+            has_certificate=bool(sig.certificate_pdf),
+        )
+
+    parties = [
+        {
+            "party_type": p.party_type, "artist_id": p.artist_id, "label_name": p.label_name,
+            "share_percentage": p.share_percentage, "share_physical": p.share_physical, "share_digital": p.share_digital,
+        }
+        for p in contract.parties
+    ]
+    contract_dict = {
+        "id": contract.id, "scope": contract.scope, "scope_id": contract.scope_id,
+        "start_date": contract.start_date, "end_date": contract.end_date, "description": contract.description,
+    }
+    doc_hash = compute_document_hash(contract_dict, parties)
+
+    fwd = request.headers.get("x-forwarded-for")
+    ip = fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else None)
+    ua = request.headers.get("user-agent")
+    now = datetime.utcnow()
+    signer_name = data.signer_name or artist.name
+
+    cert = build_certificate_pdf(
+        contract=contract_dict, parties=parties,
+        signer={"name": signer_name, "email": artist.email, "artist_id": str(artist.id)},
+        audit={"signed_at": now.isoformat() + "Z", "ip_address": ip, "user_agent": ua, "document_hash": doc_hash},
+        signature_png_b64=data.signature_image,
+    )
+
+    sig = ContractSignature(
+        contract_id=cid, artist_id=artist.id, signer_name=signer_name, signer_email=artist.email,
+        signature_image=data.signature_image, document_hash=doc_hash, ip_address=ip,
+        user_agent=(ua or "")[:400], consent=True, certificate_pdf=cert, signed_at=now,
+    )
+    db.add(sig)
+    await db.commit()
+
+    await send_admin_push(
+        db, title="Contrat signé", body=f"{signer_name} a signé un contrat",
+        data={"type": "contract", "contract_id": str(cid)},
+    )
+
+    return ContractSignatureResponse(
+        contract_id=str(cid), signed=True, signed_at=now.isoformat(),
+        signer_name=signer_name, document_hash=doc_hash, has_certificate=bool(cert),
+    )
+
+
+@router.get("/contracts/{contract_id}/signature")
+async def get_contract_signature(
+    contract_id: str,
+    with_certificate: bool = False,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Signature status for a contract (optionally with the certificate PDF)."""
+    from app.models.contract_signature import ContractSignature
+
+    try:
+        cid = uuid.UUID(contract_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Identifiant invalide")
+
+    res = await db.execute(
+        select(ContractSignature).where(
+            ContractSignature.contract_id == cid,
+            ContractSignature.artist_id == artist.id,
+        )
+    )
+    sig = res.scalar_one_or_none()
+    if not sig:
+        return {"contract_id": str(cid), "signed": False}
+
+    out = {
+        "contract_id": str(cid),
+        "signed": True,
+        "signed_at": sig.signed_at.isoformat() if sig.signed_at else None,
+        "signer_name": sig.signer_name,
+        "document_hash": sig.document_hash,
+        "has_certificate": bool(sig.certificate_pdf),
+    }
+    if with_certificate and sig.certificate_pdf:
+        out["certificate_pdf"] = sig.certificate_pdf  # base64 PDF
+    return out
 
 
 @router.get("/available-years")
