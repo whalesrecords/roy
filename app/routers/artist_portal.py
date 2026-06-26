@@ -17,6 +17,7 @@ from sqlalchemy.orm import selectinload
 from app.core.auth import verify_admin_token
 from app.core.config import settings
 from app.core.database import get_db
+from app.services.push import send_admin_push
 from app.models.advance_ledger import AdvanceLedgerEntry, LedgerEntryType
 from app.models.artist import Artist
 from app.models.artist_notification import ArtistNotification
@@ -1914,6 +1915,14 @@ async def request_payment(
         logger.error("Failed to send payment request email: %s", e)
         # Don't fail the request if email fails
 
+    # Push notification to admin devices (best-effort)
+    await send_admin_push(
+        db,
+        title=f"Demande de paiement — {artist.name}",
+        body=f"{float(stmt.net_payable):.2f} {stmt.currency} · {period_label}",
+        data={"type": "payment", "statement_id": str(stmt.id)},
+    )
+
     return {"message": "Demande de paiement envoyee", "statement_id": str(stmt.id)}
 
 
@@ -2258,6 +2267,14 @@ async def create_ticket(
     except Exception as e:
         logger.error(f"Failed to send ticket email: {e}")
 
+    # Push notification to admin devices (best-effort)
+    await send_admin_push(
+        db,
+        title=f"Nouveau ticket — {ticket_number}",
+        body=f"{artist.name} : {data.subject}",
+        data={"type": "ticket", "ticket_id": str(ticket.id)},
+    )
+
     # Return ticket detail
     return {
         "id": str(ticket.id),
@@ -2424,6 +2441,14 @@ async def add_ticket_message(
         )
     except Exception as e:
         logger.error(f"Failed to send message email: {e}")
+
+    # Push notification to admin devices (best-effort)
+    await send_admin_push(
+        db,
+        title=f"Réponse — {ticket.ticket_number}",
+        body=f"{artist.name} a répondu : {data.message[:80]}",
+        data={"type": "ticket", "ticket_id": str(ticket.id)},
+    )
 
     return {
         "id": str(message.id),
