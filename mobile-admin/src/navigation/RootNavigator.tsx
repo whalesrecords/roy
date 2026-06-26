@@ -26,6 +26,11 @@ import ProductFormScreen from '@/screens/ProductFormScreen';
 import SupportScreen from '@/screens/SupportScreen';
 import TicketDetailScreen from '@/screens/TicketDetailScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
+import CatalogScreen from '@/screens/CatalogScreen';
+import CatalogArtistScreen from '@/screens/CatalogArtistScreen';
+import ReleaseTracksScreen from '@/screens/ReleaseTracksScreen';
+import ImportsScreen from '@/screens/ImportsScreen';
+import SpotifySuggestionsScreen from '@/screens/SpotifySuggestionsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -95,6 +100,11 @@ export default function RootNavigator() {
                 <Stack.Screen name="ProductForm" component={ProductFormScreen} options={headerOpts} />
                 <Stack.Screen name="Support" component={SupportScreen} options={headerOpts} />
                 <Stack.Screen name="TicketDetail" component={TicketDetailScreen} options={headerOpts} />
+                <Stack.Screen name="Catalog" component={CatalogScreen} options={headerOpts} />
+                <Stack.Screen name="CatalogArtist" component={CatalogArtistScreen} options={headerOpts} />
+                <Stack.Screen name="ReleaseTracks" component={ReleaseTracksScreen} options={headerOpts} />
+                <Stack.Screen name="Imports" component={ImportsScreen} options={headerOpts} />
+                <Stack.Screen name="SpotifySuggestions" component={SpotifySuggestionsScreen} options={headerOpts} />
                 <Stack.Screen name="Settings" component={SettingsScreen} options={headerOpts} />
               </>
             ) : (

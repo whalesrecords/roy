@@ -118,10 +118,30 @@ const FR: Dict = {
   'contracts.streams': 'Streams',
   'contracts.viewArtist': 'Voir les contrats',
 
+  'catalog.title': 'Catalogue',
+  'catalog.search': 'Rechercher un artiste…',
+  'catalog.releases': 'Releases',
+  'catalog.tracks': 'Titres',
+
+  'imports.title': 'Imports',
+  'imports.period': 'Période',
+  'imports.hint': 'L’import des CSV se fait depuis le back-office web.',
+
+  'spotify.title': 'Suggestions Spotify',
+  'spotify.pending': 'En attente',
+  'spotify.approved': 'Validées',
+  'spotify.rejected': 'Rejetées',
+  'spotify.all': 'Toutes',
+  'spotify.approve': 'Valider',
+  'spotify.reject': 'Rejeter',
+
   'more.title': 'Plus',
   'more.contracts': 'Contrats',
+  'more.catalogue': 'Catalogue',
   'more.finances': 'Finances',
   'more.inventory': 'Inventaire',
+  'more.imports': 'Imports',
+  'more.spotify': 'Suggestions Spotify',
   'more.support': 'Support',
   'more.settings': 'Réglages',
 
@@ -273,10 +293,30 @@ const EN: Dict = {
   'contracts.streams': 'Streams',
   'contracts.viewArtist': 'View contracts',
 
+  'catalog.title': 'Catalog',
+  'catalog.search': 'Search an artist…',
+  'catalog.releases': 'Releases',
+  'catalog.tracks': 'Tracks',
+
+  'imports.title': 'Imports',
+  'imports.period': 'Period',
+  'imports.hint': 'CSV imports are done from the web back-office.',
+
+  'spotify.title': 'Spotify suggestions',
+  'spotify.pending': 'Pending',
+  'spotify.approved': 'Approved',
+  'spotify.rejected': 'Rejected',
+  'spotify.all': 'All',
+  'spotify.approve': 'Approve',
+  'spotify.reject': 'Reject',
+
   'more.title': 'More',
   'more.contracts': 'Contracts',
+  'more.catalogue': 'Catalog',
   'more.finances': 'Finances',
   'more.inventory': 'Inventory',
+  'more.imports': 'Imports',
+  'more.spotify': 'Spotify suggestions',
   'more.support': 'Support',
   'more.settings': 'Settings',
 

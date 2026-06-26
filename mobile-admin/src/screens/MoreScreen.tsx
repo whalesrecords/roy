@@ -6,7 +6,7 @@ import { useLanguage } from '@/i18n';
 import { Card } from '@/components/ui';
 import { Screen, Divider } from '@/components/kit';
 import {
-  IconWallet, IconBox, IconSupport, IconSettings, IconFile, IconChevronRight, IconProps,
+  IconWallet, IconBox, IconSupport, IconSettings, IconFile, IconLayers, IconArrowDown, IconSpotify, IconChevronRight, IconProps,
 } from '@/components/icons';
 
 export default function MoreScreen() {
@@ -15,9 +15,12 @@ export default function MoreScreen() {
   const nav = useNavigation<any>();
 
   const items: { key: string; label: string; icon: (pr: IconProps) => React.JSX.Element; route: string }[] = [
+    { key: 'catalogue', label: t('more.catalogue'), icon: IconLayers, route: 'Catalog' },
     { key: 'contracts', label: t('more.contracts'), icon: IconFile, route: 'Contracts' },
     { key: 'finances', label: t('more.finances'), icon: IconWallet, route: 'Finances' },
     { key: 'inventory', label: t('more.inventory'), icon: IconBox, route: 'Inventory' },
+    { key: 'imports', label: t('more.imports'), icon: IconArrowDown, route: 'Imports' },
+    { key: 'spotify', label: t('more.spotify'), icon: IconSpotify, route: 'SpotifySuggestions' },
     { key: 'support', label: t('more.support'), icon: IconSupport, route: 'Support' },
     { key: 'settings', label: t('more.settings'), icon: IconSettings, route: 'Settings' },
   ];

@@ -324,6 +324,50 @@ export async function adjustStock(id: string, input: StockAdjustInput): Promise<
   bustInventory();
   return r;
 }
+
+// ---- Catalog (read-only browse) ----
+export interface CatalogArtist {
+  artist_name: string; track_count: number; release_count: number;
+  total_gross: string; total_streams: number; currency: string;
+}
+export interface CatalogReleaseSource { store_name: string; physical_format?: string | null; gross: string; quantity: number; track_count: number }
+export interface CatalogRelease {
+  release_title: string; upc: string; track_count: number; total_gross: string;
+  total_streams: number; currency: string; sources: CatalogReleaseSource[];
+}
+export interface CatalogTrack {
+  track_title: string; release_title?: string | null; isrc: string; total_gross: string;
+  total_streams: number; currency: string; is_collaboration: boolean;
+  original_artist?: string | null; share_percent?: string | null;
+}
+export interface ReleaseTrack { track_title: string; isrc?: string | null; artist_name: string; total_gross: string; total_streams: number }
+
+export const getCatalogArtists = () => fetchApi<CatalogArtist[]>('/imports/catalog/artists');
+export const getCatalogArtistReleases = (name: string) =>
+  fetchApi<CatalogRelease[]>(`/imports/catalog/artists/${encodeURIComponent(name)}/releases`);
+export const getCatalogArtistTracks = (name: string) =>
+  fetchApi<CatalogTrack[]>(`/imports/catalog/artists/${encodeURIComponent(name)}/tracks`);
+export const getReleaseTracks = (upc: string) =>
+  fetchApi<ReleaseTrack[]>(`/imports/catalog/releases/${encodeURIComponent(upc)}/tracks`);
+
+// ---- Spotify suggestions ----
+export interface SpotifySuggestion {
+  id: string; artist_id: string; artist_name?: string | null; spotify_track_id: string; spotify_album_id: string;
+  track_name: string; album_name: string; album_type?: string | null; label_name?: string | null;
+  release_date?: string | null; isrc?: string | null; duration_ms?: number | null; image_url?: string | null;
+  spotify_url?: string | null; track_number?: number | null; status: string; reviewed_at?: string | null; created_at: string;
+}
+export const getSpotifySuggestions = (status = 'pending') =>
+  fetchApi<SpotifySuggestion[]>(`/spotify/suggestions?status_filter=${status}`);
+export const getSpotifySuggestionsCount = () => fetchApi<{ pending_count: number }>('/spotify/suggestions/count');
+export async function approveSuggestion(id: string): Promise<void> {
+  await fetchApi(`/spotify/suggestions/${id}/approve`, { method: 'POST' });
+  invalidateCache('/spotify/suggestions'); clearFetchCache('spotify-sug');
+}
+export async function rejectSuggestion(id: string): Promise<void> {
+  await fetchApi(`/spotify/suggestions/${id}/reject`, { method: 'POST' });
+  invalidateCache('/spotify/suggestions'); clearFetchCache('spotify-sug');
+}
 export const getFinancesSummary = () => fetchApi<FinancesSummary>('/finances/summary');
 export const getExpenses = () => fetchApi<ExpenseResponse[]>('/finances/expenses');
 export const getRoyaltyPayments = () => fetchApi<RoyaltyPaymentResponse[]>('/finances/royalty-payments');
