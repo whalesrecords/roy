@@ -48,6 +48,21 @@ from app.routers.tickets import router as tickets_router
 from app.routers.labels import router as labels_router
 
 
+# Tenant-scoped data tables — each carries a ``label_id`` for isolation.
+# (Excludes artist-level shared tables: artists, artist_profiles, artist_tokens,
+#  artist_push_tokens, track_artist_links — an artist may belong to several
+#  labels; and the multi-tenant infra tables themselves.)
+TENANT_TABLES = [
+    "contracts", "contract_parties", "contract_signatures", "contract_track_contributors",
+    "statements", "royalty_runs", "royalty_line_items", "advance_ledger",
+    "transactions_normalized", "products", "stock_movements", "fixed_assets",
+    "imports", "promo_campaigns", "promo_submissions", "spotify_ad_campaigns",
+    "spotify_track_suggestions", "match_suggestions", "notifications", "artist_notifications",
+    "manual_releases", "manual_tracks", "tickets", "ticket_messages", "ticket_participants",
+    "label_settings", "release_artwork", "track_artwork",
+]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events."""
@@ -111,6 +126,18 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text(sql))
             except Exception:
                 pass  # Column might already exist
+
+        # Multi-tenant Phase A — add nullable label_id to every tenant table
+        # (+ index). Additive & non-breaking: no query filters on it yet.
+        for tbl in TENANT_TABLES:
+            for sql in (
+                f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS label_id UUID",
+                f"CREATE INDEX IF NOT EXISTS idx_{tbl}_label_id ON {tbl}(label_id)",
+            ):
+                try:
+                    await conn.execute(text(sql))
+                except Exception:
+                    pass  # table/column may not exist yet
 
         # Create indexes
         indexes = [
@@ -179,6 +206,30 @@ async def lifespan(app: FastAPI):
                 )
     except Exception as exc:  # pragma: no cover - defensive, never block startup
         logger.error("Label foundation seed skipped: %s", exc, exc_info=True)
+
+    # Multi-tenant Phase A backfill — assign existing/new NULL rows to Whales.
+    # Idempotent (WHERE label_id IS NULL) so it costs nothing once filled.
+    try:
+        async with engine.begin() as conn:
+            from sqlalchemy import text
+            whales_id = (
+                await conn.execute(text("SELECT id FROM labels WHERE slug = 'whales-records'"))
+            ).scalar()
+            if whales_id is not None:
+                filled = 0
+                for tbl in TENANT_TABLES:
+                    try:
+                        res = await conn.execute(
+                            text(f"UPDATE {tbl} SET label_id = :lid WHERE label_id IS NULL"),
+                            {"lid": whales_id},
+                        )
+                        filled += res.rowcount or 0
+                    except Exception:
+                        pass  # table/column may not exist yet
+                if filled:
+                    logger.info("Backfilled label_id (Whales) on %s tenant rows", filled)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("label_id backfill skipped: %s", exc, exc_info=True)
 
     # Start weekly Spotify scanner background task
     scanner_task = asyncio.create_task(_weekly_spotify_scanner())
