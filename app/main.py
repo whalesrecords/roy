@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 # Import models so SQLAlchemy registers them with Base.metadata
 import app.models.manual_release  # noqa: F401
 import app.models.manual_track  # noqa: F401
+import app.models.push_token  # noqa: F401
 from app.routers import imports
+from app.routers.push import router as push_router
 from app.routers.analytics import router as analytics_router
 from app.routers.artist_portal import router as artist_portal_router
 from app.routers.artists import router as artists_router
@@ -210,6 +212,7 @@ app.include_router(promo_router)
 app.include_router(exports_router)
 app.include_router(inventory_router)
 app.include_router(assets_router)
+app.include_router(push_router)
 
 
 @app.get("/health")
