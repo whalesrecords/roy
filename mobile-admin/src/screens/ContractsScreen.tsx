@@ -23,7 +23,7 @@ function scopeTone(scope: string): 'good' | 'warn' | 'neutral' {
 }
 
 function partyName(pty: ContractParty, names: Record<string, string>): string {
-  if (pty.party_type === 'artist') return pty.artist_id ? (names[pty.artist_id] || 'Artiste') : 'Artiste';
+  if (pty.party_type === 'artist') return (pty.artist_id && names[pty.artist_id]) || pty.label_name || 'Artiste';
   return pty.label_name || PARTY_LABELS_FR[pty.party_type] || pty.party_type;
 }
 

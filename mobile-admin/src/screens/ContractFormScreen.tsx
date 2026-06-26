@@ -8,6 +8,7 @@ import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow, AccentButton } from '@/components/ui';
 import { SectionTitle, Divider } from '@/components/kit';
+import { IconChevronRight } from '@/components/icons';
 import { ArtistPicker } from '@/components/ArtistPicker';
 import { useFetch } from '@/lib/useFetch';
 import {
@@ -111,7 +112,7 @@ export default function ContractFormScreen() {
     const partyPayload: ContractPartyInput[] = parties.map((pt) => ({
       party_type: pt.party_type,
       artist_id: pt.party_type === 'artist' ? pt.artist?.id ?? null : null,
-      label_name: pt.party_type !== 'artist' ? pt.label_name.trim() || null : null,
+      label_name: pt.label_name.trim() || null,
       share_percentage: num(pt.share) / 100,
       share_physical: pt.advanced && pt.sharePhysical.trim() ? num(pt.sharePhysical) / 100 : null,
       share_digital: pt.advanced && pt.shareDigital.trim() ? num(pt.shareDigital) / 100 : null,
@@ -213,9 +214,13 @@ export default function ContractFormScreen() {
               </View>
 
               {pt.party_type === 'artist' ? (
-                <Pressable onPress={() => setPickerFor(i)} style={[inputStyle, { flexDirection: 'row', justifyContent: 'space-between' }]}>
-                  <Text style={{ color: pt.artist ? p.text : p.text3, fontSize: 14.5 }}>{label(pt.artist)}</Text>
-                </Pressable>
+                <>
+                  <TextInput value={pt.label_name} onChangeText={(v) => setParty(i, { label_name: v })} placeholder={t('cform.artistName')} placeholderTextColor={p.text3} style={inputStyle} />
+                  <Pressable onPress={() => setPickerFor(i)} style={[inputStyle, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                    <Text style={{ color: pt.artist ? p.text : p.text3, fontSize: 13.5 }}>{pt.artist ? label(pt.artist) : t('cform.artistLink')}</Text>
+                    <IconChevronRight size={16} color={p.text3} />
+                  </Pressable>
+                </>
               ) : (
                 <TextInput value={pt.label_name} onChangeText={(v) => setParty(i, { label_name: v })} placeholder={t('cform.name')} placeholderTextColor={p.text3} style={inputStyle} />
               )}

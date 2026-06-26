@@ -54,7 +54,7 @@ export default function ContractDetailScreen() {
 
   const partyName = (pty: ContractParty) =>
     pty.party_type === 'artist'
-      ? (pty.artist_id ? names[pty.artist_id] || 'Artiste' : 'Artiste')
+      ? ((pty.artist_id && names[pty.artist_id]) || pty.label_name || 'Artiste')
       : pty.label_name || PARTY_LABELS_FR[pty.party_type] || pty.party_type;
 
   return (
