@@ -242,12 +242,16 @@ export interface ContractParty {
   contact_email?: string | null; contact_phone?: string | null; created_at: string;
 }
 export interface ContractListItem {
-  id: string; artist_id: string; scope: string; scope_id?: string | null;
+  id: string; artist_id: string; scope: string; scope_id?: string | null; scope_title?: string | null;
   start_date: string; end_date?: string | null; parties: ContractParty[];
   artist_share?: string | number | null; label_share?: string | number | null;
 }
 export interface ContractDetail extends ContractListItem {
   description?: string | null; document_url?: string | null; created_at: string; updated_at: string;
+}
+export interface TrackContributor {
+  id?: string; isrc?: string | null; track_title?: string | null;
+  contributor_name: string; role?: string | null; percentage?: number | string | null;
 }
 
 // ============================ API ============================
@@ -456,4 +460,14 @@ export async function updateContract(id: string, input: ContractUpdateInput): Pr
 export async function deleteContract(id: string): Promise<void> {
   await fetchApi(`/contracts/${id}`, { method: 'DELETE' });
   bustContracts(id);
+}
+
+export const getContractContributors = (id: string) =>
+  fetchApi<{ contributors: TrackContributor[] }>(`/contracts/${id}/contributors`);
+export async function setContractContributors(id: string, contributors: TrackContributor[]): Promise<{ contributors: TrackContributor[] }> {
+  const r = await fetchApi<{ contributors: TrackContributor[] }>(`/contracts/${id}/contributors`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contributors }),
+  });
+  clearFetchCache(`contributors:${id}`);
+  return r;
 }

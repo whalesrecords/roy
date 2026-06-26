@@ -19,6 +19,7 @@ import MoreScreen from '@/screens/MoreScreen';
 import ContractsScreen from '@/screens/ContractsScreen';
 import ContractDetailScreen from '@/screens/ContractDetailScreen';
 import ContractFormScreen from '@/screens/ContractFormScreen';
+import ContractContributorsScreen from '@/screens/ContractContributorsScreen';
 import FinancesScreen from '@/screens/FinancesScreen';
 import ExpenseFormScreen from '@/screens/ExpenseFormScreen';
 import InventoryScreen from '@/screens/InventoryScreen';
@@ -93,6 +94,7 @@ export default function RootNavigator() {
                 <Stack.Screen name="Contracts" component={ContractsScreen} options={headerOpts} />
                 <Stack.Screen name="ContractDetail" component={ContractDetailScreen} options={headerOpts} />
                 <Stack.Screen name="ContractForm" component={ContractFormScreen} options={headerOpts} />
+                <Stack.Screen name="ContractContributors" component={ContractContributorsScreen} options={headerOpts} />
                 <Stack.Screen name="RunDetail" component={RunDetailScreen} options={headerOpts} />
                 <Stack.Screen name="Finances" component={FinancesScreen} options={headerOpts} />
                 <Stack.Screen name="ExpenseForm" component={ExpenseFormScreen} options={headerOpts} />

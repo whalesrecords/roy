@@ -6,7 +6,7 @@ import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow } from '@/components/ui';
 import { State, SectionTitle, StatusBadge, Divider } from '@/components/kit';
-import { IconLink, IconChevronRight, IconLogout } from '@/components/icons';
+import { IconLink, IconChevronRight, IconLogout, IconFile } from '@/components/icons';
 import { useFetch, useRefreshOnFocus } from '@/lib/useFetch';
 import { getContract, getArtistsSummary, deleteContract, ContractParty } from '@/lib/api';
 import { fmtShare, fmtDateLong } from '@/lib/format';
@@ -68,10 +68,13 @@ export default function ContractDetailScreen() {
                   <Eyebrow>{t('contracts.period')}</Eyebrow>
                   <StatusBadge label={t(`contracts.scope.${c.scope}`)} tone={c.scope === 'catalog' ? 'good' : c.scope === 'release' ? 'warn' : 'neutral'} />
                 </View>
-                <Text style={{ color: p.text, fontSize: 15, fontWeight: '700', marginTop: 6 }}>
+                {c.scope_title ? (
+                  <Text style={{ color: p.text, fontSize: 17, fontWeight: '800', marginTop: 6 }}>{c.scope_title}</Text>
+                ) : null}
+                <Text style={{ color: c.scope_title ? p.text3 : p.text, fontSize: c.scope_title ? 12.5 : 15, fontWeight: c.scope_title ? '400' : '700', marginTop: c.scope_title ? 2 : 6 }}>
                   {fmtDateLong(c.start_date)} – {c.end_date ? fmtDateLong(c.end_date) : t('contracts.noEnd')}
                 </Text>
-                {c.scope_id ? <Text style={{ color: p.text3, fontSize: 12.5, marginTop: 4 }}>{c.scope_id}</Text> : null}
+                {c.scope_id ? <Text style={{ color: p.text3, fontSize: 12, marginTop: 3 }}>{c.scope_id}</Text> : null}
                 {c.description ? <Text style={{ color: p.text2, fontSize: 13, marginTop: 8, lineHeight: 18 }}>{c.description}</Text> : null}
                 {c.document_url ? (
                   <Pressable
@@ -121,6 +124,21 @@ export default function ContractDetailScreen() {
                   ))}
                 </View>
               </Card>
+
+              <Pressable onPress={() => nav.navigate('ContractContributors', { id, scope: c.scope, scopeId: c.scope_id, scopeTitle: c.scope_title })} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                <Card>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: p.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <IconFile size={18} color={p.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: p.text, fontSize: 14.5, fontWeight: '700' }}>{t('contributors.title')}</Text>
+                      <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 1 }}>{t('contributors.subtitle')}</Text>
+                    </View>
+                    <IconChevronRight size={18} color={p.text3} />
+                  </View>
+                </Card>
+              </Pressable>
 
               <Pressable
                 onPress={confirmDelete}

@@ -66,6 +66,7 @@ export default function ContractsScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ flex: 1 }}>
               <Text style={{ color: p.text, fontSize: 15, fontWeight: '800' }} numberOfLines={1}>{title}</Text>
+              {c.scope_title ? <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{c.scope_title}</Text> : null}
               <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 3 }}>
                 {scopeLabel}{c.scope_id ? ` · ${c.scope_id}` : ''}
               </Text>
