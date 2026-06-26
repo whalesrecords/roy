@@ -1,5 +1,8 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registerPushToken } from '@/lib/api';
 
 /**
  * Local notifications (no push server needed). Used to remind the admin to
@@ -30,6 +33,24 @@ export async function setNotificationsEnabled(on: boolean): Promise<boolean> {
   }
   await AsyncStorage.setItem(ENABLED_KEY, on ? '1' : '0').catch(() => {});
   return true;
+}
+
+/**
+ * If notification permission is granted, fetch the Expo push token and register
+ * it with the backend so the server can send push notifications to this device.
+ * Best-effort: silently no-ops on simulators / missing push credentials.
+ */
+export async function syncPushRegistration(): Promise<void> {
+  try {
+    const granted = (await Notifications.getPermissionsAsync()).granted;
+    if (!granted) return;
+    const projectId = (Constants.expoConfig as any)?.extra?.eas?.projectId;
+    if (!projectId || projectId === 'PLACEHOLDER_RUN_EAS_INIT') return;
+    const tok = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (tok?.data) await registerPushToken(tok.data, Platform.OS);
+  } catch {
+    // no device / no push credentials / offline — ignore
+  }
 }
 
 export async function ensurePermission(): Promise<boolean> {

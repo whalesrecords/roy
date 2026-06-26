@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, ReactNod
 import * as SecureStore from 'expo-secure-store';
 import { setAuthToken, setTokenProvider, getLabelSettings, invalidateCache } from '@/lib/api';
 import { clearFetchCache } from '@/lib/useFetch';
+import { syncPushRegistration } from '@/lib/notifications';
 import { Session, signInWithPassword, refreshSession, signOut } from '@/lib/supabase';
 
 interface AdminUser { email: string | null }
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Validate the session still grants admin access.
           await getLabelSettings();
           setUser({ email: s.email });
+          syncPushRegistration();
         }
       } catch {
         await persist(null);
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       invalidateCache();
       await getLabelSettings();
       setUser({ email: s.email });
+      syncPushRegistration();
       return true;
     } catch {
       await persist(null);

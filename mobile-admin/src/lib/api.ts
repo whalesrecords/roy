@@ -360,6 +360,16 @@ export interface SpotifySuggestion {
 export const getSpotifySuggestions = (status = 'pending') =>
   fetchApi<SpotifySuggestion[]>(`/spotify/suggestions?status_filter=${status}`);
 export const getSpotifySuggestionsCount = () => fetchApi<{ pending_count: number }>('/spotify/suggestions/count');
+
+// ---- Push tokens ----
+export async function registerPushToken(token: string, platform?: string): Promise<void> {
+  await fetchApi('/push-tokens', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, platform }),
+  });
+}
+export async function unregisterPushToken(token: string): Promise<void> {
+  await fetchApi(`/push-tokens/${encodeURIComponent(token)}`, { method: 'DELETE' });
+}
 export async function approveSuggestion(id: string): Promise<void> {
   await fetchApi(`/spotify/suggestions/${id}/approve`, { method: 'POST' });
   invalidateCache('/spotify/suggestions'); clearFetchCache('spotify-sug');

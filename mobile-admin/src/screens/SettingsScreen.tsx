@@ -11,7 +11,7 @@ import { State, SectionTitle, Divider } from '@/components/kit';
 import { IconLogout } from '@/components/icons';
 import { useFetch } from '@/lib/useFetch';
 import { getLabelSettings } from '@/lib/api';
-import { notificationsEnabled, setNotificationsEnabled } from '@/lib/notifications';
+import { notificationsEnabled, setNotificationsEnabled, syncPushRegistration } from '@/lib/notifications';
 
 export default function SettingsScreen() {
   const p = usePalette();
@@ -28,6 +28,7 @@ export default function SettingsScreen() {
   const toggleNotif = async (on: boolean) => {
     const ok = await setNotificationsEnabled(on);
     setNotif(on && ok);
+    if (on && ok) syncPushRegistration();
   };
 
   return (
