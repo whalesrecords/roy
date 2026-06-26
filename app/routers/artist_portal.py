@@ -3128,3 +3128,53 @@ async def mark_all_notifications_as_read(
     await db.commit()
 
     return {"message": "All notifications marked as read"}
+
+
+# ============ Push tokens (artist device) ============
+
+class ArtistPushTokenRequest(BaseModel):
+    token: str
+    platform: Optional[str] = None
+
+
+@router.post("/push-tokens")
+async def register_artist_push_token(
+    req: ArtistPushTokenRequest,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Register (or refresh) an Expo push token for the current artist's device."""
+    from app.models.artist_push_token import ArtistPushToken
+
+    existing = await db.execute(
+        select(ArtistPushToken).where(ArtistPushToken.token == req.token)
+    )
+    row = existing.scalar_one_or_none()
+    if row:
+        row.artist_id = artist.id
+        row.last_seen_at = datetime.utcnow()
+        if req.platform:
+            row.platform = req.platform
+    else:
+        db.add(ArtistPushToken(artist_id=artist.id, token=req.token, platform=req.platform))
+    await db.commit()
+    return {"success": True}
+
+
+@router.delete("/push-tokens/{token}")
+async def delete_artist_push_token(
+    token: str,
+    artist: Artist = Depends(get_current_artist),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a push token (e.g. on logout)."""
+    from app.models.artist_push_token import ArtistPushToken
+
+    existing = await db.execute(
+        select(ArtistPushToken).where(ArtistPushToken.token == token)
+    )
+    row = existing.scalar_one_or_none()
+    if row:
+        await db.delete(row)
+        await db.commit()
+    return {"success": True}
