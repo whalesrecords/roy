@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import {
   Artist, getMe, loginWithCode as apiLoginCode, loginWithEmail as apiLoginEmail, setAuthToken,
 } from '@/lib/api';
+import { syncPushRegistration } from '@/lib/notifications';
 
 interface AuthContextType {
   artist: Artist | null;
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAuthToken(token);
           const me = await getMe();
           setArtist(me);
+          syncPushRegistration();
         }
       } catch {
         await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(token);
     await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => {});
     setArtist(a);
+    syncPushRegistration();
   };
 
   const loginWithCode = async (code: string) => {

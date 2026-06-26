@@ -342,3 +342,12 @@ export async function getArtistNotifications(params?: { unread_only?: boolean; l
   if (params?.limit) p.push(`limit=${params.limit}`);
   return fetchApi<ArtistNotification[]>(`/artist-portal/notifications${p.length ? `?${p.join('&')}` : ''}`);
 }
+export async function markAllNotificationsRead(): Promise<void> {
+  await fetchApi('/artist-portal/notifications/mark-all-read', { method: 'PUT' });
+  invalidateCache('/artist-portal/notifications');
+}
+export async function registerPushToken(token: string, platform?: string): Promise<void> {
+  await fetchApi('/artist-portal/push-tokens', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, platform }),
+  });
+}

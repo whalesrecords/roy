@@ -8,11 +8,12 @@ import { useLanguage } from '@/i18n';
 import {
   getArtistDashboard, getStatements, getArtistTracks, getArtistPayments,
   getMembersBreakdown, requestPayment, invalidateCache,
-  ArtistDashboard, Statement, ArtistTrack, ArtistPayment, MembersBreakdown,
+  getArtistNotifications, markAllNotificationsRead,
+  ArtistDashboard, Statement, ArtistTrack, ArtistPayment, MembersBreakdown, ArtistNotification,
 } from '@/lib/api';
 import { Card, Eyebrow, Money, AccentButton, Cover, Loader, Avatar } from '@/components/ui';
 import { LabelLogo } from '@/components/LabelLogo';
-import { IconInflow, IconOutflow, IconArrowDown } from '@/components/icons';
+import { IconInflow, IconOutflow, IconArrowDown, IconBell, IconChevronRight } from '@/components/icons';
 import { fmtMoney, fmtNum, fmtDateShort } from '@/lib/format';
 
 interface Activity { id: string; label: string; sub: string; amount: number; inflow: boolean; date: number }
@@ -27,6 +28,7 @@ export default function DashboardScreen() {
   const [tracks, setTracks] = useState<ArtistTrack[]>([]);
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
   const [breakdown, setBreakdown] = useState<MembersBreakdown | null>(null);
+  const [notifs, setNotifs] = useState<ArtistNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -47,6 +49,10 @@ export default function DashboardScreen() {
     try {
       const b = await getMembersBreakdown();
       if (b.is_group) setBreakdown(b);
+    } catch { /* non-critique */ }
+    try {
+      const n = await getArtistNotifications({ unread_only: true, limit: 10 });
+      setNotifs(n);
     } catch { /* non-critique */ }
   }, []);
 
@@ -126,6 +132,33 @@ export default function DashboardScreen() {
           <View style={{ backgroundColor: p.accentSoft, borderColor: p.accent, borderWidth: 1, borderRadius: 14, padding: 12 }}>
             <Text style={{ color: p.accent, fontSize: 13 }}>{toast}</Text>
           </View>
+        ) : null}
+
+        {/* Bandeau notifications : où aller */}
+        {notifs.length > 0 ? (
+          <Pressable
+            onPress={async () => {
+              const n = notifs[0];
+              const target = (n?.link || '').toLowerCase().includes('promo') ? 'Promo' : 'Promo';
+              try { await markAllNotificationsRead(); } catch { /* */ }
+              setNotifs([]);
+              nav.navigate(target);
+            }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: p.accentSoft, borderColor: p.accent, borderWidth: 1, borderRadius: 14, padding: 14 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: p.accent, alignItems: 'center', justifyContent: 'center' }}>
+                <IconBell size={19} color={p.accentInk} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{notifs[0]?.title || 'Nouveautés'}</Text>
+                <Text style={{ color: p.text2, fontSize: 12, marginTop: 1 }} numberOfLines={2}>
+                  {notifs[0]?.message || `${notifs.length} nouveauté(s) — appuyez pour voir`}
+                </Text>
+              </View>
+              <IconChevronRight size={18} color={p.accent} />
+            </View>
+          </Pressable>
         ) : null}
 
         {/* Hero */}
