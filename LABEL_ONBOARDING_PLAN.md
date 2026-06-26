@@ -307,17 +307,31 @@ Viberate · Linkfire · Feature.fm · Linktree · *(autre…)*
 
 ---
 
-## 8. Risques & décisions à confirmer
+## 8. Décisions (arbitrées le 2026-06-26)
 
-1. **RLS réelle vs filtrage applicatif** : veux-tu qu'on investisse tout de
-   suite dans le rôle `app_tenant` + RLS (verrou 2), ou qu'on démarre avec le
-   verrou 1 (applicatif + tests) et qu'on ajoute la RLS juste après ? *(Reco :
-   verrou 1 d'abord pour livrer vite, RLS en lot L6 rapproché.)*
-2. **Slug / URL** : un sous-domaine par label (`label.roy…`) ou un simple
-   sélecteur de label dans l'app ? *(Reco : sélecteur d'abord, sous-domaine
-   plus tard.)*
-3. **Validation des inscriptions** : auto-activation, ou modération par le
-   super-admin avant activation ? *(Reco : modération légère au début.)*
-4. **Artistes partagés** entre labels (un même artiste signé ailleurs) : par
-   défaut **interdit** (isolation stricte) ; un artiste = un label. OK ?
+1. **Isolation** : ✅ **verrou 1 (filtrage applicatif) d'abord** pour livrer
+   vite, **RLS Postgres juste après** (lot L6 rapproché).
+2. **Accès label** : ✅ **sélecteur de label dans l'app** (une seule URL).
+   Sous-domaine par label reporté à plus tard.
+3. **Validation des inscriptions** : ✅ **modération avant activation** — un
+   nouveau label est créé en `status = pending` ; un super-admin l'active.
+4. **Artiste ↔ label** : ✅ **artiste partageable** entre plusieurs labels →
+   relation **many-to-many** (`artist_labels`), **pas** un `label_id` unique
+   sur `artists`. ⚠️ Les *données* d'un artiste (contrats, relevés, royalties…)
+   restent isolées par label via leur propre `label_id` ; seule l'entité
+   artiste est partagée.
+
+> Conséquence sur §1.3 : `artists` **ne reçoit pas** de `label_id`. À la place,
+> la table de liaison `artist_labels` enregistre l'appartenance. Le backfill
+> rattache tous les artistes existants à Whales.
+
+### Avancement
+- **Lot 1 (fondations) — fait** : modèles `labels`, `label_members`,
+  `artist_labels`, `label_distributors` ; seed idempotent du label
+  « Whales Records » (#1, `active`) + rattachement des `ADMIN_EMAILS` comme
+  membres `owner` / platform-admin + liaison de tous les artistes existants ;
+  endpoint lecture `GET /labels` (sélecteur).
+- **Lots suivants** : L2 filtrage applicatif (`label_id` sur les tables de
+  données + scoping des routers), L3 tests d'étanchéité, L4 inscription
+  self-service, L5 super-admin/regroupement, L6 RLS, L7 branding.
 ```
