@@ -22,6 +22,10 @@ class ContractTrackContributor(Base):
     contract_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Multi-tenant: owning label (denormalised from the parent contract).
+    label_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("labels.id"), nullable=True, index=True
+    )
     # Track this contributor applies to (ISRC). Null = applies to the whole contract.
     isrc: Mapped[str] = mapped_column(String(50), nullable=True, index=True)
     track_title: Mapped[str] = mapped_column(String(300), nullable=True)

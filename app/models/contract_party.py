@@ -60,6 +60,14 @@ class ContractParty(Base):
         index=True,
     )
 
+    # Multi-tenant: owning label (denormalised from the parent contract).
+    label_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("labels.id"),
+        nullable=True,
+        index=True,
+    )
+
     # Party type
     party_type: Mapped[str] = mapped_column(
         SAEnum(PartyType, values_callable=lambda x: [e.value for e in x]),

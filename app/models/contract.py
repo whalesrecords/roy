@@ -58,6 +58,14 @@ class Contract(Base):
         index=True,
     )
 
+    # Multi-tenant: owning label (nullable during rollout; backfilled to Whales).
+    label_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("labels.id"),
+        nullable=True,
+        index=True,
+    )
+
     # Contract scope and identifier
     scope: Mapped[str] = mapped_column(
         SAEnum(ContractScope, values_callable=lambda x: [e.value for e in x]),
