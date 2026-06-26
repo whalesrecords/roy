@@ -18,7 +18,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import Depends, Header, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import _admin_email_from_supabase_jwt
@@ -125,6 +125,14 @@ async def get_label_context(
             current = selected
     if current is None and not is_platform and len(accessible) == 1:
         current = accessible[0]
+
+    # Transmit the current label to Postgres (RLS, defense in depth). Empty
+    # string = "no restriction" → the platform/global view sees everything.
+    # Transaction-scoped (set_config local) so it never leaks across requests.
+    await db.execute(
+        text("SELECT set_config('app.current_label_id', :v, true)"),
+        {"v": str(current) if current else ""},
+    )
 
     return LabelContext(
         email=email,
