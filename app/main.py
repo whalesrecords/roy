@@ -139,6 +139,30 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     pass  # table/column may not exist yet
 
+        # Multi-tenant — Postgres RLS isolation (defense in depth), CANARY on
+        # `contracts` first. The policy is permissive UNLESS a request sets
+        # app.current_label_id (done by the label-context dependency), so the
+        # platform/global, background and artist paths are never blocked. The
+        # column DEFAULT auto-stamps inserts with the current label.
+        rls_tables = ["contracts"]
+        for tbl in rls_tables:
+            cond = (
+                "nullif(current_setting('app.current_label_id', true), '') IS NULL "
+                "OR label_id = nullif(current_setting('app.current_label_id', true), '')::uuid"
+            )
+            for sql in (
+                f"ALTER TABLE {tbl} ENABLE ROW LEVEL SECURITY",
+                f"ALTER TABLE {tbl} FORCE ROW LEVEL SECURITY",
+                f"DROP POLICY IF EXISTS tenant_isolation ON {tbl}",
+                f"CREATE POLICY tenant_isolation ON {tbl} USING ({cond}) WITH CHECK ({cond})",
+                f"ALTER TABLE {tbl} ALTER COLUMN label_id "
+                "SET DEFAULT nullif(current_setting('app.current_label_id', true), '')::uuid",
+            ):
+                try:
+                    await conn.execute(text(sql))
+                except Exception:
+                    pass
+
         # Create indexes
         indexes = [
             "CREATE INDEX IF NOT EXISTS idx_tx_artist_name ON transactions_normalized(artist_name)",
