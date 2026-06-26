@@ -2293,6 +2293,7 @@ export interface SpotifyAdCampaignsList {
 export interface ImportSpotifyAdsResult {
   created_count: number;
   skipped_duplicates: number;
+  updated_count: number;
   total_spend: string;
   matched_campaigns: number;
   artists_not_found: string[];
