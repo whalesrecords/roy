@@ -47,6 +47,32 @@ from app.services.parsers.spotify_ads_parser import SpotifyAdsParser
 router = APIRouter(prefix="/promo", tags=["promo"])
 
 
+async def notify_artists_promo(db: AsyncSession, artist_ids, source: str) -> None:
+    """Create an in-app notification + push for each artist concerned by a promo import."""
+    from app.models.artist_notification import ArtistNotification, ArtistNotificationType
+    from app.services.push import send_artist_push
+
+    ids = {a for a in artist_ids if a}
+    if not ids:
+        return
+    for aid in ids:
+        db.add(ArtistNotification(
+            artist_id=aid,
+            notification_type=ArtistNotificationType.PROMO_UPDATE.value,
+            title="Nouveaux retours promo",
+            message=f"De nouveaux retours promo ({source}) sont disponibles. Rendez-vous dans l'onglet Promo.",
+            link="promo",
+        ))
+    await db.commit()
+    for aid in ids:
+        await send_artist_push(
+            db, aid,
+            "Nouveaux retours promo",
+            f"De nouveaux retours promo ({source}) sont disponibles — voir l'onglet Promo.",
+            {"type": "promo"},
+        )
+
+
 def normalize_artist_name(name: str) -> str:
     """
     Normalize artist name by removing accents and special characters.
@@ -458,6 +484,10 @@ async def import_submithub_csv(
 
         await db.commit()
 
+        # Notify each artist concerned by this import (in-app + push)
+        if submissions:
+            await notify_artists_promo(db, {s.artist_id for s in submissions}, "SubmitHub")
+
         # Collect parse errors
         for err in parse_result.errors:
             errors.append(f"Row {err.row_number}: {err.error}")
@@ -766,6 +796,10 @@ async def import_groover_csv(
             db.add(ledger_entry)
 
         await db.commit()
+
+        # Notify each artist concerned by this import (in-app + push)
+        if submissions:
+            await notify_artists_promo(db, {s.artist_id for s in submissions}, "Groover")
 
         # Collect parse errors
         for err in parse_result.errors:
@@ -1242,6 +1276,7 @@ async def import_submithub_batch(
     Useful for importing data from multiple artists in one go.
     """
     results = []
+    batch_artist_ids: set = set()
 
     for file in files:
         try:
@@ -1341,6 +1376,7 @@ async def import_submithub_batch(
             # Batch insert
             if submissions:
                 db.add_all(submissions)
+                batch_artist_ids.update(s.artist_id for s in submissions)
 
             # Add errors for artists not found
             if artists_not_found:
@@ -1366,6 +1402,11 @@ async def import_submithub_batch(
             ))
 
     await db.commit()
+
+    # Notify each artist concerned by the batch (in-app + push)
+    if batch_artist_ids:
+        await notify_artists_promo(db, batch_artist_ids, "SubmitHub")
+
     return results
 
 
