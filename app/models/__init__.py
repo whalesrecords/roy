@@ -24,8 +24,20 @@ from app.models.ticket_message import MessageSender, TicketMessage
 from app.models.ticket_participant import TicketParticipant
 from app.models.track_artist_link import TrackArtistLink
 from app.models.transaction import SaleType, TransactionNormalized
+from app.models.label import Label, LabelStatus
+from app.models.label_member import LabelMember, LabelRole
+from app.models.artist_label import ArtistLabel
+from app.models.label_distributor import LabelDistributor, DistributorKind
 
 __all__ = [
+    # Multi-tenant
+    "Label",
+    "LabelStatus",
+    "LabelMember",
+    "LabelRole",
+    "ArtistLabel",
+    "LabelDistributor",
+    "DistributorKind",
     # Import models
     "Import",
     "ImportSource",

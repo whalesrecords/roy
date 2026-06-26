@@ -61,3 +61,30 @@ async def verify_admin_token(
             return token
 
     raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+async def get_admin_email(
+    x_admin_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+) -> Optional[str]:
+    """Authorize an admin caller and return their email.
+
+    Same rules as :func:`verify_admin_token`, but returns the authenticated
+    email so callers can resolve which label(s) the admin may access. The
+    shared ``X-Admin-Token`` (web proxy) carries no user identity, so it
+    returns ``None`` — treated downstream as the platform (Whales) context.
+    Raises 401 if the caller is not an authorized admin.
+    """
+    if not settings.ADMIN_TOKEN:
+        raise HTTPException(status_code=500, detail="Admin token not configured")
+
+    if x_admin_token and x_admin_token == settings.ADMIN_TOKEN:
+        return None  # shared web token → platform context
+
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[len("Bearer "):].strip()
+        email = _admin_email_from_supabase_jwt(token)
+        if email and email.lower() in settings.admin_emails:
+            return email
+
+    raise HTTPException(status_code=401, detail="Invalid admin token")

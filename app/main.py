@@ -22,6 +22,10 @@ import app.models.push_token  # noqa: F401
 import app.models.artist_push_token  # noqa: F401
 import app.models.contract_signature  # noqa: F401
 import app.models.contract_track_contributor  # noqa: F401
+import app.models.label  # noqa: F401
+import app.models.label_member  # noqa: F401
+import app.models.artist_label  # noqa: F401
+import app.models.label_distributor  # noqa: F401
 from app.routers import imports
 from app.routers.push import router as push_router
 from app.routers.analytics import router as analytics_router
@@ -41,6 +45,7 @@ from app.routers.royalties import router as royalties_router
 from app.routers.settings import router as settings_router
 from app.routers.spotify import router as spotify_router
 from app.routers.tickets import router as tickets_router
+from app.routers.labels import router as labels_router
 
 
 @asynccontextmanager
@@ -130,6 +135,51 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass  # Column or table may not exist yet
 
+    # Seed multi-tenant foundation: Whales Records label #1 + backfill.
+    # Idempotent — only runs the first time, when no label exists yet.
+    try:
+        from sqlalchemy import select
+        from app.core.config import settings as _settings
+        from app.models.label import Label, LabelStatus
+        from app.models.label_member import LabelMember, LabelRole
+        from app.models.artist_label import ArtistLabel
+        from app.models.artist import Artist
+
+        async with async_session_maker() as session:
+            existing_label = (await session.execute(select(Label).limit(1))).scalar_one_or_none()
+            if existing_label is None:
+                whales = Label(
+                    slug="whales-records",
+                    name="Whales Records",
+                    status=LabelStatus.ACTIVE.value,
+                    plan="pro",
+                    accent_color="#EF7E2E",
+                )
+                session.add(whales)
+                await session.flush()  # populate whales.id
+
+                # Existing admins become owners + platform admins of Whales.
+                for email in sorted(_settings.admin_emails):
+                    session.add(LabelMember(
+                        label_id=whales.id,
+                        email=email,
+                        role=LabelRole.OWNER.value,
+                        is_platform_admin=True,
+                    ))
+
+                # Link every existing artist to Whales (many-to-many).
+                artist_ids = (await session.execute(select(Artist.id))).scalars().all()
+                for aid in artist_ids:
+                    session.add(ArtistLabel(label_id=whales.id, artist_id=aid))
+
+                await session.commit()
+                logger.info(
+                    "Seeded Whales label (%s members, %s artist links)",
+                    len(_settings.admin_emails), len(artist_ids),
+                )
+    except Exception as exc:  # pragma: no cover - defensive, never block startup
+        logger.error("Label foundation seed skipped: %s", exc, exc_info=True)
+
     # Start weekly Spotify scanner background task
     scanner_task = asyncio.create_task(_weekly_spotify_scanner())
 
@@ -211,6 +261,7 @@ app.include_router(contracts_router)
 app.include_router(invoice_import_router)
 app.include_router(artist_portal_router)
 app.include_router(tickets_router)
+app.include_router(labels_router)
 app.include_router(promo_router)
 app.include_router(exports_router)
 app.include_router(inventory_router)
