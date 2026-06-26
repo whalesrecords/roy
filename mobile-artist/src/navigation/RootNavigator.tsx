@@ -17,6 +17,8 @@ import PromoScreen from '@/screens/PromoScreen';
 import PaymentsScreen from '@/screens/PaymentsScreen';
 import SupportScreen from '@/screens/SupportScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
+import ContractsScreen from '@/screens/ContractsScreen';
+import ContractSignScreen from '@/screens/ContractSignScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -79,6 +81,8 @@ export default function RootNavigator() {
                 <Stack.Screen name="Settings" component={SettingsScreen} options={{ ...headerOpts, title: t('settings.title') }} />
                 <Stack.Screen name="Payments" component={PaymentsScreen} options={{ ...headerOpts, title: t('payments.title') }} />
                 <Stack.Screen name="Support" component={SupportScreen} options={{ ...headerOpts, title: t('support.title') }} />
+                <Stack.Screen name="Contracts" component={ContractsScreen} options={{ ...headerOpts, title: t('contracts.title') }} />
+                <Stack.Screen name="ContractSign" component={ContractSignScreen} options={headerOpts} />
               </>
             ) : (
               <Stack.Screen name="Login" component={LoginScreen} />

@@ -7,7 +7,7 @@ import { ACCENTS } from '@/theme/tokens';
 import { useLanguage, Lang } from '@/i18n';
 import { useAuth } from '@/auth/AuthProvider';
 import { Card, Eyebrow, Avatar } from '@/components/ui';
-import { IconCard, IconSupport, IconLogout, IconChevronRight } from '@/components/icons';
+import { IconCard, IconSupport, IconLogout, IconChevronRight, IconFile } from '@/components/icons';
 
 export default function SettingsScreen() {
   const p = usePalette();
@@ -62,6 +62,7 @@ export default function SettingsScreen() {
 
         {/* Links */}
         <Card style={{ padding: 0 }}>
+          <LinkRow icon={<IconFile size={18} color={p.text2} />} label={t('contracts.title')} onPress={() => nav.navigate('Contracts')} pal={p} border />
           <LinkRow icon={<IconCard size={18} color={p.text2} />} label={t('payments.title')} onPress={() => nav.navigate('Payments')} pal={p} border />
           <LinkRow icon={<IconSupport size={18} color={p.text2} />} label={t('support.title')} onPress={() => nav.navigate('Support')} pal={p} />
         </Card>

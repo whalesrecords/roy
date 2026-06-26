@@ -128,6 +128,12 @@ export interface Contract {
   id: string; scope: string; scope_id?: string; scope_title?: string;
   start_date: string; end_date?: string; artist_share: number; label_share: number;
   description?: string; parties?: ContractPartyInfo[];
+  signed?: boolean; signed_at?: string;
+}
+
+export interface SignatureStatus {
+  contract_id: string; signed: boolean; signed_at?: string; signer_name?: string;
+  document_hash?: string; has_certificate?: boolean; certificate_pdf?: string;
 }
 
 export interface QuarterlyRevenue { quarter: string; year: number; gross: string; net: string; streams: number; currency: string }
@@ -254,6 +260,17 @@ export async function getExpenses(): Promise<Expense[]> {
 }
 export async function getContracts(): Promise<Contract[]> {
   return fetchApi<Contract[]>('/artist-portal/contracts');
+}
+export async function signContract(contractId: string, signatureImage: string, signerName?: string): Promise<SignatureStatus> {
+  const r = await fetchApi<SignatureStatus>(`/artist-portal/contracts/${contractId}/sign`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signature_image: signatureImage, consent: true, signer_name: signerName }),
+  });
+  invalidateCache('/artist-portal/contracts');
+  return r;
+}
+export async function getContractSignature(contractId: string, withCert = false): Promise<SignatureStatus> {
+  return fetchApi<SignatureStatus>(`/artist-portal/contracts/${contractId}/signature${withCert ? '?with_certificate=true' : ''}`);
 }
 export async function getAvailableYears(): Promise<{ years: number[]; default_year: number | null }> {
   return fetchApi('/artist-portal/available-years');
