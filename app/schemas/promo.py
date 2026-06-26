@@ -281,6 +281,7 @@ class ImportSpotifyAdsResponse(BaseModel):
     """Result of importing a Spotify Ad Studio CSV."""
     created_count: int
     skipped_duplicates: int
+    updated_count: int = 0
     total_spend: str
     matched_campaigns: int
     artists_not_found: List[str] = Field(default_factory=list)
