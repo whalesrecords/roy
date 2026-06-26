@@ -232,26 +232,21 @@ async def lifespan(app: FastAPI):
         logger.error("Label foundation seed skipped: %s", exc, exc_info=True)
 
     # Multi-tenant Phase A backfill — assign existing/new NULL rows to Whales.
-    # Idempotent (WHERE label_id IS NULL) so it costs nothing once filled.
+    # Uses a subquery (the DB resolves the Whales id itself) to avoid any
+    # client-side UUID parameter-binding issue. Idempotent (WHERE label_id IS NULL).
     try:
         async with engine.begin() as conn:
             from sqlalchemy import text
-            whales_id = (
-                await conn.execute(text("SELECT id FROM labels WHERE slug = 'whales-records'"))
-            ).scalar()
-            if whales_id is not None:
-                filled = 0
-                for tbl in TENANT_TABLES:
-                    try:
-                        res = await conn.execute(
-                            text(f"UPDATE {tbl} SET label_id = :lid WHERE label_id IS NULL"),
-                            {"lid": whales_id},
-                        )
-                        filled += res.rowcount or 0
-                    except Exception:
-                        pass  # table/column may not exist yet
-                if filled:
-                    logger.info("Backfilled label_id (Whales) on %s tenant rows", filled)
+            for tbl in TENANT_TABLES:
+                try:
+                    await conn.execute(text(
+                        f"UPDATE {tbl} SET label_id = "
+                        "(SELECT id FROM labels WHERE slug = 'whales-records') "
+                        "WHERE label_id IS NULL"
+                    ))
+                except Exception:
+                    pass  # table/column may not exist yet
+            logger.info("label_id backfill (subquery) executed for tenant tables")
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("label_id backfill skipped: %s", exc, exc_info=True)
 
