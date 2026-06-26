@@ -59,15 +59,23 @@ export default function ContractsScreen() {
 
   const ContractCard = ({ c }: { c: ContractListItem }) => {
     const scopeLabel = t(`contracts.scope.${c.scope}`);
-    const title = artistName || names[c.artist_id] || scopeLabel;
+    // Artist name: primary artist, else first artist-type party.
+    const partyArtist = c.parties.find((pt) => pt.party_type === 'artist' && pt.artist_id);
+    const artistDisplay = artistName || names[c.artist_id] || (partyArtist?.artist_id ? names[partyArtist.artist_id] : undefined);
+    // Real album/track title (scope_title falls back to the UPC server-side — ignore that case).
+    const albumTitle = c.scope_title && c.scope_title !== c.scope_id ? c.scope_title : null;
+    // Headline = album/track title for release/track, else the artist, else the scope.
+    const headline = albumTitle || artistDisplay || scopeLabel;
+    const showArtistLine = !!albumTitle && !!artistDisplay;
+    const navTitle = albumTitle || artistDisplay || scopeLabel;
     return (
-      <Pressable onPress={() => nav.navigate('ContractDetail', { id: c.id, title })} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+      <Pressable onPress={() => nav.navigate('ContractDetail', { id: c.id, title: navTitle })} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: p.text, fontSize: 15, fontWeight: '800' }} numberOfLines={1}>{title}</Text>
-              {c.scope_title ? <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{c.scope_title}</Text> : null}
-              <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 3 }}>
+              <Text style={{ color: p.text, fontSize: 16.5, fontWeight: '800', letterSpacing: -0.3 }} numberOfLines={2}>{headline}</Text>
+              {showArtistLine ? <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{artistDisplay}</Text> : null}
+              <Text style={{ color: p.text3, fontSize: 11, marginTop: 3 }}>
                 {scopeLabel}{c.scope_id ? ` · ${c.scope_id}` : ''}
               </Text>
             </View>
