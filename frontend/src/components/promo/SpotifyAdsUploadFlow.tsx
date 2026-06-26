@@ -196,7 +196,7 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
         <Card>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <div><Eyebrow>Créées</Eyebrow><div className="roy-num text-[18px] font-bold text-accent">{result.created_count}</div></div>
-            <div><Eyebrow>Doublons ignorés</Eyebrow><div className="roy-num text-[18px] font-bold text-ink">{result.skipped_duplicates}</div></div>
+            <div><Eyebrow>Mises à jour</Eyebrow><div className="roy-num text-[18px] font-bold text-ink">{result.updated_count ?? 0}</div></div>
             <div><Eyebrow>Dépense importée</Eyebrow><div className="roy-num text-[18px] font-bold text-ink">{fmtEUR(result.total_spend)}</div></div>
             <div><Eyebrow>Reliées au catalogue</Eyebrow><div className="roy-num text-[18px] font-bold text-ink">{result.matched_campaigns}</div></div>
           </div>

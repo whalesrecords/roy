@@ -1523,6 +1523,7 @@ async def import_spotify_ads_csv(
 
     created = 0
     skipped = 0
+    updated = 0
     matched = 0
     total_spend = Decimal(0)
     not_found: set[str] = set()
@@ -1535,18 +1536,6 @@ async def import_spotify_ads_csv(
                 row_artist_id = await match_artist_by_name(row.artist_name, db)
             if not row_artist_id:
                 not_found.add(row.artist_name)
-                continue
-
-            # Deduplicate on (artist, campaign, start_date)
-            dup = await db.execute(
-                select(SpotifyAdCampaign).where(
-                    SpotifyAdCampaign.artist_id == row_artist_id,
-                    SpotifyAdCampaign.campaign_name == row.campaign_name,
-                    SpotifyAdCampaign.start_date == row.start_date,
-                )
-            )
-            if dup.scalars().first():
-                skipped += 1
                 continue
 
             # Match to catalog (best effort) on the release/campaign name
@@ -1564,6 +1553,62 @@ async def import_spotify_ads_csv(
                 scope, scope_id = "catalog", None
 
             eff = datetime.combine(row.start_date, datetime.min.time()) if row.start_date else datetime.utcnow()
+
+            # Deduplicate on (artist, campaign, start_date). This is ad-campaign
+            # tracking: the same campaign is re-exported over time with refreshed
+            # numbers, so the MOST RECENT import wins — update the existing
+            # campaign's metrics (and its recoupable advance) in place.
+            dup = await db.execute(
+                select(SpotifyAdCampaign).where(
+                    SpotifyAdCampaign.artist_id == row_artist_id,
+                    SpotifyAdCampaign.campaign_name == row.campaign_name,
+                    SpotifyAdCampaign.start_date == row.start_date,
+                )
+            )
+            existing = dup.scalars().first()
+            if existing:
+                existing.release_upc = release_upc
+                existing.track_isrc = track_isrc
+                existing.release_name = row.release_name
+                existing.ad_format = row.ad_format
+                existing.release_type = row.release_type
+                existing.country = row.country
+                existing.currency = row.currency or "EUR"
+                existing.budget = row.budget
+                existing.spend = row.spend
+                existing.release_date = row.release_date
+                existing.end_date = row.end_date
+                existing.reach = row.reach
+                existing.clicks = row.clicks
+                existing.amplified_listeners = row.amplified_listeners
+                existing.reactivated_listeners = row.reactivated_listeners
+                existing.new_active_listeners = row.new_active_listeners
+                existing.converted_listeners = row.converted_listeners
+                existing.conversion_rate = row.conversion_rate
+                existing.active_streams_per_listener = row.active_streams_per_listener
+                existing.intent_rate = row.intent_rate
+                existing.playlist_add_rate = row.playlist_add_rate
+                existing.playlist_adds = row.playlist_adds
+                existing.save_rate = row.save_rate
+                existing.saves = row.saves
+                existing.listeners_other_releases = row.listeners_other_releases
+                existing.streams_per_listener_other_releases = row.streams_per_listener_other_releases
+                existing.saves_other_releases = row.saves_other_releases
+                existing.playlist_adds_other_releases = row.playlist_adds_other_releases
+
+                # Keep the recoupable advance in sync with the latest spend.
+                if existing.advance_ledger_entry_id:
+                    led = await db.get(AdvanceLedgerEntry, existing.advance_ledger_entry_id)
+                    if led:
+                        led.amount = row.spend
+                        led.scope = scope
+                        led.scope_id = scope_id
+                        led.currency = row.currency or "EUR"
+                        led.effective_date = eff
+                        led.description = f"Spotify Ads — {row.campaign_name}"
+                updated += 1
+                total_spend += row.spend or Decimal(0)
+                continue
 
             # Recoupable advance for the ad spend
             ledger = AdvanceLedgerEntry(
@@ -1629,12 +1674,13 @@ async def import_spotify_ads_csv(
 
     if not_found:
         errors.append(f"Artists not found: {', '.join(sorted(not_found))}")
-    if skipped:
-        errors.append(f"{skipped} duplicate campaign(s) skipped")
+    if updated:
+        errors.append(f"{updated} campagne(s) existante(s) mise(s) à jour (chiffres de l'import le plus récent)")
 
     return ImportSpotifyAdsResponse(
         created_count=created,
         skipped_duplicates=skipped,
+        updated_count=updated,
         total_spend=str(total_spend),
         matched_campaigns=matched,
         artists_not_found=sorted(not_found),
