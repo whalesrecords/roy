@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 import app.models.manual_release  # noqa: F401
 import app.models.manual_track  # noqa: F401
 import app.models.push_token  # noqa: F401
+import app.models.contract_signature  # noqa: F401
 from app.routers import imports
 from app.routers.push import router as push_router
 from app.routers.analytics import router as analytics_router
