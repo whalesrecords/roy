@@ -18,7 +18,8 @@ class Settings:
     # Artists also have Supabase accounts, so the allowlist is what separates
     # admins from artists — a valid JWT alone is never enough.
     ADMIN_EMAILS: str = os.getenv(
-        "ADMIN_EMAILS", "hello@whalesrecords.com,royalties@whalesrecords.com"
+        "ADMIN_EMAILS",
+        "hello@whalesrecords.com,royalties@whalesrecords.com,lea.hf@whalesrecords.com",
     )
 
     # Spotify API credentials (get from https://developer.spotify.com/dashboard)
