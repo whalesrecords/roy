@@ -1346,6 +1346,7 @@ export interface ContractData {
   artist_id: string;
   scope: 'track' | 'release' | 'catalog';
   scope_id?: string;
+  scope_title?: string | null;
   start_date: string;
   end_date?: string;
   description?: string;
@@ -1413,6 +1414,34 @@ export async function deleteContractDocument(contractId: string): Promise<{ succ
 export async function getActiveContractsForArtist(artistId: string, asOfDate?: string): Promise<ContractData[]> {
   const query = asOfDate ? `?as_of_date=${asOfDate}` : '';
   return fetchApi<ContractData[]>(`/contracts/artist/${artistId}/active${query}`);
+}
+
+// ===== Per-track contributors (documentation) =====
+export interface TrackContributor {
+  id?: string;
+  isrc?: string | null;
+  track_title?: string | null;
+  contributor_name: string;
+  role?: string | null;
+  percentage?: number | string | null;
+}
+
+export async function getContractContributors(contractId: string): Promise<{ contributors: TrackContributor[] }> {
+  return fetchApi<{ contributors: TrackContributor[] }>(`/contracts/${contractId}/contributors`);
+}
+
+export async function setContractContributors(contractId: string, contributors: TrackContributor[]): Promise<{ contributors: TrackContributor[] }> {
+  const result = await fetchApi<{ contributors: TrackContributor[] }>(`/contracts/${contractId}/contributors`, {
+    method: 'PUT',
+    body: JSON.stringify({ contributors }),
+  });
+  invalidateCache('/contracts');
+  return result;
+}
+
+export interface ReleaseTrackInfo { track_title: string; isrc?: string | null; artist_name?: string; total_streams?: number }
+export async function getReleaseCatalogTracks(upc: string): Promise<ReleaseTrackInfo[]> {
+  return fetchApi<ReleaseTrackInfo[]>(`/imports/catalog/releases/${encodeURIComponent(upc)}/tracks`);
 }
 
 // ===== Invoice Import API =====

@@ -23,6 +23,7 @@ import {
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconPlus } from '@/components/roy/icons';
+import { ContractContributorsModal } from '@/components/contracts/ContractContributorsModal';
 
 interface ScopeInfo {
   name?: string;
@@ -62,6 +63,7 @@ export default function ContractsPage() {
   const [refreshingMetadata, setRefreshingMetadata] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [contributorsContract, setContributorsContract] = useState<ContractData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -1007,6 +1009,15 @@ export default function ContractsPage() {
                     )}
                     <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        onClick={(e) => { e.stopPropagation(); setContributorsContract(contract); }}
+                        title="Répartition par titre"
+                        className="p-1.5 text-ink-faint hover:text-ink hover:bg-surface rounded-[8px] transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleOpenModal(contract); }}
                         title="Modifier"
                         className="p-1.5 text-ink-faint hover:text-ink hover:bg-surface rounded-[8px] transition-colors"
@@ -1401,6 +1412,14 @@ export default function ContractsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {contributorsContract && (
+        <ContractContributorsModal
+          contract={contributorsContract}
+          albumName={contributorsContract.scope_id ? scopeInfo[contributorsContract.scope_id]?.name : undefined}
+          onClose={() => setContributorsContract(null)}
+        />
       )}
     </div>
   );
