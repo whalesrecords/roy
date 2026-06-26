@@ -309,6 +309,11 @@ Viberate · Linkfire · Feature.fm · Linktree · *(autre…)*
 
 ## 8. Décisions (arbitrées le 2026-06-26)
 
+0. **Structure (hybride)** : ✅ **base cloisonnée par défaut pour tous** (une
+   seule base, isolation stricte par `label_id` + filtrage forcé + RLS), avec
+   la possibilité d'une **base dédiée à la demande** pour un client « ultra
+   exceptionnel », construite seulement le jour où un client l'exige. On ne
+   bâtit que le cloisonné maintenant ; le dédié reste une option future.
 1. **Isolation** : ✅ **verrou 1 (filtrage applicatif) d'abord** pour livrer
    vite, **RLS Postgres juste après** (lot L6 rapproché).
 2. **Accès label** : ✅ **sélecteur de label dans l'app** (une seule URL).
@@ -331,7 +336,14 @@ Viberate · Linkfire · Feature.fm · Linktree · *(autre…)*
   « Whales Records » (#1, `active`) + rattachement des `ADMIN_EMAILS` comme
   membres `owner` / platform-admin + liaison de tous les artistes existants ;
   endpoint lecture `GET /labels` (sélecteur).
-- **Lots suivants** : L2 filtrage applicatif (`label_id` sur les tables de
-  données + scoping des routers), L3 tests d'étanchéité, L4 inscription
-  self-service, L5 super-admin/regroupement, L6 RLS, L7 branding.
+- **Lot 2 Phase A — fait (branche)** : colonne `label_id` (nullable + index)
+  ajoutée à toutes les tables de données tenant + backfill idempotent vers
+  Whales au démarrage. **Additif, aucun filtre encore** → zéro changement de
+  comportement. À déployer après validation.
+- **Lot 2 Phase B — à venir** : dépendance « label courant » (sélecteur) +
+  filtrage forcé de chaque requête par `label_id` + écritures qui imposent le
+  `label_id` du contexte. **Partie sensible (touche les royalties)** → montrée
+  avant tout déploiement prod.
+- **Lots suivants** : L3 tests d'étanchéité, L4 inscription self-service,
+  L5 super-admin/regroupement, L6 RLS, L7 branding.
 ```
