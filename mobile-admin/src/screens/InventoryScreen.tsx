@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow, Money, Cover } from '@/components/ui';
 import { State, SectionTitle, Divider, StatusBadge } from '@/components/kit';
-import { useFetch } from '@/lib/useFetch';
+import { IconChevronRight } from '@/components/icons';
+import { useFetch, useRefreshOnFocus } from '@/lib/useFetch';
 import { getInventorySummary, getProducts, Product } from '@/lib/api';
 import { fmtMoney, fmtNum } from '@/lib/format';
 
@@ -28,7 +29,19 @@ export default function InventoryScreen() {
   const sumQ = useFetch(getInventorySummary, [], 'inv-summary');
   const prodQ = useFetch(getProducts, [], 'products');
 
-  React.useEffect(() => { nav.setOptions?.({ title: t('inventory.title') }); }, [nav, t]);
+  useRefreshOnFocus('products', prodQ.reload);
+  useRefreshOnFocus('inv-summary', sumQ.reload);
+
+  React.useEffect(() => {
+    nav.setOptions?.({
+      title: t('inventory.title'),
+      headerRight: () => (
+        <Pressable onPress={() => nav.navigate('ProductForm', {})} hitSlop={10}>
+          <Text style={{ color: p.accent, fontSize: 26, fontWeight: '600', marginRight: 4 }}>＋</Text>
+        </Pressable>
+      ),
+    });
+  }, [nav, t, p.accent]);
 
   const sum = sumQ.data;
   const products = (prodQ.data || []).slice(0, 40);
@@ -61,7 +74,10 @@ export default function InventoryScreen() {
               {products.map((pr, i) => (
                 <View key={pr.id}>
                   {i > 0 ? <Divider /> : null}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12 }}>
+                  <Pressable
+                    onPress={() => nav.navigate('ProductForm', { id: pr.id, prefill: pr })}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12, opacity: pressed ? 0.6 : 1 })}
+                  >
                     <Cover size={42} uri={pr.image_url} />
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '700' }} numberOfLines={1}>{pr.title}</Text>
@@ -73,7 +89,8 @@ export default function InventoryScreen() {
                       <StatusBadge label={`${fmtNum(pr.stock_quantity)} en stock`} tone={stockTone(pr)} />
                       <Text style={{ color: p.text3, fontSize: 10.5 }}>{fmtNum(pr.total_sold)} {t('inventory.sold')}</Text>
                     </View>
-                  </View>
+                    <IconChevronRight size={16} color={p.text3} />
+                  </Pressable>
                 </View>
               ))}
             </View>

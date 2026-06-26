@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { usePalette } from '@/theme/ThemeProvider';
 import { useLanguage } from '@/i18n';
 import { Card, Eyebrow, Money } from '@/components/ui';
 import { State, SectionTitle, Divider, StatusBadge } from '@/components/kit';
-import { useFetch } from '@/lib/useFetch';
+import { IconChevronRight } from '@/components/icons';
+import { useFetch, useRefreshOnFocus } from '@/lib/useFetch';
 import { getFinancesSummary, getExpenses, getRoyaltyPayments } from '@/lib/api';
 import { fmtMoney, fmtDateShort } from '@/lib/format';
 
@@ -29,7 +30,19 @@ export default function FinancesScreen() {
   const expQ = useFetch(getExpenses, [], 'expenses');
   const payQ = useFetch(getRoyaltyPayments, [], 'royalty-payments');
 
-  React.useEffect(() => { nav.setOptions?.({ title: t('finances.title') }); }, [nav, t]);
+  useRefreshOnFocus('expenses', expQ.reload);
+  useRefreshOnFocus('fin-summary', sumQ.reload);
+
+  React.useEffect(() => {
+    nav.setOptions?.({
+      title: t('finances.title'),
+      headerRight: () => (
+        <Pressable onPress={() => nav.navigate('ExpenseForm', {})} hitSlop={10}>
+          <Text style={{ color: p.accent, fontSize: 26, fontWeight: '600', marginRight: 4 }}>＋</Text>
+        </Pressable>
+      ),
+    });
+  }, [nav, t, p.accent]);
 
   const sum = sumQ.data;
   const cur = sum?.currency || 'EUR';
@@ -80,7 +93,10 @@ export default function FinancesScreen() {
               {expenses.map((e, i) => (
                 <View key={e.id}>
                   {i > 0 ? <Divider /> : null}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 }}>
+                  <Pressable
+                    onPress={() => nav.navigate('ExpenseForm', { id: e.id, prefill: e })}
+                    style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10, opacity: pressed ? 0.6 : 1 })}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '600' }} numberOfLines={1}>
                         {e.description || e.category_label || e.category || '—'}
@@ -90,7 +106,8 @@ export default function FinancesScreen() {
                       </Text>
                     </View>
                     <Money style={{ fontSize: 13.5, fontWeight: '800', color: p.neg }}>{fmtMoney(e.amount, e.currency)}</Money>
-                  </View>
+                    <IconChevronRight size={16} color={p.text3} />
+                  </Pressable>
                 </View>
               ))}
             </View>

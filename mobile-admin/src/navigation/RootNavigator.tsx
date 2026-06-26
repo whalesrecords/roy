@@ -20,7 +20,9 @@ import ContractsScreen from '@/screens/ContractsScreen';
 import ContractDetailScreen from '@/screens/ContractDetailScreen';
 import ContractFormScreen from '@/screens/ContractFormScreen';
 import FinancesScreen from '@/screens/FinancesScreen';
+import ExpenseFormScreen from '@/screens/ExpenseFormScreen';
 import InventoryScreen from '@/screens/InventoryScreen';
+import ProductFormScreen from '@/screens/ProductFormScreen';
 import SupportScreen from '@/screens/SupportScreen';
 import TicketDetailScreen from '@/screens/TicketDetailScreen';
 import SettingsScreen from '@/screens/SettingsScreen';
@@ -88,7 +90,9 @@ export default function RootNavigator() {
                 <Stack.Screen name="ContractForm" component={ContractFormScreen} options={headerOpts} />
                 <Stack.Screen name="RunDetail" component={RunDetailScreen} options={headerOpts} />
                 <Stack.Screen name="Finances" component={FinancesScreen} options={headerOpts} />
+                <Stack.Screen name="ExpenseForm" component={ExpenseFormScreen} options={headerOpts} />
                 <Stack.Screen name="Inventory" component={InventoryScreen} options={headerOpts} />
+                <Stack.Screen name="ProductForm" component={ProductFormScreen} options={headerOpts} />
                 <Stack.Screen name="Support" component={SupportScreen} options={headerOpts} />
                 <Stack.Screen name="TicketDetail" component={TicketDetailScreen} options={headerOpts} />
                 <Stack.Screen name="Settings" component={SettingsScreen} options={headerOpts} />

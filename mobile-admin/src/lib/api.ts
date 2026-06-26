@@ -258,6 +258,72 @@ export interface ImportItem {
   filename?: string | null; total_rows: number; success_rows: number; error_rows: number; created_at: string;
 }
 export const getImports = (limit = 20) => fetchApi<ImportItem[]>(`/imports?limit=${limit}`);
+
+// ---- Expenses (create / update / delete) ----
+export interface ExpenseInput {
+  artist_id?: string | null; amount?: string; currency?: string; scope?: string;
+  scope_id?: string | null; category?: string | null; description?: string | null;
+  reference?: string | null; effective_date?: string | null;
+}
+function bustFinances() {
+  invalidateCache('/finances'); invalidateCache('/analytics');
+  clearFetchCache('expenses'); clearFetchCache('fin-summary'); clearFetchCache('analytics:');
+}
+export async function createExpense(input: ExpenseInput): Promise<ExpenseResponse> {
+  const r = await fetchApi<ExpenseResponse>('/finances/expenses', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustFinances();
+  return r;
+}
+export async function updateExpense(id: string, input: ExpenseInput): Promise<ExpenseResponse> {
+  const r = await fetchApi<ExpenseResponse>(`/finances/expenses/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustFinances();
+  return r;
+}
+export async function deleteExpense(id: string): Promise<void> {
+  await fetchApi(`/finances/expenses/${id}`, { method: 'DELETE' });
+  bustFinances();
+}
+
+// ---- Products (create / update / delete / stock) ----
+export interface ProductInput {
+  title?: string; format?: string; variant?: string | null; sku?: string | null;
+  release_upc?: string | null; artist_name?: string | null; price_eur?: number | null; cost_eur?: number | null;
+  stock_quantity?: number; initial_stock_quantity?: number; low_stock_threshold?: number; status?: string;
+  limited_edition?: boolean; edition_size?: number | null; image_url?: string | null; notes?: string | null;
+}
+export interface StockAdjustInput { quantity: number; movement_type?: string; reason?: string | null; source?: string | null }
+function bustInventory() {
+  invalidateCache('/inventory'); clearFetchCache('products'); clearFetchCache('inv-summary');
+}
+export async function createProduct(input: ProductInput): Promise<Product> {
+  const r = await fetchApi<Product>('/inventory/products', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustInventory();
+  return r;
+}
+export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
+  const r = await fetchApi<Product>(`/inventory/products/${id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustInventory();
+  return r;
+}
+export async function deleteProduct(id: string): Promise<void> {
+  await fetchApi(`/inventory/products/${id}`, { method: 'DELETE' });
+  bustInventory();
+}
+export async function adjustStock(id: string, input: StockAdjustInput): Promise<Product> {
+  const r = await fetchApi<Product>(`/inventory/products/${id}/stock`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  });
+  bustInventory();
+  return r;
+}
 export const getFinancesSummary = () => fetchApi<FinancesSummary>('/finances/summary');
 export const getExpenses = () => fetchApi<ExpenseResponse[]>('/finances/expenses');
 export const getRoyaltyPayments = () => fetchApi<RoyaltyPaymentResponse[]>('/finances/royalty-payments');
