@@ -33,7 +33,7 @@
       "supabaseUrl": "https://huolkgcnizwrhzyboemd.supabase.co",
       "supabaseKey": "sb_publishable_2LcoFcxRuOveq3YgA15KEg_SJR7z1DD",
       "eas": {
-        "projectId": "PLACEHOLDER_RUN_EAS_INIT"
+        "projectId": "c426dca8-fbde-4424-91fd-b108f25cd009"
       }
     },
     "plugins": [
