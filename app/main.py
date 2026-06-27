@@ -231,37 +231,71 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # pragma: no cover - defensive, never block startup
         logger.error("Label foundation seed skipped: %s", exc, exc_info=True)
 
-    # Multi-tenant Phase A backfill — assign existing/new NULL rows to Whales.
-    # Uses a subquery (the DB resolves the Whales id itself) to avoid any
-    # client-side UUID parameter-binding issue. Idempotent (WHERE label_id IS NULL).
-    try:
-        async with engine.begin() as conn:
-            from sqlalchemy import text
-            for tbl in TENANT_TABLES:
-                try:
-                    await conn.execute(text(
-                        f"UPDATE {tbl} SET label_id = "
-                        "(SELECT id FROM labels WHERE slug = 'whales-records') "
-                        "WHERE label_id IS NULL"
-                    ))
-                except Exception:
-                    pass  # table/column may not exist yet
-            logger.info("label_id backfill (subquery) executed for tenant tables")
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.error("label_id backfill skipped: %s", exc, exc_info=True)
+    # Multi-tenant label_id backfill runs as a BACKGROUND task (below), not
+    # inline: some tenant tables have >1M rows, and a single startup transaction
+    # would block serving and roll everything back on restart.
 
-    # Start weekly Spotify scanner background task
+    # Start background tasks
     scanner_task = asyncio.create_task(_weekly_spotify_scanner())
+    backfill_task = asyncio.create_task(_backfill_label_ids())
 
     yield
 
     # Cleanup on shutdown
-    scanner_task.cancel()
-    try:
-        await scanner_task
-    except asyncio.CancelledError:
-        pass
+    for task in (scanner_task, backfill_task):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
     await engine.dispose()
+
+
+async def _backfill_label_ids():
+    """Assign label_id = Whales to existing NULL tenant rows, in the background.
+
+    Runs per-table, in small batches, each batch its own transaction — so it
+    never blocks startup and never rolls everything back (some tables have
+    >1M rows). Idempotent: once a table is filled, its batches return 0 rows.
+    """
+    from sqlalchemy import select, text
+    from app.models.label import Label
+
+    BATCH = 50_000
+    await asyncio.sleep(15)  # let the app finish booting before churning the DB
+    try:
+        async with async_session_maker() as session:
+            whales_id = (
+                await session.execute(select(Label.id).where(Label.slug == "whales-records"))
+            ).scalar()
+        if whales_id is None:
+            return
+
+        for tbl in TENANT_TABLES:
+            filled = 0
+            while True:
+                try:
+                    async with engine.begin() as conn:
+                        res = await conn.execute(text(
+                            f"UPDATE {tbl} SET label_id = "
+                            "(SELECT id FROM labels WHERE slug = 'whales-records') "
+                            f"WHERE ctid IN (SELECT ctid FROM {tbl} WHERE label_id IS NULL LIMIT {BATCH})"
+                        ))
+                        n = res.rowcount or 0
+                except Exception as exc:
+                    logger.error("label_id backfill on %s failed: %s", tbl, exc)
+                    break
+                filled += n
+                if n < BATCH:
+                    break
+                await asyncio.sleep(0.5)  # be gentle on the DB
+            if filled:
+                logger.info("Backfilled label_id (Whales) on %s rows of %s", filled, tbl)
+        logger.info("label_id background backfill complete")
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("label_id background backfill error: %s", exc, exc_info=True)
 
 
 async def _weekly_spotify_scanner():
