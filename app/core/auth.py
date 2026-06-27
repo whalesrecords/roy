@@ -63,6 +63,29 @@ async def verify_admin_token(
     raise HTTPException(status_code=401, detail="Invalid admin token")
 
 
+async def get_supabase_user(
+    authorization: Optional[str] = Header(default=None),
+) -> dict:
+    """Authorize ANY authenticated Supabase user (not restricted to admins).
+
+    Returns ``{"id": ..., "email": ...}``. Used by self-service flows such as
+    label signup, where the signing-up user is not (yet) a Whales admin.
+    """
+    if not settings.SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=500, detail="Authentification non configurée")
+    if not (authorization and authorization.startswith("Bearer ")):
+        raise HTTPException(status_code=401, detail="Authentification requise")
+    token = authorization[len("Bearer "):].strip()
+    try:
+        supabase = get_supabase_admin_client()
+        resp = supabase.auth.get_user(token)
+        if resp and resp.user and resp.user.email:
+            return {"id": resp.user.id, "email": resp.user.email}
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"Supabase user validation failed: {e}")
+    raise HTTPException(status_code=401, detail="Session invalide")
+
+
 async def get_admin_email(
     x_admin_token: Optional[str] = Header(default=None),
     authorization: Optional[str] = Header(default=None),
