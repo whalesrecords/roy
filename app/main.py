@@ -139,13 +139,13 @@ async def lifespan(app: FastAPI):
                 except Exception:
                     pass  # table/column may not exist yet
 
-        # Multi-tenant — Postgres RLS isolation (defense in depth), CANARY on
-        # `contracts` first. The policy is permissive UNLESS a request sets
+        # Multi-tenant — Postgres RLS isolation (defense in depth) on ALL tenant
+        # tables. The policy is permissive UNLESS a request sets
         # app.current_label_id (done by the label-context dependency), so the
         # platform/global, background and artist paths are never blocked. The
-        # column DEFAULT auto-stamps inserts with the current label.
-        rls_tables = ["contracts"]
-        for tbl in rls_tables:
+        # column DEFAULT auto-stamps inserts with the current label. The ALTER/
+        # policy statements are metadata-only — instant even on huge tables.
+        for tbl in TENANT_TABLES:
             cond = (
                 "nullif(current_setting('app.current_label_id', true), '') IS NULL "
                 "OR label_id = nullif(current_setting('app.current_label_id', true), '')::uuid"
