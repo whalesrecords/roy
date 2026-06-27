@@ -86,7 +86,6 @@ export default function SignupPage() {
         setError("Compte créé. Confirmez votre e-mail puis revenez et choisissez « J'ai déjà un compte ».");
         return;
       }
-      setAccountReady(true);
       setStep(2);
     } finally {
       setBusy(false);
