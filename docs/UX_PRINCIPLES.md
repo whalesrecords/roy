@@ -1,9 +1,9 @@
 # Principes UX / ergonomie à appliquer
 
-Quand on conçoit ou modifie une interface, une app ou un site, appliquer par défaut
-les principes ci-dessous (conception centrée utilisateur — heuristiques de Nielsen,
-lois de l'UX, 12 règles d'ergonomie d'Amélie Boucher). En cas de doute, privilégier
-la clarté et la simplicité pour l'utilisateur.
+Quand tu conçois ou modifies une interface, une app ou un site, applique par défaut
+les principes ci-dessous (issus de la conception centrée utilisateur — heuristiques de
+Nielsen, lois de l'UX, 12 règles d'ergonomie d'Amélie Boucher). En cas de doute,
+privilégie la clarté et la simplicité pour l'utilisateur.
 
 ## Checklist de conception (12 règles)
 1. **Architecture** : contenus organisés logiquement (arborescence claire).
@@ -50,12 +50,12 @@ Quand on conçoit une app/page, passer par une phase de wireframe AVANT le desig
 - But : itérer vite et prendre de meilleures décisions sur l'expérience avant d'investir dans le visuel/code.
 
 ## Boîte à outils UX (méthodes à mobiliser selon le besoin)
-- **Recherche / besoin** : entretien semi-directif (questions ouvertes "Parlez-moi de…", "Montrez-moi…", "Qu'est-ce qui vous gêne ?"), observation, questionnaire en complément.
-- **Définir le vrai problème** : méthode des **5 pourquoi**, reformulation "Comment pourrions-nous… ?".
-- **Cibler** : **persona** (besoins, objectifs, contexte, frustrations, matériel, scénario) ; **carte d'empathie** (Says / Thinks / Does / Feels).
-- **Parcours** : **carte d'expérience** (persona + objectif, phases, actions, émotions/points de friction, opportunités, points de contact).
+- **Recherche / besoin** : entretien semi-directif (guide de questions + relances, cf. aide-mémoire S. Walter : questions ouvertes "Parlez-moi de…", "Montrez-moi…", "Qu'est-ce qui vous gêne ?"), observation, questionnaire en complément.
+- **Définir le vrai problème** : méthode des **5 pourquoi** (remonter d'un symptôme à la cause racine en redemandant "pourquoi" à chaque réponse), reformulation "Comment pourrions-nous… ?".
+- **Cibler** : **persona** (besoins, objectifs, contexte, frustrations, matériel, scénario — caractériser par l'activité plutôt que le caractère) ; **carte d'empathie** (Says / Thinks / Does / Feels).
+- **Parcours** : **carte d'expérience** (persona + objectif, phases, actions, émotions/points de friction, opportunités d'amélioration, points de contact).
 - **Idéation** : brainstorming + diagramme d'affinité, Crazy 8.
-- **Évaluation** : **audit heuristique** — grille Nielsen / Bastien-Scapin, gravité par problème (1/3 mineur, 2/3 important, 3/3 majeur prioritaire) par écran et par parcours.
+- **Évaluation** : **audit heuristique** — grille basée sur les heuristiques de Nielsen / critères Bastien-Scapin, noter la gravité de chaque problème (1/3 mineur, 2/3 important, 3/3 majeur prioritaire) par écran et par parcours.
 
 ## Avant de livrer une UI
 - Vérifier mentalement le parcours utilisateur principal de bout en bout.
