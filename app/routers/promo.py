@@ -21,6 +21,7 @@ from app.models.artwork import ReleaseArtwork, TrackArtwork
 from app.models.promo_campaign import CampaignStatus, PromoCampaign
 from app.models.promo_submission import PromoSource, PromoSubmission
 from app.models.spotify_ad_campaign import SpotifyAdCampaign
+from app.models.meta_ad_campaign import MetaAdCampaign
 from app.schemas.promo import (
     AlbumPromoStats,
     ArtistPromoStats,
@@ -39,10 +40,14 @@ from app.schemas.promo import (
     SpotifyAdCampaignResponse,
     SpotifyAdCampaignsListResponse,
     ImportSpotifyAdsResponse,
+    MetaAdCampaignResponse,
+    MetaAdCampaignsListResponse,
+    ImportMetaAdsResponse,
 )
 from app.services.parsers.groover_parser import GrooverParser
 from app.services.parsers.submithub_parser import SubmitHubParser
 from app.services.parsers.spotify_ads_parser import SpotifyAdsParser
+from app.services.parsers.meta_ads_parser import MetaAdsParser
 
 router = APIRouter(prefix="/promo", tags=["promo"])
 
@@ -1749,6 +1754,276 @@ async def list_ad_campaigns(
     total = sum((c.spend for c, _ in rows if c.spend is not None), Decimal(0))
     currency = rows[0][0].currency if rows else "EUR"
     return SpotifyAdCampaignsListResponse(
+        campaigns=campaigns,
+        count=len(campaigns),
+        total_spend=str(total),
+        currency=currency or "EUR",
+    )
+
+
+# ============ Meta (Facebook / Instagram) Ad Campaigns ============
+
+
+async def _resolve_artist_from_title(
+    title: Optional[str],
+    db: AsyncSession,
+) -> tuple[Optional[UUID], Optional[str], Optional[str]]:
+    """
+    Auto-detect the artist from a Meta ad title (the artist name is usually
+    truncated in the export). Chain: title -> catalogue (ISRC/UPC) -> the artist
+    that owns that release/track via a contract scope, with track_artist_links as
+    a fallback. Returns (artist_id, track_isrc, release_upc).
+    """
+    if not title:
+        return None, None, None
+    from app.models.contract import Contract
+    from app.models.track_artist_link import TrackArtistLink
+
+    track_isrc, release_upc = await match_song_to_catalog(title, None, db)  # artist_id unused
+    if not track_isrc and not release_upc:
+        return None, None, None
+
+    scope_ids = [s for s in (track_isrc, release_upc) if s]
+    # A contract scoped to this track/release tells us the owning artist.
+    contract = (await db.execute(
+        select(Contract)
+        .where(Contract.artist_id.isnot(None), Contract.scope_id.in_(scope_ids))
+        .order_by(Contract.start_date.desc().nullslast())
+    )).scalars().first()
+    if contract and contract.artist_id:
+        return contract.artist_id, track_isrc, release_upc
+
+    # Fallback: per-track artist link.
+    if track_isrc:
+        link = (await db.execute(
+            select(TrackArtistLink).where(TrackArtistLink.isrc == track_isrc)
+        )).scalars().first()
+        if link and link.artist_id:
+            return link.artist_id, track_isrc, release_upc
+
+    return None, track_isrc, release_upc
+
+
+def _serialize_meta_campaign(c: MetaAdCampaign, artist_name: Optional[str] = None) -> MetaAdCampaignResponse:
+    return MetaAdCampaignResponse(
+        id=c.id,
+        artist_id=c.artist_id,
+        artist_name=artist_name,
+        ad_name=c.ad_name,
+        title=c.title,
+        platform=c.platform,
+        result_type=c.result_type,
+        release_upc=c.release_upc,
+        track_isrc=c.track_isrc,
+        currency=c.currency or "EUR",
+        spend=str(c.spend) if c.spend is not None else None,
+        start_date=c.start_date,
+        end_date=c.end_date,
+        reach=c.reach,
+        impressions=c.impressions,
+        link_clicks=c.link_clicks,
+        clicks_all=c.clicks_all,
+        results=c.results,
+        cpc=str(c.cpc) if c.cpc is not None else None,
+        cpm=str(c.cpm) if c.cpm is not None else None,
+        ctr=str(c.ctr) if c.ctr is not None else None,
+    )
+
+
+@router.post("/import/meta-ads", response_model=ImportMetaAdsResponse)
+async def import_meta_ads_csv(
+    file: Annotated[UploadFile, File()],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Annotated[Optional[str], Form()] = None,
+) -> ImportMetaAdsResponse:
+    """
+    Import a Meta (Facebook/Instagram) Ads Manager CSV.
+
+    One row per ad. The artist is auto-detected from the title in the ad name,
+    matched to the catalogue (or forced via artist_id). The spend is booked as a
+    recoupable advance (category meta_ads) deducted from the artist's royalties,
+    and the metrics are stored for transparency. Re-importing the same ad/period
+    updates the existing row (most recent numbers win).
+    """
+    forced_uuid: Optional[UUID] = None
+    if artist_id:
+        try:
+            forced_uuid = UUID(artist_id)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid artist_id format")
+        if not (await db.execute(select(Artist).where(Artist.id == forced_uuid))).scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
+
+    content = await file.read()
+    try:
+        parse_result = MetaAdsParser().parse(content)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to parse CSV: {e}")
+
+    created = 0
+    skipped = 0
+    updated = 0
+    matched = 0
+    total_spend = Decimal(0)
+    not_found: set[str] = set()
+    errors: List[str] = [f"Ligne {e.row_number}: {e.error}" for e in parse_result.errors]
+
+    try:
+        for row in parse_result.rows:
+            row_artist_id = forced_uuid
+            track_isrc: Optional[str] = None
+            release_upc: Optional[str] = None
+            if row_artist_id:
+                track_isrc, release_upc = await match_song_to_catalog(row.title or "", None, db)
+            else:
+                # 1) explicit "by X" if present (rare — Meta truncates it)
+                if row.artist_hint:
+                    row_artist_id = await match_artist_by_name(row.artist_hint, db)
+                # 2) title -> catalogue -> owning artist
+                if not row_artist_id:
+                    row_artist_id, track_isrc, release_upc = await _resolve_artist_from_title(row.title, db)
+                elif row.title:
+                    track_isrc, release_upc = await match_song_to_catalog(row.title, None, db)
+
+            if not row_artist_id:
+                not_found.add(row.title or row.ad_name)
+                continue
+
+            if track_isrc:
+                scope, scope_id = "track", track_isrc
+                matched += 1
+            elif release_upc:
+                scope, scope_id = "release", release_upc
+                matched += 1
+            else:
+                scope, scope_id = "catalog", None
+
+            eff = datetime.combine(row.start_date, datetime.min.time()) if row.start_date else datetime.utcnow()
+
+            # Dedup on (artist, ad_name, start_date) — re-export refreshes numbers.
+            existing = (await db.execute(
+                select(MetaAdCampaign).where(
+                    MetaAdCampaign.artist_id == row_artist_id,
+                    MetaAdCampaign.ad_name == row.ad_name,
+                    MetaAdCampaign.start_date == row.start_date,
+                )
+            )).scalars().first()
+
+            if existing:
+                existing.title = row.title
+                existing.platform = row.platform
+                existing.result_type = row.result_type
+                existing.release_upc = release_upc
+                existing.track_isrc = track_isrc
+                existing.currency = row.currency or "EUR"
+                existing.spend = row.spend
+                existing.end_date = row.end_date
+                existing.reach = row.reach
+                existing.impressions = row.impressions
+                existing.link_clicks = row.link_clicks
+                existing.clicks_all = row.clicks_all
+                existing.results = row.results
+                existing.cpc = row.cpc
+                existing.cpm = row.cpm
+                existing.ctr = row.ctr
+                if existing.advance_ledger_entry_id:
+                    led = await db.get(AdvanceLedgerEntry, existing.advance_ledger_entry_id)
+                    if led:
+                        led.amount = row.spend
+                        led.scope = scope
+                        led.scope_id = scope_id
+                        led.currency = row.currency or "EUR"
+                        led.effective_date = eff
+                        led.description = f"Meta Ads — {row.title or row.ad_name}"
+                updated += 1
+                total_spend += row.spend or Decimal(0)
+                continue
+
+            ledger = AdvanceLedgerEntry(
+                artist_id=row_artist_id,
+                scope=scope,
+                scope_id=scope_id,
+                entry_type=LedgerEntryType.ADVANCE,
+                amount=row.spend,
+                currency=row.currency or "EUR",
+                category=ExpenseCategory.META_ADS.value,
+                description=f"Meta Ads — {row.title or row.ad_name}",
+                reference=row.ad_name[:255],
+                effective_date=eff,
+            )
+            db.add(ledger)
+            await db.flush()
+
+            db.add(MetaAdCampaign(
+                artist_id=row_artist_id,
+                release_upc=release_upc,
+                track_isrc=track_isrc,
+                ad_name=row.ad_name,
+                title=row.title,
+                platform=row.platform,
+                result_type=row.result_type,
+                currency=row.currency or "EUR",
+                spend=row.spend,
+                start_date=row.start_date,
+                end_date=row.end_date,
+                reach=row.reach,
+                impressions=row.impressions,
+                link_clicks=row.link_clicks,
+                clicks_all=row.clicks_all,
+                results=row.results,
+                cpc=row.cpc,
+                cpm=row.cpm,
+                ctr=row.ctr,
+                advance_ledger_entry_id=ledger.id,
+            ))
+            created += 1
+            total_spend += row.spend or Decimal(0)
+
+        await db.commit()
+    except Exception as e:  # noqa: BLE001
+        import traceback
+        print("Error in import_meta_ads_csv:", e)
+        print(traceback.format_exc())
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Internal error during import: {e}")
+
+    if not_found:
+        errors.append(f"Pubs non rattachées (titre introuvable au catalogue) : {', '.join(sorted(not_found))}")
+    if updated:
+        errors.append(f"{updated} pub(s) existante(s) mise(s) à jour (chiffres de l'import le plus récent)")
+
+    return ImportMetaAdsResponse(
+        created_count=created,
+        skipped_duplicates=skipped,
+        updated_count=updated,
+        total_spend=str(total_spend),
+        matched_campaigns=matched,
+        artists_not_found=sorted(not_found),
+        errors=errors,
+    )
+
+
+@router.get("/meta-ad-campaigns", response_model=MetaAdCampaignsListResponse)
+async def list_meta_ad_campaigns(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+    artist_id: Optional[str] = None,
+) -> MetaAdCampaignsListResponse:
+    """List Meta ad campaigns (admin), optionally filtered by artist."""
+    query = select(MetaAdCampaign, Artist.name).join(Artist, Artist.id == MetaAdCampaign.artist_id)
+    if artist_id:
+        try:
+            query = query.where(MetaAdCampaign.artist_id == UUID(artist_id))
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid artist_id")
+    query = query.order_by(MetaAdCampaign.start_date.desc().nullslast())
+    rows = (await db.execute(query)).all()
+
+    campaigns = [_serialize_meta_campaign(c, name) for c, name in rows]
+    total = sum((c.spend for c, _ in rows if c.spend is not None), Decimal(0))
+    currency = rows[0][0].currency if rows else "EUR"
+    return MetaAdCampaignsListResponse(
         campaigns=campaigns,
         count=len(campaigns),
         total_spend=str(total),

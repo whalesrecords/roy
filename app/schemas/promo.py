@@ -286,3 +286,47 @@ class ImportSpotifyAdsResponse(BaseModel):
     matched_campaigns: int
     artists_not_found: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
+
+
+class MetaAdCampaignResponse(BaseModel):
+    """A single Meta (Facebook/Instagram) ad (ad-level metrics)."""
+    id: UUID
+    artist_id: UUID
+    artist_name: Optional[str] = None
+    ad_name: str
+    title: Optional[str] = None
+    platform: Optional[str] = None
+    result_type: Optional[str] = None
+    release_upc: Optional[str] = None
+    track_isrc: Optional[str] = None
+    currency: str = "EUR"
+    spend: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    reach: Optional[int] = None
+    impressions: Optional[int] = None
+    link_clicks: Optional[int] = None
+    clicks_all: Optional[int] = None
+    results: Optional[int] = None
+    cpc: Optional[str] = None
+    cpm: Optional[str] = None
+    ctr: Optional[str] = None
+
+
+class MetaAdCampaignsListResponse(BaseModel):
+    """List of Meta ad campaigns with aggregate spend."""
+    campaigns: List[MetaAdCampaignResponse]
+    count: int
+    total_spend: str
+    currency: str = "EUR"
+
+
+class ImportMetaAdsResponse(BaseModel):
+    """Result of importing a Meta Ads Manager CSV."""
+    created_count: int
+    skipped_duplicates: int
+    updated_count: int = 0
+    total_spend: str
+    matched_campaigns: int
+    artists_not_found: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)
