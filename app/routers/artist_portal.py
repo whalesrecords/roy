@@ -2924,6 +2924,15 @@ async def get_artist_ad_campaigns(
         return str(v) if v is not None else None
 
     total = sum((c.spend for c in campaigns if c.spend is not None), _D(0))
+
+    from app.models.meta_ad_campaign import MetaAdCampaign
+    meta_rows = (await db.execute(
+        select(MetaAdCampaign)
+        .where(MetaAdCampaign.artist_id == artist.id)
+        .order_by(MetaAdCampaign.start_date.desc().nullslast())
+    )).scalars().all()
+    meta_total = sum((c.spend for c in meta_rows if c.spend is not None), _D(0))
+
     return {
         "campaigns": [
             {
@@ -2963,6 +2972,32 @@ async def get_artist_ad_campaigns(
         "count": len(campaigns),
         "total_spend": str(total),
         "currency": campaigns[0].currency if campaigns else "EUR",
+        "meta_campaigns": [
+            {
+                "id": str(c.id),
+                "ad_name": c.ad_name,
+                "title": c.title,
+                "platform": c.platform,
+                "result_type": c.result_type,
+                "track_isrc": c.track_isrc,
+                "release_upc": c.release_upc,
+                "currency": c.currency or "EUR",
+                "spend": dec(c.spend),
+                "start_date": c.start_date.isoformat() if c.start_date else None,
+                "end_date": c.end_date.isoformat() if c.end_date else None,
+                "reach": c.reach,
+                "impressions": c.impressions,
+                "link_clicks": c.link_clicks,
+                "clicks_all": c.clicks_all,
+                "results": c.results,
+                "cpc": dec(c.cpc),
+                "cpm": dec(c.cpm),
+                "ctr": dec(c.ctr),
+            }
+            for c in meta_rows
+        ],
+        "meta_count": len(meta_rows),
+        "meta_total_spend": str(meta_total),
     }
 
 
