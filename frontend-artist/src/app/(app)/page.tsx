@@ -11,14 +11,12 @@ import {
   getStatements,
   getArtistTracks,
   getArtistPayments,
-  getMembersBreakdown,
   requestPayment,
   ArtistDashboard,
   QuarterlyRevenue,
   Statement,
   ArtistTrack,
   ArtistPayment,
-  MembersBreakdown,
 } from '@/lib/api';
 import { Card, Eyebrow, Sparkline, AccentButton, fmtMoney, fmtNum } from '@/components/roy/ui';
 import {
@@ -43,7 +41,6 @@ export default function DashboardPage() {
   const [quarterly, setQuarterly] = useState<QuarterlyRevenue[]>([]);
   const [tracks, setTracks] = useState<ArtistTrack[]>([]);
   const [payments, setPayments] = useState<ArtistPayment[]>([]);
-  const [breakdown, setBreakdown] = useState<MembersBreakdown | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requesting, setRequesting] = useState(false);
@@ -78,10 +75,6 @@ export default function DashboardPage() {
         setQuarterly(q.filter((x) => parseFloat(x.gross) > 0));
         setTracks(t);
         setPayments(p);
-      } catch { /* non-critique */ }
-      try {
-        const b = await getMembersBreakdown();
-        if (!cancelled && b.is_group) setBreakdown(b);
       } catch { /* non-critique */ }
     })();
     return () => { cancelled = true; };
@@ -313,41 +306,6 @@ export default function DashboardPage() {
               </Card>
             </div>
           </div>
-
-          {/* Répartition par membre (groupe) */}
-          {breakdown && breakdown.members.length > 0 && (
-            <Card padded={false} className="overflow-hidden">
-              <div className="flex items-center justify-between px-[22px] py-4 border-b border-line">
-                <div>
-                  <span className="text-[14px] font-semibold text-ink">Répartition par membre</span>
-                  <div className="text-[11.5px] text-ink-faint mt-0.5">Selon les parts du contrat · {breakdown.members.length} membres</div>
-                </div>
-                <div className="text-right">
-                  <Eyebrow className="text-[9px]">Net cumulé</Eyebrow>
-                  <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(breakdown.total_net, breakdown.currency)}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-[2fr_0.7fr_1fr_1fr] px-[22px] py-2.5 border-b border-line">
-                <Eyebrow className="text-[9.5px]">Membre</Eyebrow>
-                <Eyebrow className="text-[9.5px] text-right">Part</Eyebrow>
-                <Eyebrow className="text-[9.5px] text-right">Net cumulé</Eyebrow>
-                <Eyebrow className="text-[9.5px] text-right">Disponible</Eyebrow>
-              </div>
-              {breakdown.members.map((m) => (
-                <div key={m.artist_id || m.name} className="grid grid-cols-[2fr_0.7fr_1fr_1fr] items-center px-[22px] py-3 border-b border-line last:border-0">
-                  <span className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-bold shrink-0">
-                      {m.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="text-[13.5px] font-semibold text-ink truncate">{m.name}</span>
-                  </span>
-                  <span className="text-right roy-num text-[12.5px] text-ink-muted">{m.share_pct}%</span>
-                  <span className="text-right roy-num text-[13px] font-semibold text-ink">{fmtMoney(m.net, breakdown.currency)}</span>
-                  <span className="text-right roy-num text-[13px] font-bold text-accent">{fmtMoney(m.available, breakdown.currency)}</span>
-                </div>
-              ))}
-            </Card>
-          )}
         </>)}
       </main>
     </div>
