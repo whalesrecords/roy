@@ -2029,3 +2029,50 @@ async def list_meta_ad_campaigns(
         total_spend=str(total),
         currency=currency or "EUR",
     )
+
+
+@router.delete("/meta-ad-campaigns/{campaign_id}")
+async def delete_meta_ad_campaign(
+    campaign_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+):
+    """Delete a Meta ad campaign and reverse its recoupable advance (so it no
+    longer deducts from the artist's royalties)."""
+    try:
+        cid = UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid campaign id")
+    campaign = await db.get(MetaAdCampaign, cid)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+    if campaign.advance_ledger_entry_id:
+        led = await db.get(AdvanceLedgerEntry, campaign.advance_ledger_entry_id)
+        if led:
+            await db.delete(led)
+    await db.delete(campaign)
+    await db.commit()
+    return {"success": True, "deleted_id": campaign_id}
+
+
+@router.delete("/ad-campaigns/{campaign_id}")
+async def delete_spotify_ad_campaign(
+    campaign_id: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _token: Annotated[str, Depends(verify_admin_token)],
+):
+    """Delete a Spotify ad campaign and reverse its recoupable advance."""
+    try:
+        cid = UUID(campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid campaign id")
+    campaign = await db.get(SpotifyAdCampaign, cid)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+    if campaign.advance_ledger_entry_id:
+        led = await db.get(AdvanceLedgerEntry, campaign.advance_ledger_entry_id)
+        if led:
+            await db.delete(led)
+    await db.delete(campaign)
+    await db.commit()
+    return {"success": True, "deleted_id": campaign_id}

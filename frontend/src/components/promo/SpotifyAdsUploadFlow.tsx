@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Spinner } from '@heroui/react';
 import {
-  importSpotifyAdsCSV, getSpotifyAdCampaigns,
+  importSpotifyAdsCSV, getSpotifyAdCampaigns, deleteSpotifyAdCampaign,
   ImportSpotifyAdsResult, SpotifyAdCampaign,
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, AccentButton } from '@/components/roy/ui';
@@ -35,7 +35,7 @@ function DetailStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CampaignRow({ c }: { c: SpotifyAdCampaign }) {
+function CampaignRow({ c, onDelete, deleting }: { c: SpotifyAdCampaign; onDelete: (id: string) => void; deleting: boolean }) {
   const [open, setOpen] = useState(false);
 
   const otherReleases = [
@@ -95,6 +95,15 @@ function CampaignRow({ c }: { c: SpotifyAdCampaign }) {
               {[c.ad_format, c.release_type, c.country].filter(Boolean).join(' · ')}
             </p>
           )}
+          <div className="flex justify-end mt-3">
+            <button
+              onClick={() => onDelete(c.id)}
+              disabled={deleting}
+              className="text-[12px] font-semibold text-neg hover:underline disabled:opacity-50"
+            >
+              {deleting ? 'Suppression…' : 'Supprimer cette campagne'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -111,6 +120,7 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
   const [campaigns, setCampaigns] = useState<SpotifyAdCampaign[]>([]);
   const [totalSpend, setTotalSpend] = useState('0');
   const [loadingList, setLoadingList] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCampaigns = useCallback(async () => {
     setLoadingList(true);
@@ -122,6 +132,20 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
   }, []);
 
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer cette campagne ? L'avance récupérable liée sera annulée — le montant ne sera plus déduit des royalties de l'artiste.")) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      await deleteSpotifyAdCampaign(id);
+      await loadCampaigns();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur lors de la suppression');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleImport = async () => {
     if (!file) return;
@@ -232,7 +256,7 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
                 <Eyebrow key={h} className={`text-[10px] ${i >= 2 ? 'text-right' : ''}`}>{h}</Eyebrow>
               ))}
             </div>
-            {campaigns.map((c) => <CampaignRow key={c.id} c={c} />)}
+            {campaigns.map((c) => <CampaignRow key={c.id} c={c} onDelete={handleDelete} deleting={deletingId === c.id} />)}
             <p className="px-[22px] py-2.5 text-[11px] text-ink-faint">Cliquez sur une campagne pour voir tous les résultats détaillés.</p>
           </Card>
         )}
