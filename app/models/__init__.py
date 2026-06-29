@@ -16,6 +16,7 @@ from app.models.promo_campaign import CampaignStatus, PromoCampaign
 from app.models.promo_submission import PromoSource, PromoSubmission, SubmitHubAction
 from app.models.spotify_track_suggestion import SpotifyTrackSuggestion, SuggestionStatus
 from app.models.spotify_ad_campaign import SpotifyAdCampaign
+from app.models.meta_ad_campaign import MetaAdCampaign
 from app.models.royalty_line_item import RoyaltyLineItem
 from app.models.royalty_run import RoyaltyRun, RoyaltyRunStatus
 from app.models.statement import Statement, StatementStatus
@@ -94,6 +95,7 @@ __all__ = [
     "SuggestionStatus",
     # Spotify Ads
     "SpotifyAdCampaign",
+    "MetaAdCampaign",
     # Inventory
     "Product",
     "StockMovement",
