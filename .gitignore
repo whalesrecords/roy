@@ -68,3 +68,6 @@ frontend-v2/.env*.local
 # Desktop app (Tauri)
 desktop-app/node_modules/
 desktop-app/src-tauri/target/
+
+# Claude Code local settings (personal)
+.claude/settings.local.json
