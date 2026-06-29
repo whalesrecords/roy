@@ -19,6 +19,10 @@ export default function RoyaltiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedRun, setSelectedRun] = useState<RoyaltyRun | null>(null);
+  // In-app confirmation (replaces native confirm() for paiement/suppression).
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void;
+  } | null>(null);
 
   // Create form
   const [periodStart, setPeriodStart] = useState('');
@@ -133,8 +137,7 @@ export default function RoyaltiesPage() {
     }
   };
 
-  const handlePayAll = async (runId: string) => {
-    if (!confirm('Marquer tous les artistes de ce calcul comme payés ? Cette action enregistre les paiements dans le journal.')) return;
+  const doPayAll = async (runId: string) => {
     setPayingAll(true);
     try {
       const updated = await payAllRoyaltyRun(runId);
@@ -147,12 +150,18 @@ export default function RoyaltiesPage() {
     }
   };
 
-  const handleDelete = async (runId: string, isLocked: boolean) => {
-    const message = isLocked
-      ? 'ATTENTION: Ce calcul est verrouille. La suppression est irreversible et supprimera toutes les donnees associees. Continuer ?'
-      : 'Supprimer ce calcul ?';
-    if (!confirm(message)) return;
+  // Opens the confirmation modal with a clear récap before marking as paid.
+  const handlePayAll = (run: RoyaltyRun) => {
+    const n = run.artists?.filter(a => a.statement_status !== 'paid' && parseFloat(a.net_payable) > 0).length ?? 0;
+    setConfirmAction({
+      title: 'Marquer comme payé',
+      message: `Marquer ${n} relevé${n > 1 ? 's' : ''} comme payé${n > 1 ? 's' : ''} — total ${formatCurrency(run.total_net_payable, run.base_currency)} ? Les paiements seront enregistrés dans le journal.`,
+      confirmLabel: 'Marquer payé',
+      onConfirm: () => doPayAll(run.run_id),
+    });
+  };
 
+  const doDelete = async (runId: string, isLocked: boolean) => {
     setDeleting(true);
     try {
       await deleteRoyaltyRun(runId, isLocked);
@@ -163,6 +172,18 @@ export default function RoyaltiesPage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleDelete = (run: RoyaltyRun) => {
+    setConfirmAction({
+      title: 'Supprimer ce calcul',
+      message: run.is_locked
+        ? 'Ce calcul est verrouillé. La suppression est définitive et effacera tous les relevés associés. Continuer ?'
+        : 'Supprimer ce calcul ? Vous pourrez le relancer à tout moment.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+      onConfirm: () => doDelete(run.run_id, run.is_locked),
+    });
   };
 
   const formatDate = (date: string) => {
@@ -689,8 +710,18 @@ export default function RoyaltiesPage() {
                 </div>
                 <div className="bg-surface-2 rounded-[10px] p-3 text-center">
                   <p className="roy-num text-[15px] font-bold text-ink">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</p>
-                  <p className="text-[11px] text-ink-faint mt-0.5">Recoupé</p>
+                  <p className="text-[11px] text-ink-faint mt-0.5">Avances déduites</p>
                 </div>
+              </div>
+
+              {/* Plain-language récap of how the calcul flows: ventes → parts → avances → à payer */}
+              <div className="bg-surface-2/60 border border-line rounded-[12px] p-4">
+                <p className="text-[12.5px] leading-relaxed text-ink-muted">
+                  Sur <strong className="text-ink">{formatCurrency(selectedRun.total_gross, selectedRun.base_currency)}</strong> de ventes,
+                  la part des artistes est de <strong className="text-ink">{formatCurrency(selectedRun.total_artist_royalties, selectedRun.base_currency)}</strong>.
+                  Après déduction de <strong className="text-ink">{formatCurrency(selectedRun.total_recouped, selectedRun.base_currency)}</strong> d&apos;avances,
+                  il reste <strong className="text-accent">{formatCurrency(selectedRun.total_net_payable, selectedRun.base_currency)}</strong> à payer.
+                </p>
               </div>
 
               <div className="bg-surface-2 rounded-[12px] p-4 text-center">
@@ -725,7 +756,7 @@ export default function RoyaltiesPage() {
                                 {formatCurrency(artist.net_payable, selectedRun.base_currency)}
                               </p>
                               {parseFloat(artist.recouped) > 0 && (
-                                <p className="text-[11px] text-ink-faint">-{formatCurrency(artist.recouped, selectedRun.base_currency)} recoupé</p>
+                                <p className="text-[11px] text-ink-faint">-{formatCurrency(artist.recouped, selectedRun.base_currency)} d&apos;avances déduites</p>
                               )}
                               {isPaid && (
                                 <span className="inline-flex mt-1"><Pill tone="accent"><IconCheck size={11} /> Payé</Pill></span>
@@ -766,7 +797,7 @@ export default function RoyaltiesPage() {
               {/* Pay all button — only visible on locked runs with unpaid artists */}
               {selectedRun.is_locked && selectedRun.artists?.some(a => a.statement_status !== 'paid' && parseFloat(a.net_payable) > 0) && (
                 <AccentButton
-                  onClick={() => handlePayAll(selectedRun.run_id)}
+                  onClick={() => handlePayAll(selectedRun)}
                   disabled={payingAll}
                   className="w-full"
                 >
@@ -784,12 +815,52 @@ export default function RoyaltiesPage() {
 
               {/* Delete button - always visible */}
               <button
-                onClick={() => handleDelete(selectedRun.run_id, selectedRun.is_locked)}
+                onClick={() => handleDelete(selectedRun)}
                 disabled={deleting}
                 className="w-full py-2.5 text-[12.5px] font-semibold rounded-[10px] text-neg hover:bg-surface-2 transition-colors disabled:opacity-50"
               >
                 {deleting ? 'Suppression...' : selectedRun.is_locked ? 'Supprimer (verrouillé)' : 'Supprimer ce calcul'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal — replaces native confirm() for paiement / suppression */}
+      {confirmAction && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60]"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirmAction(null)}
+        >
+          <div
+            className="bg-surface w-full sm:max-w-sm sm:rounded-[16px] rounded-t-[16px] shadow-roy"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <h2 className="text-[16px] font-bold text-ink">{confirmAction.title}</h2>
+              <p className="text-[13px] leading-relaxed text-ink-muted mt-2">{confirmAction.message}</p>
+            </div>
+            <div className="p-5 pt-0 flex gap-3">
+              <OutlineButton onClick={() => setConfirmAction(null)} className="flex-1 justify-center">
+                Annuler
+              </OutlineButton>
+              {confirmAction.danger ? (
+                <button
+                  onClick={() => { confirmAction.onConfirm(); setConfirmAction(null); }}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[10px] text-[13px] font-semibold bg-neg text-white hover:opacity-90 transition-opacity"
+                >
+                  {confirmAction.confirmLabel}
+                </button>
+              ) : (
+                <AccentButton
+                  onClick={() => { confirmAction.onConfirm(); setConfirmAction(null); }}
+                  className="flex-1"
+                >
+                  <IconCheck size={14} /> {confirmAction.confirmLabel}
+                </AccentButton>
+              )}
             </div>
           </div>
         </div>
