@@ -1326,10 +1326,11 @@ async def get_contracts(
         artist_share = 0.0
         label_share = 0.0
         for party in contract.parties:
+            # share_percentage is stored as a fraction (0.0–1.0); the UI shows a percentage.
             if party.party_type == "artist":
-                artist_share += float(party.share_percent or 0)
+                artist_share += float(party.share_percentage or 0) * 100
             else:
-                label_share += float(party.share_percent or 0)
+                label_share += float(party.share_percentage or 0) * 100
 
         # Get scope title from pre-loaded dicts
         scope_title = None
