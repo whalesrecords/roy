@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@heroui/react';
-import { getArtistPromoSubmissions, getArtistAdCampaigns, PromoSubmission, ArtistAdCampaign } from '@/lib/api';
+import { getArtistPromoSubmissions, getArtistAdCampaigns, PromoSubmission, ArtistAdCampaign, ArtistMetaCampaign } from '@/lib/api';
 import { Card, Eyebrow, Pill, Segmented, fmtMoney, fmtNum } from '@/components/roy/ui';
 import { IconMegaphone, IconChevronRight, IconUser } from '@/components/roy/icons';
 
@@ -352,6 +352,41 @@ function AdCampaignCard({ c }: { c: ArtistAdCampaign }) {
   );
 }
 
+function MetaCampaignCard({ c }: { c: ArtistMetaCampaign }) {
+  const period = [c.start_date, c.end_date]
+    .filter(Boolean)
+    .map((d) => new Date(d as string).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }))
+    .join(' → ');
+  const tiles = [
+    { label: 'Portée', value: c.reach != null ? fmtNum(c.reach) : '—' },
+    { label: 'Impressions', value: c.impressions != null ? fmtNum(c.impressions) : '—' },
+    { label: 'Clics', value: c.link_clicks != null ? fmtNum(c.link_clicks) : '—' },
+    { label: c.result_type || 'Résultats', value: c.results != null ? fmtNum(c.results) : '—' },
+  ];
+  return (
+    <div className="px-[18px] py-3.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[13.5px] font-semibold text-ink truncate">{c.title || c.ad_name}</div>
+          <div className="text-[11px] text-ink-faint mt-0.5">{[c.platform, period].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="roy-num text-[14px] font-bold text-ink">{fmtMoney(c.spend ?? 0, c.currency)}</div>
+          <div className="text-[10px] text-ink-faint">dépensé</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-2 mt-3">
+        {tiles.map((t) => (
+          <div key={t.label} className="rounded-[10px] bg-surface-2 px-2.5 py-2 text-center">
+            <div className="roy-num text-[13px] font-bold text-ink">{t.value}</div>
+            <div className="text-[9.5px] text-ink-faint leading-tight mt-0.5 truncate">{t.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function PromoPage() {
@@ -360,6 +395,8 @@ export default function PromoPage() {
   const [adCampaigns, setAdCampaigns] = useState<ArtistAdCampaign[]>([]);
   const [adSpend, setAdSpend] = useState<string>('0');
   const [adCurrency, setAdCurrency] = useState<string>('EUR');
+  const [metaCampaigns, setMetaCampaigns] = useState<ArtistMetaCampaign[]>([]);
+  const [metaSpend, setMetaSpend] = useState<string>('0');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewTab, setViewTab] = useState<ViewTab>('playlists');
@@ -387,6 +424,8 @@ export default function PromoPage() {
       setAdCampaigns(ads.campaigns);
       setAdSpend(ads.total_spend);
       setAdCurrency(ads.currency || 'EUR');
+      setMetaCampaigns(ads.meta_campaigns || []);
+      setMetaSpend(ads.meta_total_spend || '0');
     } catch { /* ignore */ }
   };
 
@@ -501,6 +540,27 @@ export default function PromoPage() {
                 <div className="divide-y divide-line">
                   {adCampaigns.map((c) => (
                     <AdCampaignCard key={c.id} c={c} />
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* ── Publicités Meta (Facebook / Instagram) ── */}
+            {metaCampaigns.length > 0 && (
+              <Card padded={false} className="overflow-hidden">
+                <div className="flex items-center justify-between px-[18px] py-3.5 border-b border-line">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-[9px] bg-accent-soft text-accent flex items-center justify-center shrink-0 text-[13px] font-bold">M</span>
+                    <span className="text-[14px] font-semibold text-ink">Publicités Meta (Facebook / Instagram)</span>
+                  </div>
+                  <div className="text-right">
+                    <Eyebrow className="text-[9px]">Total dépensé</Eyebrow>
+                    <div className="roy-num text-[15px] font-bold text-ink">{fmtMoney(metaSpend, adCurrency)}</div>
+                  </div>
+                </div>
+                <div className="divide-y divide-line">
+                  {metaCampaigns.map((c) => (
+                    <MetaCampaignCard key={c.id} c={c} />
                   ))}
                 </div>
               </Card>

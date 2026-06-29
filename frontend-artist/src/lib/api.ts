@@ -578,11 +578,36 @@ export interface ArtistAdCampaign {
   playlist_adds_other_releases?: number | null;
 }
 
+export interface ArtistMetaCampaign {
+  id: string;
+  ad_name: string;
+  title?: string | null;
+  platform?: string | null;
+  result_type?: string | null;
+  track_isrc?: string | null;
+  release_upc?: string | null;
+  currency: string;
+  spend?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  reach?: number | null;
+  impressions?: number | null;
+  link_clicks?: number | null;
+  clicks_all?: number | null;
+  results?: number | null;
+  cpc?: string | null;
+  cpm?: string | null;
+  ctr?: string | null;
+}
+
 export interface ArtistAdCampaignsResponse {
   campaigns: ArtistAdCampaign[];
   count: number;
   total_spend: string;
   currency: string;
+  meta_campaigns?: ArtistMetaCampaign[];
+  meta_count?: number;
+  meta_total_spend?: string;
 }
 
 export async function getArtistAdCampaigns(): Promise<ArtistAdCampaignsResponse> {
