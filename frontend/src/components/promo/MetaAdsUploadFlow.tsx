@@ -34,22 +34,33 @@ function CampaignRow({ c, onDelete, deleting }: { c: MetaAdCampaign; onDelete: (
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-line last:border-0">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left grid grid-cols-[1.7fr_1.1fr_0.9fr_0.8fr_0.8fr_0.8fr] items-center px-[22px] py-3 hover:bg-surface-2 transition-colors"
-      >
-        <div className="min-w-0 pr-2">
-          <div className="text-[13px] font-semibold text-ink truncate">{c.title || c.ad_name}</div>
-          <div className="text-[11px] text-ink-faint truncate">
-            {[c.platform, c.start_date].filter(Boolean).join(' · ')}{c.track_isrc || c.release_upc ? ' · catalogue ✓' : ''}
+      <div className="grid grid-cols-[1.7fr_1.1fr_0.9fr_0.8fr_0.8fr_0.8fr_auto] items-center px-[22px] py-3 hover:bg-surface-2 transition-colors">
+        <button onClick={() => setOpen((v) => !v)} className="contents text-left">
+          <div className="min-w-0 pr-2">
+            <div className="text-[13px] font-semibold text-ink truncate">{c.title || c.ad_name}</div>
+            <div className="text-[11px] text-ink-faint truncate">
+              {[c.platform, c.start_date].filter(Boolean).join(' · ')}{c.track_isrc || c.release_upc ? ' · catalogue ✓' : ''}
+            </div>
           </div>
-        </div>
-        <div className="text-[12.5px] text-ink-muted truncate pr-2">{c.artist_name || '—'}</div>
-        <div className="text-right roy-num text-[13px] font-bold text-ink">{fmtEUR(c.spend, c.currency)}</div>
-        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.reach)}</div>
-        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.impressions)}</div>
-        <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtInt(c.link_clicks)}</div>
-      </button>
+          <div className="text-[12.5px] text-ink-muted truncate pr-2">{c.artist_name || '—'}</div>
+          <div className="text-right roy-num text-[13px] font-bold text-ink">{fmtEUR(c.spend, c.currency)}</div>
+          <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.reach)}</div>
+          <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtNum(c.impressions)}</div>
+          <div className="text-right roy-num text-[12.5px] text-ink-muted">{fmtInt(c.link_clicks)}</div>
+        </button>
+        <button
+          onClick={() => onDelete(c.id)}
+          disabled={deleting}
+          title="Supprimer cette publicité"
+          aria-label="Supprimer cette publicité"
+          className="justify-self-end ml-2 p-1.5 rounded-md text-ink-faint hover:text-neg hover:bg-surface transition-colors disabled:opacity-50"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+            <path d="M10 11v6M14 11v6" />
+          </svg>
+        </button>
+      </div>
       {open && (
         <div className="px-[22px] pb-4 pt-1 bg-surface-2/40">
           <Eyebrow className="text-[10px]">Performance</Eyebrow>
@@ -68,15 +79,7 @@ function CampaignRow({ c, onDelete, deleting }: { c: MetaAdCampaign; onDelete: (
               {[c.platform, c.start_date && c.end_date ? `${c.start_date} → ${c.end_date}` : c.start_date].filter(Boolean).join(' · ')}
             </p>
           )}
-          <div className="flex justify-end mt-3">
-            <button
-              onClick={() => onDelete(c.id)}
-              disabled={deleting}
-              className="text-[12px] font-semibold text-neg hover:underline disabled:opacity-50"
-            >
-              {deleting ? 'Suppression…' : 'Supprimer cette publicité'}
-            </button>
-          </div>
+          {deleting && <p className="text-[11px] text-ink-faint mt-3">Suppression…</p>}
         </div>
       )}
     </div>
@@ -224,10 +227,11 @@ export default function MetaAdsUploadFlow({ onSuccess }: { onSuccess?: () => voi
           <Card className="text-center py-10"><p className="text-[13px] text-ink-faint">Aucune publicité importée pour le moment.</p></Card>
         ) : (
           <Card padded={false} className="overflow-hidden">
-            <div className="grid grid-cols-[1.7fr_1.1fr_0.9fr_0.8fr_0.8fr_0.8fr] px-[22px] py-3 border-b border-line">
+            <div className="grid grid-cols-[1.7fr_1.1fr_0.9fr_0.8fr_0.8fr_0.8fr_auto] px-[22px] py-3 border-b border-line">
               {['Publicité', 'Artiste', 'Dépensé', 'Portée', 'Impr.', 'Clics'].map((h, i) => (
                 <Eyebrow key={h} className={`text-[10px] ${i >= 2 ? 'text-right' : ''}`}>{h}</Eyebrow>
               ))}
+              <span className="w-[15px]" />
             </div>
             {campaigns.map((c) => <CampaignRow key={c.id} c={c} onDelete={handleDelete} deleting={deletingId === c.id} />)}
             <p className="px-[22px] py-2.5 text-[11px] text-ink-faint">Cliquez sur une publicité pour voir tous les résultats détaillés.</p>
