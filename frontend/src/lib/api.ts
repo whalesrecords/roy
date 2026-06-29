@@ -2357,3 +2357,63 @@ export async function getSpotifyAdCampaigns(artistId?: string): Promise<SpotifyA
   const query = artistId ? `?artist_id=${artistId}` : '';
   return fetchApi<SpotifyAdCampaignsList>(`/promo/ad-campaigns${query}`);
 }
+
+// ============ Meta (Facebook / Instagram) Ad Campaigns ============
+
+export interface MetaAdCampaign {
+  id: string;
+  artist_id: string;
+  artist_name?: string | null;
+  ad_name: string;
+  title?: string | null;
+  platform?: string | null;
+  result_type?: string | null;
+  release_upc?: string | null;
+  track_isrc?: string | null;
+  currency: string;
+  spend?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  reach?: number | null;
+  impressions?: number | null;
+  link_clicks?: number | null;
+  clicks_all?: number | null;
+  results?: number | null;
+  cpc?: string | null;
+  cpm?: string | null;
+  ctr?: string | null;
+}
+
+export interface MetaAdCampaignsList {
+  campaigns: MetaAdCampaign[];
+  count: number;
+  total_spend: string;
+  currency: string;
+}
+
+export interface ImportMetaAdsResult {
+  created_count: number;
+  skipped_duplicates: number;
+  updated_count: number;
+  total_spend: string;
+  matched_campaigns: number;
+  artists_not_found: string[];
+  errors: string[];
+}
+
+export async function importMetaAdsCSV(file: File, artistId?: string): Promise<ImportMetaAdsResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (artistId) formData.append('artist_id', artistId);
+  const res = await fetchApi<ImportMetaAdsResult>('/promo/import/meta-ads', {
+    method: 'POST',
+    body: formData,
+  });
+  invalidateCache('/promo/meta-ad-campaigns');
+  return res;
+}
+
+export async function getMetaAdCampaigns(artistId?: string): Promise<MetaAdCampaignsList> {
+  const query = artistId ? `?artist_id=${artistId}` : '';
+  return fetchApi<MetaAdCampaignsList>(`/promo/meta-ad-campaigns${query}`);
+}
