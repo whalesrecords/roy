@@ -358,8 +358,8 @@ export default function RoyaltiesPage() {
 
             {/* ===== Per-artist table for the featured run ===== */}
             <Card padded={false} className="overflow-hidden">
-              {/* Header */}
-              <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] px-[22px] py-3 border-b border-line roy-eyebrow text-[10px]">
+              {/* Header — masqué sur mobile (les cartes portent leurs propres libellés) */}
+              <div className="hidden md:grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] px-[22px] py-3 border-b border-line roy-eyebrow text-[10px]">
                 <span>Artiste</span>
                 <span className="text-right">Base</span>
                 <span className="text-right">Taux</span>
@@ -378,29 +378,44 @@ export default function RoyaltiesPage() {
                     return (
                       <div
                         key={line.artist_id}
-                        className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] items-center px-[22px] py-3.5 border-b border-line hover:bg-surface-2 transition-colors"
+                        className="block md:grid md:grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] md:items-center px-[22px] py-3.5 border-b border-line hover:bg-surface-2 transition-colors"
                       >
+                        {/* Artiste — pleine largeur sur mobile */}
                         <span className="flex items-center gap-2.5 min-w-0">
                           <Avatar name={line.artist_name || '?'} size={30} accent={i === 0} />
                           <span className="text-[13.5px] font-semibold text-ink truncate">{line.artist_name || 'Inconnu'}</span>
                         </span>
-                        <span className="text-right roy-num text-[13px] text-ink-muted">{formatCurrency(line.gross, featuredRun!.base_currency)}</span>
-                        <span className="text-right roy-num text-[13px] text-ink-muted">{lineRate(line)}</span>
-                        <span className="text-right roy-num text-[13px] font-bold text-ink">{formatCurrency(line.net_payable, featuredRun!.base_currency)}</span>
-                        <span className="flex justify-center">
+                        {/* Base */}
+                        <span className="flex justify-between items-baseline md:block md:text-right roy-num text-[13px] text-ink-muted mt-2.5 md:mt-0">
+                          <span className="md:hidden roy-eyebrow text-[10px] text-ink-faint">Base</span>
+                          <span>{formatCurrency(line.gross, featuredRun!.base_currency)}</span>
+                        </span>
+                        {/* Taux */}
+                        <span className="flex justify-between items-baseline md:block md:text-right roy-num text-[13px] text-ink-muted mt-1 md:mt-0">
+                          <span className="md:hidden roy-eyebrow text-[10px] text-ink-faint">Taux</span>
+                          <span>{lineRate(line)}</span>
+                        </span>
+                        {/* Dû */}
+                        <span className="flex justify-between items-baseline md:block md:text-right roy-num text-[13px] font-bold text-ink mt-1 md:mt-0">
+                          <span className="md:hidden roy-eyebrow text-[10px] text-ink-faint font-normal">Dû</span>
+                          <span>{formatCurrency(line.net_payable, featuredRun!.base_currency)}</span>
+                        </span>
+                        {/* Statut */}
+                        <span className="flex justify-between items-center md:justify-center mt-2.5 md:mt-0">
+                          <span className="md:hidden roy-eyebrow text-[10px] text-ink-faint">Statut</span>
                           <Pill tone={ready ? 'accent' : 'neutral'}>{ready ? 'Prêt' : 'À revoir'}</Pill>
                         </span>
                       </div>
                     );
                   })}
 
-                  {/* Total row */}
-                  <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] items-center px-[22px] py-3.5 bg-surface-2">
+                  {/* Total row — sur mobile : « Total · N artistes » à gauche, à payer à droite */}
+                  <div className="flex justify-between items-center md:grid md:grid-cols-[1.8fr_1.1fr_0.8fr_1.1fr_1fr] px-[22px] py-3.5 bg-surface-2">
                     <span className="text-[13px] font-bold text-ink">Total · {featuredLines.length} artiste{featuredLines.length > 1 ? 's' : ''}</span>
-                    <span className="text-right roy-num text-[13px] text-ink-muted">{formatCurrency(featuredRun!.total_gross, featuredRun!.base_currency)}</span>
-                    <span />
+                    <span className="hidden md:block text-right roy-num text-[13px] text-ink-muted">{formatCurrency(featuredRun!.total_gross, featuredRun!.base_currency)}</span>
+                    <span className="hidden md:block" />
                     <span className="text-right roy-num text-[13px] font-bold text-accent">{formatCurrency(featuredRun!.total_net_payable, featuredRun!.base_currency)}</span>
-                    <span />
+                    <span className="hidden md:block" />
                   </div>
                 </>
               )}
