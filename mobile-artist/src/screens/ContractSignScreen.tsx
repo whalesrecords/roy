@@ -8,7 +8,7 @@ import { useLanguage } from '@/i18n';
 import { Card, Eyebrow } from '@/components/ui';
 import { IconCheck } from '@/components/icons';
 import { signContract, Contract } from '@/lib/api';
-import { fmtDateShort, fmtDateLong } from '@/lib/format';
+import { fmtDateLong } from '@/lib/format';
 
 const SCOPE_LABEL: Record<string, string> = { catalog: 'Catalogue', release: 'Release', track: 'Titre' };
 
@@ -67,10 +67,10 @@ export default function ContractSignScreen() {
         <Card>
           <Eyebrow>{t('contracts.period')}</Eyebrow>
           <Text style={{ color: p.text, fontSize: 15, fontWeight: '700', marginTop: 4 }}>
-            {fmtDateShort(contract.start_date)} – {contract.end_date ? fmtDateShort(contract.end_date) : t('contracts.noEnd')}
+            {fmtDateLong(contract.start_date)} – {contract.end_date ? fmtDateLong(contract.end_date) : t('contracts.noEnd')}
           </Text>
           <Text style={{ color: p.text2, fontSize: 13, marginTop: 8 }}>
-            {t('contracts.artistShare')} : <Text style={{ fontWeight: '800', color: p.text }}>{Math.round((contract.artist_share || 0) * 100)} %</Text>
+            {t('contracts.artistShare')} : <Text style={{ fontWeight: '800', color: p.text }}>{Math.round(contract.artist_share || 0)} %</Text>
           </Text>
           {contract.description ? <Text style={{ color: p.text3, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>{contract.description}</Text> : null}
         </Card>

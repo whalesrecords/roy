@@ -7,7 +7,7 @@ import { useLanguage } from '@/i18n';
 import { Card, Loader } from '@/components/ui';
 import { IconChevronRight, IconCheck } from '@/components/icons';
 import { getContracts, Contract } from '@/lib/api';
-import { fmtDateShort } from '@/lib/format';
+import { fmtDateLong } from '@/lib/format';
 
 const SCOPE_LABEL: Record<string, string> = { catalog: 'Catalogue', release: 'Release', track: 'Titre' };
 
@@ -49,10 +49,10 @@ export default function ContractsScreen() {
                     <Text style={{ color: p.text, fontSize: 15, fontWeight: '800' }} numberOfLines={2}>{title}</Text>
                     <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 3 }}>
                       {SCOPE_LABEL[c.scope] || c.scope}
-                      {`  ·  ${fmtDateShort(c.start_date)} – ${c.end_date ? fmtDateShort(c.end_date) : t('contracts.noEnd')}`}
+                      {`  ·  ${fmtDateLong(c.start_date)} – ${c.end_date ? fmtDateLong(c.end_date) : t('contracts.noEnd')}`}
                     </Text>
                     <Text style={{ color: p.text2, fontSize: 12.5, marginTop: 4 }}>
-                      {t('contracts.artistShare')} : <Text style={{ fontWeight: '800', color: p.text }}>{Math.round((c.artist_share || 0) * 100)} %</Text>
+                      {t('contracts.artistShare')} : <Text style={{ fontWeight: '800', color: p.text }}>{Math.round(c.artist_share || 0)} %</Text>
                     </Text>
                   </View>
                   {c.signed ? (
