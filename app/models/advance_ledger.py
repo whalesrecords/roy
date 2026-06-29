@@ -64,6 +64,7 @@ class ExpenseCategory(str, Enum):
     TIKTOK = "tiktok"
     FACEBOOK = "facebook"
     SPOTIFY_ADS = "spotify_ads"
+    META_ADS = "meta_ads"
     PR = "pr"
     DISTRIBUTION = "distribution"
     ARTWORK = "artwork"
