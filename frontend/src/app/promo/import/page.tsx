@@ -6,6 +6,7 @@ import SubmitHubUploadFlow from '@/components/promo/SubmitHubUploadFlow';
 import GrooverUploadFlow from '@/components/promo/GrooverUploadFlow';
 import ManualPromoForm from '@/components/promo/ManualPromoForm';
 import SpotifyAdsUploadFlow from '@/components/promo/SpotifyAdsUploadFlow';
+import MetaAdsUploadFlow from '@/components/promo/MetaAdsUploadFlow';
 import { Card, OutlineButton } from '@/components/roy/ui';
 import { IconChart, IconMusic, IconContract, IconChevronRight, IconMegaphone } from '@/components/roy/icons';
 
@@ -30,6 +31,13 @@ const TABS = [
     icon: IconMegaphone,
     title: 'Import Spotify Ad Studio (Campaigns)',
     desc: "Exportez le CSV « Campaigns » depuis Spotify Ad Studio et importez-le ici : la dépense et les résultats de chaque campagne sont enregistrés et visibles côté artiste.",
+  },
+  {
+    key: 'meta-ads',
+    label: 'Meta Ads',
+    icon: IconMegaphone,
+    title: 'Import Meta Ads Manager (Facebook / Instagram)',
+    desc: "Exportez le rapport CSV depuis Meta Ads Manager et importez-le ici : l'artiste est détecté via le titre de la publicité, la dépense est enregistrée comme avance récupérable et les résultats sont visibles côté artiste.",
   },
   {
     key: 'manual',
@@ -92,6 +100,7 @@ export default function PromoImportPage() {
           {selected === 'submithub' && <SubmitHubUploadFlow onSuccess={handleSuccess} />}
           {selected === 'groover' && <GrooverUploadFlow onSuccess={handleSuccess} />}
           {selected === 'spotify-ads' && <SpotifyAdsUploadFlow />}
+          {selected === 'meta-ads' && <MetaAdsUploadFlow />}
           {selected === 'manual' && <ManualPromoForm onSuccess={handleSuccess} />}
         </Card>
       </div>
