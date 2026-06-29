@@ -17,6 +17,10 @@
     "production": {
       "autoIncrement": true,
       "env": { "EXPO_PUBLIC_API_URL": "https://api.whalesrecords.com" }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": { "buildType": "apk" }
     }
   },
   "submit": {
