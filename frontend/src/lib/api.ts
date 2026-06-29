@@ -2346,6 +2346,11 @@ export async function getSpotifyAdCampaigns(artistId?: string): Promise<SpotifyA
   return fetchApi<SpotifyAdCampaignsList>(`/promo/ad-campaigns${query}`);
 }
 
+export async function deleteSpotifyAdCampaign(id: string): Promise<void> {
+  await fetchApi(`/promo/ad-campaigns/${id}`, { method: 'DELETE' });
+  invalidateCache('/promo/ad-campaigns');
+}
+
 // ============ Meta (Facebook / Instagram) Ad Campaigns ============
 
 export interface MetaAdCampaign {
@@ -2404,4 +2409,9 @@ export async function importMetaAdsCSV(file: File, artistId?: string): Promise<I
 export async function getMetaAdCampaigns(artistId?: string): Promise<MetaAdCampaignsList> {
   const query = artistId ? `?artist_id=${artistId}` : '';
   return fetchApi<MetaAdCampaignsList>(`/promo/meta-ad-campaigns${query}`);
+}
+
+export async function deleteMetaAdCampaign(id: string): Promise<void> {
+  await fetchApi(`/promo/meta-ad-campaigns/${id}`, { method: 'DELETE' });
+  invalidateCache('/promo/meta-ad-campaigns');
 }

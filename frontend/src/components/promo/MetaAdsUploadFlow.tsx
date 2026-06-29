@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Spinner } from '@heroui/react';
 import {
-  importMetaAdsCSV, getMetaAdCampaigns,
+  importMetaAdsCSV, getMetaAdCampaigns, deleteMetaAdCampaign,
   ImportMetaAdsResult, MetaAdCampaign,
 } from '@/lib/api';
 import { Card, Eyebrow, AccentButton } from '@/components/roy/ui';
@@ -30,7 +30,7 @@ function DetailStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CampaignRow({ c }: { c: MetaAdCampaign }) {
+function CampaignRow({ c, onDelete, deleting }: { c: MetaAdCampaign; onDelete: (id: string) => void; deleting: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b border-line last:border-0">
@@ -68,6 +68,15 @@ function CampaignRow({ c }: { c: MetaAdCampaign }) {
               {[c.platform, c.start_date && c.end_date ? `${c.start_date} → ${c.end_date}` : c.start_date].filter(Boolean).join(' · ')}
             </p>
           )}
+          <div className="flex justify-end mt-3">
+            <button
+              onClick={() => onDelete(c.id)}
+              disabled={deleting}
+              className="text-[12px] font-semibold text-neg hover:underline disabled:opacity-50"
+            >
+              {deleting ? 'Suppression…' : 'Supprimer cette publicité'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -84,6 +93,7 @@ export default function MetaAdsUploadFlow({ onSuccess }: { onSuccess?: () => voi
   const [campaigns, setCampaigns] = useState<MetaAdCampaign[]>([]);
   const [totalSpend, setTotalSpend] = useState('0');
   const [loadingList, setLoadingList] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCampaigns = useCallback(async () => {
     setLoadingList(true);
@@ -95,6 +105,20 @@ export default function MetaAdsUploadFlow({ onSuccess }: { onSuccess?: () => voi
   }, []);
 
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Supprimer cette publicité ? L'avance récupérable liée sera annulée — le montant ne sera plus déduit des royalties de l'artiste.")) return;
+    setDeletingId(id);
+    setError(null);
+    try {
+      await deleteMetaAdCampaign(id);
+      await loadCampaigns();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur lors de la suppression');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleImport = async () => {
     if (!file) return;
@@ -205,7 +229,7 @@ export default function MetaAdsUploadFlow({ onSuccess }: { onSuccess?: () => voi
                 <Eyebrow key={h} className={`text-[10px] ${i >= 2 ? 'text-right' : ''}`}>{h}</Eyebrow>
               ))}
             </div>
-            {campaigns.map((c) => <CampaignRow key={c.id} c={c} />)}
+            {campaigns.map((c) => <CampaignRow key={c.id} c={c} onDelete={handleDelete} deleting={deletingId === c.id} />)}
             <p className="px-[22px] py-2.5 text-[11px] text-ink-faint">Cliquez sur une publicité pour voir tous les résultats détaillés.</p>
           </Card>
         )}
