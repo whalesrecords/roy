@@ -12,6 +12,7 @@ import {
   deleteTicket,
 } from '@/lib/api';
 import { Card, Pill, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { IconChevronRight, IconCheck } from '@/components/roy/icons';
 
 const CATEGORY_LABELS = {
@@ -37,6 +38,7 @@ export default function TicketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [isInternal, setIsInternal] = useState(false);
   const [sending, setSending] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -108,7 +110,7 @@ export default function TicketDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce ticket ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce ticket ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
 
     try {
       await deleteTicket(ticketId);
@@ -323,6 +325,8 @@ export default function TicketDetailPage() {
           </div>
         </Card>
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

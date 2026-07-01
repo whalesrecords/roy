@@ -7,6 +7,7 @@ import {
   ImportSpotifyAdsResult, SpotifyAdCampaign,
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, AccentButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { IconCheck, IconDownload } from '@/components/roy/icons';
 
 const fmtEUR = (v?: string | number | null, cur = 'EUR') =>
@@ -123,6 +124,7 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
   const [campaigns, setCampaigns] = useState<SpotifyAdCampaign[]>([]);
   const [totalSpend, setTotalSpend] = useState('0');
   const [loadingList, setLoadingList] = useState(true);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadCampaigns = useCallback(async () => {
@@ -137,7 +139,7 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette campagne ? L'avance récupérable liée sera annulée — le montant ne sera plus déduit des royalties de l'artiste.")) return;
+    if (!(await confirm({ title: 'Supprimer cette campagne ?', message: "L'avance récupérable liée sera annulée — le montant ne sera plus déduit des royalties de l'artiste.", danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeletingId(id);
     setError(null);
     try {
@@ -265,6 +267,8 @@ export default function SpotifyAdsUploadFlow({ onSuccess }: { onSuccess?: () => 
           </Card>
         )}
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

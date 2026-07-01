@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Input from '@/components/ui/Input';
 import { Artist, Contract } from '@/lib/types';
 import { Card, Pill, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { IconCheck, IconPlus } from '@/components/roy/icons';
 import {
   getContracts,
@@ -69,6 +70,7 @@ export default function ContractsTab({ artist, artistId }: ContractsTabProps) {
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [defaultLabelName, setDefaultLabelName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Contract form state
   const [showContractForm, setShowContractForm] = useState(false);
@@ -177,7 +179,7 @@ export default function ContractsTab({ artist, artistId }: ContractsTabProps) {
   };
 
   const handleDeleteContract = async (contractId: string) => {
-    if (!confirm('Supprimer ce contrat ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce contrat ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeletingContractId(contractId);
     try { await deleteContract(contractId); loadData(); } catch (err) { setError(err instanceof Error ? err.message : 'Erreur'); } finally { setDeletingContractId(null); }
   };
@@ -455,6 +457,8 @@ export default function ContractsTab({ artist, artistId }: ContractsTabProps) {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

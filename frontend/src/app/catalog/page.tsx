@@ -27,6 +27,7 @@ import {
   ManualTrackData,
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import {
   IconUsers, IconMusic, IconBox, IconSparkles, IconDownload, IconPlus,
   IconCheck, IconChevronRight,
@@ -50,6 +51,7 @@ export default function CatalogPage() {
   const [suggestions, setSuggestions] = useState<CollaborationSuggestion[]>([]);
   const [managedArtists, setManagedArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLinked, setFilterLinked] = useState<boolean | null>(null);
@@ -725,7 +727,7 @@ export default function CatalogPage() {
                           Modifier
                         </button>
                         <button
-                          onClick={() => { if (confirm(`Supprimer « ${rel.title} » ?`)) handleDeleteRelease(rel.id); }}
+                          onClick={async () => { if (await confirm({ title: 'Supprimer cette release ?', message: `« ${rel.title} » sera supprimée. Cette action est irréversible.`, danger: true, confirmLabel: 'Supprimer' })) handleDeleteRelease(rel.id); }}
                           disabled={deletingReleaseId === rel.id}
                           className="inline-flex items-center rounded-[8px] border border-line bg-surface px-3 py-1.5 text-[11px] font-semibold text-neg hover:border-line-strong disabled:opacity-50 transition-colors"
                         >
@@ -752,7 +754,7 @@ export default function CatalogPage() {
                               )}
                             </div>
                             <button
-                              onClick={() => { if (confirm(`Supprimer « ${t.title} » ?`)) handleDeleteTrack(rel.id, t.id); }}
+                              onClick={async () => { if (await confirm({ title: 'Supprimer ce titre ?', message: `« ${t.title} » sera supprimé. Cette action est irréversible.`, danger: true, confirmLabel: 'Supprimer' })) handleDeleteTrack(rel.id, t.id); }}
                               className="p-1.5 text-ink-faint hover:text-neg transition-colors"
                               aria-label="Supprimer"
                             >
@@ -1033,6 +1035,8 @@ export default function CatalogPage() {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }
