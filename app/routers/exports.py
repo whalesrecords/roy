@@ -7,13 +7,13 @@ Generates CSV and PDF exports for royalty reports, transactions, and expenses.
 import csv
 import io
 import logging
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Optional
 from uuid import UUID as PyUUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import String as SAString
 from sqlalchemy import and_, cast, extract, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,8 +25,10 @@ from app.models.advance_ledger import AdvanceLedgerEntry, ExpenseCategory, Ledge
 from app.models.artist import Artist
 from app.models.contract import Contract, ContractScope
 from app.models.contract_party import ContractParty as ContractPartyModel
+from app.models.artist_profile import ArtistProfile
 from app.models.import_model import Import
 from app.models.label_settings import LabelSettings
+from app.models.statement import Statement
 from app.models.track_artist_link import TrackArtistLink
 from app.models.transaction import TransactionNormalized
 
@@ -851,4 +853,63 @@ td {{ padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; 
         iter([html]),
         media_type="text/html",
         headers={"Content-Disposition": f'inline; filename="{fn}"'},
+    )
+
+
+@router.get("/statements/{statement_id}/facturx")
+async def export_statement_facturx(
+    statement_id: PyUUID,
+    vat_rate: float = Query(0, ge=0, le=100, description="Taux de TVA en % (0 = non applicable / franchise)"),
+    _: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    """Génère la facture **Factur-X** (PDF/A-3 + XML CII EN 16931) d'un relevé,
+    en autofacturation : vendeur = artiste, acheteur = label.
+
+    Un numéro de facture `AF-{année}-{séquence}` est attribué à la première
+    génération puis réutilisé. TVA « non applicable (293 B) » par défaut."""
+    from app.services import facturx_service
+
+    result = await db.execute(
+        select(Statement).options(selectinload(Statement.artist)).where(Statement.id == statement_id)
+    )
+    statement = result.scalar_one_or_none()
+    if statement is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relevé introuvable")
+
+    # Assign an invoice number on first generation, then reuse it.
+    if not statement.invoice_number:
+        year = datetime.utcnow().year
+        prefix = f"AF-{year}-"
+        count = (
+            await db.execute(
+                select(func.count()).select_from(Statement).where(Statement.invoice_number.like(prefix + "%"))
+            )
+        ).scalar() or 0
+        statement.invoice_number = f"{prefix}{count + 1:04d}"
+        statement.invoice_issued_at = datetime.utcnow()
+        await db.commit()
+
+    profile = (
+        await db.execute(select(ArtistProfile).where(ArtistProfile.artist_id == statement.artist_id))
+    ).scalar_one_or_none()
+    label = (await db.execute(select(LabelSettings).limit(1))).scalar_one_or_none()
+
+    ctx = facturx_service.build_invoice_context(
+        statement, profile, label, statement.invoice_number, Decimal(str(vat_rate))
+    )
+    try:
+        pdf_bytes = facturx_service.generate_facturx_pdf(ctx)
+    except Exception as exc:  # noqa: BLE001 — surface a clear error to the admin
+        logger.error("Factur-X generation failed for statement %s: %s", statement_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Génération Factur-X impossible : {exc}",
+        )
+
+    filename = f"{statement.invoice_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

@@ -1923,6 +1923,11 @@ export function getExportPdfUrl(periodStart: string, periodEnd: string): string 
   return `${PROXY_BASE}/exports/royalties/pdf?period_start=${periodStart}&period_end=${periodEnd}`;
 }
 
+// Factur-X (PDF/A-3 self-billed invoice) for a finalized statement.
+export function getStatementFacturxUrl(statementId: string, vatRate = 0): string {
+  return `${PROXY_BASE}/exports/statements/${statementId}/facturx?vat_rate=${vatRate}`;
+}
+
 export async function downloadExport(url: string, filename: string): Promise<void> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Export failed: ${res.status}`);

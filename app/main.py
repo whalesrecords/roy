@@ -120,6 +120,12 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE contract_parties DROP CONSTRAINT IF EXISTS check_party_type_consistency",
             # Dark mode logo support
             "ALTER TABLE label_settings ADD COLUMN IF NOT EXISTS logo_dark_base64 TEXT",
+            # Factur-X self-billed invoice numbering (assigned on first generation)
+            "ALTER TABLE statements ADD COLUMN IF NOT EXISTS invoice_number VARCHAR(40)",
+            "ALTER TABLE statements ADD COLUMN IF NOT EXISTS invoice_issued_at TIMESTAMP",
+            # Seller bank details for the label (payment terms on invoices)
+            "ALTER TABLE label_settings ADD COLUMN IF NOT EXISTS iban VARCHAR(50)",
+            "ALTER TABLE label_settings ADD COLUMN IF NOT EXISTS bic VARCHAR(20)",
         ]
         for sql in migrations:
             try:
