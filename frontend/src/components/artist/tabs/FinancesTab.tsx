@@ -7,6 +7,7 @@ import { WHALES_LOGO_BASE64 } from '@/lib/whales-logo';
 import { formatCurrency } from '@/lib/formatters';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { IconDownload, IconCheck, IconPlus } from '@/components/roy/icons';
 import {
   getAdvances,
@@ -85,6 +86,7 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
   const { displayName, user } = useAuth();
   const generatedByName = displayName || user?.email || 'Unknown';
 
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [balance, setBalance] = useState<string>('0');
   const [balanceCurrency, setBalanceCurrency] = useState<string>('EUR');
   const [totalAdvances, setTotalAdvances] = useState<string>('0');
@@ -183,7 +185,7 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
   };
 
   const handleDeleteAdvance = async (advanceId: string) => {
-    if (!confirm('Supprimer cette avance ?')) return;
+    if (!(await confirm({ title: 'Supprimer cette avance ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeletingAdvanceId(advanceId);
     try { await deleteAdvance(artistId, advanceId); loadData(); } catch (err) { setError(err instanceof Error ? err.message : 'Erreur'); } finally { setDeletingAdvanceId(null); }
   };
@@ -206,7 +208,7 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Supprimer ce versement ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce versement ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeletingPaymentId(paymentId);
     try { await deletePayment(artistId, paymentId); loadData(); } catch (err) { setError(err instanceof Error ? err.message : 'Erreur'); } finally { setDeletingPaymentId(null); }
   };
@@ -599,6 +601,8 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }
