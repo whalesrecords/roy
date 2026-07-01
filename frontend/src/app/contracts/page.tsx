@@ -63,6 +63,7 @@ export default function ContractsPage() {
   const [refreshingMetadata, setRefreshingMetadata] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [contributorsContract, setContributorsContract] = useState<ContractData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -355,6 +356,7 @@ export default function ContractsPage() {
     } else {
       resetForm();
     }
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -403,13 +405,14 @@ export default function ContractsPage() {
   const totalShare = parties.reduce((sum, p) => sum + parseFloat(p.share_percentage || '0'), 0);
 
   const handleSubmit = async () => {
+    setFormError(null);
     if (!artistId || !startDate || parties.length === 0) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      setFormError("Veuillez renseigner l'artiste principal, la date de début et au moins une partie.");
       return;
     }
 
     if (Math.abs(totalShare - 1) > 0.0001) {
-      alert(`Les pourcentages doivent totaliser 100% (actuellement: ${(totalShare * 100).toFixed(2)}%)`);
+      setFormError(`Les parts doivent totaliser 100 % (actuellement ${(totalShare * 100).toFixed(1)} %).`);
       return;
     }
 
@@ -441,7 +444,7 @@ export default function ContractsPage() {
       setIsModalOpen(false);
       loadData();
     } catch (error: any) {
-      alert(error.message);
+      setFormError(error?.message || "Enregistrement impossible. Veuillez réessayer.");
     } finally {
       setSaving(false);
     }
@@ -1288,7 +1291,7 @@ export default function ContractsPage() {
                   <h3 className="text-[13.5px] font-semibold text-ink">
                     Repartition des parts
                     <span className={`ml-2 text-[12.5px] font-bold ${Math.abs(totalShare - 1) < 0.0001 ? 'text-accent' : 'text-neg'}`}>
-                      ({(totalShare * 100).toFixed(1)}%)
+                      {Math.abs(totalShare - 1) < 0.0001 ? '✓ ' : '⚠ '}({(totalShare * 100).toFixed(1)}%)
                     </span>
                   </h3>
                   <div className="flex gap-1.5 flex-wrap">
@@ -1310,6 +1313,16 @@ export default function ContractsPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Validation en direct des parts (icône + texte, pas seulement la couleur) */}
+                {parties.length > 0 && Math.abs(totalShare - 1) >= 0.0001 && (
+                  <p className="flex items-start gap-1.5 mb-3 text-[11.5px] text-neg" aria-live="polite">
+                    <svg className="w-3.5 h-3.5 shrink-0 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    Les parts doivent totaliser 100 % (actuellement {(totalShare * 100).toFixed(1)} %).
+                  </p>
+                )}
 
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {parties.map((party, index) => (
@@ -1395,9 +1408,10 @@ export default function ContractsPage() {
                       <div className="pt-6">
                         <button
                           onClick={() => handleRemoveParty(index)}
-                          className="p-2 text-ink-faint hover:text-neg hover:bg-surface rounded-[10px] transition-colors"
+                          aria-label="Retirer cette partie"
+                          className="p-2 text-ink-faint hover:text-neg hover:bg-surface rounded-[10px] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -1413,14 +1427,24 @@ export default function ContractsPage() {
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-line flex gap-3 shrink-0">
-              <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
-                Annuler
-              </OutlineButton>
-              <AccentButton onClick={handleSubmit} disabled={saving} className="flex-1">
-                {saving && <Spinner size="sm" color="white" />}
-                {editingContract ? 'Enregistrer' : 'Creer'}
-              </AccentButton>
+            <div className="p-4 sm:p-6 border-t border-line shrink-0 space-y-3">
+              {formError && (
+                <div role="alert" aria-live="assertive" className="flex items-start gap-2 px-3.5 py-2.5 rounded-[12px] bg-neg/10 border border-neg/20 text-neg text-[12.5px]">
+                  <svg className="w-4 h-4 shrink-0 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{formError}</span>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
+                  Annuler
+                </OutlineButton>
+                <AccentButton onClick={handleSubmit} disabled={saving} className="flex-1">
+                  {saving && <Spinner size="sm" color="white" />}
+                  {editingContract ? 'Enregistrer' : 'Creer'}
+                </AccentButton>
+              </div>
             </div>
           </div>
         </div>
