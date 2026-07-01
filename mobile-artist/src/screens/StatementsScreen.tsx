@@ -37,7 +37,7 @@ function Row({ s }: { s: Statement }) {
 
   return (
     <Card style={{ padding: 0 }}>
-      <Pressable onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}>
+      <Pressable onPress={toggle} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }, { opacity: pressed ? 0.7 : 1 }]}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: p.text, fontSize: 14, fontWeight: '700' }}>{s.period_label}</Text>
           <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 2 }}>{STATUS_LABEL[s.status] || s.status} · {fmtDateLong(s.created_at)}</Text>

@@ -40,7 +40,7 @@ function TicketRow({ tk }: { tk: Ticket }) {
 
   return (
     <Card style={{ padding: 0 }}>
-      <Pressable onPress={toggle} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}>
+      <Pressable onPress={toggle} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }, { opacity: pressed ? 0.7 : 1 }]}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: p.text, fontSize: 13.5, fontWeight: '700' }} numberOfLines={1}>{tk.subject}</Text>
           <Text style={{ color: p.text3, fontSize: 11.5, marginTop: 2 }}>{tk.category_label} · {tk.status_label}</Text>

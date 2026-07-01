@@ -169,9 +169,12 @@ export default function ContractFormScreen() {
             <Pressable
               disabled={isEdit}
               onPress={() => setPickerFor('primary')}
-              style={[inputStyle, { opacity: isEdit ? 0.6 : 1, flexDirection: 'row', justifyContent: 'space-between' }]}
+              accessibilityLabel="Choisir artiste"
+              accessibilityRole="button"
+              style={[inputStyle, { opacity: isEdit ? 0.6 : 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 }]}
             >
               <Text style={{ color: artist ? p.text : p.text3, fontSize: 14.5 }}>{label(artist)}</Text>
+              <IconChevronRight size={16} color={p.text3} />
             </Pressable>
 
             <Text style={labelStyle}>{t('cform.scope')}</Text>
@@ -229,7 +232,7 @@ export default function ContractFormScreen() {
                 <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600' }}>{t('cform.share')}</Text>
                 <TextInput value={pt.share} onChangeText={(v) => setParty(i, { share: v })} keyboardType="decimal-pad" placeholder="0" placeholderTextColor={p.text3} style={[inputStyle, { flex: 1, marginTop: 0 }]} />
                 {parties.length > 1 ? (
-                  <Pressable onPress={() => removeParty(i)} hitSlop={8}><Text style={{ color: p.neg, fontSize: 13, fontWeight: '700' }}>✕</Text></Pressable>
+                  <Pressable onPress={() => removeParty(i)} hitSlop={8} accessibilityLabel="Supprimer cette partie" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: p.neg, fontSize: 13, fontWeight: '700' }}>✕</Text></Pressable>
                 ) : null}
               </View>
 

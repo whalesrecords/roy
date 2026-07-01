@@ -117,7 +117,7 @@ export default function DashboardScreen() {
         {/* Top bar : logo Whales Records + avatar artiste */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 }}>
           <LabelLogo height={30} maxWidth={150} />
-          <Pressable onPress={() => nav.navigate('Settings')} hitSlop={8}>
+          <Pressable onPress={() => nav.navigate('Settings')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Ouvrir les réglages">
             <Avatar name={artist?.name} uri={artist?.artwork_url} size={40} />
           </Pressable>
         </View>

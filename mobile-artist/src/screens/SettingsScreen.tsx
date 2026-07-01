@@ -37,7 +37,7 @@ export default function SettingsScreen() {
           <Eyebrow>Apparence</Eyebrow>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
             <Text style={{ color: p.text, fontSize: 14 }}>{t('common.darkMode')}</Text>
-            <Switch value={theme === 'dark'} onValueChange={toggleTheme} trackColor={{ true: p.accent, false: p.track }} />
+            <Switch value={theme === 'dark'} onValueChange={toggleTheme} trackColor={{ true: p.accent, false: p.track }} accessibilityLabel={t('common.darkMode')} />
           </View>
           <View style={{ height: 1, backgroundColor: p.border, marginVertical: 14 }} />
           <Text style={{ color: p.text, fontSize: 14, marginBottom: 10 }}>Couleur d'accent</Text>

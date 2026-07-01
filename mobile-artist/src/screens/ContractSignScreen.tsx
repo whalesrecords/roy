@@ -92,7 +92,7 @@ export default function ContractSignScreen() {
           <>
             <Card>
               <Pressable onPress={() => setConsent((v) => !v)} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-                <Switch value={consent} onValueChange={setConsent} trackColor={{ true: p.accent, false: p.track }} />
+                <Switch value={consent} onValueChange={setConsent} trackColor={{ true: p.accent, false: p.track }} accessibilityLabel={t('contracts.consent')} />
                 <Text style={{ color: p.text2, fontSize: 12.5, flex: 1, lineHeight: 17 }}>{t('contracts.consent')}</Text>
               </Pressable>
             </Card>

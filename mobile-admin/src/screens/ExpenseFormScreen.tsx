@@ -6,7 +6,7 @@ import { useLanguage } from '@/i18n';
 import { Card, AccentButton } from '@/components/ui';
 import { FormScreen, Field, Chips } from '@/components/form';
 import { ArtistPicker } from '@/components/ArtistPicker';
-import { IconLogout } from '@/components/icons';
+import { IconLogout, IconChevronRight } from '@/components/icons';
 import { createExpense, updateExpense, deleteExpense, ExpenseInput, ExpenseResponse } from '@/lib/api';
 
 type Scope = 'catalog' | 'track' | 'release';
@@ -96,10 +96,11 @@ export default function ExpenseFormScreen() {
         <Chips label="Catégorie" options={CATEGORIES} value={category} onChange={setCategory} />
         <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600', marginTop: 12 }}>Artiste (optionnel)</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-          <Pressable onPress={() => setPicker(true)} style={{ flex: 1, backgroundColor: p.surface2, borderColor: p.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 }}>
+          <Pressable onPress={() => setPicker(true)} accessibilityLabel="Choisir artiste" accessibilityRole="button" style={{ flex: 1, backgroundColor: p.surface2, borderColor: p.border, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
             <Text style={{ color: artist ? p.text : p.text3, fontSize: 14.5 }}>{artist ? (artist.name || 'Artiste') : 'Aucun'}</Text>
+            <IconChevronRight size={16} color={p.text3} />
           </Pressable>
-          {artist ? <Pressable onPress={() => setArtist(null)} hitSlop={8}><Text style={{ color: p.neg, fontWeight: '700' }}>✕</Text></Pressable> : null}
+          {artist ? <Pressable onPress={() => setArtist(null)} hitSlop={8} accessibilityLabel="Retirer l'artiste" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: p.neg, fontWeight: '700' }}>✕</Text></Pressable> : null}
         </View>
         <Field label="Description" value={description} onChangeText={setDescription} placeholder="—" multiline />
         <Field label="Référence (facture, contrat…)" value={reference} onChangeText={setReference} placeholder="—" />

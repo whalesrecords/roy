@@ -129,7 +129,7 @@ export default function ContractContributorsScreen() {
                       keyboardType="decimal-pad" placeholder="%" placeholderTextColor={p.text3}
                       style={[input, { width: 64, textAlign: 'center' }]}
                     />
-                    <Pressable onPress={() => removeRow(r.key)} hitSlop={8}>
+                    <Pressable onPress={() => removeRow(r.key)} hitSlop={8} accessibilityLabel="Supprimer ce contributeur" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: p.neg, fontWeight: '800', fontSize: 15 }}>✕</Text>
                     </Pressable>
                   </View>

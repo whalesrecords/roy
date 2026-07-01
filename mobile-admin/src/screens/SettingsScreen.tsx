@@ -44,7 +44,7 @@ export default function SettingsScreen() {
           <Text style={{ color: p.text2, fontSize: 12.5, fontWeight: '600', marginTop: 12 }}>{t('settings.accent')}</Text>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
             {ACCENTS.map((a) => (
-              <Pressable key={a.id} onPress={() => setAccent(a.id)} style={{ alignItems: 'center', gap: 5 }}>
+              <Pressable key={a.id} onPress={() => setAccent(a.id)} accessibilityLabel={`Couleur d'accent ${a.label}`} accessibilityRole="button" accessibilityState={{ selected: accent === a.id }} style={{ alignItems: 'center', gap: 5, minWidth: 44, minHeight: 44, justifyContent: 'center' }}>
                 <View style={{
                   width: 38, height: 38, borderRadius: 19, backgroundColor: a.color,
                   borderWidth: accent === a.id ? 3 : 0, borderColor: p.text,
