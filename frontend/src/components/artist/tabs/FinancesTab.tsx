@@ -25,6 +25,8 @@ import {
   getLabelSettings,
   createStatement,
   getArtistStatements,
+  getStatementFacturxUrl,
+  downloadExport,
   CatalogRelease,
   CatalogTrack,
   ArtistRoyaltyCalculation,
@@ -258,6 +260,28 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
     } catch (err) { setError(err instanceof Error ? err.message : 'Erreur'); } finally { setPublishingStatement(false); }
   };
 
+  // Factur-X : facture PDF/A-3 (autofacturation) du relevé finalisé de la période.
+  const [downloadingFacturx, setDownloadingFacturx] = useState(false);
+  const handleDownloadFacturx = async () => {
+    if (!royaltyResult || downloadingFacturx) return;
+    setDownloadingFacturx(true);
+    setError(null);
+    try {
+      const { statements } = await getArtistStatements(artistId);
+      const stmt = statements.find((s: { id: string; period_start: string; period_end: string; status: string }) =>
+        s.period_start === royaltyResult.period_start && s.period_end === royaltyResult.period_end && s.status === 'finalized');
+      if (!stmt) {
+        setError("Publiez d'abord le relevé (bouton « Publier ») pour générer sa facture Factur-X.");
+        return;
+      }
+      await downloadExport(getStatementFacturxUrl(stmt.id), `facture-${stmt.id}.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération Factur-X');
+    } finally {
+      setDownloadingFacturx(false);
+    }
+  };
+
   const handleExportCSV = () => {
     if (!royaltyResult) return;
     const lines: string[] = [];
@@ -454,6 +478,10 @@ export default function FinancesTab({ artist, artistId }: FinancesTabProps) {
                     <OutlineButton onClick={handlePrintExpensesPDF} className="flex-1 justify-center"><IconDownload size={14} />Dépenses</OutlineButton>
                   </div>
                   <OutlineButton onClick={handlePrintArtistPDF} className="w-full justify-center"><IconDownload size={14} />PDF Artiste (avec lien paiement)</OutlineButton>
+                  <OutlineButton onClick={handleDownloadFacturx} className="w-full justify-center">
+                    {downloadingFacturx ? <div className="w-3.5 h-3.5 border-2 border-ink-faint border-t-transparent rounded-full animate-spin" /> : <IconDownload size={14} />}
+                    Facture Factur-X (relevé publié)
+                  </OutlineButton>
                 </div>
               )}
               <div className="pt-4 border-t border-line">
