@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String
 from sqlalchemy import Enum as SAEnum
@@ -123,6 +123,10 @@ class Statement(Base):
     )
     finalized_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     paid_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    # Factur-X self-billed invoice (assigned on first generation, then reused)
+    invoice_number: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    invoice_issued_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
     artist: Mapped["Artist"] = relationship(

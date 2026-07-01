@@ -49,6 +49,10 @@ class LabelSettings(Base):
     siret: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     vat_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
+    # Bank details (payment terms on invoices / Factur-X)
+    iban: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    bic: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
