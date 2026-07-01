@@ -203,6 +203,7 @@ export default function FinancesPage() {
     setFormScope('catalog');
     setFormScopeId('');
     setScopeSearch('');
+    setError(null);
     setIsModalOpen(true);
   };
 
@@ -217,6 +218,7 @@ export default function FinancesPage() {
     setFormScope(expense.scope as 'catalog' | 'track' | 'release');
     setFormScopeId(expense.scope_id || '');
     setScopeSearch('');
+    setError(null);
     setIsModalOpen(true);
   };
 
@@ -515,8 +517,8 @@ export default function FinancesPage() {
       </div>
 
       <div className="px-5 lg:px-7 py-5 lg:py-6 space-y-4 max-w-[1200px]">
-        {error && (
-          <div className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
+        {error && !isModalOpen && (
+          <div role="alert" aria-live="assertive" className="rounded-[12px] border border-line bg-surface px-4 py-3 text-[13px] text-neg">
             {error}
           </div>
         )}
@@ -1109,8 +1111,9 @@ export default function FinancesPage() {
                           </span>
                           <span className="text-[11px] text-ink-faint font-mono shrink-0">{formScopeId}</span>
                           <button type="button" onClick={() => { setFormScopeId(''); setScopeSearch(''); }}
-                            className="text-ink-faint hover:text-neg transition-colors shrink-0">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            aria-label="Retirer la sélection"
+                            className="text-ink-faint hover:text-neg transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
@@ -1186,14 +1189,24 @@ export default function FinancesPage() {
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-line flex gap-3 bg-surface-2">
-              <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
-                Annuler
-              </OutlineButton>
-              <AccentButton onClick={handleSave} disabled={saving || !formAmount} className="flex-1">
-                {saving && <Spinner size="sm" color="white" />}
-                {editingExpense ? 'Enregistrer' : 'Créer'}
-              </AccentButton>
+            <div className="px-6 py-4 border-t border-line space-y-3 bg-surface-2">
+              {error && (
+                <div role="alert" aria-live="assertive" className="flex items-start gap-2 px-3.5 py-2.5 rounded-[10px] bg-neg/10 border border-neg/20 text-neg text-[12.5px]">
+                  <svg className="w-4 h-4 shrink-0 mt-px" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <OutlineButton onClick={() => setIsModalOpen(false)} className="flex-1 justify-center">
+                  Annuler
+                </OutlineButton>
+                <AccentButton onClick={handleSave} disabled={saving || !formAmount} className="flex-1">
+                  {saving && <Spinner size="sm" color="white" />}
+                  {editingExpense ? 'Enregistrer' : 'Créer'}
+                </AccentButton>
+              </div>
             </div>
           </div>
         </div>
