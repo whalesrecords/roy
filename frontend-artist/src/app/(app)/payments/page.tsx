@@ -153,19 +153,21 @@ export default function PaymentsPage() {
           {/* Desktop history table */}
           <Card padded={false} className="hidden lg:block overflow-hidden">
             <div className="px-6 py-4 border-b border-line text-[14px] font-semibold text-ink">Historique des versements</div>
-            <div className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
-              <span>Date</span><span>Référence</span><span className="text-center">Statut</span><span className="text-right">Montant</span>
-            </div>
-            {sorted.length === 0 ? (
-              <div className="px-6 py-10 text-center text-ink-faint text-sm">Aucun versement</div>
-            ) : sorted.map((p) => (
-              <div key={p.id} className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] items-center px-6 py-4 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
-                <span className="text-[13.5px] font-semibold text-ink">{dateLong(p.date)}</span>
-                <span className="font-mono text-[12px] text-ink-faint">{reference(p)}</span>
-                <span className="flex justify-center"><Pill tone="accent">Reçu</Pill></span>
-                <span className="text-right roy-num text-[13.5px] font-bold text-ink">{fmtMoney(p.amount, p.currency)}</span>
+            <div role="table" aria-label="Historique des versements">
+              <div role="row" className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
+                <span role="columnheader">Date</span><span role="columnheader">Référence</span><span role="columnheader" className="text-center">Statut</span><span role="columnheader" className="text-right">Montant</span>
               </div>
-            ))}
+              {sorted.length === 0 ? (
+                <div className="px-6 py-10 text-center text-ink-faint text-sm">Aucun versement</div>
+              ) : sorted.map((p) => (
+                <div key={p.id} role="row" className="grid grid-cols-[1.6fr_1.2fr_1fr_1fr] items-center px-6 py-4 border-b border-line last:border-0 hover:bg-surface-2 transition-colors">
+                  <span role="cell" className="text-[13.5px] font-semibold text-ink">{dateLong(p.date)}</span>
+                  <span role="cell" className="font-mono text-[12px] text-ink-faint">{reference(p)}</span>
+                  <span role="cell" className="flex justify-center"><Pill tone="accent">Reçu</Pill></span>
+                  <span role="cell" className="text-right roy-num text-[13.5px] font-bold text-ink">{fmtMoney(p.amount, p.currency)}</span>
+                </div>
+              ))}
+            </div>
           </Card>
         </>)}
       </main>
