@@ -39,7 +39,7 @@ const LIGHT: Omit<Palette, 'accent' | 'accentSoft' | 'accentInk'> = {
 const DARK: Omit<Palette, 'accent' | 'accentSoft' | 'accentInk'> = {
   bg: '#0A0B0D', surface: '#131519', surface2: '#1A1D22', hero: '#16191E',
   border: 'rgba(255, 255, 255, 0.07)', borderStrong: 'rgba(255, 255, 255, 0.13)',
-  text: '#F3F4F6', text2: '#969CA5', text3: '#636973',
+  text: '#F3F4F6', text2: '#969CA5', text3: '#8E96A1',
   neg: '#F4707A', track: 'rgba(255, 255, 255, 0.07)', chrome: '#0E1014',
   coverFrom: '#23262C', coverTo: '#15171B',
 };
