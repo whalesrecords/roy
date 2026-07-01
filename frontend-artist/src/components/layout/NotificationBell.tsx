@@ -91,6 +91,8 @@ export default function NotificationBell() {
         return '🎵';
       case 'promo_update':
         return '📢';
+      case 'contract_to_sign':
+        return '✍️';
       default:
         return '🔔';
     }

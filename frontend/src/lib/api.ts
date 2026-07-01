@@ -1490,7 +1490,7 @@ export async function batchCreateAdvancesFromInvoices(advances: CreateAdvanceFro
 
 export interface Notification {
   id: string;
-  type: 'payment_request' | 'profile_update' | 'new_artist' | 'spotify_suggestions' | 'ticket_created' | 'ticket_message' | 'ticket_updated' | 'ticket_resolved' | 'ticket_closed';
+  type: 'payment_request' | 'profile_update' | 'new_artist' | 'spotify_suggestions' | 'ticket_created' | 'ticket_message' | 'ticket_updated' | 'ticket_resolved' | 'ticket_closed' | 'imports_stale' | 'statement_unpaid' | 'advance_unrecouped' | 'spend_high';
   artist_id: string | null;
   artist_name: string | null;
   title: string;

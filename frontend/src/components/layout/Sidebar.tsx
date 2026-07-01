@@ -60,9 +60,13 @@ function getNotificationUrl(n: Notification): string | null {
       return ticketId ? `/tickets/${ticketId}` : '/tickets';
     }
     case 'payment_request': return n.artist_id ? `/royalties?artist=${n.artist_id}` : '/royalties';
+    case 'statement_unpaid': return n.artist_id ? `/royalties?artist=${n.artist_id}` : '/royalties';
     case 'profile_update': return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
     case 'new_artist': return n.artist_id ? `/artists/${n.artist_id}` : '/artists';
     case 'spotify_suggestions': return '/spotify-suggestions';
+    case 'imports_stale': return '/imports';
+    case 'advance_unrecouped': return n.artist_id ? `/artists/${n.artist_id}` : '/finances';
+    case 'spend_high': return '/finances';
     default: return null;
   }
 }

@@ -319,6 +319,33 @@ async def create_contract(
     await db.commit()
     await db.refresh(primary_contract)
 
+    # Notify the artist there's a new contract awaiting their signature.
+    # Best-effort: a notification/push failure must never break contract creation.
+    try:
+        import json as _json
+
+        from app.models.artist_notification import ArtistNotification, ArtistNotificationType
+        from app.services.push import send_artist_push
+
+        db.add(ArtistNotification(
+            artist_id=contract_data.artist_id,
+            notification_type=ArtistNotificationType.CONTRACT_TO_SIGN.value,
+            title="Nouveau contrat à signer",
+            message="Un nouveau contrat vous attend dans votre espace.",
+            link="/contracts",
+            data=_json.dumps({"contract_id": str(primary_contract.id)}),
+        ))
+        await db.commit()
+        await send_artist_push(
+            db,
+            contract_data.artist_id,
+            "Nouveau contrat à signer",
+            "Un nouveau contrat vous attend dans votre espace.",
+            {"type": "contract_to_sign", "link": "/contracts"},
+        )
+    except Exception:  # noqa: BLE001 — notification is best-effort
+        pass
+
     # Load parties
     query = select(Contract).options(selectinload(Contract.parties)).where(Contract.id == primary_contract.id)
     result = await db.execute(query)
