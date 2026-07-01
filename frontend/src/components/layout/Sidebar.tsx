@@ -244,7 +244,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
               <div className="text-[12.5px] font-semibold text-ink truncate">Label Manager</div>
               <div className="text-[10.5px] text-ink-faint truncate">{user.email}</div>
             </div>
-            <button onClick={() => signOut()} title="Déconnexion" className="p-1 rounded-lg text-ink-faint hover:text-neg hover:bg-neg/10 transition-colors">
+            <button onClick={() => signOut()} title="Déconnexion" aria-label="Déconnexion" className="p-1 rounded-lg text-ink-faint hover:text-neg hover:bg-neg/10 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
               <IconLogout size={15} />
             </button>
           </div>

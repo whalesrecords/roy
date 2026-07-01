@@ -260,7 +260,7 @@ export default function RoyaltiesPage() {
             <div className="flex gap-1 rounded-[10px] border border-line bg-surface p-1">
               {years.slice(0, 3).map((y) => (
                 <button key={y} onClick={() => setSelectedYear(y)}
-                  className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === activeYear ? 'semibold' : 'medium'} ${y === activeYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
+                  className={`px-3 py-1.5 rounded-[7px] text-[12px] font-${y === activeYear ? 'semibold' : 'medium'} min-h-[44px] ${y === activeYear ? 'bg-ink text-app' : 'text-ink-muted hover:text-ink'}`}>
                   {y}
                 </button>
               ))}
