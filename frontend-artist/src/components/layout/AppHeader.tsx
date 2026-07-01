@@ -102,9 +102,10 @@ export default function AppHeader() {
           <div className="flex items-center gap-2">
             <Link
               href={backHref}
-              className="flex items-center justify-center w-[34px] h-[34px] rounded-[11px] border border-line bg-surface text-ink hover:bg-surface-2 transition-colors"
+              className="flex items-center justify-center w-[34px] h-[34px] rounded-[11px] border border-line bg-surface text-ink hover:bg-surface-2 transition-colors min-h-[44px] min-w-[44px]"
+              aria-label="Retour"
             >
-              <svg className="w-[17px] h-[17px]" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+              <svg className="w-[17px] h-[17px]" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
               </svg>
             </Link>
@@ -117,7 +118,7 @@ export default function AppHeader() {
           <NotificationBell />
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl hover:bg-surface-2 transition-colors"
+            className="p-2 rounded-xl hover:bg-surface-2 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Changer de thème"
           >
             {theme === 'light'
@@ -126,8 +127,8 @@ export default function AppHeader() {
             }
           </button>
           {isMainPage && (
-            <Link href="/settings" className="p-2 rounded-xl hover:bg-surface-2 transition-colors">
-              <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <Link href="/settings" className="p-2 rounded-xl hover:bg-surface-2 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label={t('settings.title')}>
+              <svg className="w-4 h-4 text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </Link>

@@ -117,13 +117,17 @@ export default function NotificationBell() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-ink hover:bg-surface-2 rounded-full transition-colors"
+        className="relative p-2 text-ink hover:bg-surface-2 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
         <svg
           className="w-6 h-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
