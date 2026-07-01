@@ -14,6 +14,7 @@ import {
   updateAsset,
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { IconPlus, IconImport, IconChart } from '@/components/roy/icons';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -75,6 +76,7 @@ export default function AssetsTab() {
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -154,7 +156,7 @@ export default function AssetsTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer cette immobilisation ?')) return;
+    if (!(await confirm({ title: 'Supprimer cette immobilisation ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeleting(id);
     try {
       await deleteAsset(id);
@@ -665,6 +667,8 @@ export default function AssetsTab() {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }
