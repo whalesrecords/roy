@@ -22,6 +22,7 @@ class ArtistNotificationType(str, Enum):
     TICKET_RESPONSE = "ticket_response"  # Admin responded to ticket
     NEW_RELEASE = "new_release"  # New release added to catalog
     PROMO_UPDATE = "promo_update"  # Promo campaign update
+    CONTRACT_TO_SIGN = "contract_to_sign"  # A new contract awaits the artist's signature
 
 
 class ArtistNotification(Base):

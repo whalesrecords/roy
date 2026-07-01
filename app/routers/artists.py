@@ -1660,6 +1660,16 @@ async def create_payment(
 
     await db.commit()
 
+    # Also push the "payment received" alert to the artist's devices (best-effort).
+    from app.services.push import send_artist_push
+    await send_artist_push(
+        db,
+        artist_id,
+        "Paiement reçu",
+        f"Un paiement de {data.amount} {data.currency} a été effectué.",
+        {"type": "payment_received", "link": notification.link},
+    )
+
     return AdvanceLedgerEntryResponse(
         id=entry.id,
         artist_id=entry.artist_id,
