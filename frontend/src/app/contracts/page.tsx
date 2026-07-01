@@ -786,7 +786,7 @@ export default function ContractsPage() {
             <select
               value={artistFilter}
               onChange={(e) => setArtistFilter(e.target.value)}
-              className="h-[38px] px-3.5 rounded-[10px] border border-line-strong bg-surface text-[12px] font-semibold text-ink focus:outline-none focus:border-accent transition-colors min-w-[170px]"
+              className="h-[38px] px-3.5 rounded-[10px] border border-line-strong bg-surface text-[12px] font-semibold text-ink focus:outline-none focus:border-accent transition-colors min-w-[170px] min-h-[44px]"
             >
               <option value="">Tous les artistes</option>
               {contractArtists.map((artist) => (

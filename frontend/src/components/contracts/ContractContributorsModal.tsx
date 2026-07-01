@@ -157,7 +157,7 @@ export function ContractContributorsModal({
                           inputMode="decimal"
                           className="w-16 bg-surface-2 border border-line rounded-[8px] px-2 py-1.5 text-[13px] text-ink text-center roy-num"
                         />
-                        <button onClick={() => removeRow(r.key)} title="Retirer" className="text-neg px-1.5 font-bold">✕</button>
+                        <button onClick={() => removeRow(r.key)} title="Retirer" aria-label="Retirer ce contributeur" className="text-neg px-1.5 font-bold min-h-[44px] min-w-[44px]">✕</button>
                       </div>
                     ))}
                   </div>
