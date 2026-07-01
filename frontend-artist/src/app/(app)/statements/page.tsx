@@ -231,25 +231,27 @@ export default function StatementsPage() {
           {/* Desktop table */}
           {filtered.length > 0 && (
             <Card padded={false} className="hidden lg:block overflow-hidden rounded-[18px]">
-              <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr_120px] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
-                <span>Période</span><span className="text-right">Brut</span><span className="text-right">Net</span><span className="text-center">Statut</span><span className="text-right">Détail</span>
-              </div>
-              {filtered.map((s) => (
-                <div key={s.id} className="border-b border-line last:border-0">
-                  <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr_120px] items-center px-6 py-4 hover:bg-surface-2 transition-colors">
-                    <div><div className="text-[14px] font-semibold text-ink">{s.period_label}</div><div className="text-[11.5px] text-ink-faint mt-0.5">{periodRange(s)}</div></div>
-                    <span className="text-right roy-num text-[13.5px] text-ink-muted">{fmtMoney(s.gross_revenue, s.currency)}</span>
-                    <span className="text-right roy-num text-[13.5px] font-bold text-ink">{fmtMoney(s.net_payable, s.currency)}</span>
-                    <span className="flex justify-center">{statusPill(s.status)}</span>
-                    <span className="flex justify-end">
-                      <button onClick={() => toggleExpand(s.id)} className="flex items-center gap-1.5 rounded-[9px] border border-line-strong bg-surface px-3 py-1.5 text-[11.5px] font-semibold text-ink hover:bg-surface-2 transition-colors">
-                        <IconChevronRight size={13} className={`transition-transform ${expandedId === s.id ? 'rotate-90' : ''}`} /> Détail
-                      </button>
-                    </span>
-                  </div>
-                  {expandedId === s.id && <div className="px-6 py-5 bg-surface-2/40 border-t border-line"><Detail s={s} /></div>}
+              <div role="table" aria-label={`Relevés ${year}`}>
+                <div role="row" className="grid grid-cols-[1.6fr_1fr_1fr_1fr_120px] px-6 py-3 border-b border-line roy-eyebrow text-[10px]">
+                  <span role="columnheader">Période</span><span role="columnheader" className="text-right">Brut</span><span role="columnheader" className="text-right">Net</span><span role="columnheader" className="text-center">Statut</span><span role="columnheader" className="text-right">Détail</span>
                 </div>
-              ))}
+                {filtered.map((s) => (
+                  <div key={s.id} role="presentation" className="border-b border-line last:border-0">
+                    <div role="row" className="grid grid-cols-[1.6fr_1fr_1fr_1fr_120px] items-center px-6 py-4 hover:bg-surface-2 transition-colors">
+                      <div role="cell"><div className="text-[14px] font-semibold text-ink">{s.period_label}</div><div className="text-[11.5px] text-ink-faint mt-0.5">{periodRange(s)}</div></div>
+                      <span role="cell" className="text-right roy-num text-[13.5px] text-ink-muted">{fmtMoney(s.gross_revenue, s.currency)}</span>
+                      <span role="cell" className="text-right roy-num text-[13.5px] font-bold text-ink">{fmtMoney(s.net_payable, s.currency)}</span>
+                      <span role="cell" className="flex justify-center">{statusPill(s.status)}</span>
+                      <span role="cell" className="flex justify-end">
+                        <button onClick={() => toggleExpand(s.id)} className="flex items-center gap-1.5 rounded-[9px] border border-line-strong bg-surface px-3 py-1.5 text-[11.5px] font-semibold text-ink hover:bg-surface-2 transition-colors">
+                          <IconChevronRight size={13} className={`transition-transform ${expandedId === s.id ? 'rotate-90' : ''}`} /> Détail
+                        </button>
+                      </span>
+                    </div>
+                    {expandedId === s.id && <div role="row"><div role="cell" className="px-6 py-5 bg-surface-2/40 border-t border-line"><Detail s={s} /></div></div>}
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
