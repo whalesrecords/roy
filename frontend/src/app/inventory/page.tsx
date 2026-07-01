@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Kpi, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconPlus, IconImport } from '@/components/roy/icons';
+import { useConfirm } from '@/components/roy/useConfirm';
 import AssetsTab from './AssetsTab';
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -113,6 +114,7 @@ export default function InventoryPage() {
   const [csvSource, setCsvSource] = useState<'bandcamp' | 'squarespace'>('bandcamp');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvImporting, setCsvImporting] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -196,7 +198,7 @@ export default function InventoryPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce produit ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce produit ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     setDeleting(id);
     try {
       await deleteProduct(id);
@@ -1121,6 +1123,8 @@ export default function InventoryPage() {
         </>
         )}
       </div>
+
+      {confirmDialog}
     </div>
   );
 }

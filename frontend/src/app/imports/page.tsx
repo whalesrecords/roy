@@ -10,6 +10,7 @@ import { ImportRecord } from '@/lib/types';
 import { getImports, deleteImport, getImportSaleTypes, ImportSaleTypesResponse } from '@/lib/api';
 import { Card, Eyebrow, Pill, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconImport } from '@/components/roy/icons';
+import { useConfirm } from '@/components/roy/useConfirm';
 
 // Source labels mapping
 const sourceLabels: Record<string, string> = {
@@ -35,6 +36,7 @@ export default function ImportsPage() {
   const [deleting, setDeleting] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [expandedYears, setExpandedYears] = useState<Set<string>>(new Set());
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     loadImports();
@@ -146,7 +148,7 @@ export default function ImportsPage() {
   };
 
   const handleDelete = async (importId: string) => {
-    if (!confirm('Supprimer cet import et toutes ses transactions ?')) return;
+    if (!(await confirm({ title: 'Supprimer cet import ?', message: 'Cet import et toutes ses transactions seront supprimés. Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
 
     setDeleting(true);
     try {
@@ -414,6 +416,8 @@ export default function ImportsPage() {
           </div>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

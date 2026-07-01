@@ -23,6 +23,7 @@ import {
 } from '@/lib/api';
 import { Card, Eyebrow, Pill, Avatar, AccentButton, OutlineButton } from '@/components/roy/ui';
 import { IconPlus } from '@/components/roy/icons';
+import { useConfirm } from '@/components/roy/useConfirm';
 import { ContractContributorsModal } from '@/components/contracts/ContractContributorsModal';
 
 interface ScopeInfo {
@@ -66,6 +67,7 @@ export default function ContractsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [contributorsContract, setContributorsContract] = useState<ContractData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Form state
   const [artistId, setArtistId] = useState('');
@@ -451,7 +453,7 @@ export default function ContractsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Supprimer ce contrat ?')) return;
+    if (!(await confirm({ title: 'Supprimer ce contrat ?', message: 'Cette action est irréversible.', danger: true, confirmLabel: 'Supprimer' }))) return;
     try {
       await deleteContract(id);
       loadData();
@@ -708,7 +710,11 @@ export default function ContractsPage() {
       return;
     }
 
-    if (!confirm(`Synchroniser les dates de debut de ${releaseContracts.length} contrat(s) avec les dates de release des albums ?`)) {
+    if (!(await confirm({
+      title: 'Synchroniser les dates de début',
+      message: `Mettre à jour la date de début de ${releaseContracts.length} contrat(s) avec la date de sortie des albums ?`,
+      confirmLabel: 'Synchroniser',
+    }))) {
       return;
     }
 
@@ -1457,6 +1463,8 @@ export default function ContractsPage() {
           onClose={() => setContributorsContract(null)}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }
