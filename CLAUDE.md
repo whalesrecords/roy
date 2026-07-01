@@ -14,10 +14,17 @@ L'**app admin = l'outil des labels** (chaque label ne voit QUE ses données ; Wh
 L'**app artiste = espace de l'artiste** (revenus, relevés, contrats à signer, promo).
 
 ## ⭐ UX / ergonomie — à appliquer par défaut
-Pour **toute** conception ou modification d'interface (web ou mobile), appliquer les
-principes de **`docs/UX_PRINCIPLES.md`** : libellé+champ+placeholder distincts,
-guidage, gestion d'erreur courtoise, cohérence, accessibilité (contrastes), loi de
-Fitts/Hick, wireframe avant design. En cas de doute → clarté et simplicité.
+Pour **toute** conception ou modification d'interface (web ou mobile), agir comme un·e
+spécialiste UX/UI senior (iOS, Android, web) et appliquer par défaut le
+**`docs/UX_GUIDE.md`** (référence maîtresse : standards plateformes 2025-2026 — Apple HIG,
+Material 3, WCAG 2.2 AA, Core Web Vitals — + lois UX validées + engagement éthique +
+dark patterns proscrits). `docs/UX_PRINCIPLES.md` en reste le résumé rapide.
+Points clés : libellé+champ+placeholder distincts, champs obligatoires signalés,
+**validation en temps réel + erreur au niveau du champ**, guidage, gestion d'erreur
+courtoise (jamais de popup native brute), cohérence, cibles ≥44-48 px espacées ≥8 px,
+contrastes ≥4,5:1 (info jamais portée par la couleur seule), feedback système <400 ms,
+`prefers-reduced-motion` respecté, wireframe avant design, auto-audit (checklist §12).
+En cas de doute → clarté, accessibilité et intérêt réel de l'utilisateur.
 
 ## Conventions de déploiement
 - Développer sur la branche de feature ; ne jamais pousser direct sur `main`.
@@ -39,7 +46,10 @@ Fitts/Hick, wireframe avant design. En cas de doute → clarté et simplicité.
 - Plan & avancement : `LABEL_ONBOARDING_PLAN.md`.
 
 ## Docs de référence
-- `docs/UX_PRINCIPLES.md` — principes UX (appliquer par défaut).
+- `docs/UX_GUIDE.md` — **guide UX/UI maître** (senior iOS/Android/web, standards 2025-2026,
+  lois UX, accessibilité WCAG 2.2, éthique, dark patterns) — appliquer par défaut.
+- `docs/UX_PRINCIPLES.md` — résumé rapide des principes UX.
+- `docs/AUDIT_HEURISTIQUE.md` — audit heuristique multi-plateforme (trouvailles + priorités).
 - `LABEL_ONBOARDING_PLAN.md` — inscription des labels + isolation (lots).
 - `REPRISE_DE_ZERO.md` — reprendre le projet depuis un environnement neuf.
 - `DEPLOY.md` / `VERCEL_DEPLOY.md` — recréer l'infra.
