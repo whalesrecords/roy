@@ -238,11 +238,12 @@ async def lifespan(app: FastAPI):
     # Start background tasks
     scanner_task = asyncio.create_task(_weekly_spotify_scanner())
     backfill_task = asyncio.create_task(_backfill_label_ids())
+    alerts_task = asyncio.create_task(_admin_alerts_scanner())
 
     yield
 
     # Cleanup on shutdown
-    for task in (scanner_task, backfill_task):
+    for task in (scanner_task, backfill_task, alerts_task):
         task.cancel()
         try:
             await task
@@ -322,6 +323,31 @@ async def _weekly_spotify_scanner():
                 logger.info(f"Weekly Spotify scanner releases: {summary}")
         except Exception as exc:
             logger.error(f"Weekly Spotify scanner error: {exc}", exc_info=True)
+
+        await asyncio.sleep(INTERVAL_SECONDS)
+
+
+async def _admin_alerts_scanner():
+    """
+    Background task that scans for label-facing conditions needing attention
+    (late sales imports, unpaid statements, high unrecouped advances, high spend)
+    once a day and writes admin notifications + push.
+
+    Waits ~8 minutes after boot, then repeats every 24h. See
+    app/services/admin_alerts.py for the rules and thresholds.
+    """
+    INTERVAL_SECONDS = 24 * 3600  # daily
+    STARTUP_DELAY = 8 * 60        # 8 minutes after boot
+
+    await asyncio.sleep(STARTUP_DELAY)
+
+    while True:
+        try:
+            from app.services.admin_alerts import scan_admin_alerts
+            async with async_session_maker() as db:
+                await scan_admin_alerts(db)
+        except Exception as exc:
+            logger.error(f"Admin alerts scanner error: {exc}", exc_info=True)
 
         await asyncio.sleep(INTERVAL_SECONDS)
 

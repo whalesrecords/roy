@@ -23,6 +23,11 @@ class NotificationType(str, Enum):
     TICKET_CLOSED = "ticket_closed"  # Ticket closed
     # Spotify
     SPOTIFY_SUGGESTIONS = "spotify_suggestions"  # New Spotify track suggestions found
+    # Proactive admin alerts (periodic scan — see services/admin_alerts.py)
+    IMPORTS_STALE = "imports_stale"          # No sales import for a long time
+    STATEMENT_UNPAID = "statement_unpaid"    # Finalized statement unpaid for a long time
+    ADVANCE_UNRECOUPED = "advance_unrecouped"  # High unrecouped advance exposure per artist
+    SPEND_HIGH = "spend_high"                # High spend over a rolling window
 
 
 class Notification(Base):

@@ -616,6 +616,32 @@ async def create_artist_statement(
     db.add(stmt)
     await db.flush()
 
+    # Notify the artist when a statement is finalized (ready to view). The
+    # ArtistNotification commits atomically with the statement via get_db; the
+    # push is best-effort and never blocks the response.
+    if data.finalize:
+        import json as _json
+
+        from app.models.artist_notification import ArtistNotification, ArtistNotificationType
+        from app.services.push import send_artist_push
+
+        _period = f"{data.period_start} – {data.period_end}"
+        db.add(ArtistNotification(
+            artist_id=artist_id,
+            notification_type=ArtistNotificationType.STATEMENT_READY.value,
+            title="Nouveau relevé disponible",
+            message=f"Votre relevé {_period} est disponible.",
+            link="/statements",
+            data=_json.dumps({"statement_id": str(stmt.id), "net_payable": float(data.net_payable)}),
+        ))
+        await send_artist_push(
+            db,
+            artist_id,
+            "Nouveau relevé disponible",
+            f"Votre relevé {_period} est disponible.",
+            {"type": "statement_ready", "link": "/statements"},
+        )
+
     return StatementResponse(
         id=stmt.id,
         artist_id=stmt.artist_id,
