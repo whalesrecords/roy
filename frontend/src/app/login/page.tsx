@@ -56,8 +56,8 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-surface-2 border border-line rounded-[12px] text-neg px-4 py-3 text-[12.5px] flex items-center gap-3">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div role="alert" aria-live="assertive" className="bg-surface-2 border border-line rounded-[12px] text-neg px-4 py-3 text-[12.5px] flex items-center gap-3">
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 {error}
